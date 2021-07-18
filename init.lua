@@ -4,29 +4,36 @@ local DEBUG_BASE = true
 local DEBUG_TANK = true
 local DEBUG_TURRET = false
 
+
+
+
+
+local PIX2M = 1 / 10
+
 require("love")
 love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/empty/?.lua")
-local i18n = require("i18n")
+
+
 
 
 require("common")
+require("keyconfig")
+require("camera")
+require("vector")
+require("Timer")
 
-
-
-
+local camTimer = require("Timer").new()
+local cam
 local gr = love.graphics
 
-local inspect = require("inspect")
 
 
 
 
-
-
-require("vector")
 
 
 local Turret = {}
+
 
 
 
@@ -39,6 +46,7 @@ local Turret_mt = {
 }
 
 local Base = {}
+
 
 
 
@@ -65,12 +73,30 @@ local Tank = {}
 
 
 
+
+
 local Tank_mt = {
    __index = Tank,
 }
 
+local CameraSettings = {}
+
+
+
+
+
+
+local cameraSettings = {
+
+   dx = 2,
+   dy = 2,
+
+   relativedx = 0,
+   relativedy = 0,
+}
+
 local pworld
-local isActive
+
 
 local tanks = {}
 
@@ -78,29 +104,32 @@ local playerTank
 
 function Tank:left()
    if DEBUG_TANK then
-      print("self.pos before", inspect(self.pos))
+      print("Tank:left")
    end
    self.pos.x = self.pos.x - self.movementDelta
    self:updateSubObjectsPos()
-   if DEBUG_TANK then
-      print("self.pos after", inspect(self.pos))
-   end
 end
 
 function Tank:right()
-   print("Tank:right")
+   if DEBUG_TANK then
+      print("Tank:right")
+   end
    self.pos.x = self.pos.x + self.movementDelta
    self:updateSubObjectsPos()
 end
 
 function Tank:up()
-   print("Tank:up")
+   if DEBUG_TANK then
+      print("Tank:up")
+   end
    self.pos.y = self.pos.y - self.movementDelta
    self:updateSubObjectsPos()
 end
 
 function Tank:down()
-   print("Tank:down")
+   if DEBUG_TANK then
+      print("Tank:down")
+   end
    self.pos.y = self.pos.y + self.movementDelta
    self:updateSubObjectsPos()
 end
@@ -110,9 +139,14 @@ function Tank.new(pos)
       print('Start of Tank creating..')
    end
    local self = setmetatable({}, Tank_mt)
-   self.turret = Turret.new(pos)
-   self.base = Base.new(pos)
+   local x, y = pos.x, pos.y
+
+   self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
+   self.pbody:setUserData(self)
+
    self.pos = shallowCopy(pos)
+   self.turret = Turret.new(pos, self.pbody)
+   self.base = Base.new(pos, self.pbody)
    self.movementDelta = 1.
    if DEBUG_TANK then
       print('self.turret', self.turret)
@@ -122,13 +156,19 @@ function Tank.new(pos)
    return self
 end
 
-function Turret.new(pos)
+function Turret.new(pos, pbody)
    if DEBUG_TURRET then
       print("Start of Turret creating..")
    end
    local self = setmetatable({}, Turret_mt)
    self.pos = shallowCopy(pos)
    self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
+   self.pbody = pbody;
+
+   local w, h = (self.img):getDimensions()
+   local shape = love.physics.newRectangleShape(w, h)
+   love.physics.newFixture(self.pbody, shape)
+
    if DEBUG_TURRET then
       print("self.pos", self.pos)
       print("self.img", self.img)
@@ -171,13 +211,14 @@ function Base:present()
 
 end
 
-function Base.new(pos)
+function Base.new(pos, pbody)
    if DEBUG_BASE then
       print("Base.new()")
    end
    local self = setmetatable({}, Base_mt)
    self.pos = shallowCopy(pos)
    self.img = love.graphics.newImage(SCENE_PREFIX .. "/korpus1.png")
+   self.pbody = pbody
    if DEBUG_BASE then
       print("self.pos", self.pos)
       print("self.img", self.img)
@@ -229,17 +270,82 @@ end
 local function drawui()
 end
 
+local W, H = love.graphics.getDimensions()
+local tlx, tly, brx, bry = 0., 0., W, H
+
+local function bindCameraControl()
+
+
+
+
+   local Shortcut = KeyConfig.Shortcut
+   local cameraAnimationDuration = 0.4
+
+   local function makeMoveFunction(xc, yc)
+      return function(sc)
+         local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
+         cameraSettings.relativedx, cameraSettings.relativedy = reldx, reldy
+
+         camTimer:during(cameraAnimationDuration, function(_, time, delay)
+
+            cam:move(-reldx * (delay - time) * xc, -reldy * (delay - time) * yc)
+         end)
+         return true, sc
+      end
+   end
+
+   KeyConfig.bind("isdown", { key = "a" }, makeMoveFunction(1., 0), "move left", "camleft")
+   KeyConfig.bind("isdown", { key = "d" }, makeMoveFunction(-1.0, 0.), "move right", "camright")
+   KeyConfig.bind("isdown", { key = "w" }, makeMoveFunction(0., 1.), "move up", "camup")
+   KeyConfig.bind("isdown", { key = "s" }, makeMoveFunction(0., -1.), "move down", "camdown")
+end
+
 local function draw()
+
+   cam:attach()
 
    gr.clear(0.2, 0.2, 0.2)
 
    drawTanks()
 
+   tlx, tly = cam:worldCoords(tlx, tly)
+   brx, bry = cam:worldCoords(brx, bry)
 
+   local space = 20
+   gr.setColor({ 0., 1., 0. })
+   gr.rectangle("line", space, space, W - space * 2, H - space * 2)
+
+   local oldwidth = gr.getLineWidth()
+   local lwidth = 3
+   gr.setLineWidth(lwidth)
+
+   gr.setColor({ 0., 0., 1. })
+   gr.rectangle("line", tlx, tly, brx - tlx, bry - tly)
+   gr.setLineWidth(oldwidth)
+
+
+   cam:detach()
+end
+
+local function onQueryBoundingBox(_)
+
+
+
+
+
+
+
+   return true
 end
 
 local function update(dt)
    playerTankUpdate()
+   camTimer:update(dt)
+   pworld:queryBoundingBox(
+   tlx * PIX2M, tly * PIX2M,
+   brx * PIX2M, bry * PIX2M,
+   onQueryBoundingBox)
+
    pworld:update(dt)
 end
 
@@ -280,8 +386,35 @@ local function init()
 
 
 
+   local Shortcut = KeyConfig.Shortcut
+   local zoomSpeed = 0.01
+   KeyConfig.bind(
+   "isdown",
+   { key = "z" },
+   function(sc)
+
+      cam:zoom(1. + zoomSpeed)
+      return false, sc
+   end,
+   "zoom camera in",
+   "zoomin")
+
+   KeyConfig.bind(
+   "isdown",
+   { key = "x" },
+   function(sc)
+
+      cam:zoom(1.0 - zoomSpeed)
+      return false, sc
+   end,
+   "zoom camera in",
+   "zoomin")
+
+
    local canSleep = true
    pworld = love.physics.newWorld(0., 0., canSleep)
+   cam = require('camera').new()
+   bindCameraControl()
 end
 
 local function quit()

@@ -4,33 +4,40 @@ local DEBUG_BASE = true
 local DEBUG_TANK = true
 local DEBUG_TURRET = false
 
+-- Танк длиной пять метров имеет отображаемый размер 50 пикселей
+-- коэффициент на который домножаю при переводе из метров в пиксели
+--local M2PIX = 10
+-- коэффициент на который домножаю при переводе из пикселей в метры
+local PIX2M = 1 / 10
+
 require "love"
 love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/empty/?.lua")
-local i18n = require "i18n"
-
+--local i18n = require "i18n"
 --require "external"
-require "common"
-
 --package.path = package.path .. ";scenes/automato/?.lua"
 
---local cam = require "camera".new()
+require "common"
+require "keyconfig"
+require "camera"
+require "vector"
+require "Timer"
+
+local camTimer: Timer = require "Timer".new()
+local cam: Camera
 local gr = love.graphics
+--local inspect = require "inspect"
 --local imgui = require "imgui"
-local inspect = require "inspect"
 --local keyconfig = require "keyconfig"
---local mtschemes = require "mtschemes"
---local next = next
---local sim = require "simulator"
 --local timer = require "Timer"
 
-require "vector"
 --local vec2 = require "vector"
 
 local record Turret
+    pbody: love.physics.Body
     img: love.graphics.Image
     pos: vector -- центр поворота башни
 
-    new: function(pos: vector): Turret
+    new: function(pos: vector, pbody: love.physics.Body): Turret
     present: function()
 end
 
@@ -39,10 +46,11 @@ local Turret_mt: metatable<Turret> = {
 }
 
 local record Base
+    pbody: love.physics.Body
     img: love.graphics.Image
     pos: vector -- центр поворота корпуса
 
-    new: function(pos: vector): Base
+    new: function(pos: vector, pbody: love.physics.Body): Base
     present: function()
 end
 
@@ -51,6 +59,8 @@ local Base_mt: metatable<Base> = {
 }
 
 local record Tank
+    pbody: love.physics.Body
+
     turret: Turret
     base: Base
     -- Центр поворота корпуса. Пока совпадает с центром поворота башни.
@@ -69,8 +79,24 @@ local Tank_mt: metatable<Tank> = {
     __index = Tank,
 }
 
+local type CameraSettings = record
+    dx: number
+    dy: number
+    relativedx: number
+    relativedy: number
+end
+
+local cameraSettings: CameraSettings = {
+    -- знавение в пикселях
+    dx = 2,
+    dy = 2,
+    -- значение в пикселях сглаженное относительно значения scale камеры
+    relativedx = 0,
+    relativedy = 0,
+}
+
 local pworld: love.physics.World
-local isActive: boolean
+--local isActive: boolean
 -- Все танки, в том числе и тот, которым управляет игрок.
 local tanks: {Tank} = {}
 -- Танк, которым управляет игрок
@@ -78,29 +104,32 @@ local playerTank: Tank
 
 function Tank:left()
     if DEBUG_TANK then
-        print("self.pos before", inspect(self.pos))
+        print("Tank:left")
     end
     self.pos.x = self.pos.x - self.movementDelta
     self:updateSubObjectsPos()
-    if DEBUG_TANK then
-        print("self.pos after", inspect(self.pos))
-    end
 end
 
 function Tank:right()
-    print("Tank:right")
+    if DEBUG_TANK then
+        print("Tank:right")
+    end
     self.pos.x = self.pos.x + self.movementDelta
     self:updateSubObjectsPos()
 end
 
 function Tank:up()
-    print("Tank:up")
+    if DEBUG_TANK then
+        print("Tank:up")
+    end
     self.pos.y = self.pos.y - self.movementDelta
     self:updateSubObjectsPos()
 end
 
 function Tank:down()
-    print("Tank:down")
+    if DEBUG_TANK then
+        print("Tank:down")
+    end
     self.pos.y = self.pos.y + self.movementDelta
     self:updateSubObjectsPos()
 end
@@ -110,9 +139,14 @@ function Tank.new(pos: vector): Tank
         print('Start of Tank creating..')
     end
     local self: Tank = setmetatable({} as Tank, Tank_mt)
-    self.turret = Turret.new(pos)
-    self.base = Base.new(pos)
+    local x, y = pos.x, pos.y
+
+    self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
+    self.pbody:setUserData(self)
+
     self.pos = shallowCopy(pos)
+    self.turret = Turret.new(pos, self.pbody)
+    self.base = Base.new(pos, self.pbody)
     self.movementDelta = 1.
     if DEBUG_TANK then
         print('self.turret', self.turret)
@@ -122,13 +156,19 @@ function Tank.new(pos: vector): Tank
     return self
 end
 
-function Turret.new(pos: vector): Turret
+function Turret.new(pos: vector, pbody: love.physics.Body): Turret
     if DEBUG_TURRET then
         print("Start of Turret creating..")
     end
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.pos = shallowCopy(pos)
     self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
+    self.pbody = pbody;
+
+    local w, h = (self.img as love.graphics.Texture):getDimensions()
+    local shape = love.physics.newRectangleShape(w, h)
+    love.physics.newFixture(self.pbody, shape as love.physics.Shape)
+
     if DEBUG_TURRET then
         print("self.pos", self.pos)
         print("self.img", self.img)
@@ -171,13 +211,14 @@ function Base:present()
     )
 end
 
-function Base.new(pos: vector): Base
+function Base.new(pos: vector, pbody: love.physics.Body): Base
     if DEBUG_BASE then
         print("Base.new()")
     end
     local self: Base = setmetatable({} as Base, Base_mt)
     self.pos = shallowCopy(pos)
     self.img = love.graphics.newImage(SCENE_PREFIX .. "/korpus1.png")
+    self.pbody = pbody
     if DEBUG_BASE then
         print("self.pos", self.pos)
         print("self.img", self.img)
@@ -229,17 +270,82 @@ end
 local function drawui()
 end
 
+local W, H = love.graphics.getDimensions()
+local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
+
+local function bindCameraControl()
+    -- не прямой а квадратичный зум?
+    --local zoomStartTime = 0
+    --local zoomDirection = 0 -- -1 or 1
+    --local zoomFactor = 0.001
+    local Shortcut = KeyConfig.Shortcut
+    local cameraAnimationDuration = 0.4
+
+    local function makeMoveFunction(xc: number, yc: number): function(sc: Shortcut): boolean, Shortcut
+        return function(sc: Shortcut): boolean, Shortcut
+            local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
+            cameraSettings.relativedx, cameraSettings.relativedy = reldx, reldy
+            -- когда идет нажатие повлиять на цвет части текста
+            camTimer:during(cameraAnimationDuration, function(_: number, time: number, delay: number)
+                --print("dt, timer, delay", dt, time, delay)
+                cam:move(-reldx * (delay - time) * xc, -reldy * (delay - time) * yc)
+            end)
+            return true, sc
+        end
+    end
+
+    KeyConfig.bind( "isdown", { key = "a" }, makeMoveFunction(1., 0), "move left", "camleft")
+    KeyConfig.bind( "isdown", { key = "d" }, makeMoveFunction(-1.0, 0.), "move right", "camright") 
+    KeyConfig.bind( "isdown", { key = "w" }, makeMoveFunction(0., 1.), "move up", "camup") 
+    KeyConfig.bind( "isdown", { key = "s" }, makeMoveFunction(0., -1.), "move down", "camdown")
+end
+
 local function draw()
     --gr.clear(1., 1., 1., 1.)
+    cam:attach()
+
     gr.clear(0.2, 0.2, 0.2)
 
     drawTanks()
 
+    tlx, tly = cam:worldCoords(tlx, tly)
+    brx, bry = cam:worldCoords(brx, bry)
+
+    local space = 20
+    gr.setColor{0., 1., 0.}
+    gr.rectangle("line", space, space, W - space * 2, H - space * 2)
+
+    local oldwidth = gr.getLineWidth()
+    local lwidth = 3
+    gr.setLineWidth(lwidth)
+    --gr.setColor{0.5, 1., 0.}
+    gr.setColor{0., 0., 1.}
+    gr.rectangle("line", tlx, tly, brx - tlx, bry - tly)
+    gr.setLineWidth(oldwidth)
+
     --gr.print("TestTest")
+    cam:detach()
+end
+
+local function onQueryBoundingBox(_: love.physics.Fixture): boolean
+    --local body = fixture:getBody()
+    --local selfPtr = body:getUserData()
+    -- проверка на существование связанного объекта, проверка на наличие метода отрисовки через запрос, отрисовка.
+    --if selfPtr and selfPtr.queryDraw then 
+    --bodiesCount = bodiesCount + 1
+    --selfPtr:queryDraw(fixture) 
+    --end
+    return true
 end
 
 local function update(dt: number)
     playerTankUpdate()
+    camTimer:update(dt)
+    pworld:queryBoundingBox(
+        tlx * PIX2M, tly * PIX2M, 
+        brx * PIX2M, bry * PIX2M, 
+        onQueryBoundingBox
+    )
     pworld:update(dt)
 end
 
@@ -279,9 +385,36 @@ local function init()
     print("translated", i18n.translate('welcome'))
     print("translated", i18n('welcome'))
     --]]
+
+    local Shortcut = KeyConfig.Shortcut
+    local zoomSpeed = 0.01
+    KeyConfig.bind(
+        "isdown",
+        { key = "z" },
+        function(sc: Shortcut): boolean, Shortcut
+            --updateMouseToCamera()
+            cam:zoom(1. + zoomSpeed)
+            return false, sc
+        end,
+        "zoom camera in",
+        "zoomin"
+    )
+    KeyConfig.bind(
+        "isdown",
+        { key = "x" },
+        function(sc: Shortcut): boolean, Shortcut
+            --updateMouseToCamera()
+            cam:zoom(1.0 - zoomSpeed)
+            return false, sc
+        end,
+        "zoom camera in",
+        "zoomin"
+    )
     
     local canSleep = true
     pworld = love.physics.newWorld(0., 0., canSleep)
+    cam = require 'camera'.new()
+    bindCameraControl()
 end
 
 local function quit()
@@ -311,5 +444,3 @@ return {
     --mousemoved = mousemoved,
     --wheelmoved = wheelmoved
 }
-
-
