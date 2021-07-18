@@ -69,6 +69,9 @@ local Tank_mt = {
    __index = Tank,
 }
 
+local pworld
+local isActive
+
 local tanks = {}
 
 local playerTank
@@ -138,7 +141,7 @@ function Tank:updateSubObjectsPos()
    self.turret.pos.y = self.pos.y
 
    self.base.pos.x = self.pos.x
-   self.base.pos.x = self.pos.y
+   self.base.pos.y = self.pos.y
 end
 
 function Turret:present()
@@ -235,8 +238,9 @@ local function draw()
 
 end
 
-local function update()
+local function update(dt)
    playerTankUpdate()
+   pworld:update(dt)
 end
 
 local function keypressed(key)
@@ -260,20 +264,24 @@ local function spawn(pos)
 end
 
 local function init()
-   i18n.set('en.welcome', 'welcome to this program')
-   i18n.load({
-      en = {
-         good_bye = "good-bye!",
-         age_msg = "your age is %{age}.",
-         phone_msg = {
-            one = "you have one new message.",
-            other = "you have %{count} new messages.",
-         },
-      },
-   })
-   print("translated", i18n.translate('welcome'))
-   print("translated", i18n('welcome'))
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   local canSleep = true
+   pworld = love.physics.newWorld(0., 0., canSleep)
 end
 
 local function quit()

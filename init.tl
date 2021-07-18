@@ -69,6 +69,9 @@ local Tank_mt: metatable<Tank> = {
     __index = Tank,
 }
 
+local pworld: love.physics.World
+local isActive: boolean
+-- Все танки, в том числе и тот, которым управляет игрок.
 local tanks: {Tank} = {}
 -- Танк, которым управляет игрок
 local playerTank: Tank
@@ -138,7 +141,7 @@ function Tank:updateSubObjectsPos()
     self.turret.pos.y = self.pos.y
 
     self.base.pos.x = self.pos.x
-    self.base.pos.x = self.pos.y
+    self.base.pos.y = self.pos.y
 end
 
 function Turret:present()
@@ -235,8 +238,9 @@ local function draw()
     --gr.print("TestTest")
 end
 
-local function update()
+local function update(dt: number)
     playerTankUpdate()
+    pworld:update(dt)
 end
 
 local function keypressed(key: string)
@@ -260,6 +264,7 @@ local function spawn(pos: vector): Tank
 end
 
 local function init()
+    --[[
     i18n.set('en.welcome', 'welcome to this program')
     i18n.load({
         en = {
@@ -273,7 +278,10 @@ local function init()
     })
     print("translated", i18n.translate('welcome'))
     print("translated", i18n('welcome'))
+    --]]
     
+    local canSleep = true
+    pworld = love.physics.newWorld(0., 0., canSleep)
 end
 
 local function quit()
