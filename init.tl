@@ -2,13 +2,19 @@ global SCENE_PREFIX = "scenes/pink1"
 
 local DEBUG_BASE = true
 local DEBUG_TANK = true
-local DEBUG_TURRET = false
+local DEBUG_TANK_MOVEMENT = false
+local DEBUG_TURRET = true
+
+local W, H = love.graphics.getDimensions()
+local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
+
 
 -- Танк длиной пять метров имеет отображаемый размер 50 пикселей
 -- коэффициент на который домножаю при переводе из метров в пиксели
 --local M2PIX = 10
 -- коэффициент на который домножаю при переводе из пикселей в метры
-local PIX2M = 1 / 10
+--local PIX2M = 1 / 10
+local PIX2M = 1
 
 require "love"
 love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/empty/?.lua")
@@ -87,23 +93,22 @@ local type CameraSettings = record
 end
 
 local cameraSettings: CameraSettings = {
-    -- знавение в пикселях
-    dx = 2,
-    dy = 2,
-    -- значение в пикселях сглаженное относительно значения scale камеры
-    relativedx = 0,
-    relativedy = 0,
+    -- значение в пикселях
+    dx = 2, dy = 2,
+    -- значение в пикселях сглаженное относительно значения масштаба камеры
+    relativedx = 0, relativedy = 0,
 }
 
 local pworld: love.physics.World
 --local isActive: boolean
+
 -- Все танки, в том числе и тот, которым управляет игрок.
 local tanks: {Tank} = {}
 -- Танк, которым управляет игрок
 local playerTank: Tank
 
 function Tank:left()
-    if DEBUG_TANK then
+    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:left")
     end
     self.pos.x = self.pos.x - self.movementDelta
@@ -111,7 +116,7 @@ function Tank:left()
 end
 
 function Tank:right()
-    if DEBUG_TANK then
+    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:right")
     end
     self.pos.x = self.pos.x + self.movementDelta
@@ -119,7 +124,7 @@ function Tank:right()
 end
 
 function Tank:up()
-    if DEBUG_TANK then
+    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:up")
     end
     self.pos.y = self.pos.y - self.movementDelta
@@ -127,7 +132,7 @@ function Tank:up()
 end
 
 function Tank:down()
-    if DEBUG_TANK then
+    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:down")
     end
     self.pos.y = self.pos.y + self.movementDelta
@@ -148,10 +153,11 @@ function Tank.new(pos: vector): Tank
     self.turret = Turret.new(pos, self.pbody)
     self.base = Base.new(pos, self.pbody)
     self.movementDelta = 1.
+
     if DEBUG_TANK then
         print('self.turret', self.turret)
         print('self.base', self.base)
-        print('End of Tank creaating.')
+        print('End of Tank creating.')
     end
     return self
 end
@@ -166,8 +172,16 @@ function Turret.new(pos: vector, pbody: love.physics.Body): Turret
     self.pbody = pbody;
 
     local w, h = (self.img as love.graphics.Texture):getDimensions()
-    local shape = love.physics.newRectangleShape(w, h)
+
+    --local shape = love.physics.newRectangleShape(w, h)
+    local r = w / 2
+    local shape = love.physics.newCircleShape(pos.x, pos.y, r)
+    --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
     love.physics.newFixture(self.pbody, shape as love.physics.Shape)
+    if DEBUG_TURRET then
+        --print("rectangle shape created w, h", w, h)
+        print("circle shape created x, y, r", pos.x, pos.y, r)
+    end
 
     if DEBUG_TURRET then
         print("self.pos", self.pos)
@@ -239,6 +253,112 @@ local function drawTestCircle()
 end
 --]]
 
+local function onBeginContact(
+    _: love.physics.Fixture, 
+    _: love.physics.Fixture, 
+    _: love.physics.Contact
+)
+  --[[
+  Добавить здесь преобразование координат из локальных в глобальные. Заполнять списки на отрисовку контактов. Сделать несколько списков отрисовки. Рисуется только
+  то, что попадает в экран камеры. Посмотри+++ на встроенные функции отсечения в движке. Те списки постоянно сбрасывать в nil? Почему-бы и нет, хотя течет динамическая
+  память. Зато структуры динамично работают, видно дейсвие, экшен.
+  ]]
+
+  --[[
+  local shape = fixture:getShape()
+  local rad = shape:getRadius()
+  local body = fixture:getBody()
+  local x, y = body:getWorldCenter()
+  x, y = x * M2PIX, y * M2PIX
+
+  lg.setColor(self.color)
+  lg.circle("fill", x, y, shape:getRadius() * M2PIX)
+  ]]
+
+--  print(string.format("onBeginContact() fixture1 = %s fixture2 = %s contact = %s", inspect(fixture1), inspect(fixture2), inspect(contact)))
+  --[[
+  if drawContactPoints then
+    local x1, y1, x2, y2 = contact:getPositions()
+    local body1 = fixture1:getBody()
+    local body2 = fixture2 and fixture2:getBody() or nil  
+    if x1 and y1 then
+--    x1, y1 = Snake.cam:worldCoords(x1, y1)
+      -- отправляю контакты на отрисовку
+      push2drawlist(function()
+          lg.setColor(CONTACT_BEGIN_DRAW_COLOR)
+          lg.circle("fill", x1 * M2PIX, y1 * M2PIX, 10)
+        end)
+    end
+    if x2 and y2 then    
+      x2, y2 = Snake.cam:worldCoords(x2, y2)
+      -- отправляю контакты на отрисовку
+      push2drawlist(function()
+          lg.setColor(CONTACT_BEGIN_DRAW_COLOR)
+          lg.circle("fill", x2 * M2PIX, y2 * M2PIX, 10)
+        end)
+    end
+  end
+  --]]
+end
+
+--[[
+local function onEndContact(fixture1, fixture2, contact)
+  if drawContactPoints then
+    local x1, y1, x2, y2 = contact:getPositions()
+    local body1 = fixture1:getBody()
+    local body2 = fixture2 and fixture2:getBody() or nil  
+    if x1 and y1 then
+--    x1, y1 = Snake.cam:worldCoords(x1, y1)
+      -- отправляю контакты на отрисовку
+      push2drawlist(function()
+--          linesbuf:pushi("x1 = %f, y1 = %f", x1, y1)
+          print("ook")
+          lg.setColor(CONTACT_END_DRAW_COLOR)
+          lg.circle("fill", x1 * M2PIX, y1 * M2PIX, 10)
+        end)
+    end
+    if x2 and y2 then    
+      x2, y2 = Snake.cam:worldCoords(x2, y2)
+      -- отправляю контакты на отрисовку
+      push2drawlist(function()
+          lg.setColor(CONTACT_END_DRAW_COLOR)
+          lg.circle("fill", x2 * M2PIX, y2 * M2PIX, 10)
+        end)
+    end
+  end
+end
+--]]
+
+local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
+    --print("onQueryBoundingBox")
+    local body = fixture:getBody()
+    local selfPtr: Tank = body:getUserData() as Tank
+    --проверка на существование связанного объекта, проверка на наличие метода отрисовки через запрос, отрисовка.
+    if selfPtr then
+        --print("selfPtr")
+        if selfPtr.turret then 
+            print("turret.present");
+            selfPtr.turret:present()
+        end
+        if selfPtr.base then
+            print("base.present");
+            selfPtr.base:present()
+        end
+        --bodiesCount = bodiesCount + 1
+        --selfPtr:queryDraw(fixture) 
+    end
+    return true
+end
+
+local function queryBox()
+    pworld:queryBoundingBox(
+        tlx * PIX2M, tly * PIX2M, 
+        brx * PIX2M, bry * PIX2M, 
+        onQueryBoundingBox
+    )
+end
+
+
 local function drawTanks()
     --gr.setColor{0, 0, 0}
 
@@ -249,6 +369,7 @@ local function drawTanks()
         v.base:present()
         v.turret:present()
     end
+    queryBox()
 end
 
 local function playerTankUpdate()
@@ -269,9 +390,6 @@ end
 
 local function drawui()
 end
-
-local W, H = love.graphics.getDimensions()
-local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
 
 local function bindCameraControl()
     -- не прямой а квадратичный зум?
@@ -327,25 +445,9 @@ local function draw()
     cam:detach()
 end
 
-local function onQueryBoundingBox(_: love.physics.Fixture): boolean
-    --local body = fixture:getBody()
-    --local selfPtr = body:getUserData()
-    -- проверка на существование связанного объекта, проверка на наличие метода отрисовки через запрос, отрисовка.
-    --if selfPtr and selfPtr.queryDraw then 
-    --bodiesCount = bodiesCount + 1
-    --selfPtr:queryDraw(fixture) 
-    --end
-    return true
-end
-
 local function update(dt: number)
     playerTankUpdate()
     camTimer:update(dt)
-    pworld:queryBoundingBox(
-        tlx * PIX2M, tly * PIX2M, 
-        brx * PIX2M, bry * PIX2M, 
-        onQueryBoundingBox
-    )
     pworld:update(dt)
 end
 
@@ -413,6 +515,8 @@ local function init()
     
     local canSleep = true
     pworld = love.physics.newWorld(0., 0., canSleep)
+    pworld:setCallbacks(onBeginContact)
+
     cam = require 'camera'.new()
     bindCameraControl()
 end

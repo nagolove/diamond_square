@@ -2,13 +2,19 @@ local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 th
 
 local DEBUG_BASE = true
 local DEBUG_TANK = true
-local DEBUG_TURRET = false
+local DEBUG_TANK_MOVEMENT = false
+local DEBUG_TURRET = true
+
+local W, H = love.graphics.getDimensions()
+local tlx, tly, brx, bry = 0., 0., W, H
 
 
 
 
 
-local PIX2M = 1 / 10
+
+
+local PIX2M = 1
 
 require("love")
 love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/empty/?.lua")
@@ -88,14 +94,13 @@ local CameraSettings = {}
 
 local cameraSettings = {
 
-   dx = 2,
-   dy = 2,
+   dx = 2, dy = 2,
 
-   relativedx = 0,
-   relativedy = 0,
+   relativedx = 0, relativedy = 0,
 }
 
 local pworld
+
 
 
 local tanks = {}
@@ -103,7 +108,7 @@ local tanks = {}
 local playerTank
 
 function Tank:left()
-   if DEBUG_TANK then
+   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:left")
    end
    self.pos.x = self.pos.x - self.movementDelta
@@ -111,7 +116,7 @@ function Tank:left()
 end
 
 function Tank:right()
-   if DEBUG_TANK then
+   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:right")
    end
    self.pos.x = self.pos.x + self.movementDelta
@@ -119,7 +124,7 @@ function Tank:right()
 end
 
 function Tank:up()
-   if DEBUG_TANK then
+   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:up")
    end
    self.pos.y = self.pos.y - self.movementDelta
@@ -127,7 +132,7 @@ function Tank:up()
 end
 
 function Tank:down()
-   if DEBUG_TANK then
+   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:down")
    end
    self.pos.y = self.pos.y + self.movementDelta
@@ -148,10 +153,11 @@ function Tank.new(pos)
    self.turret = Turret.new(pos, self.pbody)
    self.base = Base.new(pos, self.pbody)
    self.movementDelta = 1.
+
    if DEBUG_TANK then
       print('self.turret', self.turret)
       print('self.base', self.base)
-      print('End of Tank creaating.')
+      print('End of Tank creating.')
    end
    return self
 end
@@ -166,8 +172,16 @@ function Turret.new(pos, pbody)
    self.pbody = pbody;
 
    local w, h = (self.img):getDimensions()
-   local shape = love.physics.newRectangleShape(w, h)
+
+
+   local r = w / 2
+   local shape = love.physics.newCircleShape(pos.x, pos.y, r)
+
    love.physics.newFixture(self.pbody, shape)
+   if DEBUG_TURRET then
+
+      print("circle shape created x, y, r", pos.x, pos.y, r)
+   end
 
    if DEBUG_TURRET then
       print("self.pos", self.pos)
@@ -239,6 +253,112 @@ end
 
 
 
+local function onBeginContact(
+   _,
+   _,
+   _)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local function onQueryBoundingBox(fixture)
+
+   local body = fixture:getBody()
+   local selfPtr = body:getUserData()
+
+   if selfPtr then
+
+      if selfPtr.turret then
+         print("turret.present");
+         selfPtr.turret:present()
+      end
+      if selfPtr.base then
+         print("base.present");
+         selfPtr.base:present()
+      end
+
+
+   end
+   return true
+end
+
+local function queryBox()
+   pworld:queryBoundingBox(
+   tlx * PIX2M, tly * PIX2M,
+   brx * PIX2M, bry * PIX2M,
+   onQueryBoundingBox)
+
+end
+
+
 local function drawTanks()
 
 
@@ -249,6 +369,7 @@ local function drawTanks()
       v.base:present()
       v.turret:present()
    end
+   queryBox()
 end
 
 local function playerTankUpdate()
@@ -269,9 +390,6 @@ end
 
 local function drawui()
 end
-
-local W, H = love.graphics.getDimensions()
-local tlx, tly, brx, bry = 0., 0., W, H
 
 local function bindCameraControl()
 
@@ -327,25 +445,9 @@ local function draw()
    cam:detach()
 end
 
-local function onQueryBoundingBox(_)
-
-
-
-
-
-
-
-   return true
-end
-
 local function update(dt)
    playerTankUpdate()
    camTimer:update(dt)
-   pworld:queryBoundingBox(
-   tlx * PIX2M, tly * PIX2M,
-   brx * PIX2M, bry * PIX2M,
-   onQueryBoundingBox)
-
    pworld:update(dt)
 end
 
@@ -413,6 +515,8 @@ local function init()
 
    local canSleep = true
    pworld = love.physics.newWorld(0., 0., canSleep)
+   pworld:setCallbacks(onBeginContact)
+
    cam = require('camera').new()
    bindCameraControl()
 end
