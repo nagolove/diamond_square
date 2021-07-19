@@ -22,10 +22,10 @@ local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H
 
 -- Танк длиной пять метров имеет отображаемый размер 50 пикселей
 -- коэффициент на который домножаю при переводе из метров в пиксели
---local M2PIX = 10
+local M2PIX = 10
 -- коэффициент на который домножаю при переводе из пикселей в метры
---local PIX2M = 1 / 10
-local PIX2M = 1.
+local PIX2M = 1 / 10
+--local PIX2M = 1.
 
 local camTimer: Timer = require "Timer".new()
 local cam: Camera
@@ -43,10 +43,12 @@ local linesbuf = require "kons".new()
 local record Turret
     -- {{{
     pbody: love.physics.Body
+    f: love.physics.Fixture
     img: love.graphics.Image
     pos: vector -- центр поворота башни
+    tank: Tank
 
-    new: function(t: Tank, pos: vector, pbody: love.physics.Body): Turret
+    new: function(t: Tank): Turret
     present: function()
     -- }}}
 end
@@ -58,10 +60,12 @@ local Turret_mt: metatable<Turret> = {
 local record Base
     -- {{{
     pbody: love.physics.Body
+    f: love.physics.Fixture
     img: love.graphics.Image
     pos: vector -- центр поворота корпуса
+    tank: Tank
 
-    new: function(pos: vector, pbody: love.physics.Body): Base
+    new: function(t: Tank): Base
     present: function()
     -- }}}
 end
@@ -193,8 +197,8 @@ function Tank.new(pos: vector): Tank
 
     self.id = tankCounter
     self.pos = shallowCopy(pos)
-    self.turret = Turret.new(pos, self.pbody)
-    self.base = Base.new(pos, self.pbody)
+    self.turret = Turret.new(self)
+    self.base = Base.new(self)
     self.movementDelta = 1.
 
     if DEBUG_TANK then
@@ -205,26 +209,33 @@ function Tank.new(pos: vector): Tank
     return self
 end
 
-function Turret.new(pos: vector, pbody: love.physics.Body): Turret
+function Turret.new(t: Tank): Turret
     if DEBUG_TURRET then
         print("Start of Turret creating..")
     end
-    local self: Turret = setmetatable({} as Turret, Turret_mt)
-    self.pos = shallowCopy(pos)
-    self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
-    self.pbody = pbody;
+    if not t then
+        error("Could'not create Turret without Tank object")
+    end
 
-    local w, h = (self.img as love.graphics.Texture):getDimensions()
+    local self: Turret = setmetatable({} as Turret, Turret_mt)
+    self.tank = t
+    self.pos = shallowCopy(t.pos)
+    self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
+    self.pbody = t.pbody;
+
+    --[[
+    local w, _ = (self.img as love.graphics.Texture):getDimensions()
 
     --local shape = love.physics.newRectangleShape(w, h)
     local r = w / 2
-    local shape = love.physics.newCircleShape(pos.x, pos.y, r)
+    local shape = love.physics.newCircleShape(self.pos.x, self.pos.y, r)
     --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
     love.physics.newFixture(self.pbody, shape as love.physics.Shape)
     if DEBUG_TURRET then
         --print("rectangle shape created w, h", w, h)
-        print("circle shape created x, y, r", pos.x, pos.y, r)
+        print("circle shape created x, y, r", self.pos.x, self.pos.y, r)
     end
+    --]]
 
     if DEBUG_TURRET then
         print("self.pos", self.pos)
@@ -258,10 +269,18 @@ local function drawFixture(f: love.physics.Fixture)
 end
 
 function Turret:present()
+    --[[
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
     local r, sx, sy, ox, oy: number = math.rad(0.), 1., 1., imgw / 2, imgh / 2
     --local kx, ky: number = 1., 1.
     --love.graphics.draw(self.img as love.graphics.Drawable, self.pos.x, self.pos.y, r, sx, sy, ox, oy, kx, ky)
+
+    local findex = 1
+    local f = self.pbody:getFixtures()[findex]
+    if not f then
+        error("No suitable fixture at index " .. findex)
+    end
+
     love.graphics.draw(
         self.img as love.graphics.Drawable,
         self.pos.x, self.pos.y, 
@@ -275,33 +294,77 @@ function Turret:present()
     local x, y = self.pbody:getWorldCenter()
     local text = string.format("%d", self.tank.id)
     gr.print(text, x, y)
+    --]]
 end
 
 function Base:present()
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
     local r, sx, sy, ox, oy: number = math.rad(0.), 1., 1., imgw / 2, imgh / 2
-    --love.graphics.draw(self.img as love.graphics.Drawable, self.pos.x, self.pos.y)
+    --local kx, ky: number = 1., 1.
+    --love.graphics.draw(self.img as love.graphics.Drawable, self.pos.x, self.pos.y, r, sx, sy, ox, oy, kx, ky)
+
+    local findex = 1
+    local f = self.pbody:getFixtures()[findex]
+    if not f then
+        error("No suitable fixture at index " .. findex)
+    end
+
+    --local x, y = self.pbody:getWorldCenter()
+    --local px, py = self.pos.x, self.pos.y
+    local px, py = self.pbody:getWorldCenter()
+    local shape = self.f:getShape()
+    if shape:getType() ~= "circle" then
+        error("Only circle shape allowed.")
+    end
+    r = shape:getRadius()
+
     love.graphics.draw(
         self.img as love.graphics.Drawable,
-        self.pos.x, self.pos.y, 
+        px, py,
         r, 
         sx, sy, 
         ox, oy
     )
+
+    for _, f in ipairs(self.pbody:getFixtures()) do
+        drawFixture(f)
+    end
+    local x, y = self.pbody:getWorldCenter()
+    local text = string.format("%d", self.tank.id)
+    gr.print(text, x, y)
 end
 
-function Base.new(pos: vector, pbody: love.physics.Body): Base
+function Base.new(t: Tank): Base
     if DEBUG_BASE then
         print("Base.new()")
     end
+    if not t then
+        error("Could'not create Base without Tank object")
+    end
+
     local self: Base = setmetatable({} as Base, Base_mt)
-    self.pos = shallowCopy(pos)
+    self.tank = t
+    self.pos = shallowCopy(t.pos)
     self.img = love.graphics.newImage(SCENE_PREFIX .. "/korpus1.png")
-    self.pbody = pbody
+    self.pbody = t.pbody
+
     if DEBUG_BASE then
         print("self.pos", self.pos)
         print("self.img", self.img)
     end
+
+    local w, _ = (self.img as love.graphics.Texture):getDimensions()
+
+    --local shape = love.physics.newRectangleShape(w, h)
+    local r = w / 2
+    local shape = love.physics.newCircleShape(self.pos.x, self.pos.y, r)
+    --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
+    self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
+    if DEBUG_TURRET then
+        --print("rectangle shape created w, h", w, h)
+        print("circle shape created x, y, r", self.pos.x, self.pos.y, r)
+    end
+
     return self
 end
 
@@ -325,6 +388,7 @@ local function onBeginContact(
     _: love.physics.Fixture, 
     _: love.physics.Contact
 )
+    
   --[[
   Добавить здесь преобразование координат из локальных в глобальные. Заполнять списки на отрисовку контактов. Сделать несколько списков отрисовки. Рисуется только
   то, что попадает в экран камеры. Посмотри+++ на встроенные функции отсечения в движке. Те списки постоянно сбрасывать в nil? Почему-бы и нет, хотя течет динамическая
@@ -408,16 +472,18 @@ local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
             --print("turret.present");
             selfPtr.turret:present()
         else
-            print("Turret object have not present method.")
+            if DEBUG_TURRET then
+                print("Turret object have not present method.")
+            end
         end
         if selfPtr.base then
             --print("base.present");
             selfPtr.base:present()
         else
-            print("Base object have not present method.")
+            if DEBUG_BASE then
+                print("Base object have not present method.")
+            end
         end
-        --bodiesCount = bodiesCount + 1
-        --selfPtr:queryDraw(fixture) 
     end
     return true
     -- }}}
@@ -437,12 +503,12 @@ local function drawTanks()
     gr.setColor{1, 1, 1}
     --local w, h = gr.getDimensions()
 
-    --for _, v in ipairs(tanks) do
-        --v.base:present()
-        --v.turret:present()
-    --end
+    for _, v in ipairs(tanks) do
+        v.base:present()
+        v.turret:present()
+    end
 
-    queryBoundingBox()
+    --queryBoundingBox()
 end
 
 local function playerTankUpdate()

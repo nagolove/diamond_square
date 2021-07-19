@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/pink1/?.lua")
 require("love")
@@ -22,10 +22,10 @@ local tlx, tly, brx, bry = 0., 0., W, H
 
 
 
+local M2PIX = 10
 
+local PIX2M = 1 / 10
 
-
-local PIX2M = 1.
 
 local camTimer = require("Timer").new()
 local cam
@@ -51,11 +51,15 @@ local Turret = {}
 
 
 
+
+
 local Turret_mt = {
    __index = Turret,
 }
 
 local Base = {}
+
+
 
 
 
@@ -177,6 +181,8 @@ function Tank:down()
    self:updateSubObjectsPos()
 end
 
+local tankCounter = 0
+
 function Tank.new(pos)
    if DEBUG_TANK then
       print('Start of Tank creating..')
@@ -184,12 +190,15 @@ function Tank.new(pos)
    local self = setmetatable({}, Tank_mt)
    local x, y = pos.x, pos.y
 
+   tankCounter = tankCounter + 1
+
    self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
    self.pbody:setUserData(self)
 
+   self.id = tankCounter
    self.pos = shallowCopy(pos)
-   self.turret = Turret.new(pos, self.pbody)
-   self.base = Base.new(pos, self.pbody)
+   self.turret = Turret.new(self)
+   self.base = Base.new(self)
    self.movementDelta = 1.
 
    if DEBUG_TANK then
@@ -200,26 +209,33 @@ function Tank.new(pos)
    return self
 end
 
-function Turret.new(pos, pbody)
+function Turret.new(t)
    if DEBUG_TURRET then
       print("Start of Turret creating..")
    end
-   local self = setmetatable({}, Turret_mt)
-   self.pos = shallowCopy(pos)
-   self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
-   self.pbody = pbody;
-
-   local w, h = (self.img):getDimensions()
-
-
-   local r = w / 2
-   local shape = love.physics.newCircleShape(pos.x, pos.y, r)
-
-   love.physics.newFixture(self.pbody, shape)
-   if DEBUG_TURRET then
-
-      print("circle shape created x, y, r", pos.x, pos.y, r)
+   if not t then
+      error("Could'not create Turret without Tank object")
    end
+
+   local self = setmetatable({}, Turret_mt)
+   self.tank = t
+   self.pos = shallowCopy(t.pos)
+   self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
+   self.pbody = t.pbody;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
    if DEBUG_TURRET then
       print("self.pos", self.pos)
@@ -253,47 +269,102 @@ local function drawFixture(f)
 end
 
 function Turret:present()
-   local imgw, imgh = (self.img):getDimensions()
-   local r, sx, sy, ox, oy = math.rad(0.), 1., 1., imgw / 2, imgh / 2
 
 
-   love.graphics.draw(
-   self.img,
-   self.pos.x, self.pos.y,
-   r,
-   sx, sy,
-   ox, oy)
 
-   for _, f in ipairs(self.pbody:getFixtures()) do
-      drawFixture(f)
-   end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 end
 
 function Base:present()
    local imgw, imgh = (self.img):getDimensions()
    local r, sx, sy, ox, oy = math.rad(0.), 1., 1., imgw / 2, imgh / 2
 
+
+
+   local findex = 1
+   local f = self.pbody:getFixtures()[findex]
+   if not f then
+      error("No suitable fixture at index " .. findex)
+   end
+
+
+
+   local px, py = self.pbody:getWorldCenter()
+   local shape = self.f:getShape()
+   if shape:getType() ~= "circle" then
+      error("Only circle shape allowed.")
+   end
+   r = shape:getRadius()
+
    love.graphics.draw(
    self.img,
-   self.pos.x, self.pos.y,
+   px, py,
    r,
    sx, sy,
    ox, oy)
 
+
+   for _, f in ipairs(self.pbody:getFixtures()) do
+      drawFixture(f)
+   end
+   local x, y = self.pbody:getWorldCenter()
+   local text = string.format("%d", self.tank.id)
+   gr.print(text, x, y)
 end
 
-function Base.new(pos, pbody)
+function Base.new(t)
    if DEBUG_BASE then
       print("Base.new()")
    end
+   if not t then
+      error("Could'not create Base without Tank object")
+   end
+
    local self = setmetatable({}, Base_mt)
-   self.pos = shallowCopy(pos)
+   self.tank = t
+   self.pos = shallowCopy(t.pos)
    self.img = love.graphics.newImage(SCENE_PREFIX .. "/korpus1.png")
-   self.pbody = pbody
+   self.pbody = t.pbody
+
    if DEBUG_BASE then
       print("self.pos", self.pos)
       print("self.img", self.img)
    end
+
+   local w, _ = (self.img):getDimensions()
+
+
+   local r = w / 2
+   local shape = love.physics.newCircleShape(self.pos.x, self.pos.y, r)
+
+   self.f = love.physics.newFixture(self.pbody, shape)
+   if DEBUG_TURRET then
+
+      print("circle shape created x, y, r", self.pos.x, self.pos.y, r)
+   end
+
    return self
 end
 
@@ -316,6 +387,7 @@ local function onBeginContact(
    _,
    _,
    _)
+
 
 
 
@@ -400,16 +472,18 @@ local function onQueryBoundingBox(fixture)
 
          selfPtr.turret:present()
       else
-         print("Turret object have not present method.")
+         if DEBUG_TURRET then
+            print("Turret object have not present method.")
+         end
       end
       if selfPtr.base then
 
          selfPtr.base:present()
       else
-         print("Base object have not present method.")
+         if DEBUG_BASE then
+            print("Base object have not present method.")
+         end
       end
-
-
    end
    return true
 
@@ -429,12 +503,12 @@ local function drawTanks()
    gr.setColor({ 1, 1, 1 })
 
 
+   for _, v in ipairs(tanks) do
+      v.base:present()
+      v.turret:present()
+   end
 
 
-
-
-
-   queryBoundingBox()
 end
 
 local function playerTankUpdate()
