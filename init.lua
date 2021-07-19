@@ -15,6 +15,7 @@ local DEBUG_TANK = true
 local DEBUG_TANK_MOVEMENT = false
 local DEBUG_TURRET = true
 local DEBUG_CAMERA = true
+local DEBUG_PHYSICS = true
 
 local W, H = love.graphics.getDimensions()
 
@@ -145,14 +146,17 @@ function Tank:left()
    linesbuf:push(0.5, "self.pbody:getMass() " .. self.pbody:getMass())
 
 
-   local px, py = self.pbody:getX(), self.pbody:getY()
-   print("getX(), getY()", px, py)
-   px = px + self.movementDelta
-   py = py + self.movementDelta
-   self.pbody:setX(px)
-   self.pbody:setY(py)
 
 
+
+
+
+
+
+
+   print("applyLinearImpulse x, y", x, y)
+
+   self.pbody:applyForce(x, y)
 
    self:updateSubObjectsPos()
 end
@@ -193,6 +197,7 @@ function Tank.new(pos)
    tankCounter = tankCounter + 1
 
    self.pbody = love.physics.newBody(pworld, x * PIX2M, y * PIX2M, "dynamic")
+   self.pbody:setMass(1.)
    self.pbody:setUserData(self)
 
    self.id = tankCounter
@@ -200,6 +205,14 @@ function Tank.new(pos)
    self.turret = Turret.new(self)
    self.base = Base.new(self)
    self.movementDelta = 1.
+
+   if DEBUG_PHYSICS then
+      print("pbody:getAngularDamping()", self.pbody:getAngularDamping())
+      print("pbody:getLinearDamping()", self.pbody:getLinearDamping())
+   end
+
+
+
 
    if DEBUG_TANK then
       print('self.turret', self.turret)
@@ -325,6 +338,7 @@ function Base:present()
    r = cshape:getRadius() * M2PIX
 
 
+   gr.circle("fill", px, py, r)
 
    love.graphics.draw(
    self.img,
@@ -369,6 +383,7 @@ function Base.new(t)
 
    local r = w / 2
    local px, py = self.tank.pbody:getPosition()
+
 
 
    local shape = love.physics.newCircleShape(px, py, r * PIX2M)
@@ -620,7 +635,7 @@ local function update(dt)
 end
 
 local function processValue(key)
-   local t = 1000
+   local t = 2
    if key == "n" then
       VALUE = VALUE - t
       print("VALUE", VALUE)
@@ -726,6 +741,11 @@ local function init()
    local canSleep = true
 
    pworld = love.physics.newWorld(0., 0., canSleep)
+   if DEBUG_PHYSICS then
+      print("physics world canSleep =", canSleep)
+   end
+
+
 
 
    cam = require('camera').new()

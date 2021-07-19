@@ -15,6 +15,7 @@ local DEBUG_TANK = true
 local DEBUG_TANK_MOVEMENT = false
 local DEBUG_TURRET = true
 local DEBUG_CAMERA = true
+local DEBUG_PHYSICS = true
 
 local W, H = love.graphics.getDimensions()
 -- Не работают когда двигается камера?
@@ -145,14 +146,17 @@ function Tank:left()
     linesbuf:push(0.5, "self.pbody:getMass() " .. self.pbody:getMass())
     --self.pbody:applyLinearImpulse(x, y)
 
-    local px, py = self.pbody:getX(), self.pbody:getY()
-    print("getX(), getY()", px, py)
-    px = px + self.movementDelta
-    py = py + self.movementDelta
-    self.pbody:setX(px)
-    self.pbody:setY(py)
+    --local px, py = self.pbody:getX(), self.pbody:getY()
+    --print("getX(), getY()", px, py)
+    --px = px + self.movementDelta
+    --py = py + self.movementDelta
+    --self.pbody:setX(px)
+    --self.pbody:setY(py)
 
     --self.pbody:applyForce(x, y)
+    print("applyLinearImpulse x, y", x, y)
+    --self.pbody:applyLinearImpulse(x, y)
+    self.pbody:applyForce(x, y)
 
     self:updateSubObjectsPos()
 end
@@ -193,6 +197,7 @@ function Tank.new(pos: vector): Tank
     tankCounter = tankCounter + 1
 
     self.pbody = love.physics.newBody(pworld, x * PIX2M, y * PIX2M, "dynamic")
+    self.pbody:setMass(1.)
     self.pbody:setUserData(self)
 
     self.id = tankCounter
@@ -200,6 +205,14 @@ function Tank.new(pos: vector): Tank
     self.turret = Turret.new(self)
     self.base = Base.new(self)
     self.movementDelta = 1.
+
+    if DEBUG_PHYSICS then
+        print("pbody:getAngularDamping()", self.pbody:getAngularDamping())
+        print("pbody:getLinearDamping()", self.pbody:getLinearDamping())
+    end
+
+    --self.pbody:setAngularDamping(0.1)
+    --self.pbody:setLinearDamping(0.1)
 
     if DEBUG_TANK then
         print('self.turret', self.turret)
@@ -324,7 +337,8 @@ function Base:present()
     py = py * M2PIX
     r = cshape:getRadius() * M2PIX
 
-    --px, py, r = self.pbody:getWorldPoints(px, py, r)
+    --px, py = self.pbody:getWorldPoints(px, py)
+    gr.circle("fill", px, py, r)
 
     love.graphics.draw(
         self.img as love.graphics.Drawable,
@@ -371,6 +385,7 @@ function Base.new(t: Tank): Base
     local px, py = self.tank.pbody:getPosition()
     --px, py = self.tank.pbody:getWorldPoint(px, py)
     --local shape = love.physics.newCircleShape(self.pos.x, self.pos.y, r)
+    --local shape = love.physics.newCircleShape(px, py, r * PIX2M)
     local shape = love.physics.newCircleShape(px, py, r * PIX2M)
     --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
@@ -620,7 +635,7 @@ local function update(dt: number)
 end
 
 local function processValue(key: string)
-    local t = 1000
+    local t = 2
     if key == "n" then
         VALUE = VALUE - t
         print("VALUE", VALUE)
@@ -726,6 +741,11 @@ local function init()
     local canSleep = true
     --pworld = love.physics.newWorld(0., 0., canSleep)
     pworld = love.physics.newWorld(0., 0., canSleep)
+    if DEBUG_PHYSICS then
+        print("physics world canSleep =", canSleep)
+    end
+    --self.headBody:setAngularDamping(0.1)
+    --self.headBody:setLinearDamping(0.1)
     --pworld:setCallbacks(onBeginContact)
 
     cam = require 'camera'.new()
