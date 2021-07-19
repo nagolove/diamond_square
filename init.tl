@@ -324,7 +324,7 @@ function Base:present()
     py = py * M2PIX
     r = cshape:getRadius() * M2PIX
 
-    px, py, r = self.pbody:getWorldPoints(px, py, r)
+    --px, py, r = self.pbody:getWorldPoints(px, py, r)
 
     love.graphics.draw(
         self.img as love.graphics.Drawable,
@@ -338,7 +338,9 @@ function Base:present()
         --drawFixture(f)
     --end
 
-    local x, y = self.pbody:getWorldCenter()
+    --local x, y = self.pbody:getWorldCenter()
+    local x, y = self.pbody:getPosition()
+    x, y = x * M2PIX, y * M2PIX
     local text = string.format("%d", self.tank.id)
     gr.print(text, x, y)
 end
