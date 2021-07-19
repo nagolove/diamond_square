@@ -1,42 +1,43 @@
-global SCENE_PREFIX = "scenes/pink1"
-
-local DEBUG_BASE = true
-local DEBUG_TANK = true
-local DEBUG_TANK_MOVEMENT = false
-local DEBUG_TURRET = true
-
-local W, H = love.graphics.getDimensions()
-local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
-
-
--- Танк длиной пять метров имеет отображаемый размер 50 пикселей
--- коэффициент на который домножаю при переводе из метров в пиксели
---local M2PIX = 10
--- коэффициент на который домножаю при переводе из пикселей в метры
---local PIX2M = 1 / 10
-local PIX2M = 1
-
+-- vim: fdm=marker
+-- vim: set colorcolumn=85
+love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/pink1/?.lua")
 require "love"
-love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/empty/?.lua")
---local i18n = require "i18n"
---require "external"
---package.path = package.path .. ";scenes/automato/?.lua"
-
 require "common"
 require "keyconfig"
 require "camera"
 require "vector"
 require "Timer"
 
+global SCENE_PREFIX = "scenes/pink1"
+
+local DEBUG_BASE = true
+local DEBUG_TANK = true
+local DEBUG_TANK_MOVEMENT = false
+local DEBUG_TURRET = true
+local DEBUG_CAMERA = true
+
+local W, H = love.graphics.getDimensions()
+-- Не работают когда двигается камера?
+local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
+
+-- Танк длиной пять метров имеет отображаемый размер 50 пикселей
+-- коэффициент на который домножаю при переводе из метров в пиксели
+--local M2PIX = 10
+-- коэффициент на который домножаю при переводе из пикселей в метры
+--local PIX2M = 1 / 10
+local PIX2M = 1.
+
 local camTimer: Timer = require "Timer".new()
 local cam: Camera
 local gr = love.graphics
+local drawlist = {}
+
+--local i18n = require "i18n"
+--require "external"
+--package.path = package.path .. ";scenes/automato/?.lua"
+
 --local inspect = require "inspect"
 --local imgui = require "imgui"
---local keyconfig = require "keyconfig"
---local timer = require "Timer"
-
---local vec2 = require "vector"
 
 local record Turret
     pbody: love.physics.Body
@@ -71,6 +72,7 @@ local record Tank
     base: Base
     -- Центр поворота корпуса. Пока совпадает с центром поворота башни.
     pos: vector 
+    -- на сколько пикселей смещается танк при вызове метода движения
     movementDelta: number
 
     new: function(pos: vector): Tank
@@ -88,15 +90,11 @@ local Tank_mt: metatable<Tank> = {
 local type CameraSettings = record
     dx: number
     dy: number
-    relativedx: number
-    relativedy: number
 end
 
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
-    dx = 2, dy = 2,
-    -- значение в пикселях сглаженное относительно значения масштаба камеры
-    relativedx = 0, relativedy = 0,
+    dx = 10, dy = 10,
 }
 
 local pworld: love.physics.World
@@ -106,6 +104,22 @@ local pworld: love.physics.World
 local tanks: {Tank} = {}
 -- Танк, которым управляет игрок
 local playerTank: Tank
+
+local function push2drawlist(f: function)
+    if not f then
+        error("Draw function could'not be nil.")
+    end
+    if type(f) ~= "function" then
+        error("Draw function is not a function. It is a .. " .. type(f))
+    end
+    table.insert(drawlist, f)
+end
+
+local function presentDrawlist()
+    for _, v in ipairs(drawlist) do
+        v()
+    end
+end
 
 function Tank:left()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
@@ -241,6 +255,7 @@ function Base.new(pos: vector, pbody: love.physics.Body): Base
 end
 
 --[[
+--{{{
 local function drawTestCircle()
     local w, h = gr.getDimensions()
     local rad = 100
@@ -251,6 +266,7 @@ local function drawTestCircle()
     gr.circle("line", centerx, centery, rad)
     gr.setLineWidth(oldwidth)
 end
+--}}}
 --]]
 
 local function onBeginContact(
@@ -330,6 +346,7 @@ end
 --]]
 
 local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
+    -- {{{
     --print("onQueryBoundingBox")
     local body = fixture:getBody()
     local selfPtr: Tank = body:getUserData() as Tank
@@ -337,20 +354,25 @@ local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
     if selfPtr then
         --print("selfPtr")
         if selfPtr.turret then 
-            print("turret.present");
+            --print("turret.present");
             selfPtr.turret:present()
+        else
+            print("Turret object have not present method.")
         end
         if selfPtr.base then
-            print("base.present");
+            --print("base.present");
             selfPtr.base:present()
+        else
+            print("Base object have not present method.")
         end
         --bodiesCount = bodiesCount + 1
         --selfPtr:queryDraw(fixture) 
     end
     return true
+    -- }}}
 end
 
-local function queryBox()
+local function queryBoundingBox()
     pworld:queryBoundingBox(
         tlx * PIX2M, tly * PIX2M, 
         brx * PIX2M, bry * PIX2M, 
@@ -358,18 +380,18 @@ local function queryBox()
     )
 end
 
-
 local function drawTanks()
     --gr.setColor{0, 0, 0}
 
     gr.setColor{1, 1, 1}
     --local w, h = gr.getDimensions()
 
-    for _, v in ipairs(tanks) do
-        v.base:present()
-        v.turret:present()
-    end
-    queryBox()
+    --for _, v in ipairs(tanks) do
+        --v.base:present()
+        --v.turret:present()
+    --end
+
+    queryBoundingBox()
 end
 
 local function playerTankUpdate()
@@ -393,56 +415,59 @@ end
 
 local function bindCameraControl()
     -- не прямой а квадратичный зум?
-    --local zoomStartTime = 0
-    --local zoomDirection = 0 -- -1 or 1
-    --local zoomFactor = 0.001
     local Shortcut = KeyConfig.Shortcut
-    local cameraAnimationDuration = 0.4
+    local cameraAnimationDuration = 0.2
 
     local function makeMoveFunction(xc: number, yc: number): function(sc: Shortcut): boolean, Shortcut
         return function(sc: Shortcut): boolean, Shortcut
             local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
-            cameraSettings.relativedx, cameraSettings.relativedy = reldx, reldy
-            -- когда идет нажатие повлиять на цвет части текста
-            camTimer:during(cameraAnimationDuration, function(_: number, time: number, delay: number)
-                --print("dt, timer, delay", dt, time, delay)
-                cam:move(-reldx * (delay - time) * xc, -reldy * (delay - time) * yc)
+            camTimer:during(cameraAnimationDuration, function(dt: number, time: number, delay: number)
+                --cam:move(-reldx * (delay - time) * xc, -reldy * (delay - time) * yc)
+                local dx, dy = -reldx * (delay - time) * xc, -reldy * (delay - time) * yc
+                print("delay - time", delay - time)
+                print("dx, dy", dx, dy)
+                cam:move(dx * dt, dy * dt)
             end)
             return true, sc
         end
     end
 
-    KeyConfig.bind( "isdown", { key = "a" }, makeMoveFunction(1., 0), "move left", "camleft")
-    KeyConfig.bind( "isdown", { key = "d" }, makeMoveFunction(-1.0, 0.), "move right", "camright") 
-    KeyConfig.bind( "isdown", { key = "w" }, makeMoveFunction(0., 1.), "move up", "camup") 
-    KeyConfig.bind( "isdown", { key = "s" }, makeMoveFunction(0., -1.), "move down", "camdown")
+    local bindMode: KeyConfig.BindType = "keypressed"
+    --local bindMode = "isdown"
+    KeyConfig.bind( bindMode, { key = "a" }, makeMoveFunction(1., 0), "move left", "camleft")
+    KeyConfig.bind( bindMode, { key = "d" }, makeMoveFunction(-1.0, 0.), "move right", "camright") 
+    KeyConfig.bind( bindMode, { key = "w" }, makeMoveFunction(0., 1.), "move up", "camup") 
+    KeyConfig.bind( bindMode, { key = "s" }, makeMoveFunction(0., -1.), "move down", "camdown")
+end
+
+local function drawBoundingBox()
+    tlx, tly = cam:worldCoords(tlx, tly)
+    brx, bry = cam:worldCoords(brx, bry)
+
+    local oldwidth = gr.getLineWidth()
+    local lwidth = 4
+    gr.setLineWidth(lwidth)
+    gr.setColor{0., 0., 1.}
+    -- видимые границы камеры
+    gr.rectangle("line", tlx, tly, brx - tlx, bry - tly)
+    gr.setLineWidth(oldwidth)
 end
 
 local function draw()
     --gr.clear(1., 1., 1., 1.)
-    cam:attach()
 
     gr.clear(0.2, 0.2, 0.2)
 
+    cam:attach()
     drawTanks()
-
-    tlx, tly = cam:worldCoords(tlx, tly)
-    brx, bry = cam:worldCoords(brx, bry)
-
-    local space = 20
-    gr.setColor{0., 1., 0.}
-    gr.rectangle("line", space, space, W - space * 2, H - space * 2)
-
-    local oldwidth = gr.getLineWidth()
-    local lwidth = 3
-    gr.setLineWidth(lwidth)
-    --gr.setColor{0.5, 1., 0.}
-    gr.setColor{0., 0., 1.}
-    gr.rectangle("line", tlx, tly, brx - tlx, bry - tly)
-    gr.setLineWidth(oldwidth)
-
-    --gr.print("TestTest")
     cam:detach()
+
+    presentDrawlist()
+
+    --cam:attach()
+    drawBoundingBox()
+    --cam:detach()
+    drawlist = {}
 end
 
 local function update(dt: number)
@@ -454,6 +479,26 @@ end
 local function keypressed(key: string)
     if key == "escape" then
         love.event.quit()
+    elseif key == "space" then
+
+        print("space pressed")
+        local animLen = 3
+        camTimer:during(animLen, function(dt: number, time: number, _: number)
+            push2drawlist(function()
+                gr.setColor{1., 0., 0.}
+                local radius = 50
+                --print("time", time)
+                --print("delay", delay)
+                --print("a", a)
+                gr.circle("fill", W / 2, H / 2, radius * time)
+            end)
+            --cam:move(-reldx * (delay - time) * xc, -reldy * (delay - time) * yc)
+        end,
+        function()
+            print("after space")
+        end)
+        --]]
+
     end
 end
 
@@ -490,12 +535,15 @@ local function init()
 
     local Shortcut = KeyConfig.Shortcut
     local zoomSpeed = 0.01
+    local zoomLower, zoomHigher = 0.3, 2
+
     KeyConfig.bind(
         "isdown",
         { key = "z" },
         function(sc: Shortcut): boolean, Shortcut
-            --updateMouseToCamera()
-            cam:zoom(1. + zoomSpeed)
+            if cam.scale < zoomHigher then
+                cam:zoom(1. + zoomSpeed)
+            end
             return false, sc
         end,
         "zoom camera in",
@@ -505,8 +553,9 @@ local function init()
         "isdown",
         { key = "x" },
         function(sc: Shortcut): boolean, Shortcut
-            --updateMouseToCamera()
-            cam:zoom(1.0 - zoomSpeed)
+            if cam.scale > zoomLower then
+                cam:zoom(1.0 - zoomSpeed)
+            end
             return false, sc
         end,
         "zoom camera in",
@@ -518,6 +567,9 @@ local function init()
     pworld:setCallbacks(onBeginContact)
 
     cam = require 'camera'.new()
+    if DEBUG_CAMERA then
+        print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
+    end
     bindCameraControl()
 end
 
