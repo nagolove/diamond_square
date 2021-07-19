@@ -31,6 +31,7 @@ local camTimer: Timer = require "Timer".new()
 local cam: Camera
 local gr = love.graphics
 local drawlist = {}
+local linesbuf = require "kons".new()
 
 --local i18n = require "i18n"
 --require "external"
@@ -40,12 +41,14 @@ local drawlist = {}
 --local imgui = require "imgui"
 
 local record Turret
+    -- {{{
     pbody: love.physics.Body
     img: love.graphics.Image
     pos: vector -- центр поворота башни
 
-    new: function(pos: vector, pbody: love.physics.Body): Turret
+    new: function(t: Tank, pos: vector, pbody: love.physics.Body): Turret
     present: function()
+    -- }}}
 end
 
 local Turret_mt: metatable<Turret> = {
@@ -53,12 +56,14 @@ local Turret_mt: metatable<Turret> = {
 }
 
 local record Base
+    -- {{{
     pbody: love.physics.Body
     img: love.graphics.Image
     pos: vector -- центр поворота корпуса
 
     new: function(pos: vector, pbody: love.physics.Body): Base
     present: function()
+    -- }}}
 end
 
 local Base_mt: metatable<Base> = {
@@ -66,8 +71,9 @@ local Base_mt: metatable<Base> = {
 }
 
 local record Tank
+    -- {{{
     pbody: love.physics.Body
-
+    id: integer
     turret: Turret
     base: Base
     -- Центр поворота корпуса. Пока совпадает с центром поворота башни.
@@ -81,6 +87,7 @@ local record Tank
     up: function(Tank)
     down: function(Tank)
     updateSubObjectsPos: function(Tank)
+    -- }}}
 end
 
 local Tank_mt: metatable<Tank> = {
@@ -97,9 +104,8 @@ local cameraSettings: CameraSettings = {
     dx = 10, dy = 10,
 }
 
+-- Экземпляр box2d
 local pworld: love.physics.World
---local isActive: boolean
-
 -- Все танки, в том числе и тот, которым управляет игрок.
 local tanks: {Tank} = {}
 -- Танк, которым управляет игрок
@@ -121,11 +127,29 @@ local function presentDrawlist()
     end
 end
 
+local VALUE = 0
+
 function Tank:left()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:left")
     end
     self.pos.x = self.pos.x - self.movementDelta
+    --local x, y = -10, 0
+    local x, y = VALUE, 0
+    --self.pbody:applyForce(x, y)
+    --print('self.pbody:getMass()', self.pbody:getMass())
+    linesbuf:push(0.5, "self.pbody:getMass() " .. self.pbody:getMass())
+    --self.pbody:applyLinearImpulse(x, y)
+
+    local px, py = self.pbody:getX(), self.pbody:getY()
+    print("getX(), getY()", px, py)
+    px = px + self.movementDelta
+    py = py + self.movementDelta
+    self.pbody:setX(px)
+    self.pbody:setY(py)
+
+    --self.pbody:applyForce(x, y)
+
     self:updateSubObjectsPos()
 end
 
@@ -153,6 +177,8 @@ function Tank:down()
     self:updateSubObjectsPos()
 end
 
+local tankCounter = 0
+
 function Tank.new(pos: vector): Tank
     if DEBUG_TANK then
         print('Start of Tank creating..')
@@ -160,9 +186,12 @@ function Tank.new(pos: vector): Tank
     local self: Tank = setmetatable({} as Tank, Tank_mt)
     local x, y = pos.x, pos.y
 
+    tankCounter = tankCounter + 1
+
     self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
     self.pbody:setUserData(self)
 
+    self.id = tankCounter
     self.pos = shallowCopy(pos)
     self.turret = Turret.new(pos, self.pbody)
     self.base = Base.new(pos, self.pbody)
@@ -212,6 +241,22 @@ function Tank:updateSubObjectsPos()
     self.base.pos.y = self.pos.y
 end
 
+local function drawFixture(f: love.physics.Fixture)
+    local shape = f:getShape()
+    local shapeType = shape:getType()
+    if shapeType == 'circle' then
+        local cShape: love.physics.CircleShape = shape as love.physics.CircleShape
+        local px, py = cShape:getPoint()
+        local radius = cShape:getRadius()
+        
+        --push2drawlist(function()
+        gr.circle("fill", px, py, radius)
+        --end)
+    else
+        error("Shape type " .. shapeType .. " unsupported.")
+    end
+end
+
 function Turret:present()
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
     local r, sx, sy, ox, oy: number = math.rad(0.), 1., 1., imgw / 2, imgh / 2
@@ -224,6 +269,12 @@ function Turret:present()
         sx, sy, 
         ox, oy
     )
+    for _, f in ipairs(self.pbody:getFixtures()) do
+        drawFixture(f)
+    end
+    local x, y = self.pbody:getWorldCenter()
+    local text = string.format("%d", self.tank.id)
+    gr.print(text, x, y)
 end
 
 function Base:present()
@@ -424,11 +475,17 @@ local function bindCameraControl()
             camTimer:during(cameraAnimationDuration, function(dt: number, time: number, delay: number)
                 --cam:move(-reldx * (delay - time) * xc, -reldy * (delay - time) * yc)
                 local dx, dy = -reldx * (delay - time) * xc, -reldy * (delay - time) * yc
-                print("delay - time", delay - time)
-                print("dx, dy", dx, dy)
-                cam:move(dx * dt, dy * dt)
+                --print("delay - time", delay - time)
+                --print("dx, dy", dx, dy)
+                if delay - time > 0 then
+                    cam:move(dx * dt, dy * dt)
+                end
+            end,
+            function()
+                --print("after camera moving")
             end)
             return true, sc
+            --return false, sc
         end
     end
 
@@ -441,15 +498,16 @@ local function bindCameraControl()
 end
 
 local function drawBoundingBox()
-    tlx, tly = cam:worldCoords(tlx, tly)
-    brx, bry = cam:worldCoords(brx, bry)
-
     local oldwidth = gr.getLineWidth()
     local lwidth = 4
     gr.setLineWidth(lwidth)
     gr.setColor{0., 0., 1.}
     -- видимые границы камеры
-    gr.rectangle("line", tlx, tly, brx - tlx, bry - tly)
+
+    local tlx_, tly_ = cam:worldCoords(tlx, tly)
+    local brx_, bry_ = cam:worldCoords(brx, bry)
+
+    gr.rectangle("line", tlx_, tly_, brx_ - tlx_, bry_ - tly_)
     gr.setLineWidth(oldwidth)
 end
 
@@ -460,20 +518,36 @@ local function draw()
 
     cam:attach()
     drawTanks()
-    cam:detach()
-
     presentDrawlist()
+    cam:detach()
 
     --cam:attach()
     drawBoundingBox()
     --cam:detach()
     drawlist = {}
+    linesbuf:draw()
 end
 
 local function update(dt: number)
     playerTankUpdate()
     camTimer:update(dt)
-    pworld:update(dt)
+    --pworld:update(dt)
+    pworld:update(1 / 60)
+    linesbuf:update()
+end
+
+local function processValue(key: string)
+    local t = 1000
+    if key == "n" then
+        VALUE = VALUE - t
+        print("VALUE", VALUE)
+    elseif key == "m" then
+        VALUE = VALUE + t
+        print("VALUE", VALUE)
+    elseif key == "b" then
+        VALUE = 0
+        print("VALUE", VALUE)
+    end
 end
 
 local function keypressed(key: string)
@@ -483,7 +557,7 @@ local function keypressed(key: string)
 
         print("space pressed")
         local animLen = 3
-        camTimer:during(animLen, function(dt: number, time: number, _: number)
+        camTimer:during(animLen, function(_: number, time: number, _: number)
             push2drawlist(function()
                 gr.setColor{1., 0., 0.}
                 local radius = 50
@@ -497,9 +571,8 @@ local function keypressed(key: string)
         function()
             print("after space")
         end)
-        --]]
-
     end
+    processValue(key)
 end
 
 local function spawn(pos: vector): Tank
@@ -518,6 +591,7 @@ end
 
 local function init()
     --[[
+    -- {{{
     i18n.set('en.welcome', 'welcome to this program')
     i18n.load({
         en = {
@@ -531,6 +605,7 @@ local function init()
     })
     print("translated", i18n.translate('welcome'))
     print("translated", i18n('welcome'))
+    -- }}}
     --]]
 
     local Shortcut = KeyConfig.Shortcut
@@ -563,8 +638,9 @@ local function init()
     )
     
     local canSleep = true
+    --pworld = love.physics.newWorld(0., 0., canSleep)
     pworld = love.physics.newWorld(0., 0., canSleep)
-    pworld:setCallbacks(onBeginContact)
+    --pworld:setCallbacks(onBeginContact)
 
     cam = require 'camera'.new()
     if DEBUG_CAMERA then

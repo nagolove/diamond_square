@@ -31,6 +31,7 @@ local camTimer = require("Timer").new()
 local cam
 local gr = love.graphics
 local drawlist = {}
+local linesbuf = require("kons").new()
 
 
 
@@ -40,6 +41,8 @@ local drawlist = {}
 
 
 local Turret = {}
+
+
 
 
 
@@ -61,11 +64,15 @@ local Base = {}
 
 
 
+
+
 local Base_mt = {
    __index = Base,
 }
 
 local Tank = {}
+
+
 
 
 
@@ -97,9 +104,8 @@ local cameraSettings = {
    dx = 10, dy = 10,
 }
 
+
 local pworld
-
-
 
 local tanks = {}
 
@@ -121,11 +127,29 @@ local function presentDrawlist()
    end
 end
 
+local VALUE = 0
+
 function Tank:left()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:left")
    end
    self.pos.x = self.pos.x - self.movementDelta
+
+   local x, y = VALUE, 0
+
+
+   linesbuf:push(0.5, "self.pbody:getMass() " .. self.pbody:getMass())
+
+
+   local px, py = self.pbody:getX(), self.pbody:getY()
+   print("getX(), getY()", px, py)
+   px = px + self.movementDelta
+   py = py + self.movementDelta
+   self.pbody:setX(px)
+   self.pbody:setY(py)
+
+
+
    self:updateSubObjectsPos()
 end
 
@@ -212,6 +236,22 @@ function Tank:updateSubObjectsPos()
    self.base.pos.y = self.pos.y
 end
 
+local function drawFixture(f)
+   local shape = f:getShape()
+   local shapeType = shape:getType()
+   if shapeType == 'circle' then
+      local cShape = shape
+      local px, py = cShape:getPoint()
+      local radius = cShape:getRadius()
+
+
+      gr.circle("fill", px, py, radius)
+
+   else
+      error("Shape type " .. shapeType .. " unsupported.")
+   end
+end
+
 function Turret:present()
    local imgw, imgh = (self.img):getDimensions()
    local r, sx, sy, ox, oy = math.rad(0.), 1., 1., imgw / 2, imgh / 2
@@ -224,6 +264,9 @@ function Turret:present()
    sx, sy,
    ox, oy)
 
+   for _, f in ipairs(self.pbody:getFixtures()) do
+      drawFixture(f)
+   end
 end
 
 function Base:present()
@@ -424,11 +467,17 @@ local function bindCameraControl()
          camTimer:during(cameraAnimationDuration, function(dt, time, delay)
 
             local dx, dy = -reldx * (delay - time) * xc, -reldy * (delay - time) * yc
-            print("delay - time", delay - time)
-            print("dx, dy", dx, dy)
-            cam:move(dx * dt, dy * dt)
+
+
+            if delay - time > 0 then
+               cam:move(dx * dt, dy * dt)
+            end
+         end,
+         function()
+
          end)
          return true, sc
+
       end
    end
 
@@ -441,15 +490,16 @@ local function bindCameraControl()
 end
 
 local function drawBoundingBox()
-   tlx, tly = cam:worldCoords(tlx, tly)
-   brx, bry = cam:worldCoords(brx, bry)
-
    local oldwidth = gr.getLineWidth()
    local lwidth = 4
    gr.setLineWidth(lwidth)
    gr.setColor({ 0., 0., 1. })
 
-   gr.rectangle("line", tlx, tly, brx - tlx, bry - tly)
+
+   local tlx_, tly_ = cam:worldCoords(tlx, tly)
+   local brx_, bry_ = cam:worldCoords(brx, bry)
+
+   gr.rectangle("line", tlx_, tly_, brx_ - tlx_, bry_ - tly_)
    gr.setLineWidth(oldwidth)
 end
 
@@ -460,20 +510,36 @@ local function draw()
 
    cam:attach()
    drawTanks()
-   cam:detach()
-
    presentDrawlist()
+   cam:detach()
 
 
    drawBoundingBox()
 
    drawlist = {}
+   linesbuf:draw()
 end
 
 local function update(dt)
    playerTankUpdate()
    camTimer:update(dt)
-   pworld:update(dt)
+
+   pworld:update(1 / 60)
+   linesbuf:update()
+end
+
+local function processValue(key)
+   local t = 1000
+   if key == "n" then
+      VALUE = VALUE - t
+      print("VALUE", VALUE)
+   elseif key == "m" then
+      VALUE = VALUE + t
+      print("VALUE", VALUE)
+   elseif key == "b" then
+      VALUE = 0
+      print("VALUE", VALUE)
+   end
 end
 
 local function keypressed(key)
@@ -483,7 +549,7 @@ local function keypressed(key)
 
       print("space pressed")
       local animLen = 3
-      camTimer:during(animLen, function(dt, time, _)
+      camTimer:during(animLen, function(_, time, _)
          push2drawlist(function()
             gr.setColor({ 1., 0., 0. })
             local radius = 50
@@ -497,9 +563,8 @@ local function keypressed(key)
       function()
          print("after space")
       end)
-
-
    end
+   processValue(key)
 end
 
 local function spawn(pos)
@@ -517,6 +582,8 @@ local function spawn(pos)
 end
 
 local function init()
+
+
 
 
 
@@ -563,8 +630,9 @@ local function init()
 
 
    local canSleep = true
+
    pworld = love.physics.newWorld(0., 0., canSleep)
-   pworld:setCallbacks(onBeginContact)
+
 
    cam = require('camera').new()
    if DEBUG_CAMERA then
