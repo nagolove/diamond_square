@@ -45,7 +45,7 @@ local record Turret
     pbody: love.physics.Body
     f: love.physics.Fixture
     img: love.graphics.Image
-    pos: vector -- центр поворота башни
+    --pos: vector -- центр поворота башни
     tank: Tank
 
     new: function(t: Tank): Turret
@@ -62,7 +62,7 @@ local record Base
     pbody: love.physics.Body
     f: love.physics.Fixture
     img: love.graphics.Image
-    pos: vector -- центр поворота корпуса
+    --pos: vector -- центр поворота корпуса
     tank: Tank
 
     new: function(t: Tank): Base
@@ -81,7 +81,7 @@ local record Tank
     turret: Turret
     base: Base
     -- Центр поворота корпуса. Пока совпадает с центром поворота башни.
-    pos: vector 
+    --pos: vector 
     -- на сколько пикселей смещается танк при вызове метода движения
     movementDelta: number
 
@@ -137,7 +137,7 @@ function Tank:left()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:left")
     end
-    self.pos.x = self.pos.x - self.movementDelta
+    --self.pos.x = self.pos.x - self.movementDelta
     --local x, y = -10, 0
     local x, y = VALUE, 0
     --self.pbody:applyForce(x, y)
@@ -161,7 +161,7 @@ function Tank:right()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:right")
     end
-    self.pos.x = self.pos.x + self.movementDelta
+    --self.pos.x = self.pos.x + self.movementDelta
     self:updateSubObjectsPos()
 end
 
@@ -169,7 +169,7 @@ function Tank:up()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:up")
     end
-    self.pos.y = self.pos.y - self.movementDelta
+    --self.pos.y = self.pos.y - self.movementDelta
     self:updateSubObjectsPos()
 end
 
@@ -177,7 +177,7 @@ function Tank:down()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:down")
     end
-    self.pos.y = self.pos.y + self.movementDelta
+    --self.pos.y = self.pos.y + self.movementDelta
     self:updateSubObjectsPos()
 end
 
@@ -192,11 +192,11 @@ function Tank.new(pos: vector): Tank
 
     tankCounter = tankCounter + 1
 
-    self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
+    self.pbody = love.physics.newBody(pworld, x * PIX2M, y * PIX2M, "dynamic")
     self.pbody:setUserData(self)
 
     self.id = tankCounter
-    self.pos = shallowCopy(pos)
+    --self.pos = shallowCopy(pos)
     self.turret = Turret.new(self)
     self.base = Base.new(self)
     self.movementDelta = 1.
@@ -219,7 +219,7 @@ function Turret.new(t: Tank): Turret
 
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.tank = t
-    self.pos = shallowCopy(t.pos)
+    --self.pos = shallowCopy(t.pos)
     self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
     self.pbody = t.pbody;
 
@@ -238,18 +238,18 @@ function Turret.new(t: Tank): Turret
     --]]
 
     if DEBUG_TURRET then
-        print("self.pos", self.pos)
+        --print("self.pos", self.pos)
         print("self.img", self.img)
     end
     return self
 end
 
 function Tank:updateSubObjectsPos()
-    self.turret.pos.x = self.pos.x
-    self.turret.pos.y = self.pos.y
+    --self.turret.pos.x = self.pos.x
+    --self.turret.pos.y = self.pos.y
 
-    self.base.pos.x = self.pos.x
-    self.base.pos.y = self.pos.y
+    --self.base.pos.x = self.pos.x
+    --self.base.pos.y = self.pos.y
 end
 
 local function drawFixture(f: love.physics.Fixture)
@@ -344,12 +344,12 @@ function Base.new(t: Tank): Base
 
     local self: Base = setmetatable({} as Base, Base_mt)
     self.tank = t
-    self.pos = shallowCopy(t.pos)
+    --self.pos = shallowCopy(t.pos)
     self.img = love.graphics.newImage(SCENE_PREFIX .. "/korpus1.png")
     self.pbody = t.pbody
 
     if DEBUG_BASE then
-        print("self.pos", self.pos)
+        --print("self.pos", self.pos)
         print("self.img", self.img)
     end
 
@@ -357,12 +357,16 @@ function Base.new(t: Tank): Base
 
     --local shape = love.physics.newRectangleShape(w, h)
     local r = w / 2
-    local shape = love.physics.newCircleShape(self.pos.x, self.pos.y, r)
+    local px, py = self.tank.pbody:getPosition()
+    px, py = self.tank.pbody:getWorldPoint(px, py)
+    --local shape = love.physics.newCircleShape(self.pos.x, self.pos.y, r)
+    local shape = love.physics.newCircleShape(px, py, r * PIX2M)
     --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
     if DEBUG_TURRET then
         --print("rectangle shape created w, h", w, h)
-        print("circle shape created x, y, r", self.pos.x, self.pos.y, r)
+        --print("circle shape created x, y, r", self.pos.x, self.pos.y, r)
+        print("circle shape created x, y, r", px, py)
     end
 
     return self
@@ -727,6 +731,11 @@ end
 
 local function mousepressed(x: number, y: number, btn: integer)
     if btn == 1 then
+        -- значения координат мыши привести к мировым координатам камеры
+        --print("mousepressed")
+        --print("x, y", x, y)
+        x, y = cam:worldCoords(x, y)
+        --print("x, y", x, y)
         spawn(vector.new(x, y))
     end
 end

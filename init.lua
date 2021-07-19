@@ -137,7 +137,7 @@ function Tank:left()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:left")
    end
-   self.pos.x = self.pos.x - self.movementDelta
+
 
    local x, y = VALUE, 0
 
@@ -161,7 +161,7 @@ function Tank:right()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:right")
    end
-   self.pos.x = self.pos.x + self.movementDelta
+
    self:updateSubObjectsPos()
 end
 
@@ -169,7 +169,7 @@ function Tank:up()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:up")
    end
-   self.pos.y = self.pos.y - self.movementDelta
+
    self:updateSubObjectsPos()
 end
 
@@ -177,7 +177,7 @@ function Tank:down()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:down")
    end
-   self.pos.y = self.pos.y + self.movementDelta
+
    self:updateSubObjectsPos()
 end
 
@@ -192,11 +192,11 @@ function Tank.new(pos)
 
    tankCounter = tankCounter + 1
 
-   self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
+   self.pbody = love.physics.newBody(pworld, x * PIX2M, y * PIX2M, "dynamic")
    self.pbody:setUserData(self)
 
    self.id = tankCounter
-   self.pos = shallowCopy(pos)
+
    self.turret = Turret.new(self)
    self.base = Base.new(self)
    self.movementDelta = 1.
@@ -219,7 +219,7 @@ function Turret.new(t)
 
    local self = setmetatable({}, Turret_mt)
    self.tank = t
-   self.pos = shallowCopy(t.pos)
+
    self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
    self.pbody = t.pbody;
 
@@ -238,18 +238,18 @@ function Turret.new(t)
 
 
    if DEBUG_TURRET then
-      print("self.pos", self.pos)
+
       print("self.img", self.img)
    end
    return self
 end
 
 function Tank:updateSubObjectsPos()
-   self.turret.pos.x = self.pos.x
-   self.turret.pos.y = self.pos.y
 
-   self.base.pos.x = self.pos.x
-   self.base.pos.y = self.pos.y
+
+
+
+
 end
 
 local function drawFixture(f)
@@ -344,12 +344,12 @@ function Base.new(t)
 
    local self = setmetatable({}, Base_mt)
    self.tank = t
-   self.pos = shallowCopy(t.pos)
+
    self.img = love.graphics.newImage(SCENE_PREFIX .. "/korpus1.png")
    self.pbody = t.pbody
 
    if DEBUG_BASE then
-      print("self.pos", self.pos)
+
       print("self.img", self.img)
    end
 
@@ -357,12 +357,16 @@ function Base.new(t)
 
 
    local r = w / 2
-   local shape = love.physics.newCircleShape(self.pos.x, self.pos.y, r)
+   local px, py = self.tank.pbody:getPosition()
+   px, py = self.tank.pbody:getWorldPoint(px, py)
+
+   local shape = love.physics.newCircleShape(px, py, r * PIX2M)
 
    self.f = love.physics.newFixture(self.pbody, shape)
    if DEBUG_TURRET then
 
-      print("circle shape created x, y, r", self.pos.x, self.pos.y, r)
+
+      print("circle shape created x, y, r", px, py)
    end
 
    return self
@@ -727,6 +731,11 @@ end
 
 local function mousepressed(x, y, btn)
    if btn == 1 then
+
+
+
+      x, y = cam:worldCoords(x, y)
+
       spawn(vector.new(x, y))
    end
 end
