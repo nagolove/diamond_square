@@ -37,7 +37,7 @@ local linesbuf = require("kons").new()
 
 
 
-
+local inspect = require("inspect")
 
 
 local Turret = {}
@@ -260,6 +260,9 @@ local function drawFixture(f)
       local px, py = cShape:getPoint()
       local radius = cShape:getRadius()
 
+      px, py, radius = f:getBody():getWorldPoints(px, py, radius)
+
+
 
       gr.circle("fill", px, py, radius)
 
@@ -311,12 +314,17 @@ function Base:present()
 
 
 
-   local px, py = self.pbody:getWorldCenter()
    local shape = self.f:getShape()
+   local cshape = self.f:getShape()
    if shape:getType() ~= "circle" then
       error("Only circle shape allowed.")
    end
-   r = shape:getRadius()
+   local px, py = cshape:getPoint()
+   px = px * M2PIX
+   py = py * M2PIX
+   r = cshape:getRadius() * M2PIX
+
+   px, py, r = self.pbody:getWorldPoints(px, py, r)
 
    love.graphics.draw(
    self.img,
@@ -326,9 +334,10 @@ function Base:present()
    ox, oy)
 
 
-   for _, f in ipairs(self.pbody:getFixtures()) do
-      drawFixture(f)
-   end
+
+
+
+
    local x, y = self.pbody:getWorldCenter()
    local text = string.format("%d", self.tank.id)
    gr.print(text, x, y)
@@ -358,7 +367,7 @@ function Base.new(t)
 
    local r = w / 2
    local px, py = self.tank.pbody:getPosition()
-   px, py = self.tank.pbody:getWorldPoint(px, py)
+
 
    local shape = love.physics.newCircleShape(px, py, r * PIX2M)
 
@@ -595,13 +604,15 @@ local function draw()
    drawBoundingBox()
 
    drawlist = {}
+
+
+   linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
    linesbuf:draw()
 end
 
 local function update(dt)
    playerTankUpdate()
    camTimer:update(dt)
-
    pworld:update(1 / 60)
    linesbuf:update()
 end
@@ -623,6 +634,8 @@ end
 local function keypressed(key)
    if key == "escape" then
       love.event.quit()
+   elseif key == '`' then
+      linesbuf.show = not linesbuf.show
    elseif key == "space" then
 
       print("space pressed")
@@ -644,6 +657,7 @@ local function keypressed(key)
    end
    processValue(key)
 end
+
 
 local function spawn(pos)
    local res

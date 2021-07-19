@@ -37,7 +37,7 @@ local linesbuf = require "kons".new()
 --require "external"
 --package.path = package.path .. ";scenes/automato/?.lua"
 
---local inspect = require "inspect"
+local inspect = require "inspect"
 --local imgui = require "imgui"
 
 local record Turret
@@ -259,7 +259,10 @@ local function drawFixture(f: love.physics.Fixture)
         local cShape: love.physics.CircleShape = shape as love.physics.CircleShape
         local px, py = cShape:getPoint()
         local radius = cShape:getRadius()
-        
+
+        px, py, radius = f:getBody():getWorldPoints(px, py, radius)
+        --radius = f:getWorldPoint(radius)
+
         --push2drawlist(function()
         gr.circle("fill", px, py, radius)
         --end)
@@ -311,12 +314,17 @@ function Base:present()
 
     --local x, y = self.pbody:getWorldCenter()
     --local px, py = self.pos.x, self.pos.y
-    local px, py = self.pbody:getWorldCenter()
     local shape = self.f:getShape()
+    local cshape = self.f:getShape() as love.physics.CircleShape
     if shape:getType() ~= "circle" then
         error("Only circle shape allowed.")
     end
-    r = shape:getRadius()
+    local px, py = cshape:getPoint()
+    px = px * M2PIX
+    py = py * M2PIX
+    r = cshape:getRadius() * M2PIX
+
+    px, py, r = self.pbody:getWorldPoints(px, py, r)
 
     love.graphics.draw(
         self.img as love.graphics.Drawable,
@@ -326,9 +334,10 @@ function Base:present()
         ox, oy
     )
 
-    for _, f in ipairs(self.pbody:getFixtures()) do
-        drawFixture(f)
-    end
+    --for _, f in ipairs(self.pbody:getFixtures()) do
+        --drawFixture(f)
+    --end
+
     local x, y = self.pbody:getWorldCenter()
     local text = string.format("%d", self.tank.id)
     gr.print(text, x, y)
@@ -358,7 +367,7 @@ function Base.new(t: Tank): Base
     --local shape = love.physics.newRectangleShape(w, h)
     local r = w / 2
     local px, py = self.tank.pbody:getPosition()
-    px, py = self.tank.pbody:getWorldPoint(px, py)
+    --px, py = self.tank.pbody:getWorldPoint(px, py)
     --local shape = love.physics.newCircleShape(self.pos.x, self.pos.y, r)
     local shape = love.physics.newCircleShape(px, py, r * PIX2M)
     --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
@@ -595,13 +604,15 @@ local function draw()
     drawBoundingBox()
     --cam:detach()
     drawlist = {}
+
+    --linesbuf:pushi("camera x, y", cam.x, cam.y)
+    linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
     linesbuf:draw()
 end
 
 local function update(dt: number)
     playerTankUpdate()
     camTimer:update(dt)
-    --pworld:update(dt)
     pworld:update(1 / 60)
     linesbuf:update()
 end
@@ -623,6 +634,8 @@ end
 local function keypressed(key: string)
     if key == "escape" then
         love.event.quit()
+    elseif key == '`' then
+        linesbuf.show = not linesbuf.show
     elseif key == "space" then
 
         print("space pressed")
@@ -645,6 +658,7 @@ local function keypressed(key: string)
     processValue(key)
 end
 
+-- положение в пикселях
 local function spawn(pos: vector): Tank
     local res: Tank
     local ok, errmsg: boolean, string = pcall(function()
