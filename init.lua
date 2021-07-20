@@ -625,24 +625,28 @@ local function bindPlayerTankKeys()
 
 
 
+   else
+      error("There is no player tank object instance, sorry.")
    end
 end
 
-local function playerTankUpdate()
-   if playerTank then
 
-      local lk = love.keyboard
-      if lk.isDown("left") then
-         playerTank:left()
-      elseif lk.isDown("right") then
-         playerTank:right()
-      elseif lk.isDown("up") then
-         playerTank:up()
-      elseif lk.isDown("down") then
-         playerTank:down()
-      end
-   end
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function drawui()
    imgui.StyleColorsLight()
@@ -780,6 +784,7 @@ local function spawn(pos)
       table.insert(tanks, t)
 
       playerTank = t
+      bindPlayerTankKeys()
    end)
    if not ok then
       error("Could'not load. Please implement stub-tank. " .. errmsg)
@@ -855,7 +860,7 @@ local function init()
    end
 
    bindCameraControl()
-   bindPlayerTankKeys()
+
 end
 
 local function quit()

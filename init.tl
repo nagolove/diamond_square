@@ -607,7 +607,7 @@ local function bindPlayerTankKeys()
         kc.bind(
             mode, { key = direction },
             function(sc: Shortcut): boolean, Shortcut
-                playerTank["right"](playerTank)
+                playerTank["up"](playerTank)
                 return false, sc
             end,
             "move tank " .. direction, pushId("mt" .. direction)
@@ -617,7 +617,7 @@ local function bindPlayerTankKeys()
         kc.bind(
             mode, { key = direction },
             function(sc: Shortcut): boolean, Shortcut
-                playerTank["right"](playerTank)
+                playerTank["down"](playerTank)
                 return false, sc
             end,
             "move tank " .. direction, pushId("mt" .. direction)
@@ -625,9 +625,12 @@ local function bindPlayerTankKeys()
 
         -- }}}
         --]]
+    else
+        error("There is no player tank object instance, sorry.")
     end
 end
 
+--[[
 local function playerTankUpdate()
     if playerTank then
         --print("playerTankUpdate internal")
@@ -643,6 +646,7 @@ local function playerTankUpdate()
         end
     end
 end
+--]]
 
 local function drawui()
     imgui.StyleColorsLight()
@@ -780,6 +784,7 @@ local function spawn(pos: vector): Tank
         table.insert(tanks, t)
         -- игрок управляет последний созданным танком
         playerTank = t
+        bindPlayerTankKeys()
     end)
     if not ok then
         error("Could'not load. Please implement stub-tank. " .. errmsg)
@@ -855,7 +860,7 @@ local function init()
     end
 
     bindCameraControl()
-    bindPlayerTankKeys()
+    --bindPlayerTankKeys()
 end
 
 local function quit()
