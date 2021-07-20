@@ -41,7 +41,7 @@ local linesbuf = require("kons").new()
 
 
 
-local imgui = require("imgui")
+require("imgui")
 
 local Turret = {}
 
@@ -78,7 +78,6 @@ local Base_mt = {
 }
 
 local Tank = {}
-
 
 
 
@@ -140,51 +139,44 @@ function Tank:left()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:left")
    end
-
-
    local x, y = VALUE, 0
-
-
-   linesbuf:push(0.5, "self.pbody:getMass() " .. self.pbody:getMass())
-
-
-
-
-
-
-
-
-
-
-   print("applyLinearImpulse x, y", x, y)
-
+   if DEBUG_PHYSICS then
+      print("Tank " .. self.id .. "applyForce x, y", x, y)
+   end
    self.pbody:applyForce(x, y)
-
-   self:updateSubObjectsPos()
 end
 
 function Tank:right()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:right")
    end
-
-   self:updateSubObjectsPos()
+   local x, y = -VALUE, 0
+   if DEBUG_PHYSICS then
+      print("Tank " .. self.id .. "applyForce x, y", x, y)
+   end
+   self.pbody:applyForce(x, y)
 end
 
 function Tank:up()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:up")
    end
-
-   self:updateSubObjectsPos()
+   local x, y = 0, -VALUE
+   if DEBUG_PHYSICS then
+      print("Tank " .. self.id .. "applyForce x, y", x, y)
+   end
+   self.pbody:applyForce(x, y)
 end
 
 function Tank:down()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:down")
    end
-
-   self:updateSubObjectsPos()
+   local x, y = 0, VALUE
+   if DEBUG_PHYSICS then
+      print("Tank " .. self.id .. "applyForce x, y", x, y)
+   end
+   self.pbody:applyForce(x, y)
 end
 
 local tankCounter = 0
@@ -257,14 +249,6 @@ function Turret.new(t)
       print("self.img", self.img)
    end
    return self
-end
-
-function Tank:updateSubObjectsPos()
-
-
-
-
-
 end
 
 
@@ -548,7 +532,7 @@ local function drawTanks()
 
 end
 
-local playerTankKeyconfigIds
+local playerTankKeyconfigIds = {}
 
 local function unbindPlayerTankKeys()
    for _, id in ipairs(playerTankKeyconfigIds) do
@@ -563,44 +547,81 @@ local function bindPlayerTankKeys()
    end
 
    if playerTank then
+
       local kc = KeyConfig
       local Shortcut = kc.Shortcut
       local mode = "isdown"
 
-      kc.bind(mode, { key = "left" },
+
+      local E = {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      local direction
+
+      direction = "right"
+      kc.bind(
+      mode, { key = direction },
       function(sc)
-         playerTank:left()
+         playerTank["right"](playerTank)
          return false, sc
       end,
-      "move tank left",
-      pushId("mtleft"))
+      "move tank " .. direction, pushId("mt" .. direction))
 
 
-      kc.bind(mode, { key = "right" },
+      direction = "left"
+      kc.bind(
+      mode, { key = direction },
       function(sc)
-         playerTank:left()
+         playerTank["left"](playerTank)
          return false, sc
       end,
-      "move tank right",
-      "mtright")
+      "move tank " .. direction, pushId("mt" .. direction))
 
 
-      kc.bind(mode, { key = "up" },
+      direction = "up"
+      kc.bind(
+      mode, { key = direction },
       function(sc)
-         playerTank:left()
+         playerTank["right"](playerTank)
          return false, sc
       end,
-      "move tank up",
-      "mtup")
+      "move tank " .. direction, pushId("mt" .. direction))
 
 
-      kc.bind(mode, { key = "down" },
+      direction = "down"
+      kc.bind(
+      mode, { key = direction },
       function(sc)
-         playerTank:left()
+         playerTank["right"](playerTank)
          return false, sc
       end,
-      "move tank down",
-      "mtdown")
+      "move tank " .. direction, pushId("mt" .. direction))
+
 
 
 
@@ -706,7 +727,7 @@ local function draw()
 end
 
 local function update(dt)
-   playerTankUpdate()
+
    camTimer:update(dt)
    pworld:update(1 / 60)
    linesbuf:update()
@@ -745,7 +766,9 @@ local function keypressed(key)
       function()
          print("after space")
       end)
+
    end
+
    processValue(key)
 end
 
@@ -764,26 +787,7 @@ local function spawn(pos)
    return res
 end
 
-local function init()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+local function bindZoomKeys()
    local Shortcut = KeyConfig.Shortcut
    local zoomSpeed = 0.01
    local zoomLower, zoomHigher = 0.3, 2
@@ -812,12 +816,34 @@ local function init()
    "zoom camera in",
    "zoomin")
 
+end
+
+local function init()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   bindZoomKeys()
 
    local canSleep = true
-
    pworld = love.physics.newWorld(0., 0., canSleep)
    if DEBUG_PHYSICS then
-      print("physics world canSleep =", canSleep)
+      print("physics world canSleep:", canSleep)
    end
 
 
@@ -833,6 +859,7 @@ local function init()
 end
 
 local function quit()
+   unbindPlayerTankKeys()
    tanks = {}
 end
 
