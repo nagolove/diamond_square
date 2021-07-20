@@ -41,7 +41,7 @@ local linesbuf = require "kons".new()
 --package.path = package.path .. ";scenes/automato/?.lua"
 
 --local inspect = require "inspect"
---local imgui = require "imgui"
+local imgui = require "imgui"
 
 local record Turret
     -- {{{
@@ -93,7 +93,6 @@ local record Tank
     right: function(Tank)
     up: function(Tank)
     down: function(Tank)
-    updateSubObjectsPos: function(Tank)
     -- }}}
 end
 
@@ -140,27 +139,11 @@ function Tank:left()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:left")
     end
-    --self.pos.x = self.pos.x - self.movementDelta
-    --local x, y = -10, 0
     local x, y = VALUE, 0
-    --self.pbody:applyForce(x, y)
-    --print('self.pbody:getMass()', self.pbody:getMass())
-    linesbuf:push(0.5, "self.pbody:getMass() " .. self.pbody:getMass())
-    --self.pbody:applyLinearImpulse(x, y)
-
-    --local px, py = self.pbody:getX(), self.pbody:getY()
-    --print("getX(), getY()", px, py)
-    --px = px + self.movementDelta
-    --py = py + self.movementDelta
-    --self.pbody:setX(px)
-    --self.pbody:setY(py)
-
-    --self.pbody:applyForce(x, y)
-    print("applyLinearImpulse x, y", x, y)
-    --self.pbody:applyLinearImpulse(x, y)
+    if DEBUG_PHYSICS then
+        print("Tank " .. self.id .. "applyForce x, y", x, y)
+    end
     self.pbody:applyForce(x, y)
-
-    self:updateSubObjectsPos()
 end
 
 function Tank:right()
@@ -168,7 +151,6 @@ function Tank:right()
         print("Tank:right")
     end
     --self.pos.x = self.pos.x + self.movementDelta
-    self:updateSubObjectsPos()
 end
 
 function Tank:up()
@@ -176,7 +158,6 @@ function Tank:up()
         print("Tank:up")
     end
     --self.pos.y = self.pos.y - self.movementDelta
-    self:updateSubObjectsPos()
 end
 
 function Tank:down()
@@ -184,7 +165,6 @@ function Tank:down()
         print("Tank:down")
     end
     --self.pos.y = self.pos.y + self.movementDelta
-    self:updateSubObjectsPos()
 end
 
 local tankCounter = 0
@@ -257,14 +237,6 @@ function Turret.new(t: Tank): Turret
         print("self.img", self.img)
     end
     return self
-end
-
-function Tank:updateSubObjectsPos()
-    --self.turret.pos.x = self.pos.x
-    --self.turret.pos.y = self.pos.y
-
-    --self.base.pos.x = self.pos.x
-    --self.base.pos.y = self.pos.y
 end
 
 --[[
@@ -425,47 +397,42 @@ local function onBeginContact(
 )
     -- {{{
     
-  --[[
-  Добавить здесь преобразование координат из локальных в глобальные. Заполнять списки на отрисовку контактов. Сделать несколько списков отрисовки. Рисуется только
-  то, что попадает в экран камеры. Посмотри+++ на встроенные функции отсечения в движке. Те списки постоянно сбрасывать в nil? Почему-бы и нет, хотя течет динамическая
-  память. Зато структуры динамично работают, видно дейсвие, экшен.
-  ]]
+  
+  --Добавить здесь преобразование координат из локальных в глобальные. Заполнять списки на отрисовку контактов. Сделать несколько списков отрисовки. Рисуется только
+  --то, что попадает в экран камеры. Посмотри+++ на встроенные функции отсечения в движке. Те списки постоянно сбрасывать в nil? Почему-бы и нет, хотя течет динамическая
+  --память. Зато структуры динамично работают, видно дейсвие, экшен.
 
-  --[[
-  local shape = fixture:getShape()
-  local rad = shape:getRadius()
-  local body = fixture:getBody()
-  local x, y = body:getWorldCenter()
-  x, y = x * M2PIX, y * M2PIX
+  --local shape = fixture:getShape()
+  --local rad = shape:getRadius()
+  --local body = fixture:getBody()
+  --local x, y = body:getWorldCenter()
+  --x, y = x * M2PIX, y * M2PIX
 
-  lg.setColor(self.color)
-  lg.circle("fill", x, y, shape:getRadius() * M2PIX)
-  ]]
+  --lg.setColor(self.color)
+  --lg.circle("fill", x, y, shape:getRadius() * M2PIX)
 
 --  print(string.format("onBeginContact() fixture1 = %s fixture2 = %s contact = %s", inspect(fixture1), inspect(fixture2), inspect(contact)))
-  --[[
-  if drawContactPoints then
-    local x1, y1, x2, y2 = contact:getPositions()
-    local body1 = fixture1:getBody()
-    local body2 = fixture2 and fixture2:getBody() or nil  
-    if x1 and y1 then
---    x1, y1 = Snake.cam:worldCoords(x1, y1)
-      -- отправляю контакты на отрисовку
-      push2drawlist(function()
-          lg.setColor(CONTACT_BEGIN_DRAW_COLOR)
-          lg.circle("fill", x1 * M2PIX, y1 * M2PIX, 10)
-        end)
-    end
-    if x2 and y2 then    
-      x2, y2 = Snake.cam:worldCoords(x2, y2)
-      -- отправляю контакты на отрисовку
-      push2drawlist(function()
-          lg.setColor(CONTACT_BEGIN_DRAW_COLOR)
-          lg.circle("fill", x2 * M2PIX, y2 * M2PIX, 10)
-        end)
-    end
-  end
-  --]]
+  --if drawContactPoints then
+    --local x1, y1, x2, y2 = contact:getPositions()
+    --local body1 = fixture1:getBody()
+    --local body2 = fixture2 and fixture2:getBody() or nil  
+    --if x1 and y1 then
+----    x1, y1 = Snake.cam:worldCoords(x1, y1)
+      ---- отправляю контакты на отрисовку
+      --push2drawlist(function()
+          --lg.setColor(CONTACT_BEGIN_DRAW_COLOR)
+          --lg.circle("fill", x1 * M2PIX, y1 * M2PIX, 10)
+        --end)
+    --end
+    --if x2 and y2 then    
+      --x2, y2 = Snake.cam:worldCoords(x2, y2)
+      ---- отправляю контакты на отрисовку
+      --push2drawlist(function()
+          --lg.setColor(CONTACT_BEGIN_DRAW_COLOR)
+          --lg.circle("fill", x2 * M2PIX, y2 * M2PIX, 10)
+        --end)
+    --end
+  --end
 
   -- }}}
 
@@ -553,6 +520,49 @@ local function drawTanks()
     --queryBoundingBox()
 end
 
+local playerTankKeyconfigIds: {string}
+
+local function unbindPlayerTankKeys()
+    for _, id in ipairs(playerTankKeyconfigIds) do
+        KeyConfig.unbind(id)
+    end
+end
+
+local function bindPlayerTankKeys()
+    local function pushId(id: string): string
+        table.insert(playerTankKeyconfigIds, id)
+        return id
+    end
+
+    if playerTank then
+        local kc = KeyConfig
+        local Shortcut = kc.Shortcut
+        local mode: kc.BindType = "isdown"
+
+        local function bindDirection(direction: string)
+            kc.bind(
+                mode, { key = direction },
+                function(sc: Shortcut): boolean, Shortcut
+                    local enum E
+                        "left"
+                        "right"
+                        "down"
+                        "up"
+                    end
+                    playerTank[direction as E](playerTank)
+                    return false, sc
+                end,
+                "move tank " .. direction, pushId("mt" .. direction)
+            )
+        end
+
+        bindDirection("left")
+        bindDirection("right")
+        bindDirection("up")
+        bindDirection("down")
+    end
+end
+
 local function playerTankUpdate()
     if playerTank then
         --print("playerTankUpdate internal")
@@ -570,6 +580,9 @@ local function playerTankUpdate()
 end
 
 local function drawui()
+    imgui.StyleColorsLight()
+    imgui.ShowDemoWindow()
+    imgui.ShowUserGuide()
 end
 
 local function bindCameraControl()
@@ -601,10 +614,17 @@ local function bindCameraControl()
 
     local bindMode: KeyConfig.BindType = "keypressed"
     --local bindMode = "isdown"
-    KeyConfig.bind( bindMode, { key = "a" }, makeMoveFunction(1., 0), "move left", "camleft")
-    KeyConfig.bind( bindMode, { key = "d" }, makeMoveFunction(-1.0, 0.), "move right", "camright") 
-    KeyConfig.bind( bindMode, { key = "w" }, makeMoveFunction(0., 1.), "move up", "camup") 
-    KeyConfig.bind( bindMode, { key = "s" }, makeMoveFunction(0., -1.), "move down", "camdown")
+    KeyConfig.bind(bindMode, { key = "a" }, makeMoveFunction(1., 0), "move left", "camleft")
+    KeyConfig.bind(bindMode, { key = "d" }, makeMoveFunction(-1.0, 0.), "move right", "camright") 
+    KeyConfig.bind(bindMode, { key = "w" }, makeMoveFunction(0., 1.), "move up", "camup") 
+    KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.), "move down", "camdown")
+    KeyConfig.bind(bindMode, { key = "escape" }, function(sc: Shortcut): boolean, Shortcut
+        love.event.quit()
+    end)
+    KeyConfig.bind(bindMode, { key = "`" }, function(sc: Shortcut): boolean, Shortcut
+        linesbuf.show = not linesbuf.show
+    end)
+
 end
 
 local function drawBoundingBox()
@@ -663,11 +683,7 @@ local function processValue(key: string)
 end
 
 local function keypressed(key: string)
-    if key == "escape" then
-        love.event.quit()
-    elseif key == '`' then
-        linesbuf.show = not linesbuf.show
-    elseif key == "space" then
+    if key == "space" then
 
         print("space pressed")
         local animLen = 3
@@ -767,7 +783,9 @@ local function init()
     if DEBUG_CAMERA then
         print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
     end
+
     bindCameraControl()
+    bindPlayerTankKeys()
 end
 
 local function quit()

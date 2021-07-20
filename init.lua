@@ -1,6 +1,8 @@
 local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
+
 love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/pink1/?.lua")
+
 require("love")
 require("common")
 require("keyconfig")
@@ -38,8 +40,8 @@ local linesbuf = require("kons").new()
 
 
 
-local inspect = require("inspect")
 
+local imgui = require("imgui")
 
 local Turret = {}
 
@@ -265,24 +267,26 @@ function Tank:updateSubObjectsPos()
 
 end
 
-local function drawFixture(f)
-   local shape = f:getShape()
-   local shapeType = shape:getType()
-   if shapeType == 'circle' then
-      local cShape = shape
-      local px, py = cShape:getPoint()
-      local radius = cShape:getRadius()
-
-      px, py, radius = f:getBody():getWorldPoints(px, py, radius)
 
 
 
-      gr.circle("fill", px, py, radius)
 
-   else
-      error("Shape type " .. shapeType .. " unsupported.")
-   end
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function Turret:present()
 
@@ -413,10 +417,6 @@ end
 
 
 
-local function onBeginContact(
-   _,
-   _,
-   _)
 
 
 
@@ -460,7 +460,14 @@ local function onBeginContact(
 
 
 
-end
+
+
+
+
+
+
+
+
 
 
 
@@ -541,6 +548,65 @@ local function drawTanks()
 
 end
 
+local playerTankKeyconfigIds
+
+local function unbindPlayerTankKeys()
+   for _, id in ipairs(playerTankKeyconfigIds) do
+      KeyConfig.unbind(id)
+   end
+end
+
+local function bindPlayerTankKeys()
+   local function pushId(id)
+      table.insert(playerTankKeyconfigIds, id)
+      return id
+   end
+
+   if playerTank then
+      local kc = KeyConfig
+      local Shortcut = kc.Shortcut
+      local mode = "isdown"
+
+      kc.bind(mode, { key = "left" },
+      function(sc)
+         playerTank:left()
+         return false, sc
+      end,
+      "move tank left",
+      pushId("mtleft"))
+
+
+      kc.bind(mode, { key = "right" },
+      function(sc)
+         playerTank:left()
+         return false, sc
+      end,
+      "move tank right",
+      "mtright")
+
+
+      kc.bind(mode, { key = "up" },
+      function(sc)
+         playerTank:left()
+         return false, sc
+      end,
+      "move tank up",
+      "mtup")
+
+
+      kc.bind(mode, { key = "down" },
+      function(sc)
+         playerTank:left()
+         return false, sc
+      end,
+      "move tank down",
+      "mtdown")
+
+
+
+   end
+end
+
 local function playerTankUpdate()
    if playerTank then
 
@@ -558,6 +624,9 @@ local function playerTankUpdate()
 end
 
 local function drawui()
+   imgui.StyleColorsLight()
+   imgui.ShowDemoWindow()
+   imgui.ShowUserGuide()
 end
 
 local function bindCameraControl()
@@ -566,6 +635,7 @@ local function bindCameraControl()
    local cameraAnimationDuration = 0.2
 
    local function makeMoveFunction(xc, yc)
+
       return function(sc)
          local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
          camTimer:during(cameraAnimationDuration, function(dt, time, delay)
@@ -583,6 +653,7 @@ local function bindCameraControl()
          return true, sc
 
       end
+
    end
 
    local bindMode = "keypressed"
@@ -591,6 +662,13 @@ local function bindCameraControl()
    KeyConfig.bind(bindMode, { key = "d" }, makeMoveFunction(-1.0, 0.), "move right", "camright")
    KeyConfig.bind(bindMode, { key = "w" }, makeMoveFunction(0., 1.), "move up", "camup")
    KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.), "move down", "camdown")
+   KeyConfig.bind(bindMode, { key = "escape" }, function(sc)
+      love.event.quit()
+   end)
+   KeyConfig.bind(bindMode, { key = "`" }, function(sc)
+      linesbuf.show = not linesbuf.show
+   end)
+
 end
 
 local function drawBoundingBox()
@@ -649,11 +727,7 @@ local function processValue(key)
 end
 
 local function keypressed(key)
-   if key == "escape" then
-      love.event.quit()
-   elseif key == '`' then
-      linesbuf.show = not linesbuf.show
-   elseif key == "space" then
+   if key == "space" then
 
       print("space pressed")
       local animLen = 3
@@ -691,6 +765,7 @@ local function spawn(pos)
 end
 
 local function init()
+
 
 
 
@@ -752,7 +827,9 @@ local function init()
    if DEBUG_CAMERA then
       print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
    end
+
    bindCameraControl()
+   bindPlayerTankKeys()
 end
 
 local function quit()
