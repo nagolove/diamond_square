@@ -1,6 +1,8 @@
 -- vim: fdm=marker
 -- vim: set colorcolumn=85
+
 love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/pink1/?.lua")
+
 require "love"
 require "common"
 require "keyconfig"
@@ -38,7 +40,7 @@ local linesbuf = require "kons".new()
 --require "external"
 --package.path = package.path .. ";scenes/automato/?.lua"
 
-local inspect = require "inspect"
+--local inspect = require "inspect"
 --local imgui = require "imgui"
 
 local record Turret
@@ -265,6 +267,7 @@ function Tank:updateSubObjectsPos()
     --self.base.pos.y = self.pos.y
 end
 
+--[[
 local function drawFixture(f: love.physics.Fixture)
     local shape = f:getShape()
     local shapeType = shape:getType()
@@ -283,6 +286,7 @@ local function drawFixture(f: love.physics.Fixture)
         error("Shape type " .. shapeType .. " unsupported.")
     end
 end
+--]]
 
 function Turret:present()
     --[[
@@ -413,11 +417,13 @@ end
 --}}}
 --]]
 
+--[[
 local function onBeginContact(
     _: love.physics.Fixture, 
     _: love.physics.Fixture, 
     _: love.physics.Contact
 )
+    -- {{{
     
   --[[
   Добавить здесь преобразование координат из локальных в глобальные. Заполнять списки на отрисовку контактов. Сделать несколько списков отрисовки. Рисуется только
@@ -460,10 +466,15 @@ local function onBeginContact(
     end
   end
   --]]
+
+  -- }}}
+
 end
+--]]
 
 --[[
 local function onEndContact(fixture1, fixture2, contact)
+    -- {{{
   if drawContactPoints then
     local x1, y1, x2, y2 = contact:getPositions()
     local body1 = fixture1:getBody()
@@ -488,6 +499,7 @@ local function onEndContact(fixture1, fixture2, contact)
     end
   end
 end
+    -- }}}
 --]]
 
 local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
@@ -566,6 +578,7 @@ local function bindCameraControl()
     local cameraAnimationDuration = 0.2
 
     local function makeMoveFunction(xc: number, yc: number): function(sc: Shortcut): boolean, Shortcut
+        -- {{{
         return function(sc: Shortcut): boolean, Shortcut
             local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
             camTimer:during(cameraAnimationDuration, function(dt: number, time: number, delay: number)
@@ -583,6 +596,7 @@ local function bindCameraControl()
             return true, sc
             --return false, sc
         end
+        -- }}}
     end
 
     local bindMode: KeyConfig.BindType = "keypressed"
@@ -692,7 +706,8 @@ end
 
 local function init()
     --[[
-    -- {{{
+    -- {{{ i18n
+
     i18n.set('en.welcome', 'welcome to this program')
     i18n.load({
         en = {
