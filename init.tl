@@ -1,6 +1,11 @@
 -- vim: fdm=marker
 -- vim: set colorcolumn=85
 
+local enum Mode
+    "normal"
+    "command"
+end
+
 love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/pink1/?.lua")
 
 require "love"
@@ -9,6 +14,7 @@ require "keyconfig"
 require "camera"
 require "vector"
 require "Timer"
+require "imgui"
 
 global SCENE_PREFIX = "scenes/pink1"
 
@@ -30,18 +36,16 @@ local M2PIX = 10
 local PIX2M = 1 / 10
 --local PIX2M = 1.
 
-local camTimer: Timer = require "Timer".new()
 local cam: Camera
-local gr = love.graphics
+local camTimer: Timer = require "Timer".new()
 local drawlist = {}
+local gr = love.graphics
+local inputLine: string = ""
 local linesbuf = require "kons".new()
+local mode: Mode = "normal
 
 --local i18n = require "i18n"
---require "external"
---package.path = package.path .. ";scenes/automato/?.lua"
-
 --local inspect = require "inspect"
-require "imgui"
 
 local record Turret
     -- {{{
@@ -195,7 +199,6 @@ function Tank.new(pos: vector): Tank
     self.pbody:setUserData(self)
 
     self.id = tankCounter
-    --self.pos = shallowCopy(pos)
     self.turret = Turret.new(self)
     self.base = Base.new(self)
     self.movementDelta = 1.
@@ -711,8 +714,6 @@ local function drawBoundingBox()
 end
 
 local function draw()
-    --gr.clear(1., 1., 1., 1.)
-
     gr.clear(0.2, 0.2, 0.2)
 
     cam:attach()
@@ -727,6 +728,9 @@ local function draw()
 
     --linesbuf:pushi("camera x, y", cam.x, cam.y)
     linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
+    if inputLine ~= "" then
+        linesbuf:pushi(string.format(">:%s", inputLine))
+    end
     linesbuf:draw()
 end
 
@@ -890,6 +894,21 @@ local function init()
     bindCameraControl()
     bindFullscreenSwitcher()
     --bindPlayerTankKeys()
+
+    KeyConfig.bind(
+        "keypressed", 
+        { key = "f11" }, 
+        function(sc: KeyConfig.Shortcut): boolean, KeyConfig.Shortcut
+            local isfs = love.window.getFullscreen()
+            if isfs then
+                setWindowMode()
+            else
+                setFullscreenMode()
+            end
+            return false, sc
+        end,
+        "switch fullscreen and windowed modes", 
+        "switchwindowmode")
 end
 
 local function quit()
@@ -897,11 +916,12 @@ local function quit()
     tanks = {}
 end
 
---local function mousemoved(x: number, y: number, _: number, _: number)
---end
+local function mousemoved(_: number, _: number, _: number, _: number)
+end
 
---local function wheelmoved(x: number, y: number)
---end
+local function wheelmoved(x: number, y: number)
+    --KeyConfig.send(
+end
 
 local function mousepressed(x: number, y: number, btn: integer)
     if btn == 1 then
@@ -920,6 +940,11 @@ local function resize(w: integer, h: integer)
     end
 end
 
+local function textinput(text: string)
+    print("textinput", text)
+    inputLine = inputLine .. text
+end
+
 return {
     init = init,
     quit = quit,
@@ -929,6 +954,7 @@ return {
     keypressed = keypressed,
     mousepressed = mousepressed,
     resize = resize,
-    --mousemoved = mousemoved,
-    --wheelmoved = wheelmoved
+    mousemoved = mousemoved,
+    wheelmoved = wheelmoved,
+    textinput = textinput,
 }

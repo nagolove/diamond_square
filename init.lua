@@ -9,6 +9,7 @@ require("keyconfig")
 require("camera")
 require("vector")
 require("Timer")
+require("imgui")
 
 SCENE_PREFIX = "scenes/pink1"
 
@@ -30,10 +31,11 @@ local M2PIX = 10
 local PIX2M = 1 / 10
 
 
-local camTimer = require("Timer").new()
 local cam
-local gr = love.graphics
+local camTimer = require("Timer").new()
 local drawlist = {}
+local gr = love.graphics
+local inputLine = ""
 local linesbuf = require("kons").new()
 
 
@@ -41,7 +43,6 @@ local linesbuf = require("kons").new()
 
 
 
-require("imgui")
 
 local Turret = {}
 
@@ -195,7 +196,6 @@ function Tank.new(pos)
    self.pbody:setUserData(self)
 
    self.id = tankCounter
-
    self.turret = Turret.new(self)
    self.base = Base.new(self)
    self.movementDelta = 1.
@@ -711,8 +711,6 @@ local function drawBoundingBox()
 end
 
 local function draw()
-
-
    gr.clear(0.2, 0.2, 0.2)
 
    cam:attach()
@@ -727,6 +725,9 @@ local function draw()
 
 
    linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
+   if inputLine ~= "" then
+      linesbuf:pushi(string.format(">:%s", inputLine))
+   end
    linesbuf:draw()
 end
 
@@ -897,11 +898,12 @@ local function quit()
    tanks = {}
 end
 
+local function mousemoved(_, _, _, _)
+end
 
+local function wheelmoved(x, y)
 
-
-
-
+end
 
 local function mousepressed(x, y, btn)
    if btn == 1 then
@@ -920,6 +922,11 @@ local function resize(w, h)
    end
 end
 
+local function textinput(text)
+   print("textinput", text)
+   inputLine = text
+end
+
 return {
    init = init,
    quit = quit,
@@ -929,6 +936,7 @@ return {
    keypressed = keypressed,
    mousepressed = mousepressed,
    resize = resize,
-
-
+   mousemoved = mousemoved,
+   wheelmoved = wheelmoved,
+   textinput = textinput,
 }
