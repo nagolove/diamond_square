@@ -1,8 +1,13 @@
-﻿return {
+﻿-- vim: fdm=marker
+-- vim: set colorcolumn=85
+
+return {
     language = "English", 
     en = {
+        --[[
+        -- {{{
         pos = "Position", -- пространство(??)
-        position = "Position", 
+        position = "Position",
         sound = "Sound",
         form = "Form",
         color = "Color",
@@ -57,7 +62,7 @@
         moreTime = "more year ago",
 
         levelInfo1_part1 = {
-            one = "Duration %{count} minute", 
+            one = "Duration %{count} minute",
             few = "Duration %{count} minutes",
             many = "Duration %{count} minutes",
             other = "Duration %{count} minutes",
@@ -79,9 +84,9 @@
 
         help = {
             backButton = "Back to main menu",
-            desc = [[Single n-back task with visual stimuli.
-The n-back task is a continuous performance task that is commonly used as an assessment in psychology and cognitive neuroscience to measure a part of working memory and working memory capacity.[1] The n-back was introduced by Wayne Kirchner in 1958.[2] Some researchers have argued that n-back training may increase IQ, but evidence is low quality and mixed]],
         },
+        --]]
+        -- }}}
 
     },
 }
