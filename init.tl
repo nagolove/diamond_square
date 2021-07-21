@@ -1,6 +1,11 @@
 -- vim: fdm=marker
 -- vim: set colorcolumn=85
 
+local enum Mode
+    "normal"
+    "command"
+end
+
 love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/pink1/?.lua")
 
 require "love"
@@ -19,6 +24,8 @@ local DEBUG_TURRET = true
 local DEBUG_CAMERA = true
 local DEBUG_PHYSICS = true
 
+local mode: Mode
+
 local W, H = love.graphics.getDimensions()
 -- Не работают когда двигается камера?
 local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
@@ -35,6 +42,7 @@ local cam: Camera
 local gr = love.graphics
 local drawlist = {}
 local linesbuf = require "kons".new()
+local cmdline: string = ""
 
 --local i18n = require "i18n"
 --require "external"
@@ -88,7 +96,9 @@ local record Tank
     -- на сколько пикселей смещается танк при вызове метода движения
     movementDelta: number
 
+    -- абсолютные координаты в пикселях
     new: function(pos: vector): Tank
+
     left: function(Tank)
     right: function(Tank)
     up: function(Tank)
@@ -191,7 +201,7 @@ function Tank.new(pos: vector): Tank
     tankCounter = tankCounter + 1
 
     self.pbody = love.physics.newBody(pworld, x * PIX2M, y * PIX2M, "dynamic")
-    self.pbody:setMass(1.)
+    --self.pbody:setMass(1.)
     self.pbody:setUserData(self)
 
     self.id = tankCounter
@@ -251,7 +261,6 @@ function Turret.new(t: Tank): Turret
     return self
 end
 
---[[
 local function drawFixture(f: love.physics.Fixture)
     local shape = f:getShape()
     local shapeType = shape:getType()
@@ -259,13 +268,12 @@ local function drawFixture(f: love.physics.Fixture)
         local cShape: love.physics.CircleShape = shape as love.physics.CircleShape
         local px, py = cShape:getPoint()
         local radius = cShape:getRadius()
-
-        px, py, radius = f:getBody():getWorldPoints(px, py, radius)
-        --radius = f:getWorldPoint(radius)
-
-        --push2drawlist(function()
-        gr.circle("fill", px, py, radius)
-        --end)
+        px, py = f:getBody():getWorldPoints(px, py)
+        local lw = 3
+        local olw = gr.getLineWidth()
+        gr.setLineWidth(lw)
+        gr.circle("line", px * M2PIX, py * M2PIX, radius)
+        gr.setLineWidth(olw)
     else
         error("Shape type " .. shapeType .. " unsupported.")
     end
@@ -305,29 +313,19 @@ function Base:present()
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
     local r, sx, sy, ox, oy: number = math.rad(0.), 1., 1., imgw / 2, imgh / 2
     --local kx, ky: number = 1., 1.
-    --love.graphics.draw(self.img as love.graphics.Drawable, self.pos.x, self.pos.y, r, sx, sy, ox, oy, kx, ky)
-
-    local findex = 1
-    local f = self.pbody:getFixtures()[findex]
-    if not f then
-        error("No suitable fixture at index " .. findex)
-    end
-
-    --local x, y = self.pbody:getWorldCenter()
-    --local px, py = self.pos.x, self.pos.y
     local shape = self.f:getShape()
     local cshape = self.f:getShape() as love.physics.CircleShape
     if shape:getType() ~= "circle" then
         error("Only circle shape allowed.")
     end
     local px, py = cshape:getPoint()
-    px = px * M2PIX
-    py = py * M2PIX
+    px, py = self.pbody:getWorldPoints(px, py)
+    px, py = px * M2PIX, py * M2PIX
     r = cshape:getRadius() * M2PIX
-
-    --px, py = self.pbody:getWorldPoints(px, py)
+    gr.setColor{1, 0, 0, 0.5}
     gr.circle("fill", px, py, r)
 
+    gr.setColor{1, 1, 1, 0.5}
     love.graphics.draw(
         self.img as love.graphics.Drawable,
         px, py,
@@ -336,12 +334,14 @@ function Base:present()
         ox, oy
     )
 
-    --for _, f in ipairs(self.pbody:getFixtures()) do
-        --drawFixture(f)
-    --end
+    for _, f in ipairs(self.pbody:getFixtures()) do
+        drawFixture(f)
+    end
 
-    --local x, y = self.pbody:getWorldCenter()
-    local x, y = self.pbody:getPosition()
+    local x, y = self.pbody:getWorldCenter()
+    --local xp, yp = self.pbody:getPosition()
+    --xp, yp = self.pbody:getWorldPoints(xp, yp)
+    --print("x, y, xp, yp", x, y, xp, yp)
     x, y = x * M2PIX, y * M2PIX
     local text = string.format("%d", self.tank.id)
     gr.print(text, x, y)
@@ -371,9 +371,6 @@ function Base.new(t: Tank): Base
     --local shape = love.physics.newRectangleShape(w, h)
     local r = w / 2
     local px, py = self.tank.pbody:getPosition()
-    --px, py = self.tank.pbody:getWorldPoint(px, py)
-    --local shape = love.physics.newCircleShape(self.pos.x, self.pos.y, r)
-    --local shape = love.physics.newCircleShape(px, py, r * PIX2M)
     local shape = love.physics.newCircleShape(px, py, r * PIX2M)
     --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
@@ -550,7 +547,7 @@ local function bindPlayerTankKeys()
         -- {{{
         local kc = KeyConfig
         local Shortcut = kc.Shortcut
-        local mode: kc.BindType = "isdown"
+        local bmode: kc.BindType = "isdown"
 
         -- Непонятное и наверно ненужное перечисление.
         local enum E
@@ -585,7 +582,7 @@ local function bindPlayerTankKeys()
 
         direction = "right"
         kc.bind(
-            mode, { key = direction },
+            bmode, { key = direction },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["right"](playerTank)
                 return false, sc
@@ -595,7 +592,7 @@ local function bindPlayerTankKeys()
 
         direction = "left"
         kc.bind(
-            mode, { key = direction },
+            bmode, { key = direction },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["left"](playerTank)
                 return false, sc
@@ -605,7 +602,7 @@ local function bindPlayerTankKeys()
 
         direction = "up"
         kc.bind(
-            mode, { key = direction },
+            bmode, { key = direction },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["up"](playerTank)
                 return false, sc
@@ -615,7 +612,7 @@ local function bindPlayerTankKeys()
 
         direction = "down"
         kc.bind(
-            mode, { key = direction },
+            bmode, { key = direction },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["down"](playerTank)
                 return false, sc
@@ -729,6 +726,9 @@ local function draw()
 
     --linesbuf:pushi("camera x, y", cam.x, cam.y)
     linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
+    if mode == "command" then
+        linesbuf:pushi(">:" .. cmdline)
+    end
     linesbuf:draw()
 end
 
@@ -891,7 +891,17 @@ local function init()
     bindCameraZoomKeys()
     bindCameraControl()
     bindFullscreenSwitcher()
-    --bindPlayerTankKeys()
+
+    KeyConfig.bind(
+        "keypressed", 
+        { key = ":", mod = {"shift"} }, 
+        function(sc: KeyConfig.Shortcut): boolean, KeyConfig.Shortcut
+            mode = "command"
+            love.keyboard.setTextInput(true)
+            return false, sc
+        end,
+        "go to command mode", 
+        "commandmode")
 end
 
 local function quit()
@@ -910,7 +920,11 @@ local function mousepressed(x: number, y: number, btn: integer)
         -- значения координат мыши привести к мировым координатам камеры
         --print("mousepressed")
         --print("x, y", x, y)
+        print("before worldCoords", x, y)
         x, y = cam:worldCoords(x, y)
+        print("after worldCoords", x, y)
+        --x, y = cam:cameraCoords(x, y)
+        --x, y = x * PIX2M, y * PIX2M
         --print("x, y", x, y)
         spawn(vector.new(x, y))
     end
@@ -922,6 +936,10 @@ local function resize(w: integer, h: integer)
     end
 end
 
+local function textinput(text: string)
+    cmdline = cmdline .. text
+end
+
 return {
     init = init,
     quit = quit,
@@ -931,6 +949,7 @@ return {
     keypressed = keypressed,
     mousepressed = mousepressed,
     resize = resize,
+    textinput = textinput,
     --mousemoved = mousemoved,
     --wheelmoved = wheelmoved
 }
