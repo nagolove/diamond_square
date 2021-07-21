@@ -2,8 +2,19 @@
 -- vim: set colorcolumn=85
 
 return {
-    language = "English", 
+    language = "English",
     en = {
+        mtleft = "move tank left",
+        mtright = "move tank right",
+        mtup = "move tank up",
+        mtdown = "move tank down",
+
+        mcleft = "move camera left",
+        mcright = "move camera right",
+        mcup = "move camera up",
+        mcdown = "move camera down",
+        commandmode = "go to command mode",
+
         --[[
         -- {{{
         pos = "Position", -- пространство(??)

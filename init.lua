@@ -8,6 +8,7 @@ local Mode = {}
 
 love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/pink1/?.lua")
 
+local List = require("list")
 require("love")
 require("common")
 require("keyconfig")
@@ -130,9 +131,9 @@ local function presentDrawlist()
 end
 
 local function push2drawlist(f)
-
-
-
+   if not f then
+      error("Draw could'not be nil.")
+   end
    if type(f) ~= "function" then
       error("Draw function is not a function. It is a .. " .. type(f))
    end
@@ -533,6 +534,24 @@ local function unbindPlayerTankKeys()
    end
 end
 
+local function loadLocales()
+   local localePath = SCENE_PREFIX .. "/locales"
+   local files = love.filesystem.getDirectoryItems(localePath)
+   print("locale files", inspect(files))
+   for _, v in ipairs(files) do
+      i18n.loadFile(localePath .. "/" .. v, function(path)
+         local chunk, errmsg = love.filesystem.load(path)
+         if not chunk then
+            error(errmsg)
+         end
+         return chunk
+      end)
+   end
+
+   i18n.setLocale('ru')
+
+end
+
 local function bindPlayerTankKeys()
    local function pushId(id)
       table.insert(playerTankKeyconfigIds, id)
@@ -583,7 +602,7 @@ local function bindPlayerTankKeys()
          playerTank["right"](playerTank)
          return false, sc
       end,
-      "move tank " .. direction, pushId("mt" .. direction))
+      i18n("mt" .. direction), pushId("mt" .. direction))
 
 
       direction = "left"
@@ -593,7 +612,7 @@ local function bindPlayerTankKeys()
          playerTank["left"](playerTank)
          return false, sc
       end,
-      "move tank " .. direction, pushId("mt" .. direction))
+      i18n("mt" .. direction), pushId("mt" .. direction))
 
 
       direction = "up"
@@ -603,7 +622,7 @@ local function bindPlayerTankKeys()
          playerTank["up"](playerTank)
          return false, sc
       end,
-      "move tank " .. direction, pushId("mt" .. direction))
+      i18n("mt" .. direction), pushId("mt" .. direction))
 
 
       direction = "down"
@@ -613,7 +632,7 @@ local function bindPlayerTankKeys()
          playerTank["down"](playerTank)
          return false, sc
       end,
-      "move tank " .. direction, pushId("mt" .. direction))
+      i18n("mt" .. direction), pushId("mt" .. direction))
 
 
 
@@ -636,6 +655,12 @@ local function playerTankUpdate()
          playerTank:down()
       end
    end
+end
+
+local function changeKeyConfigListbackground()
+   KeyConfig.setListSetupCallback(function(list)
+      list.colors.normal = { bg = { 0.19, 0.61, 0.88 }, fg = { 1, 1., 1., 1. } }
+   end)
 end
 
 local function drawui()
@@ -673,10 +698,14 @@ local function bindCameraControl()
 
    local bindMode = "keypressed"
 
-   KeyConfig.bind(bindMode, { key = "a" }, makeMoveFunction(1., 0), "move left", "camleft")
-   KeyConfig.bind(bindMode, { key = "d" }, makeMoveFunction(-1.0, 0.), "move right", "camright")
-   KeyConfig.bind(bindMode, { key = "w" }, makeMoveFunction(0., 1.), "move up", "camup")
-   KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.), "move down", "camdown")
+   KeyConfig.bind(bindMode, { key = "a" }, makeMoveFunction(1., 0),
+   i18n("mcleft"), "camleft")
+   KeyConfig.bind(bindMode, { key = "d" }, makeMoveFunction(-1.0, 0.),
+   i18n("mcright"), "camright")
+   KeyConfig.bind(bindMode, { key = "w" }, makeMoveFunction(0., 1.),
+   i18n("mcup"), "camup")
+   KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.),
+   i18n("mcdown"), "camdown")
    KeyConfig.bind(bindMode, { key = "escape" }, function(sc)
       love.event.quit()
       return false, sc
@@ -723,6 +752,8 @@ local function draw()
    end
 
    linesbuf:draw()
+
+   changeKeyConfigListbackground()
 end
 
 local function update(dt)
@@ -851,22 +882,7 @@ end
 local function init()
    setWindowMode()
 
-
-
-   i18n.set('en.welcome', 'welcome to this program')
-   i18n.load({
-      en = {
-         good_bye = "good-bye!",
-         age_msg = "your age is %{age}.",
-         phone_msg = {
-            one = "you have one new message.",
-            other = "you have %{count} new messages.",
-         },
-      },
-   })
-   print("translated", i18n.translate('welcome'))
-   print("translated", i18n('welcome'))
-
+   loadLocales()
 
    local canSleep = true
    pworld = love.physics.newWorld(0., 0., canSleep)
@@ -887,6 +903,7 @@ local function init()
    bindFullscreenSwitcher()
 
 
+
    KeyConfig.bind(
    "keypressed",
    { key = ":", mod = { "shift" } },
@@ -895,7 +912,7 @@ local function init()
       love.keyboard.setTextInput(true)
       return false, sc
    end,
-   "go to command mode",
+   i18n("commandmode"),
    "commandmode")
 end
 
