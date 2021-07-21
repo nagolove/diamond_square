@@ -689,9 +689,11 @@ local function bindCameraControl()
     KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.), "move down", "camdown")
     KeyConfig.bind(bindMode, { key = "escape" }, function(sc: Shortcut): boolean, Shortcut
         love.event.quit()
+        return false, sc
     end)
     KeyConfig.bind(bindMode, { key = "`" }, function(sc: Shortcut): boolean, Shortcut
         linesbuf.show = not linesbuf.show
+        return false, sc
     end)
 
 end
