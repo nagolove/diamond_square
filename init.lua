@@ -133,13 +133,13 @@ local function presentDrawlist()
    end
 end
 
-local VALUE = 0
+local VALUE = 0.
 
 function Tank:left()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:left")
    end
-   local x, y = VALUE, 0
+   local x, y = -VALUE, 0
    if DEBUG_PHYSICS then
       print("Tank " .. self.id .. "applyForce x, y", x, y)
    end
@@ -150,7 +150,7 @@ function Tank:right()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:right")
    end
-   local x, y = -VALUE, 0
+   local x, y = VALUE, 0
    if DEBUG_PHYSICS then
       print("Tank " .. self.id .. "applyForce x, y", x, y)
    end
@@ -607,7 +607,7 @@ local function bindPlayerTankKeys()
       kc.bind(
       mode, { key = direction },
       function(sc)
-         playerTank["right"](playerTank)
+         playerTank["up"](playerTank)
          return false, sc
       end,
       "move tank " .. direction, pushId("mt" .. direction))
@@ -617,7 +617,7 @@ local function bindPlayerTankKeys()
       kc.bind(
       mode, { key = direction },
       function(sc)
-         playerTank["right"](playerTank)
+         playerTank["down"](playerTank)
          return false, sc
       end,
       "move tank " .. direction, pushId("mt" .. direction))
@@ -738,7 +738,7 @@ local function update(dt)
 end
 
 local function processValue(key)
-   local t = 2
+   local t = 0.5
    if key == "n" then
       VALUE = VALUE - t
       print("VALUE", VALUE)
@@ -792,7 +792,7 @@ local function spawn(pos)
    return res
 end
 
-local function bindZoomKeys()
+local function bindCameraZoomKeys()
    local Shortcut = KeyConfig.Shortcut
    local zoomSpeed = 0.01
    local zoomLower, zoomHigher = 0.3, 2
@@ -823,7 +823,35 @@ local function bindZoomKeys()
 
 end
 
+local DEFAULT_W, DEFAULT_H = 1024, 768
+
+local function setWindowMode()
+   love.window.setMode(DEFAULT_W, DEFAULT_H, { resizable = false })
+end
+
+local function setFullscreenMode()
+   love.window.setFullscreen(true)
+end
+
+local function bindFullscreenSwitcher()
+   KeyConfig.bind(
+   "keypressed",
+   { key = "f11" },
+   function(sc)
+      local isfs = love.window.getFullscreen()
+      if isfs then
+         setWindowMode()
+      else
+         setFullscreenMode()
+      end
+      return false, sc
+   end,
+   "switch fullscreen and windowed modes",
+   "switchwindowmode")
+end
+
 local function init()
+   setWindowMode()
 
 
 
@@ -843,7 +871,6 @@ local function init()
 
 
 
-   bindZoomKeys()
 
    local canSleep = true
    pworld = love.physics.newWorld(0., 0., canSleep)
@@ -859,7 +886,9 @@ local function init()
       print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
    end
 
+   bindCameraZoomKeys()
    bindCameraControl()
+   bindFullscreenSwitcher()
 
 end
 
@@ -885,6 +914,12 @@ local function mousepressed(x, y, btn)
    end
 end
 
+local function resize(w, h)
+   if DEBUG_CAMERA then
+      print("tanks window resized to w, h", w, h)
+   end
+end
+
 return {
    init = init,
    quit = quit,
@@ -893,6 +928,7 @@ return {
    update = update,
    keypressed = keypressed,
    mousepressed = mousepressed,
+   resize = resize,
 
 
 }
