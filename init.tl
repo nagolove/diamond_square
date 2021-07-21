@@ -121,20 +121,20 @@ local tanks: {Tank} = {}
 -- Танк, которым управляет игрок
 local playerTank: Tank
 
-local function push2drawlist(f: function)
-    if not f then
-        error("Draw function could'not be nil.")
-    end
-    if type(f) ~= "function" then
-        error("Draw function is not a function. It is a .. " .. type(f))
-    end
-    table.insert(drawlist, f)
-end
-
 local function presentDrawlist()
     for _, v in ipairs(drawlist) do
         v()
     end
+end
+
+local function push2drawlist(f: function)
+    --if not f then
+        --error("Draw could'not be nil.")
+    --end
+    if type(f) ~= "function" then
+        error("Draw function is not a function. It is a .. " .. type(f))
+    end
+    table.insert(drawlist, f)
 end
 
 local VALUE = 0.
@@ -233,7 +233,6 @@ function Turret.new(t: Tank): Turret
     self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
     self.pbody = t.pbody;
 
-    --[[
     local w, _ = (self.img as love.graphics.Texture):getDimensions()
 
     --local shape = love.physics.newRectangleShape(w, h)
@@ -245,16 +244,15 @@ function Turret.new(t: Tank): Turret
         --print("rectangle shape created w, h", w, h)
         print("circle shape created x, y, r", self.pos.x, self.pos.y, r)
     end
-    --]]
 
     if DEBUG_TURRET then
         --print("self.pos", self.pos)
         print("self.img", self.img)
     end
+
     return self
 end
 
---[[
 local function drawFixture(f: love.physics.Fixture)
     local shape = f:getShape()
     local shapeType = shape:getType()
@@ -273,10 +271,8 @@ local function drawFixture(f: love.physics.Fixture)
         error("Shape type " .. shapeType .. " unsupported.")
     end
 end
---]]
 
 function Turret:present()
-    --[[
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
     local r, sx, sy, ox, oy: number = math.rad(0.), 1., 1., imgw / 2, imgh / 2
     --local kx, ky: number = 1., 1.
@@ -301,7 +297,6 @@ function Turret:present()
     local x, y = self.pbody:getWorldCenter()
     local text = string.format("%d", self.tank.id)
     gr.print(text, x, y)
-    --]]
 end
 
 function Base:present()
@@ -482,7 +477,6 @@ local function onEndContact(fixture1, fixture2, contact)
   end
 end
     -- }}}
---]]
 
 local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
     -- {{{
@@ -582,7 +576,6 @@ local function bindPlayerTankKeys()
         bindDirection("up")
         bindDirection("down")
         -- }}}
-        --]]
 
         local direction: E 
 
@@ -627,7 +620,6 @@ local function bindPlayerTankKeys()
         )
 
         -- }}}
-        --]]
     else
         error("There is no player tank object instance, sorry.")
     end
@@ -649,7 +641,6 @@ local function playerTankUpdate()
         end
     end
 end
---]]
 
 local function drawui()
     imgui.StyleColorsLight()
@@ -874,7 +865,6 @@ local function init()
     print("translated", i18n.translate('welcome'))
     print("translated", i18n('welcome'))
     -- }}}
-    --]]
 
     local canSleep = true
     pworld = love.physics.newWorld(0., 0., canSleep)
@@ -958,3 +948,4 @@ return {
     wheelmoved = wheelmoved,
     textinput = textinput,
 }
+--]]
