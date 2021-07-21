@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 local Mode = {}
@@ -19,12 +19,20 @@ require("imgui")
 
 SCENE_PREFIX = "scenes/pink1"
 
-local DEBUG_BASE = true
-local DEBUG_TANK = true
+local DEBUG_BASE = false
+local DEBUG_TANK = false
 local DEBUG_TANK_MOVEMENT = false
-local DEBUG_TURRET = true
-local DEBUG_CAMERA = true
-local DEBUG_PHYSICS = true
+local DEBUG_TURRET = false
+local DEBUG_CAMERA = false
+local DEBUG_PHYSICS = false
+
+
+
+
+
+
+
+local DEBUG_DRAW_THREAD = true
 
 local W, H = love.graphics.getDimensions()
 
@@ -45,8 +53,12 @@ local linesbuf = require("kons").new()
 local mode = "normal"
 local cmdline = ""
 
+local backgroundImage = love.graphics.newImage("t80_background_2.png")
 local i18n = require("i18n")
 local inspect = require("inspect")
+
+local drawCoro = nil
+local showLogo = true
 
 local Turret = {}
 
@@ -731,7 +743,7 @@ local function drawBoundingBox()
    gr.setLineWidth(oldwidth)
 end
 
-local function draw()
+local function mainPresent()
    gr.clear(0.2, 0.2, 0.2)
 
    cam:attach()
@@ -754,6 +766,13 @@ local function draw()
    linesbuf:draw()
 
    changeKeyConfigListbackground()
+end
+
+local function draw()
+   local ok = coroutine.resume(drawCoro)
+   if not ok then
+      error("drawCoro thread is end")
+   end
 end
 
 local function update(dt)
@@ -879,6 +898,49 @@ local function bindFullscreenSwitcher()
    "switchwindowmode")
 end
 
+local function logoPresent()
+   gr.setColor({ 1, 1, 1, 1 })
+   love.graphics.draw(backgroundImage, 0, 0)
+   coroutine.yield()
+end
+
+local function createDrawCoroutine()
+   drawCoro = coroutine.create(function()
+      if DEBUG_DRAW_THREAD then
+         print("drawCoro started")
+      end
+      while showLogo == true do
+         logoPresent()
+         if DEBUG_DRAW_THREAD then
+            print("after logoPresent()")
+         end
+      end
+      while true do
+         mainPresent()
+         if DEBUG_DRAW_THREAD then
+            print("after mainPresent()")
+         end
+      end
+      if DEBUG_DRAW_THREAD then
+         print("drawCoro finished")
+      end
+   end)
+end
+
+local function bindCommandModeHotkey()
+   KeyConfig.bind(
+   "keypressed",
+   { key = ":", mod = { "shift" } },
+   function(sc)
+      print("Switching for command mode")
+      mode = "command"
+      love.keyboard.setTextInput(true)
+      return false, sc
+   end,
+   i18n("commandmode"),
+   "commandmode")
+end
+
 local function init()
    setWindowMode()
 
@@ -901,19 +963,9 @@ local function init()
    bindCameraZoomKeys()
    bindCameraControl()
    bindFullscreenSwitcher()
+   bindCommandModeHotkey()
 
-
-
-   KeyConfig.bind(
-   "keypressed",
-   { key = ":", mod = { "shift" } },
-   function(sc)
-      mode = "command"
-      love.keyboard.setTextInput(true)
-      return false, sc
-   end,
-   i18n("commandmode"),
-   "commandmode")
+   createDrawCoroutine()
 end
 
 local function quit()
