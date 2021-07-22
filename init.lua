@@ -53,7 +53,7 @@ local linesbuf = require("kons").new()
 local mode = "normal"
 local cmdline = ""
 
-local backgroundImage = love.graphics.newImage("t80_background_2.png")
+local backgroundImage = love.graphics.newImage(SCENE_PREFIX .. "/t80_background_2.png")
 local i18n = require("i18n")
 local inspect = require("inspect")
 
@@ -771,7 +771,7 @@ end
 local function draw()
    local ok = coroutine.resume(drawCoro)
    if not ok then
-      error("drawCoro thread is end")
+
    end
 end
 
@@ -905,26 +905,28 @@ local function logoPresent()
 end
 
 local function createDrawCoroutine()
-   drawCoro = coroutine.create(function()
-      if DEBUG_DRAW_THREAD then
-         print("drawCoro started")
-      end
-      while showLogo == true do
-         logoPresent()
-         if DEBUG_DRAW_THREAD then
-            print("after logoPresent()")
-         end
-      end
-      while true do
-         mainPresent()
-         if DEBUG_DRAW_THREAD then
-            print("after mainPresent()")
-         end
-      end
-      if DEBUG_DRAW_THREAD then
-         print("drawCoro finished")
-      end
-   end)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 end
 
 local function bindCommandModeHotkey()
