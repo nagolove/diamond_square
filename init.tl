@@ -719,7 +719,11 @@ local function bindCameraControl()
     KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.), 
         i18n("mcdown"), "camdown")
     KeyConfig.bind(bindMode, { key = "escape" }, function(sc: Shortcut): boolean, Shortcut
-        love.event.quit()
+        if showLogo == true then
+            love.event.quit()
+        else
+            showLogo = true
+        end
         return false, sc
     end)
     KeyConfig.bind(bindMode, { key = "`" }, function(sc: Shortcut): boolean, Shortcut
@@ -804,6 +808,7 @@ local function keypressed(key: string)
         print("showLogo", showLogo)
     end
 
+    --[[
     if key == "space" then
         -- {{{ Testing timer
         print("space pressed")
@@ -824,6 +829,7 @@ local function keypressed(key: string)
         end)
         -- }}}
     end
+    --]]
 
     processValue(key)
 end
@@ -919,16 +925,14 @@ local function createDrawCoroutine()
         if DEBUG_DRAW_THREAD then
             print("drawCoro started")
         end
-        while showLogo == true do
-            logoPresent()
-            if DEBUG_DRAW_THREAD then
-                print("after logoPresent()")
-            end
-        end
         while true do
-            mainPresent()
-            if DEBUG_DRAW_THREAD then
-                print("after mainPresent()")
+            -- режим игрового меню
+            while showLogo == true do
+                logoPresent()
+            end
+            -- режим сражения
+            while showLogo == false do
+                mainPresent()
             end
         end
         if DEBUG_DRAW_THREAD then
@@ -940,12 +944,23 @@ end
 local function bindCommandModeHotkey()
     KeyConfig.bind(
         "keypressed", 
-        { key = ":", mod = {"shift"} }, 
+        { key = ":", mod = {"lshift"} }, 
         function(sc: KeyConfig.Shortcut): boolean, KeyConfig.Shortcut
             print("Switching for command mode")
             mode = "command"
             love.keyboard.setTextInput(true)
-            return false, sc
+
+            KeyConfig.bind(
+                "keypressed",
+                { key = "escape", },
+                function(sc: KeyConfig.Shortcut): boolean, KeyConfig.Shortcut
+                    mode = "normal"
+                    return false, sc
+                end,
+                "escape to logo screen",
+                "escape2log")
+
+            return true, sc
         end,
         i18n("commandmode"),
         "commandmode")

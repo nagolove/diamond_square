@@ -719,7 +719,11 @@ local function bindCameraControl()
    KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.),
    i18n("mcdown"), "camdown")
    KeyConfig.bind(bindMode, { key = "escape" }, function(sc)
-      love.event.quit()
+      if showLogo == true then
+         love.event.quit()
+      else
+         showLogo = true
+      end
       return false, sc
    end)
    KeyConfig.bind(bindMode, { key = "`" }, function(sc)
@@ -804,26 +808,28 @@ local function keypressed(key)
       print("showLogo", showLogo)
    end
 
-   if key == "space" then
-
-      print("space pressed")
-      local animLen = 3
-      camTimer:during(animLen, function(_, time, _)
-         push2drawlist(function()
-            gr.setColor({ 1., 0., 0. })
-            local radius = 50
 
 
 
-            gr.circle("fill", W / 2, H / 2, radius * time)
-         end)
 
-      end,
-      function()
-         print("after space")
-      end)
 
-   end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
    processValue(key)
 end
@@ -919,16 +925,14 @@ local function createDrawCoroutine()
       if DEBUG_DRAW_THREAD then
          print("drawCoro started")
       end
-      while showLogo == true do
-         logoPresent()
-         if DEBUG_DRAW_THREAD then
-            print("after logoPresent()")
-         end
-      end
       while true do
-         mainPresent()
-         if DEBUG_DRAW_THREAD then
-            print("after mainPresent()")
+
+         while showLogo == true do
+            logoPresent()
+         end
+
+         while showLogo == false do
+            mainPresent()
          end
       end
       if DEBUG_DRAW_THREAD then
@@ -940,12 +944,23 @@ end
 local function bindCommandModeHotkey()
    KeyConfig.bind(
    "keypressed",
-   { key = ":", mod = { "shift" } },
+   { key = ":", mod = { "lshift" } },
    function(sc)
       print("Switching for command mode")
       mode = "command"
       love.keyboard.setTextInput(true)
-      return false, sc
+
+      KeyConfig.bind(
+      "keypressed",
+      { key = "escape" },
+      function(sc)
+         mode = "normal"
+         return false, sc
+      end,
+      "escape to logo screen",
+      "escape2log")
+
+      return true, sc
    end,
    i18n("commandmode"),
    "commandmode")
