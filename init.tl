@@ -766,6 +766,8 @@ local function mainPresent()
     linesbuf:draw()
 
     changeKeyConfigListbackground()
+
+    coroutine.yield()
 end
 
 local function draw()
@@ -797,6 +799,11 @@ local function processValue(key: string)
 end
 
 local function keypressed(key: string)
+    if showLogo then
+        showLogo = false
+        print("showLogo", showLogo)
+    end
+
     if key == "space" then
         -- {{{ Testing timer
         print("space pressed")
@@ -900,12 +907,14 @@ end
 
 local function logoPresent()
     gr.setColor{1, 1, 1, 1}
-    love.graphics.draw(backgroundImage as gr.Drawable, 0, 0)
+    local imgw, imgh = (backgroundImage as gr.Texture):getDimensions()
+    local w, h = gr.getDimensions()
+    local sx, sy = w / imgw, h / imgh
+    love.graphics.draw(backgroundImage as gr.Drawable, 0, 0, 0., sx, sy)
     coroutine.yield()
 end
 
 local function createDrawCoroutine()
-    --[[
     drawCoro = coroutine.create(function()
         if DEBUG_DRAW_THREAD then
             print("drawCoro started")
@@ -926,7 +935,6 @@ local function createDrawCoroutine()
             print("drawCoro finished")
         end
     end)
-    --]]
 end
 
 local function bindCommandModeHotkey()
