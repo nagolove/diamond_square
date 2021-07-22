@@ -6,7 +6,9 @@ local Mode = {}
 
 
 
-love.filesystem.setRequirePath("?.lua;?/init.lua;scenes/pink1/?.lua")
+SCENE_PREFIX = "scenes/t80u"
+
+love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
 local List = require("list")
 require("love")
@@ -16,8 +18,6 @@ require("camera")
 require("vector")
 require("Timer")
 require("imgui")
-
-SCENE_PREFIX = "scenes/pink1"
 
 local DEBUG_BASE = false
 local DEBUG_TANK = false
