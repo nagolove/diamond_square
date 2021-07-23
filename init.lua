@@ -34,7 +34,9 @@ local DEBUG_PHYSICS = false
 
 local DEBUG_DRAW_THREAD = true
 
+local DEFAULT_W, DEFAULT_H = 1024, 768
 local W, H = love.graphics.getDimensions()
+
 
 local tlx, tly, brx, bry = 0., 0., W, H
 
@@ -53,7 +55,6 @@ local linesbuf = require("kons").new()
 local mode = "normal"
 local cmdline = ""
 
-local backgroundImage = love.graphics.newImage(SCENE_PREFIX .. "/t80_background_2.png")
 local i18n = require("i18n")
 local inspect = require("inspect")
 
@@ -119,6 +120,22 @@ local Tank_mt = {
    __index = Tank,
 }
 
+local Logo = {}
+
+
+
+
+
+
+
+
+
+
+
+local Logo_mt = {
+   __index = Logo,
+}
+
 local CameraSettings = {}
 
 
@@ -135,6 +152,8 @@ local pworld
 local tanks = {}
 
 local playerTank
+
+local logo
 
 local function presentDrawlist()
    for _, v in ipairs(drawlist) do
@@ -244,7 +263,8 @@ function Turret.new(t)
 
    local self = setmetatable({}, Turret_mt)
    self.tank = t
-   self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
+
+   self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
    self.pbody = t.pbody;
 
    if DEBUG_TURRET then
@@ -364,7 +384,9 @@ function Base.new(t)
 
    local self = setmetatable({}, Base_mt)
    self.tank = t
-   self.img = love.graphics.newImage(SCENE_PREFIX .. "/korpus1.png")
+
+
+   self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
    self.pbody = t.pbody
 
    if DEBUG_BASE then
@@ -807,7 +829,9 @@ local function keypressed(key)
       showLogo = false
       print("showLogo", showLogo)
    end
-
+   if key == ":" then
+      print("command mode enabled.")
+   end
 
 
 
@@ -884,8 +908,6 @@ local function bindCameraZoomKeys()
 
 end
 
-local DEFAULT_W, DEFAULT_H = 1024, 768
-
 local function setWindowMode()
    love.window.setMode(DEFAULT_W, DEFAULT_H, { resizable = false })
 end
@@ -911,24 +933,33 @@ local function bindFullscreenSwitcher()
    "switchwindowmode")
 end
 
-local function logoPresent()
-   gr.setColor({ 1, 1, 1, 1 })
-   local imgw, imgh = (backgroundImage):getDimensions()
+function Logo.new()
    local w, h = gr.getDimensions()
-   local sx, sy = w / imgw, h / imgh
-   love.graphics.draw(backgroundImage, 0, 0, 0., sx, sy)
+   local self = setmetatable({}, Logo_mt)
+   self.image = love.graphics.newImage(SCENE_PREFIX .. "/t80_background_2.png")
+   local tex = self.image
+   self.imgw, self.imgw = math.ceil(tex:getWidth()), math.ceil(tex:getHeight())
+   self.sx, self.sy = w / self.imgw, h / self.imgh
+   return self
+end
+
+function Logo:present()
+   gr.setColor({ 1, 1, 1, 1 })
+   print('Logo:present() self.sx, self.sy:', self.sx, self.sy)
+   love.graphics.draw(self.image, 0, 0, 0., self.sx, self.sy)
    coroutine.yield()
 end
 
 local function createDrawCoroutine()
    drawCoro = coroutine.create(function()
+      logo = Logo.new()
       if DEBUG_DRAW_THREAD then
          print("drawCoro started")
       end
       while true do
 
          while showLogo == true do
-            logoPresent()
+            logo:present()
          end
 
          while showLogo == false do
@@ -988,7 +1019,7 @@ local function init()
    bindCameraZoomKeys()
    bindCameraControl()
    bindFullscreenSwitcher()
-   bindCommandModeHotkey()
+
 
    createDrawCoroutine()
 end

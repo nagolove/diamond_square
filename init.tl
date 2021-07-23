@@ -34,7 +34,9 @@ local DEBUG_PHYSICS = false
 --local DEBUG_PHYSICS = true
 local DEBUG_DRAW_THREAD = true
 
+local DEFAULT_W, DEFAULT_H = 1024, 768
 local W, H = love.graphics.getDimensions()
+
 -- Не работают когда двигается камера?
 local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
 
@@ -53,7 +55,6 @@ local linesbuf = require "kons".new()
 local mode: Mode = "normal"
 local cmdline: string = ""
 
-local backgroundImage = love.graphics.newImage(SCENE_PREFIX .. "/t80_background_2.png")
 local i18n = require "i18n"
 local inspect = require "inspect"
 
@@ -119,6 +120,22 @@ local Tank_mt: metatable<Tank> = {
     __index = Tank,
 }
 
+local record Logo
+    image: love.graphics.Image
+    sx: number
+    sy: number
+    imgw: integer
+    imgh: integer
+
+    new: function(): Logo
+
+    present: function()
+end
+
+local Logo_mt: metatable<Logo> = {
+    __index = Logo,
+}
+
 local type CameraSettings = record
     dx: number
     dy: number
@@ -135,6 +152,8 @@ local pworld: love.physics.World
 local tanks: {Tank} = {}
 -- Танк, которым управляет игрок
 local playerTank: Tank
+-- Логотип, картинка
+local logo: Logo
 
 local function presentDrawlist()
     for _, v in ipairs(drawlist) do
@@ -244,7 +263,8 @@ function Turret.new(t: Tank): Turret
 
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.tank = t
-    self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
+    --self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
+    self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
     self.pbody = t.pbody;
 
     if DEBUG_TURRET then
@@ -364,7 +384,9 @@ function Base.new(t: Tank): Base
 
     local self: Base = setmetatable({} as Base, Base_mt)
     self.tank = t
-    self.img = love.graphics.newImage(SCENE_PREFIX .. "/korpus1.png")
+    --self.img = love.graphics.newImage(SCENE_PREFIX .. "/korpus1.png")
+    --self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body.png")
+    self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
     self.pbody = t.pbody
 
     if DEBUG_BASE then
@@ -807,7 +829,9 @@ local function keypressed(key: string)
         showLogo = false
         print("showLogo", showLogo)
     end
-
+    if key == ":" then
+        print("command mode enabled.")
+    end
     --[[
     if key == "space" then
         -- {{{ Testing timer
@@ -884,8 +908,6 @@ local function bindCameraZoomKeys()
     )
 end
 
-local DEFAULT_W, DEFAULT_H = 1024, 768
-
 local function setWindowMode()
     love.window.setMode(DEFAULT_W, DEFAULT_H, { resizable = false })
 end
@@ -911,24 +933,33 @@ local function bindFullscreenSwitcher()
         "switchwindowmode")
 end
 
-local function logoPresent()
-    gr.setColor{1, 1, 1, 1}
-    local imgw, imgh = (backgroundImage as gr.Texture):getDimensions()
+function Logo.new(): Logo
     local w, h = gr.getDimensions()
-    local sx, sy = w / imgw, h / imgh
-    love.graphics.draw(backgroundImage as gr.Drawable, 0, 0, 0., sx, sy)
+    local self = setmetatable({} as Logo, Logo_mt)
+    self.image = love.graphics.newImage(SCENE_PREFIX .. "/t80_background_2.png")
+    local tex = self.image as gr.Texture
+    self.imgw, self.imgw = math.ceil(tex:getWidth()), math.ceil(tex:getHeight())
+    self.sx, self.sy = w / self.imgw, h / self.imgh
+    return self
+end
+
+function Logo:present()
+    gr.setColor{1, 1, 1, 1}
+    print('Logo:present() self.sx, self.sy:', self.sx, self.sy)
+    love.graphics.draw(self.image as gr.Drawable, 0, 0, 0., self.sx, self.sy)
     coroutine.yield()
 end
 
 local function createDrawCoroutine()
     drawCoro = coroutine.create(function()
+        logo = Logo.new()
         if DEBUG_DRAW_THREAD then
             print("drawCoro started")
         end
         while true do
             -- режим игрового меню
             while showLogo == true do
-                logoPresent()
+                logo:present()
             end
             -- режим сражения
             while showLogo == false do
@@ -988,7 +1019,7 @@ local function init()
     bindCameraZoomKeys()
     bindCameraControl()
     bindFullscreenSwitcher()
-    bindCommandModeHotkey()
+    --bindCommandModeHotkey()
 
     createDrawCoroutine()
 end
