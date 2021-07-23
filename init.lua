@@ -772,14 +772,30 @@ local function drawBoundingBox()
    gr.setLineWidth(oldwidth)
 end
 
+local function removeFirstColon(s)
+   if string.sub(s, 1, 1) == ":" then
+      return string.sub(s, 2, #s)
+   else
+      return s
+   end
+end
+
+
+
+
+
+
+
+
+
 local function konsolePresent()
 
-   linesbuf.show = true
    gr.setColor({ 1, 1, 1, 1 })
    linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
 
    if mode == "command" then
-      linesbuf:pushi(">:" .. cmdline)
+      cmdline = removeFirstColon(cmdline)
+      linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
    end
 
    linesbuf:draw()
@@ -871,12 +887,26 @@ local function leaveCommandMode()
    cmdline = ""
 end
 
+function konsolePrint(...)
+   for _, v in ipairs({ ... }) do
+      if type(v) == "string" then
+         linesbuf:push(0.5, tostring(v))
+      else
+         colprint("konsolePrint warning")
+      end
+   end
+end
+
 local function evalCommand()
-   local preload = "local inspect = require 'inspect'\n"
+   local preload = [[
+        local inspect = require 'inspect'
+        local systemPrint = print
+        print = konsolePrint
+    ]]
    local f, loaderrmsg = load(preload .. cmdline)
    local time = 2
    if not f then
-      linesbuf:push(time, "loadstring() errmsg: " .. loaderrmsg)
+      linesbuf:push(time, "load() errmsg: " .. loaderrmsg)
    else
       local ok, pcallerrmsg = pcall(function()
          f()
