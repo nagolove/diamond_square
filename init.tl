@@ -25,6 +25,7 @@ local DEBUG_TANK_MOVEMENT = false
 local DEBUG_TURRET = false
 local DEBUG_CAMERA = false
 local DEBUG_PHYSICS = false
+local DEBUG_LOGO = true
 
 --local DEBUG_BASE = true
 --local DEBUG_TANK = true
@@ -32,6 +33,7 @@ local DEBUG_PHYSICS = false
 --local DEBUG_TURRET = true
 --local DEBUG_CAMERA = true
 --local DEBUG_PHYSICS = true
+--local DEBUG_LOGO = true
 local DEBUG_DRAW_THREAD = true
 
 local DEFAULT_W, DEFAULT_H = 1024, 768
@@ -934,12 +936,26 @@ local function bindFullscreenSwitcher()
 end
 
 function Logo.new(): Logo
+    if DEBUG_LOGO then
+        print("Logo.new()")
+    end
     local w, h = gr.getDimensions()
     local self = setmetatable({} as Logo, Logo_mt)
-    self.image = love.graphics.newImage(SCENE_PREFIX .. "/t80_background_2.png")
+    local fname = SCENE_PREFIX .. "/t80_background_2.png"
+    self.image = love.graphics.newImage(fname)
     local tex = self.image as gr.Texture
-    self.imgw, self.imgw = math.ceil(tex:getWidth()), math.ceil(tex:getHeight())
+    local ceil = math.ceil
+    self.imgw, self.imgh = ceil(tex:getWidth()), ceil(tex:getHeight())
+    local windowscale = 0.7
+    --local windowscale = 1
+    DEFAULT_W, DEFAULT_H = ceil(self.imgw * windowscale), ceil(self.imgh * windowscale)
+    w, h = DEFAULT_W, DEFAULT_H
     self.sx, self.sy = w / self.imgw, h / self.imgh
+    setWindowMode()
+    if DEBUG_LOGO then
+        print("self.imgw, self.imgh:", self.imgw, self.imgh)
+        print("self.sx, self.sy:", self.sx, self.sy)
+    end
     return self
 end
 
