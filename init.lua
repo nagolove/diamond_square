@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 local Mode = {}
@@ -56,6 +56,8 @@ local gr = love.graphics
 local linesbuf = require("kons").new()
 local mode = "normal"
 local cmdline = ""
+local cmdhistory = {}
+
 
 local i18n = require("i18n")
 local inspect = require("inspect")
@@ -771,6 +773,19 @@ local function drawBoundingBox()
    gr.setLineWidth(oldwidth)
 end
 
+local function konsolePresent()
+
+   linesbuf.show = true
+   gr.setColor({ 1, 1, 1, 1 })
+   linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
+
+   if mode == "command" then
+      linesbuf:pushi(">:" .. cmdline)
+   end
+
+   linesbuf:draw()
+end
+
 local function mainPresent()
    gr.clear(0.2, 0.2, 0.2)
 
@@ -784,15 +799,6 @@ local function mainPresent()
 
    drawlist = {}
 
-
-   linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
-
-   if mode == "command" then
-      linesbuf:pushi(">:" .. cmdline)
-   end
-
-   linesbuf:draw()
-
    changeKeyConfigListbackground()
 
    coroutine.yield()
@@ -803,6 +809,7 @@ local function draw()
    if not ok then
 
    end
+   konsolePresent()
 end
 
 local function update(dt)
@@ -826,14 +833,90 @@ local function processValue(key)
    end
 end
 
+local function backspaceCmdLine()
+   local u8 = require("utf8")
+
+
+   print("utf8", inspect(u8))
+   local byteoffset = u8.offset(cmdline, -1)
+
+   if byteoffset then
+
+
+      cmdline = string.sub(cmdline, 1, byteoffset - 1)
+   end
+end
+
+function PRINT(...)
+   print(...)
+end
+
+function PINSPECT(t)
+   print(inspect(t))
+end
+
+function INSPECT(t)
+   return inspect(t)
+end
+
+local function enterCommandMode()
+   print("command mode enabled.")
+   mode = "command"
+   cmdline = ""
+   love.keyboard.setKeyRepeat(true)
+   love.keyboard.setTextInput(true)
+end
+
+local function leaveCommandMode()
+   print("command mode disabled.")
+   mode = "normal"
+   love.keyboard.setKeyRepeat(false)
+   love.keyboard.setTextInput(false)
+   cmdline = ""
+end
+
+local function evalCommand()
+   local f, loaderrmsg = load(cmdline)
+   local time = 2
+   if not f then
+      linesbuf:push(time, "loadstring() errmsg: " .. loaderrmsg)
+   else
+      local ok, pcallerrmsg = pcall(function()
+         f()
+      end)
+      if not ok then
+         linesbuf:push(time, "pcall() errmsg: " .. pcallerrmsg)
+      else
+         cmdline = ""
+      end
+   end
+   table.insert(cmdhistory, cmdline)
+end
+
+local function processCommandModeKeys(key)
+   if key == "backspace" then
+      backspaceCmdLine()
+   elseif key == "escape" then
+      leaveCommandMode()
+   elseif key == "return" then
+      evalCommand()
+   end
+end
+
 local function keypressed(key)
    if showLogo then
       showLogo = false
       print("showLogo", showLogo)
    end
-   if key == ":" then
-      print("command mode enabled.")
+
+   if mode == "command" then
+      processCommandModeKeys(key)
+   else
+      if key == ";" and love.keyboard.isDown("lshift") then
+         enterCommandMode()
+      end
    end
+
 
 
 
@@ -939,18 +1022,15 @@ function Logo.new()
    if DEBUG_LOGO then
       print("Logo.new()")
    end
-   local w, h = gr.getDimensions()
    local self = setmetatable({}, Logo_mt)
    local fname = SCENE_PREFIX .. "/t80_background_2.png"
    self.image = love.graphics.newImage(fname)
    local tex = self.image
    local ceil = math.ceil
-   self.imgw, self.imgh = ceil(tex:getWidth()), ceil(tex:getHeight())
    local windowscale = 0.7
-
+   self.imgw, self.imgh = ceil(tex:getWidth()), ceil(tex:getHeight())
    DEFAULT_W, DEFAULT_H = ceil(self.imgw * windowscale), ceil(self.imgh * windowscale)
-   w, h = DEFAULT_W, DEFAULT_H
-   self.sx, self.sy = w / self.imgw, h / self.imgh
+   self.sx, self.sy = DEFAULT_W / self.imgw, DEFAULT_H / self.imgh
    setWindowMode()
    if DEBUG_LOGO then
       print("self.imgw, self.imgh:", self.imgw, self.imgh)
@@ -961,7 +1041,7 @@ end
 
 function Logo:present()
    gr.setColor({ 1, 1, 1, 1 })
-   print('Logo:present() self.sx, self.sy:', self.sx, self.sy)
+
    love.graphics.draw(self.image, 0, 0, 0., self.sx, self.sy)
    coroutine.yield()
 end
@@ -1074,8 +1154,9 @@ local function resize(w, h)
 end
 
 local function textinput(text)
-   print("textinput", text)
-   cmdline = cmdline .. text
+   if mode == "command" then
+      cmdline = cmdline .. text
+   end
 end
 
 return {
