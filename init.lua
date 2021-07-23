@@ -19,13 +19,13 @@ require("vector")
 require("Timer")
 require("imgui")
 
-local DEBUG_BASE = false
-local DEBUG_TANK = false
-local DEBUG_TANK_MOVEMENT = false
-local DEBUG_TURRET = false
-local DEBUG_CAMERA = false
-local DEBUG_PHYSICS = false
-local DEBUG_LOGO = true
+DEBUG_BASE = false
+DEBUG_TANK = false
+DEBUG_TANK_MOVEMENT = false
+DEBUG_TURRET = false
+DEBUG_CAMERA = false
+DEBUG_PHYSICS = false
+DEBUG_LOGO = true
 
 
 
@@ -34,30 +34,29 @@ local DEBUG_LOGO = true
 
 
 
-local DEBUG_DRAW_THREAD = true
+DEBUG_DRAW_THREAD = true
 
-local DEFAULT_W, DEFAULT_H = 1024, 768
-local W, H = love.graphics.getDimensions()
+DEFAULT_W, DEFAULT_H = 1024, 768
+W, H = love.graphics.getDimensions()
 
 
 local tlx, tly, brx, bry = 0., 0., W, H
 
 
 
-local M2PIX = 10
+M2PIX = 10
 
-local PIX2M = 1 / 10
+PIX2M = 1 / 10
 
 
-local cam
+
 local camTimer = require("Timer").new()
 local drawlist = {}
 local gr = love.graphics
-local linesbuf = require("kons").new()
+local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode = "normal"
 local cmdline = ""
 local cmdhistory = {}
-
 
 local i18n = require("i18n")
 local inspect = require("inspect")
@@ -151,13 +150,13 @@ local cameraSettings = {
 }
 
 
-local pworld
 
-local tanks = {}
 
-local playerTank
+tanks = {}
 
-local logo
+
+
+
 
 local function presentDrawlist()
    for _, v in ipairs(drawlist) do
@@ -836,10 +835,7 @@ end
 local function backspaceCmdLine()
    local u8 = require("utf8")
 
-
-   print("utf8", inspect(u8))
    local byteoffset = u8.offset(cmdline, -1)
-
    if byteoffset then
 
 
@@ -876,7 +872,8 @@ local function leaveCommandMode()
 end
 
 local function evalCommand()
-   local f, loaderrmsg = load(cmdline)
+   local preload = "local inspect = require 'inspect'\n"
+   local f, loaderrmsg = load(preload .. cmdline)
    local time = 2
    if not f then
       linesbuf:push(time, "loadstring() errmsg: " .. loaderrmsg)
@@ -893,6 +890,8 @@ local function evalCommand()
    table.insert(cmdhistory, cmdline)
 end
 
+local prevcmdline
+
 local function processCommandModeKeys(key)
    if key == "backspace" then
       backspaceCmdLine()
@@ -900,6 +899,13 @@ local function processCommandModeKeys(key)
       leaveCommandMode()
    elseif key == "return" then
       evalCommand()
+   elseif key == "up" then
+      prevcmdline = cmdline
+      cmdline = cmdhistory[#cmdhistory]
+   elseif key == "down" then
+      if prevcmdline then
+         cmdline = prevcmdline
+      end
    end
 end
 
@@ -954,6 +960,7 @@ local function spawn(pos)
       table.insert(tanks, t)
 
       playerTank = t
+      res = t
       bindPlayerTankKeys()
    end)
    if not ok then

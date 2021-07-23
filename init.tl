@@ -19,13 +19,13 @@ require "vector"
 require "Timer"
 require "imgui"
 
-local DEBUG_BASE = false
-local DEBUG_TANK = false
-local DEBUG_TANK_MOVEMENT = false
-local DEBUG_TURRET = false
-local DEBUG_CAMERA = false
-local DEBUG_PHYSICS = false
-local DEBUG_LOGO = true
+global DEBUG_BASE = false
+global DEBUG_TANK = false
+global DEBUG_TANK_MOVEMENT = false
+global DEBUG_TURRET = false
+global DEBUG_CAMERA = false
+global DEBUG_PHYSICS = false
+global DEBUG_LOGO = true
 
 --local DEBUG_BASE = true
 --local DEBUG_TANK = true
@@ -34,30 +34,29 @@ local DEBUG_LOGO = true
 --local DEBUG_CAMERA = true
 --local DEBUG_PHYSICS = true
 --local DEBUG_LOGO = true
-local DEBUG_DRAW_THREAD = true
+global DEBUG_DRAW_THREAD = true
 
-local DEFAULT_W, DEFAULT_H = 1024, 768
-local W, H = love.graphics.getDimensions()
+global DEFAULT_W, DEFAULT_H = 1024, 768
+global W, H = love.graphics.getDimensions()
 
 -- Не работают когда двигается камера?
 local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
 
 -- Танк длиной пять метров имеет отображаемый размер 50 пикселей
 -- коэффициент на который домножаю при переводе из метров в пиксели
-local M2PIX = 10
+global M2PIX = 10
 -- коэффициент на который домножаю при переводе из пикселей в метры
-local PIX2M = 1 / 10
+global PIX2M = 1 / 10
 --local PIX2M = 1.
 
-local cam: Camera
+global cam: Camera
 local camTimer: Timer = require "Timer".new()
 local drawlist: {function} = {}
 local gr = love.graphics
-local linesbuf = require "kons".new()
+local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode: Mode = "normal"
 local cmdline: string = ""
 local cmdhistory: {string} = {}
-
 
 local i18n = require "i18n"
 local inspect = require "inspect"
@@ -151,13 +150,13 @@ local cameraSettings: CameraSettings = {
 }
 
 -- Экземпляр box2d
-local pworld: love.physics.World
+global pworld: love.physics.World
 -- Все танки, в том числе и тот, которым управляет игрок.
-local tanks: {Tank} = {}
+global tanks: {Tank} = {}
 -- Танк, которым управляет игрок
-local playerTank: Tank
+global playerTank: Tank
 -- Логотип, картинка
-local logo: Logo
+global logo: Logo
 
 local function presentDrawlist()
     for _, v in ipairs(drawlist) do
@@ -780,7 +779,8 @@ local function konsolePresent()
     linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
 
     if mode == "command" then
-        linesbuf:pushi(">:" .. cmdline)
+        --linesbuf:pushi(">:" .. cmdline)
+        linesbuf:push2i(">:" .. cmdline)
     end
 
     linesbuf:draw()
@@ -835,11 +835,8 @@ end
 
 local function backspaceCmdLine()
     local u8 = require "utf8"
-    --require "utf8"
     -- get the byte offset to the last UTF-8 character in the string.
-    print("utf8", inspect(u8))
     local byteoffset = u8.offset(cmdline, -1)
-
     if byteoffset then
         -- remove the last UTF-8 character.
         -- string.sub operates on bytes rather than UTF-8 characters, so we couldn't do string.sub(text, 1, -2).
@@ -876,7 +873,8 @@ local function leaveCommandMode()
 end
 
 local function evalCommand()
-    local f, loaderrmsg: function, string = load(cmdline)
+    local preload = "local inspect = require 'inspect'\n"
+    local f, loaderrmsg: function, string = load(preload .. cmdline)
     local time = 2
     if not f then
         linesbuf:push(time, "loadstring() errmsg: " .. loaderrmsg)
@@ -893,6 +891,8 @@ local function evalCommand()
     table.insert(cmdhistory, cmdline)
 end
 
+local prevcmdline: string
+
 local function processCommandModeKeys(key: string)
     if key == "backspace" then
         backspaceCmdLine()
@@ -900,6 +900,13 @@ local function processCommandModeKeys(key: string)
         leaveCommandMode()
     elseif key == "return" then
         evalCommand()
+    elseif key == "up" then
+        prevcmdline = cmdline
+        cmdline = cmdhistory[#cmdhistory]
+    elseif key == "down" then
+        if prevcmdline then
+            cmdline = prevcmdline
+        end
     end
 end
 
@@ -954,6 +961,7 @@ local function spawn(pos: vector): Tank
         table.insert(tanks, t)
         -- игрок управляет последний созданным танком
         playerTank = t
+        res = t
         bindPlayerTankKeys()
     end)
     if not ok then
