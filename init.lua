@@ -123,6 +123,7 @@ local Tank = {}
 
 
 
+
 local Tank_mt = {
    __index = Tank,
 }
@@ -305,7 +306,7 @@ function Turret.new(t)
    self.tank = t
 
    self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
-   self.pbody = t.pbody;
+   self.pbody = t.pbody
 
    if DEBUG_TURRET then
       print("self.tank", self.tank)
@@ -317,7 +318,7 @@ function Turret.new(t)
 
    local r = w / 2
    local px, py = self.tank.pbody:getPosition()
-   local shape = love.physics.newCircleShape(px, py, r * M2PIX)
+   local shape = love.physics.newCircleShape(px, py, r * PIX2M)
 
    self.f = love.physics.newFixture(self.pbody, shape)
 
@@ -422,31 +423,33 @@ function Base:present()
    ox, oy)
 
 
-   gr.setColor({ 1, 1, 1, 0.5 })
-   love.graphics.draw(
-   self.img,
-   0, 0,
-   0,
-   1, 1,
-   0, 0)
 
 
-   gr.setColor({ 1, 1, 1, 0.5 })
-   love.graphics.draw(
-   self.img,
-   0, 0,
-   0,
-   1, 1,
-   0, 0)
 
 
-   gr.setColor({ 1, 1, 1, 0.5 })
-   love.graphics.draw(
-   self.img,
-   0, 0,
-   0,
-   1, 1,
-   100, 300)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
    for _, f in ipairs(self.pbody:getFixtures()) do
@@ -870,6 +873,9 @@ end
 function printBody(body)
    print(">>>>>>>>")
    print("mass:", body:getMass())
+   local x, y = body:getWorldCenter()
+   x, y = x * M2PIX, y * M2PIX
+   print("getWorldCenter() x, y in pixels", x, y)
    print(">>>>>>>>")
 end
 

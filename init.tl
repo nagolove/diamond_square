@@ -103,6 +103,7 @@ local Base_mt: metatable<Base> = {
 local record Tank
     -- {{{
     pbody: love.physics.Body
+    dir: vector
     id: integer
     turret: Turret
     base: Base
@@ -305,7 +306,7 @@ function Turret.new(t: Tank): Turret
     self.tank = t
     --self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
     self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
-    self.pbody = t.pbody;
+    self.pbody = t.pbody
 
     if DEBUG_TURRET then
         print("self.tank", self.tank)
@@ -317,7 +318,7 @@ function Turret.new(t: Tank): Turret
     --local shape = love.physics.newRectangleShape(w, h)
     local r = w / 2
     local px, py = self.tank.pbody:getPosition()
-    local shape = love.physics.newCircleShape(px, py, r * M2PIX)
+    local shape = love.physics.newCircleShape(px, py, r * PIX2M)
     --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
 
@@ -422,6 +423,7 @@ function Base:present()
         ox, oy
     )
 
+    --[[
     gr.setColor{1, 1, 1, 0.5}
     love.graphics.draw(
         self.img as love.graphics.Drawable,
@@ -448,6 +450,7 @@ function Base:present()
         1, 1,
         100, 300
     )
+    --]]
 
     for _, f in ipairs(self.pbody:getFixtures()) do
         --drawFixture(f)
@@ -870,6 +873,9 @@ colprint("test removeFirstColon('::'): " .. removeFirstColon('::'))
 function printBody(body: love.physics.Body)
     print(">>>>>>>>")
     print("mass:", body:getMass())
+    local x, y = body:getWorldCenter()
+    x, y = x * M2PIX, y * M2PIX
+    print("getWorldCenter() x, y in pixels", x, y)
     print(">>>>>>>>")
 end
 
@@ -881,7 +887,9 @@ local function konsolePresent()
 
     if mode == "command" then
         cmdline = removeFirstColon(cmdline)
-        linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
+        if cmdline then
+            linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
+        end
     end
 
     linesbuf:draw()
