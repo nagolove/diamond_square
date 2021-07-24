@@ -14,6 +14,8 @@ return {
         mcup = "move camera up",
         mcdown = "move camera down",
         commandmode = "go to command mode",
+        cam2tank = "move camera to player tank",
+        konsole = "show or hide konsole",
 
         --[[
         -- {{{

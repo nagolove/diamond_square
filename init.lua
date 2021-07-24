@@ -50,6 +50,7 @@ M2PIX = 10
 
 PIX2M = 1 / 10
 
+local forceScale = 100
 
 
 local camTimer = require("Timer").new()
@@ -67,6 +68,7 @@ local inspect = require("inspect")
 local drawCoro = nil
 local showLogo = true
 local playerTankKeyconfigIds = {}
+local Shortcut = KeyConfig.Shortcut
 
 local Turret = {}
 
@@ -201,7 +203,7 @@ function Tank:left()
 
    local imp = -angularImpulseScale * rot
    if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. "applyAngularImpulse", imp)
+      print("Tank " .. self.id .. " applyAngularImpulse", imp)
    end
    self.pbody:applyAngularImpulse(imp)
 end
@@ -212,12 +214,10 @@ function Tank:right()
    end
    local imp = angularImpulseScale * rot
    if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. "applyAngularImpulse", imp)
+      print("Tank " .. self.id .. " applyAngularImpulse", imp)
    end
    self.pbody:applyAngularImpulse(imp)
 end
-
-local forceScale = 2
 
 function Tank:forward()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
@@ -254,7 +254,6 @@ function Tank.new(pos, dir)
       print('Start of Tank creating..')
    end
    local self = setmetatable({}, Tank_mt)
-   local x, y = pos.x, pos.y
 
    tankCounter = tankCounter + 1
 
@@ -430,9 +429,9 @@ function Turret:present()
 
 
 
-   for _, f in ipairs(self.pbody:getFixtures()) do
 
-   end
+
+
 
 
 
@@ -461,13 +460,44 @@ function Base:present()
 
    local angle = self.pbody:getAngle()
 
+
+
+   love.graphics.push()
+
+
+
+
    gr.setColor({ 1, 1, 1, 1 })
    love.graphics.draw(
    self.img,
-   px - imgw / 2, py - imgh / 2,
+   px, py,
    angle,
    sx, sy,
-   ox, oy)
+   ox + imgw / 2, oy + imgh / 2)
+
+
+   local black = { 0, 0, 0, 1 }
+   gr.setColor(black)
+   gr.rectangle("line", px, py, imgw, imgh)
+
+
+
+
+
+
+
+
+
+
+   love.graphics.pop()
+
+
+
+
+
+
+
+
 
 
 
@@ -734,7 +764,6 @@ local function bindPlayerTankKeys()
    if playerTank then
 
       local kc = KeyConfig
-      local Shortcut = kc.Shortcut
       local bmode = "isdown"
 
 
@@ -826,14 +855,24 @@ local function drawui()
    imgui.ShowUserGuide()
 end
 
+local function moveCameraToPlayer()
+   if playerTank then
+      local x, y = playerTank.pbody:getWorldCenter()
+      x, y = x * M2PIX, y * M2PIX
+      cam:lookAt(x, y)
+   end
+end
+
 local function bindCameraControl()
 
-   local Shortcut = KeyConfig.Shortcut
    local cameraAnimationDuration = 0.2
 
    local function makeMoveFunction(xc, yc)
 
       return function(sc)
+
+
+
          local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
          camTimer:during(cameraAnimationDuration, function(dt, time, delay)
 
@@ -863,7 +902,28 @@ local function bindCameraControl()
    i18n("mcup"), "camup")
    KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.),
    i18n("mcdown"), "camdown")
-   KeyConfig.bind(bindMode, { key = "escape" }, function(sc)
+   KeyConfig.bind(bindMode, { key = "`" }, function(sc)
+      linesbuf.show = not linesbuf.show
+      return false, sc
+   end, i18n("konsole"), "konsole")
+   KeyConfig.bind("keypressed", { key = "c" }, function(sc)
+      moveCameraToPlayer()
+      return false, sc
+   end, i18n("cam2tank"), "cam2tank")
+end
+
+local function bindKonsole()
+   KeyConfig.bind("keypressed", { key = "`" }, function(sc)
+      linesbuf.show = not linesbuf.show
+      return false, sc
+   end)
+end
+
+local function bindEscape()
+   KeyConfig.bind("keypressed", { key = "escape" }, function(sc)
+
+
+
       if showLogo == true then
          love.event.quit()
       else
@@ -871,11 +931,6 @@ local function bindCameraControl()
       end
       return false, sc
    end)
-   KeyConfig.bind(bindMode, { key = "`" }, function(sc)
-      linesbuf.show = not linesbuf.show
-      return false, sc
-   end)
-
 end
 
 local function drawBoundingBox()
@@ -1171,7 +1226,6 @@ local function spawn(pos, dir)
 end
 
 local function bindCameraZoomKeys()
-   local Shortcut = KeyConfig.Shortcut
    local zoomSpeed = 0.01
    local zoomLower, zoomHigher = 0.15, 3.5
 
@@ -1179,6 +1233,9 @@ local function bindCameraZoomKeys()
    "isdown",
    { key = "z" },
    function(sc)
+      if mode ~= "normal" then
+         return false, sc
+      end
       if cam.scale < zoomHigher then
          cam:zoom(1. + zoomSpeed)
       end
@@ -1191,6 +1248,9 @@ local function bindCameraZoomKeys()
    "isdown",
    { key = "x" },
    function(sc)
+      if mode ~= "normal" then
+         return false, sc
+      end
       if cam.scale > zoomLower then
          cam:zoom(1.0 - zoomSpeed)
       end
@@ -1326,6 +1386,8 @@ local function init()
    bindCameraControl()
    bindFullscreenSwitcher()
 
+   bindEscape()
+   bindKonsole()
 
    createDrawCoroutine()
 

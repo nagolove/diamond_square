@@ -49,7 +49,8 @@ local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H
 global M2PIX = 10
 -- коэффициент на который домножаю при переводе из пикселей в метры
 global PIX2M = 1 / 10
---local PIX2M = 1.
+
+local forceScale = 100
 
 global cam: Camera
 local camTimer: Timer = require "Timer".new()
@@ -67,6 +68,7 @@ local inspect = require "inspect"
 local drawCoro: thread = nil
 local showLogo = true
 local playerTankKeyconfigIds: {string} = {}
+local Shortcut = KeyConfig.Shortcut
 
 local record Turret
     -- {{{
@@ -217,8 +219,6 @@ function Tank:right()
     self.pbody:applyAngularImpulse(imp)
 end
 
-local forceScale = 2
-
 function Tank:forward()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:forward")
@@ -254,7 +254,6 @@ function Tank.new(pos: vector, dir: vector): Tank
         print('Start of Tank creating..')
     end
     local self: Tank = setmetatable({} as Tank, Tank_mt)
-    local x, y = pos.x, pos.y
 
     tankCounter = tankCounter + 1
 
@@ -430,9 +429,9 @@ function Turret:present()
     --gr.setColor(white)
     --love.graphics.rectangle("line", 
 
-    for _, f in ipairs(self.pbody:getFixtures()) do
+    --for _, f in ipairs(self.pbody:getFixtures()) do
         --drawFixture(f)
-    end
+    --end
     --local x, y = self.pbody:getWorldCenter()
     --local text = string.format("%d", self.tank.id)
     --gr.print(text, x, y)
@@ -461,14 +460,45 @@ function Base:present()
     --sy = sy * 2
     local angle = self.pbody:getAngle()
 
+    --px, py = px - imgw / 2, py - imgh / 2,
+
+    love.graphics.push()
+    --love.graphics.translate(-imgw / 2, -imgh / 2)
+    --love.graphics.rotate(angle)
+    --love.graphics.translate(imgw / 2, imgh / 2)
+
     gr.setColor{1, 1, 1, 1}
     love.graphics.draw(
         self.img as love.graphics.Drawable,
-        px - imgw / 2, py - imgh / 2,
-        angle, 
+        px, py,
+        angle,
         sx, sy, 
-        ox, oy
+        ox + imgw / 2, oy + imgh / 2
     )
+
+    local black = {0, 0, 0, 1}
+    gr.setColor(black)
+    gr.rectangle("line", px, py, imgw, imgh)
+
+    --love.graphics.draw(
+        --self.img as love.graphics.Drawable,
+        --px, py,
+        --0,
+        --sx, sy, 
+        --ox, oy
+    --)
+
+    --love.graphics.translate(-imgw / 2, -imgh / 2)
+    love.graphics.pop()
+
+    --gr.setColor{1, 1, 1, 1}
+    --love.graphics.draw(
+        --self.img as love.graphics.Drawable,
+        --px - imgw / 2, py - imgh / 2,
+        --angle, 
+        --sx, sy, 
+        --ox, oy
+    --)
 
     --[[
     gr.setColor{1, 1, 1, 0.5}
@@ -734,7 +764,6 @@ local function bindPlayerTankKeys()
     if playerTank then
         -- {{{
         local kc = KeyConfig
-        local Shortcut = kc.Shortcut
         local bmode: kc.BindType = "isdown"
 
         -- Непонятное и наверно ненужное перечисление.
@@ -826,14 +855,24 @@ local function drawui()
     imgui.ShowUserGuide()
 end
 
+local function moveCameraToPlayer()
+    if playerTank then
+        local x, y = playerTank.pbody:getWorldCenter()
+        x, y = x * M2PIX, y * M2PIX
+        cam:lookAt(x, y)
+    end
+end
+
 local function bindCameraControl()
     -- не прямой а квадратичный зум?
-    local Shortcut = KeyConfig.Shortcut
     local cameraAnimationDuration = 0.2
 
     local function makeMoveFunction(xc: number, yc: number): function(sc: Shortcut): boolean, Shortcut
         -- {{{
         return function(sc: Shortcut): boolean, Shortcut
+            --if mode ~= "normal" then
+                --return false, sc
+            --end
             local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
             camTimer:during(cameraAnimationDuration, function(dt: number, time: number, delay: number)
                 --cam:move(-reldx * (delay - time) * xc, -reldy * (delay - time) * yc)
@@ -863,7 +902,25 @@ local function bindCameraControl()
         i18n("mcup"), "camup") 
     KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.), 
         i18n("mcdown"), "camdown")
-    KeyConfig.bind(bindMode, { key = "escape" }, function(sc: Shortcut): boolean, Shortcut
+
+    KeyConfig.bind("keypressed", { key = "c" }, function(sc: Shortcut): boolean, Shortcut
+        moveCameraToPlayer()
+        return false, sc
+    end, i18n("cam2tank"), "cam2tank")
+end
+
+local function bindKonsole()
+    KeyConfig.bind("keypressed", { key = "`" }, function(sc: Shortcut): boolean, Shortcut
+        linesbuf.show = not linesbuf.show
+        return false, sc
+    end)
+end
+
+local function bindEscape()
+    KeyConfig.bind("keypressed", { key = "escape" }, function(sc: Shortcut): boolean, Shortcut
+        --if mode ~= "normal" then
+            --return false, sc
+        --end
         if showLogo == true then
             love.event.quit()
         else
@@ -871,11 +928,6 @@ local function bindCameraControl()
         end
         return false, sc
     end)
-    KeyConfig.bind(bindMode, { key = "`" }, function(sc: Shortcut): boolean, Shortcut
-        linesbuf.show = not linesbuf.show
-        return false, sc
-    end)
-
 end
 
 local function drawBoundingBox()
@@ -1171,7 +1223,6 @@ local function spawn(pos: vector, dir: vector): Tank
 end
 
 local function bindCameraZoomKeys()
-    local Shortcut = KeyConfig.Shortcut
     local zoomSpeed = 0.01
     local zoomLower, zoomHigher = 0.15, 3.5
 
@@ -1179,6 +1230,9 @@ local function bindCameraZoomKeys()
         "isdown",
         { key = "z" },
         function(sc: Shortcut): boolean, Shortcut
+            if mode ~= "normal" then
+                return false, sc
+            end
             if cam.scale < zoomHigher then
                 cam:zoom(1. + zoomSpeed)
             end
@@ -1191,6 +1245,9 @@ local function bindCameraZoomKeys()
         "isdown",
         { key = "x" },
         function(sc: Shortcut): boolean, Shortcut
+            if mode ~= "normal" then
+                return false, sc
+            end
             if cam.scale > zoomLower then
                 cam:zoom(1.0 - zoomSpeed)
             end
@@ -1326,6 +1383,8 @@ local function init()
     bindCameraControl()
     bindFullscreenSwitcher()
     --bindCommandModeHotkey()
+    bindEscape()
+    bindKonsole()
 
     createDrawCoroutine()
 
