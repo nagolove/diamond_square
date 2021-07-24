@@ -56,6 +56,7 @@ local forceScale = 100
 local camTimer = require("Timer").new()
 local drawlist = {}
 local gr = love.graphics
+local vec2 = require("vector")
 
 local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode = "normal"
@@ -105,6 +106,7 @@ local Base_mt = {
 }
 
 local Tank = {}
+
 
 
 
@@ -309,13 +311,22 @@ function Tank:drawDirectionVector()
    if self.dir then
       local x, y = self.pbody:getWorldCenter()
       local scale = 50
-      local color = { 0.8, 0.95, 0.99, 1 }
+      local color = { 0., 0.05, 0.99, 1 }
       x, y = x * M2PIX, y * M2PIX
       gr.setColor(color)
 
 
       gr.line(x, y, x + self.dir.x * scale, y + self.dir.y * scale)
    end
+end
+
+function Tank:update()
+   local unit = 1
+
+
+   self.dir = vec2.fromPolar(self.pbody:getAngle(), unit)
+
+   return self
 end
 
 function Tank:present()
@@ -902,10 +913,7 @@ local function bindCameraControl()
    i18n("mcup"), "camup")
    KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.),
    i18n("mcdown"), "camdown")
-   KeyConfig.bind(bindMode, { key = "`" }, function(sc)
-      linesbuf.show = not linesbuf.show
-      return false, sc
-   end, i18n("konsole"), "konsole")
+
    KeyConfig.bind("keypressed", { key = "c" }, function(sc)
       moveCameraToPlayer()
       return false, sc
@@ -1045,6 +1053,15 @@ local function update(dt)
    camTimer:update(dt)
    pworld:update(1 / 60)
    linesbuf:update()
+
+   local alive = {}
+   for _, v in ipairs(tanks) do
+      local t = v:update()
+      if t then
+         table.insert(alive, t)
+      end
+   end
+   tanks = alive
 end
 
 local function processValue(key)

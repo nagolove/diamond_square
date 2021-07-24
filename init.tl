@@ -56,6 +56,7 @@ global cam: Camera
 local camTimer: Timer = require "Timer".new()
 local drawlist: {function} = {}
 local gr = love.graphics
+local vec2 = require "vector"
 
 local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode: Mode = "normal"
@@ -123,6 +124,7 @@ local record Tank
     new: function(pos: vector): Tank
 
     present: function(Tank)
+    update: function(Tank): Tank
 
     left: function(Tank)
     right: function(Tank)
@@ -309,13 +311,22 @@ function Tank:drawDirectionVector()
     if self.dir then
         local x, y = self.pbody:getWorldCenter()
         local scale = 50
-        local color = {0.8, 0.95, 0.99, 1}
+        local color = {0., 0.05, 0.99, 1}
         x, y = x * M2PIX, y * M2PIX
         gr.setColor(color)
         --print("self.dir", inspect(self.dir))
         --print("drawDirectionVector", x, y, x + self.dir.x * scale, y + self.dir.y * scale)
         gr.line(x, y, x + self.dir.x * scale, y + self.dir.y * scale)
     end
+end
+
+function Tank:update(): Tank
+    local unit = 1
+    --print("Tank:update()")
+    --print("body angle", self.pbody:getAngle())
+    self.dir = vec2.fromPolar(self.pbody:getAngle(), unit)
+
+    return self
 end
 
 function Tank:present()
@@ -1042,6 +1053,15 @@ local function update(dt: number)
     camTimer:update(dt)
     pworld:update(1 / 60)
     linesbuf:update()
+    -- 
+    local alive: {Tank} = {}
+    for _, v in ipairs(tanks) do
+        local t =  v:update()
+        if t then
+            table.insert(alive, t)
+        end
+    end
+    tanks = alive
 end
 
 local function processValue(key: string)
