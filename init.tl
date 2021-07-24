@@ -362,9 +362,10 @@ function Turret:present()
     px, py = self.pbody:getWorldPoints(px, py)
     px, py = px * M2PIX, py * M2PIX
     r = cshape:getRadius() * M2PIX
+    --print('cshape:getRadius()', cshape:getRadius())
 
-    gr.setColor{1, 0.5, 0, 0.5}
-    gr.circle("fill", px, py, r)
+    --gr.setColor{1, 0.5, 0, 0.5}
+    --gr.circle("fill", px, py, r)
 
     sx = sx * 2
     sy = sy * 2
@@ -419,6 +420,33 @@ function Base:present()
         0, 
         sx, sy, 
         ox, oy
+    )
+
+    gr.setColor{1, 1, 1, 0.5}
+    love.graphics.draw(
+        self.img as love.graphics.Drawable,
+        0, 0,
+        0,
+        1, 1,
+        0, 0
+    )
+
+    gr.setColor{1, 1, 1, 0.5}
+    love.graphics.draw(
+        self.img as love.graphics.Drawable,
+        0, 0,
+        0,
+        1, 1,
+        0, 0
+    )
+
+    gr.setColor{1, 1, 1, 0.5}
+    love.graphics.draw(
+        self.img as love.graphics.Drawable,
+        0, 0,
+        0,
+        1, 1,
+        100, 300
     )
 
     for _, f in ipairs(self.pbody:getFixtures()) do
@@ -821,6 +849,9 @@ local function drawBoundingBox()
 end
 
 local function removeFirstColon(s: string): string
+    if not s then
+        return nil
+    end
     if string.sub(s, 1, 1) == ":" then
         return string.sub(s, 2, #s)
     else
@@ -835,6 +866,12 @@ colprint("test removeFirstColon(':'): " .. removeFirstColon(':'))
 colprint("test removeFirstColon('::'): " .. removeFirstColon('::'))
 }}}
 --]]
+
+function printBody(body: love.physics.Body)
+    print(">>>>>>>>")
+    print("mass:", body:getMass())
+    print(">>>>>>>>")
+end
 
 local function konsolePresent()
     --linesbuf.show = true
@@ -944,12 +981,24 @@ function INSPECT(t: any): string
     return inspect(t)
 end
 
+local historyfname = "cmdhistory.txt"
+
 local function enterCommandMode()
     print("command mode enabled.")
     mode = "command"
     cmdline = ""
     love.keyboard.setKeyRepeat(true)
     love.keyboard.setTextInput(true)
+    local history = love.filesystem.read(historyfname)
+    if history then
+        print("commands history loaded.")
+        cmdhistory = {}
+        for s in history:gmatch("[^\r\n]+") do
+            table.insert(cmdhistory, s)
+            print("s", s)
+        end
+        print("all entries.")
+    end
 end
 
 local function leaveCommandMode()
@@ -992,6 +1041,7 @@ local function evalCommand()
         end
     end
     table.insert(cmdhistory, cmdline)
+    love.filesystem.append(historyfname, cmdline .. "\n")
 end
 
 local function processCommandModeKeys(key: string)

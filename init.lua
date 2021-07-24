@@ -64,6 +64,7 @@ local inspect = require("inspect")
 
 local drawCoro = nil
 local showLogo = true
+local playerTankKeyconfigIds = {}
 
 local Turret = {}
 
@@ -362,8 +363,9 @@ function Turret:present()
    px, py = px * M2PIX, py * M2PIX
    r = cshape:getRadius() * M2PIX
 
-   gr.setColor({ 1, 0.5, 0, 0.5 })
-   gr.circle("fill", px, py, r)
+
+
+
 
    sx = sx * 2
    sy = sy * 2
@@ -418,6 +420,33 @@ function Base:present()
    0,
    sx, sy,
    ox, oy)
+
+
+   gr.setColor({ 1, 1, 1, 0.5 })
+   love.graphics.draw(
+   self.img,
+   0, 0,
+   0,
+   1, 1,
+   0, 0)
+
+
+   gr.setColor({ 1, 1, 1, 0.5 })
+   love.graphics.draw(
+   self.img,
+   0, 0,
+   0,
+   1, 1,
+   0, 0)
+
+
+   gr.setColor({ 1, 1, 1, 0.5 })
+   love.graphics.draw(
+   self.img,
+   0, 0,
+   0,
+   1, 1,
+   100, 300)
 
 
    for _, f in ipairs(self.pbody:getFixtures()) do
@@ -607,23 +636,6 @@ local function queryBoundingBox()
    onQueryBoundingBox)
 
 end
-
-local function drawTanks()
-
-   gr.setColor({ 1, 1, 1 })
-
-
-
-
-
-
-
-
-
-   queryBoundingBox()
-end
-
-local playerTankKeyconfigIds = {}
 
 local function unbindPlayerTankKeys()
    for _, id in ipairs(playerTankKeyconfigIds) do
@@ -837,6 +849,9 @@ local function drawBoundingBox()
 end
 
 local function removeFirstColon(s)
+   if not s then
+      return nil
+   end
    if string.sub(s, 1, 1) == ":" then
       return string.sub(s, 2, #s)
    else
@@ -851,6 +866,12 @@ end
 
 
 
+
+function printBody(body)
+   print(">>>>>>>>")
+   print("mass:", body:getMass())
+   print(">>>>>>>>")
+end
 
 local function konsolePresent()
 
@@ -876,8 +897,8 @@ local function mainPresent()
 
 
    cam:attach()
-   drawTanks()
-
+   queryBoundingBox()
+   presentDrawlist()
    cam:detach()
 
 
@@ -960,12 +981,24 @@ function INSPECT(t)
    return inspect(t)
 end
 
+local historyfname = "cmdhistory.txt"
+
 local function enterCommandMode()
    print("command mode enabled.")
    mode = "command"
    cmdline = ""
    love.keyboard.setKeyRepeat(true)
    love.keyboard.setTextInput(true)
+   local history = love.filesystem.read(historyfname)
+   if history then
+      print("commands history loaded.")
+      cmdhistory = {}
+      for s in history:gmatch("[^\r\n]+") do
+         table.insert(cmdhistory, s)
+         print("s", s)
+      end
+      print("all entries.")
+   end
 end
 
 local function leaveCommandMode()
@@ -1008,6 +1041,7 @@ local function evalCommand()
       end
    end
    table.insert(cmdhistory, cmdline)
+   love.filesystem.append(historyfname, cmdline .. "\n")
 end
 
 local function processCommandModeKeys(key)
