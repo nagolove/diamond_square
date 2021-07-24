@@ -24,8 +24,8 @@ global DEBUG_TANK = false
 global DEBUG_TANK_MOVEMENT = false
 global DEBUG_TURRET = false
 global DEBUG_CAMERA = false
-global DEBUG_PHYSICS = false
-global DEBUG_LOGO = true
+global DEBUG_PHYSICS = true
+global DEBUG_LOGO = false
 
 --local DEBUG_BASE = true
 --local DEBUG_TANK = true
@@ -105,14 +105,17 @@ local Base_mt: metatable<Base> = {
 local record Tank
     -- {{{
     pbody: love.physics.Body
+    -- записывается положение в метрах при создании танка
+    -- когда обновляется?
+    pos: vector
+    -- нормализованный вектор
     dir: vector
+    -- уникальное за сеанс игры число
     id: integer
+    -- пушка
     turret: Turret
+    -- ходовая часть
     base: Base
-    -- Центр поворота корпуса. Пока совпадает с центром поворота башни.
-    --pos: vector 
-    -- на сколько пикселей смещается танк при вызове метода движения
-    movementDelta: number
 
     -- абсолютные координаты в пикселях
     new: function(pos: vector): Tank
@@ -187,26 +190,31 @@ end
 
 local VALUE = 0.
 
+local angularImpulseScale = 5
+local rot = math.pi / 4
+
 function Tank:left()
-    --if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-        --print("Tank:left")
-    --end
-    --local x, y = -VALUE, 0
-    --if DEBUG_PHYSICS then
-        --print("Tank " .. self.id .. "applyForce x, y", x, y)
-    --end
+    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
+        print("Tank:left")
+    end
     --self.pbody:applyForce(x, y)
+    --local theta = self.dir - rot
+    local imp = -angularImpulseScale * rot
+    if DEBUG_PHYSICS then
+        print("Tank " .. self.id .. " applyAngularImpulse", imp)
+    end
+    self.pbody:applyAngularImpulse(imp)
 end
 
 function Tank:right()
-    --if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-        --print("Tank:right")
-    --end
-    --local x, y = VALUE, 0
-    --if DEBUG_PHYSICS then
-        --print("Tank " .. self.id .. "applyForce x, y", x, y)
-    --end
-    --self.pbody:applyForce(x, y)
+    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
+        print("Tank:right")
+    end
+    local imp = angularImpulseScale * rot
+    if DEBUG_PHYSICS then
+        print("Tank " .. self.id .. " applyAngularImpulse", imp)
+    end
+    self.pbody:applyAngularImpulse(imp)
 end
 
 local forceScale = 2
@@ -239,6 +247,8 @@ end
 
 local tankCounter = 0
 
+-- местоположение передвать в метрах
+-- направление шасси - нормализованный вектор
 function Tank.new(pos: vector, dir: vector): Tank
     if DEBUG_TANK then
         print('Start of Tank creating..')
@@ -248,7 +258,8 @@ function Tank.new(pos: vector, dir: vector): Tank
 
     tankCounter = tankCounter + 1
 
-    self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
+    --self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
+    self.pbody = love.physics.newBody(pworld, 0, 0, "dynamic")
     --self.pbody = love.physics.newBody(pworld, x, y, "static")
     --self.pbody:setMass(1.)
     self.pbody:setUserData(self)
@@ -259,9 +270,9 @@ function Tank.new(pos: vector, dir: vector): Tank
 
     self.id = tankCounter
     self.dir = dir:clone()
+    self.pos = pos:clone()
     self.turret = Turret.new(self)
     self.base = Base.new(self)
-    self.movementDelta = 1.
 
     if DEBUG_PHYSICS then
         print("pbody:getAngularDamping()", self.pbody:getAngularDamping())
@@ -350,7 +361,8 @@ function Turret.new(t: Tank): Turret
     --local shape = love.physics.newRectangleShape(w, h)
     local r = w / 2
     local px, py = self.tank.pbody:getPosition()
-    local shape = love.physics.newCircleShape(px, py, r * PIX2M)
+    --local shape = love.physics.newCircleShape(px, py, r * PIX2M)
+    local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
     --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
 
@@ -523,7 +535,8 @@ function Base.new(t: Tank): Base
     local w, _ = (self.img as love.graphics.Texture):getDimensions()
     --local shape = love.physics.newRectangleShape(w, h)
     local r = w / 2
-    local px, py = self.tank.pbody:getPosition()
+    --local px, py = self.tank.pbody:getPosition()
+    local px, py = t.pos.x, t.pos.y
     local shape = love.physics.newCircleShape(px, py, r * PIX2M)
     --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
@@ -1343,7 +1356,8 @@ local function mousepressed(x: number, y: number, btn: integer)
         print("before worldCoords", x, y)
         local timeout = 2.5
         linesbuf:push(timeout, "mousepressed(%d, %d)", x, y)
-        x, y = cam:worldCoords(x, y)
+        --x, y = cam:worldCoords(x, y)
+        --x, y = cam:cameraCoords(x, y)
         linesbuf:push(timeout, "in world coordinates (%d, %d)", x, y)
         print("after worldCoords", x, y)
         --x, y = cam:cameraCoords(x, y)
