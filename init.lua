@@ -133,6 +133,7 @@ local Tank = {}
 
 
 
+
 local Tank_mt = {
    __index = Tank,
 }
@@ -259,15 +260,14 @@ function Tank.new(pos, dir)
 
    tankCounter = tankCounter + 1
 
-
    self.pbody = love.physics.newBody(pworld, 0, 0, "dynamic")
-
 
    self.pbody:setUserData(self)
 
    if not dir then
       dir = vector.new(0, -1)
    end
+
 
    self.id = tankCounter
    self.dir = dir:clone()
@@ -317,6 +317,13 @@ function Tank:drawDirectionVector()
 
 
       gr.line(x, y, x + self.dir.x * scale, y + self.dir.y * scale)
+   end
+end
+
+function Tank:resetVelocities()
+   if self.pbody then
+      self.pbody:setAngularVelocity(0)
+      self.pbody:setLinearVelocity(0, 0)
    end
 end
 
@@ -806,6 +813,7 @@ local function bindPlayerTankKeys()
 
 
 
+
       local direction
 
       direction = "right"
@@ -847,6 +855,14 @@ local function bindPlayerTankKeys()
       end,
       i18n("mt" .. direction), pushId("mt" .. direction))
 
+
+      kc.bind(
+      bmode, { key = "v" },
+      function(sc)
+         playerTank["resetVelocities"](playerTank)
+         return false, sc
+      end,
+      i18n("mt" .. direction), pushId("mt" .. direction))
 
 
    else
@@ -980,6 +996,7 @@ function printBody(body)
    local x, y = body:getWorldCenter()
    x, y = x * M2PIX, y * M2PIX
    print("getWorldCenter() x, y in pixels", x, y)
+   print("getAngle()", body:getAngle())
    print(">>>>>>>>")
 end
 
@@ -1049,11 +1066,7 @@ local function draw()
    konsolePresent()
 end
 
-local function update(dt)
-   camTimer:update(dt)
-   pworld:update(1 / 60)
-   linesbuf:update()
-
+local function updateTanks()
    local alive = {}
    for _, v in ipairs(tanks) do
       local t = v:update()
@@ -1062,6 +1075,13 @@ local function update(dt)
       end
    end
    tanks = alive
+end
+
+local function update(dt)
+   camTimer:update(dt)
+   pworld:update(1 / 60)
+   linesbuf:update()
+   updateTanks()
 end
 
 local function processValue(key)
@@ -1160,8 +1180,11 @@ local function evalCommand()
          cmdline = ""
       end
    end
-   table.insert(cmdhistory, cmdline)
-   love.filesystem.append(historyfname, cmdline .. "\n")
+   local trimmed = trim(cmdline) or ""
+   if #trimmed ~= 0 then
+      table.insert(cmdhistory, cmdline)
+      love.filesystem.append(historyfname, cmdline .. "\n")
+   end
 end
 
 local function processCommandModeKeys(key)

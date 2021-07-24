@@ -126,6 +126,7 @@ local record Tank
     present: function(Tank)
     update: function(Tank): Tank
 
+    resetVelocities: function(Tank)
     left: function(Tank)
     right: function(Tank)
     forward: function(Tank)
@@ -249,7 +250,7 @@ end
 
 local tankCounter = 0
 
--- местоположение передвать в метрах
+-- местоположение передавать в метрах
 -- направление шасси - нормализованный вектор
 function Tank.new(pos: vector, dir: vector): Tank
     if DEBUG_TANK then
@@ -259,15 +260,14 @@ function Tank.new(pos: vector, dir: vector): Tank
 
     tankCounter = tankCounter + 1
 
-    --self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
     self.pbody = love.physics.newBody(pworld, 0, 0, "dynamic")
-    --self.pbody = love.physics.newBody(pworld, x, y, "static")
     --self.pbody:setMass(1.)
     self.pbody:setUserData(self)
 
     if not dir then
         dir = vector.new(0, -1)
     end
+    --self.pbody:setAngle(math.pi / 3)
 
     self.id = tankCounter
     self.dir = dir:clone()
@@ -317,6 +317,13 @@ function Tank:drawDirectionVector()
         --print("self.dir", inspect(self.dir))
         --print("drawDirectionVector", x, y, x + self.dir.x * scale, y + self.dir.y * scale)
         gr.line(x, y, x + self.dir.x * scale, y + self.dir.y * scale)
+    end
+end
+
+function Tank:resetVelocities()
+    if self.pbody then
+        self.pbody:setAngularVelocity(0)
+        self.pbody:setLinearVelocity(0, 0)
     end
 end
 
@@ -783,6 +790,7 @@ local function bindPlayerTankKeys()
             "right"
             "forward"
             "backward"
+            "resetVelocities"
         end
 
         -- {{{
@@ -848,6 +856,14 @@ local function bindPlayerTankKeys()
             i18n("mt" .. direction), pushId("mt" .. direction)
         )
 
+        kc.bind(
+            bmode, { key = "v" },
+            function(sc: Shortcut): boolean, Shortcut
+                playerTank["resetVelocities"](playerTank)
+                return false, sc
+            end,
+            i18n("mt" .. direction), pushId("mt" .. direction)
+        )
         -- }}}
     else
         error("There is no player tank object instance, sorry.")
@@ -980,6 +996,7 @@ function printBody(body: love.physics.Body)
     local x, y = body:getWorldCenter()
     x, y = x * M2PIX, y * M2PIX
     print("getWorldCenter() x, y in pixels", x, y)
+    print("getAngle()", body:getAngle())
     print(">>>>>>>>")
 end
 
@@ -1049,11 +1066,7 @@ local function draw()
     konsolePresent()
 end
 
-local function update(dt: number)
-    camTimer:update(dt)
-    pworld:update(1 / 60)
-    linesbuf:update()
-    -- 
+local function updateTanks()
     local alive: {Tank} = {}
     for _, v in ipairs(tanks) do
         local t =  v:update()
@@ -1062,6 +1075,13 @@ local function update(dt: number)
         end
     end
     tanks = alive
+end
+
+local function update(dt: number)
+    camTimer:update(dt)
+    pworld:update(1 / 60)
+    linesbuf:update()
+    updateTanks()
 end
 
 local function processValue(key: string)
@@ -1160,8 +1180,11 @@ local function evalCommand()
             cmdline = ""
         end
     end
-    table.insert(cmdhistory, cmdline)
-    love.filesystem.append(historyfname, cmdline .. "\n")
+    local trimmed = trim(cmdline) or ""
+    if #trimmed ~= 0 then
+        table.insert(cmdhistory, cmdline)
+        love.filesystem.append(historyfname, cmdline .. "\n")
+    end
 end
 
 local function processCommandModeKeys(key: string)
