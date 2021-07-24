@@ -53,9 +53,10 @@ global cam: Camera
 local camTimer: Timer = require "Timer".new()
 local drawlist: {function} = {}
 local gr = love.graphics
+
 local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode: Mode = "normal"
-local cmdline: string = ""
+local cmdline, prevcmdline: string = "", ""
 local cmdhistory: {string} = {}
 
 local i18n = require "i18n"
@@ -63,6 +64,7 @@ local inspect = require "inspect"
 
 local drawCoro: thread = nil
 local showLogo = true
+local playerTankKeyconfigIds: {string} = {}
 
 local record Turret
     -- {{{
@@ -73,7 +75,7 @@ local record Turret
     tank: Tank
 
     new: function(t: Tank): Turret
-    present: function()
+    present: function(Turret)
     -- }}}
 end
 
@@ -90,7 +92,7 @@ local record Base
     tank: Tank
 
     new: function(t: Tank): Base
-    present: function()
+    present: function(Base)
     -- }}}
 end
 
@@ -112,6 +114,8 @@ local record Tank
     -- абсолютные координаты в пикселях
     new: function(pos: vector): Tank
 
+    present: function(Tank)
+
     left: function(Tank)
     right: function(Tank)
     up: function(Tank)
@@ -124,6 +128,7 @@ local Tank_mt: metatable<Tank> = {
 }
 
 local record Logo
+    -- {{{
     image: love.graphics.Image
     sx: number
     sy: number
@@ -133,6 +138,7 @@ local record Logo
     new: function(): Logo
 
     present: function()
+    -- }}}
 end
 
 local Logo_mt: metatable<Logo> = {
@@ -140,13 +146,15 @@ local Logo_mt: metatable<Logo> = {
 }
 
 local type CameraSettings = record
+    -- {{{
     dx: number
     dy: number
+    -- }}}
 end
 
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
-    dx = 10, dy = 10,
+    dx = 100, dy = 100,
 }
 
 -- Экземпляр box2d
@@ -231,7 +239,8 @@ function Tank.new(pos: vector): Tank
 
     tankCounter = tankCounter + 1
 
-    self.pbody = love.physics.newBody(pworld, x * PIX2M, y * PIX2M, "dynamic")
+    --self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
+    self.pbody = love.physics.newBody(pworld, x, y, "static")
     --self.pbody:setMass(1.)
     self.pbody:setUserData(self)
 
@@ -256,7 +265,35 @@ function Tank.new(pos: vector): Tank
     return self
 end
 
+local function drawBodyStat(body: love.physics.Body)
+    local radius = 10
+    local x, y = body:getWorldCenter()
+    x, y = x * M2PIX, y * M2PIX
+    -- зеленый цвет кружка
+    gr.setColor{0.1, 1, 0.1}
+    gr.circle("fill", x, y, radius)
+
+    local vx, vy = body:getLinearVelocity()
+    local scale = 7.
+    gr.line(x, y, x + vx * scale, y + vy * scale)
+end
+
+function Tank:present()
+    if self.base and self.base.present then
+        self.base:present()
+    else
+        colprint('Tank ' .. self.id .. ' is damaged. No base.')
+    end
+    if self.turret and self.turret.present then
+        self.turret:present()
+    else
+        colprint('Tank ' .. self.id .. ' is damaged. No turret.')
+    end
+    drawBodyStat(self.pbody)
+end
+
 function Turret.new(t: Tank): Turret
+    -- {{{
     if DEBUG_TURRET then
         print("Start of Turret creating..")
     end
@@ -289,6 +326,7 @@ function Turret.new(t: Tank): Turret
     end
 
     return self
+    -- }}}
 end
 
 local function drawFixture(f: love.physics.Fixture)
@@ -310,8 +348,9 @@ local function drawFixture(f: love.physics.Fixture)
 end
 
 function Turret:present()
+    -- {{{
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
-    local r, sx, sy, ox, oy: number = math.rad(0.), 1., 1., imgw / 2, imgh / 2
+    local r, sx, sy, ox, oy: number = 0., 1., 1., imgw / 2, imgh / 2
     --local kx, ky: number = 1., 1.
     local shape = self.f:getShape()
     local cshape = self.f:getShape() as love.physics.CircleShape
@@ -323,26 +362,37 @@ function Turret:present()
     px, py = self.pbody:getWorldPoints(px, py)
     px, py = px * M2PIX, py * M2PIX
     r = cshape:getRadius() * M2PIX
-    --gr.setColor{1, 0, 0, 0.5}
-    --gr.circle("fill", px, py, r)
 
+    gr.setColor{1, 0.5, 0, 0.5}
+    gr.circle("fill", px, py, r)
+
+    sx = sx * 2
+    sy = sy * 2
+
+    gr.setColor{1, 1, 1, 1}
     love.graphics.draw(
         self.img as love.graphics.Drawable,
         px, py,
-        r, 
+        0, 
         sx, sy, 
         ox, oy
     )
 
+    --local white = {1, 1, 1, 1}
+    --gr.setColor(white)
+    --love.graphics.rectangle("line", 
+
     for _, f in ipairs(self.pbody:getFixtures()) do
-        drawFixture(f)
+        --drawFixture(f)
     end
     --local x, y = self.pbody:getWorldCenter()
     --local text = string.format("%d", self.tank.id)
     --gr.print(text, x, y)
+    -- }}}
 end
 
 function Base:present()
+    -- {{{
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
     local r, sx, sy, ox, oy: number = math.rad(0.), 1., 1., imgw / 2, imgh / 2
     --local kx, ky: number = 1., 1.
@@ -355,29 +405,35 @@ function Base:present()
     px, py = self.pbody:getWorldPoints(px, py)
     px, py = px * M2PIX, py * M2PIX
     r = cshape:getRadius() * M2PIX
+
     gr.setColor{1, 0, 0, 0.5}
     gr.circle("fill", px, py, r)
+
+    sx = sx * 2
+    sy = sy * 2
 
     gr.setColor{1, 1, 1, 0.5}
     love.graphics.draw(
         self.img as love.graphics.Drawable,
         px, py,
-        r, 
+        0, 
         sx, sy, 
         ox, oy
     )
 
     for _, f in ipairs(self.pbody:getFixtures()) do
-        drawFixture(f)
+        --drawFixture(f)
     end
 
     local x, y = self.pbody:getWorldCenter()
     x, y = x * M2PIX, y * M2PIX
     local text = string.format("%d", self.tank.id)
     gr.print(text, x, y)
+    -- }}}
 end
 
 function Base.new(t: Tank): Base
+    -- {{{
     if DEBUG_BASE then
         print("Base.new()")
     end
@@ -411,6 +467,7 @@ function Base.new(t: Tank): Base
     end
 
     return self
+    -- }}}
 end
 
 --{{{
@@ -518,7 +575,9 @@ local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
     local body = fixture:getBody()
     local selfPtr: Tank = body:getUserData() as Tank
     --проверка на существование связанного объекта, проверка на наличие метода отрисовки через запрос, отрисовка.
-    if selfPtr then
+    if selfPtr and selfPtr.present then
+        selfPtr:present()
+        --[[
         --print("selfPtr")
         if selfPtr.turret then 
             --print("turret.present");
@@ -536,6 +595,7 @@ local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
                 print("Base object have not present method.")
             end
         end
+        --]]
     end
     return true
     -- }}}
@@ -548,22 +608,6 @@ local function queryBoundingBox()
         onQueryBoundingBox
     )
 end
-
-local function drawTanks()
-    --gr.setColor{0, 0, 0}
-
-    gr.setColor{1, 1, 1}
-    --local w, h = gr.getDimensions()
-
-    for _, v in ipairs(tanks) do
-        v.base:present()
-        v.turret:present()
-    end
-
-    --queryBoundingBox()
-end
-
-local playerTankKeyconfigIds: {string} = {}
 
 local function unbindPlayerTankKeys()
     for _, id in ipairs(playerTankKeyconfigIds) do
@@ -637,6 +681,7 @@ local function bindPlayerTankKeys()
             bmode, { key = direction },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["right"](playerTank)
+                print("r")
                 return false, sc
             end,
             i18n("mt" .. direction), pushId("mt" .. direction)
@@ -647,6 +692,7 @@ local function bindPlayerTankKeys()
             bmode, { key = direction },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["left"](playerTank)
+                print("l")
                 return false, sc
             end,
             i18n("mt" .. direction), pushId("mt" .. direction)
@@ -657,6 +703,7 @@ local function bindPlayerTankKeys()
             bmode, { key = direction },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["up"](playerTank)
+                print("u")
                 return false, sc
             end,
             i18n("mt" .. direction), pushId("mt" .. direction)
@@ -667,6 +714,7 @@ local function bindPlayerTankKeys()
             bmode, { key = direction },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["down"](playerTank)
+                print("d")
                 return false, sc
             end,
             i18n("mt" .. direction), pushId("mt" .. direction)
@@ -733,7 +781,7 @@ local function bindCameraControl()
         -- }}}
     end
 
-    local bindMode: KeyConfig.BindType = "keypressed"
+    local bindMode: KeyConfig.BindType = "isdown"
     --local bindMode = "isdown"
     KeyConfig.bind(bindMode, { key = "a" }, makeMoveFunction(1., 0), 
         i18n("mcleft"), "camleft")
@@ -791,7 +839,8 @@ colprint("test removeFirstColon('::'): " .. removeFirstColon('::'))
 local function konsolePresent()
     --linesbuf.show = true
     gr.setColor{1, 1, 1, 1}
-    linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
+    linesbuf:pushi(string.format("camera x, y, rot, scale: %d, %d, %f, %f", 
+        cam.x, cam.y, cam.rot, cam.scale))
 
     if mode == "command" then
         cmdline = removeFirstColon(cmdline)
@@ -801,22 +850,44 @@ local function konsolePresent()
     linesbuf:draw()
 end
 
+local function backgroundPresent()
+    gr.clear{0.5, 0.5, 0.5, 1}
+end
+
 local function mainPresent()
-    gr.clear(0.2, 0.2, 0.2)
+    backgroundPresent()
+
+    --push2drawlist(drawTanks)
 
     cam:attach()
-    drawTanks()
+    queryBoundingBox()
     presentDrawlist()
     cam:detach()
 
     --cam:attach()
-    drawBoundingBox()
+    --drawBoundingBox()
     --cam:detach()
     drawlist = {}
 
-    changeKeyConfigListbackground()
+    --changeKeyConfigListbackground()
 
     coroutine.yield()
+end
+
+local function drawCameraAxixes()
+    local color = {0., 0.1, 0.97}
+    local lw = 5
+    local radius = 40
+    local len = W * 2
+    local oldwidth = gr.getLineWidth()
+    gr.setColor(color)
+    gr.setLineWidth(lw)
+    gr.circle("fill", cam.x, cam.y, radius)
+    gr.line(cam.x, cam.y, cam.x + len, cam.y)
+    gr.line(cam.x, cam.y, cam.x - len, cam.y)
+    gr.line(cam.x, cam.y, cam.x, cam.y + len)
+    gr.line(cam.x, cam.y, cam.x, cam.y - len)
+    gr.setLineWidth(oldwidth)
 end
 
 local function draw()
@@ -824,6 +895,8 @@ local function draw()
     if not ok then
         --error("drawCoro thread is end")
     end
+
+    drawCameraAxixes()
     konsolePresent()
 end
 
@@ -887,6 +960,7 @@ local function leaveCommandMode()
     cmdline = ""
 end
 
+-- TODO
 function konsolePrint(...: any)
     for _, v in ipairs({...}) do
         if type(v) == "string" then
@@ -900,8 +974,8 @@ end
 local function evalCommand()
     local preload = [[
         local inspect = require 'inspect'
-        local systemPrint = print
-        print = konsolePrint
+        --local systemPrint = print
+        --print = konsolePrint
     ]]
     local f, loaderrmsg: function, string = load(preload .. cmdline)
     local time = 2
@@ -919,8 +993,6 @@ local function evalCommand()
     end
     table.insert(cmdhistory, cmdline)
 end
-
-local prevcmdline: string
 
 local function processCommandModeKeys(key: string)
     if key == "backspace" then
@@ -979,7 +1051,7 @@ local function keypressed(key: string)
     processValue(key)
 end
 
--- положение в пикселях
+-- положение в метрах
 local function spawn(pos: vector): Tank
     local res: Tank
     local ok, errmsg: boolean, string = pcall(function()
@@ -1002,7 +1074,7 @@ end
 local function bindCameraZoomKeys()
     local Shortcut = KeyConfig.Shortcut
     local zoomSpeed = 0.01
-    local zoomLower, zoomHigher = 0.3, 2
+    local zoomLower, zoomHigher = 0.15, 3.5
 
     KeyConfig.bind(
         "isdown",
@@ -1085,15 +1157,16 @@ end
 
 local function createDrawCoroutine()
     drawCoro = coroutine.create(function()
-        logo = Logo.new()
         if DEBUG_DRAW_THREAD then
             print("drawCoro started")
         end
         while true do
+            print("go to logo present()")
             -- режим игрового меню
             while showLogo == true do
                 logo:present()
             end
+            print("goto mainPresent()")
             -- режим сражения
             while showLogo == false do
                 mainPresent()
@@ -1144,6 +1217,7 @@ local function init()
     --self.headBody:setLinearDamping(0.1)
     pworld:setCallbacks(onBeginContact, onEndContact)
 
+    logo = Logo.new()
     cam = require 'camera'.new()
     if DEBUG_CAMERA then
         print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
@@ -1155,6 +1229,13 @@ local function init()
     --bindCommandModeHotkey()
 
     createDrawCoroutine()
+
+    local len = 10
+    for i = 1, len do
+        for j = 1, len do
+            --spawn(vector.new(i * 100, j * 100))
+        end
+    end
 end
 
 local function quit()
@@ -1166,7 +1247,6 @@ local function mousemoved(_: number, _: number, _: number, _: number)
 end
 
 local function wheelmoved(_: number, _: number)
-    --KeyConfig.send(
 end
 
 local function mousepressed(x: number, y: number, btn: integer)
@@ -1175,11 +1255,13 @@ local function mousepressed(x: number, y: number, btn: integer)
         --print("mousepressed")
         --print("x, y", x, y)
         print("before worldCoords", x, y)
+        local timeout = 2.5
+        linesbuf:push(timeout, "mousepressed(%d, %d)", x, y)
         x, y = cam:worldCoords(x, y)
+        linesbuf:push(timeout, "in world coordinates (%d, %d)", x, y)
         print("after worldCoords", x, y)
         --x, y = cam:cameraCoords(x, y)
-        --x, y = x * PIX2M, y * PIX2M
-        --print("x, y", x, y)
+        x, y = x * PIX2M, y * PIX2M
         spawn(vector.new(x, y))
     end
 end

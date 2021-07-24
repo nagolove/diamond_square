@@ -53,9 +53,10 @@ PIX2M = 1 / 10
 local camTimer = require("Timer").new()
 local drawlist = {}
 local gr = love.graphics
+
 local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode = "normal"
-local cmdline = ""
+local cmdline, prevcmdline = "", ""
 local cmdhistory = {}
 
 local i18n = require("i18n")
@@ -119,11 +120,15 @@ local Tank = {}
 
 
 
+
+
 local Tank_mt = {
    __index = Tank,
 }
 
 local Logo = {}
+
+
 
 
 
@@ -144,9 +149,11 @@ local CameraSettings = {}
 
 
 
+
+
 local cameraSettings = {
 
-   dx = 10, dy = 10,
+   dx = 100, dy = 100,
 }
 
 
@@ -231,7 +238,8 @@ function Tank.new(pos)
 
    tankCounter = tankCounter + 1
 
-   self.pbody = love.physics.newBody(pworld, x * PIX2M, y * PIX2M, "dynamic")
+
+   self.pbody = love.physics.newBody(pworld, x, y, "static")
 
    self.pbody:setUserData(self)
 
@@ -256,7 +264,35 @@ function Tank.new(pos)
    return self
 end
 
+local function drawBodyStat(body)
+   local radius = 10
+   local x, y = body:getWorldCenter()
+   x, y = x * M2PIX, y * M2PIX
+
+   gr.setColor({ 0.1, 1, 0.1 })
+   gr.circle("fill", x, y, radius)
+
+   local vx, vy = body:getLinearVelocity()
+   local scale = 7.
+   gr.line(x, y, x + vx * scale, y + vy * scale)
+end
+
+function Tank:present()
+   if self.base and self.base.present then
+      self.base:present()
+   else
+      colprint('Tank ' .. self.id .. ' is damaged. No base.')
+   end
+   if self.turret and self.turret.present then
+      self.turret:present()
+   else
+      colprint('Tank ' .. self.id .. ' is damaged. No turret.')
+   end
+   drawBodyStat(self.pbody)
+end
+
 function Turret.new(t)
+
    if DEBUG_TURRET then
       print("Start of Turret creating..")
    end
@@ -289,6 +325,7 @@ function Turret.new(t)
    end
 
    return self
+
 end
 
 local function drawFixture(f)
@@ -310,8 +347,9 @@ local function drawFixture(f)
 end
 
 function Turret:present()
+
    local imgw, imgh = (self.img):getDimensions()
-   local r, sx, sy, ox, oy = math.rad(0.), 1., 1., imgw / 2, imgh / 2
+   local r, sx, sy, ox, oy = 0., 1., 1., imgw / 2, imgh / 2
 
    local shape = self.f:getShape()
    local cshape = self.f:getShape()
@@ -324,25 +362,36 @@ function Turret:present()
    px, py = px * M2PIX, py * M2PIX
    r = cshape:getRadius() * M2PIX
 
+   gr.setColor({ 1, 0.5, 0, 0.5 })
+   gr.circle("fill", px, py, r)
 
+   sx = sx * 2
+   sy = sy * 2
 
+   gr.setColor({ 1, 1, 1, 1 })
    love.graphics.draw(
    self.img,
    px, py,
-   r,
+   0,
    sx, sy,
    ox, oy)
 
 
+
+
+
+
    for _, f in ipairs(self.pbody:getFixtures()) do
-      drawFixture(f)
+
    end
+
 
 
 
 end
 
 function Base:present()
+
    local imgw, imgh = (self.img):getDimensions()
    local r, sx, sy, ox, oy = math.rad(0.), 1., 1., imgw / 2, imgh / 2
 
@@ -355,29 +404,35 @@ function Base:present()
    px, py = self.pbody:getWorldPoints(px, py)
    px, py = px * M2PIX, py * M2PIX
    r = cshape:getRadius() * M2PIX
+
    gr.setColor({ 1, 0, 0, 0.5 })
    gr.circle("fill", px, py, r)
+
+   sx = sx * 2
+   sy = sy * 2
 
    gr.setColor({ 1, 1, 1, 0.5 })
    love.graphics.draw(
    self.img,
    px, py,
-   r,
+   0,
    sx, sy,
    ox, oy)
 
 
    for _, f in ipairs(self.pbody:getFixtures()) do
-      drawFixture(f)
+
    end
 
    local x, y = self.pbody:getWorldCenter()
    x, y = x * M2PIX, y * M2PIX
    local text = string.format("%d", self.tank.id)
    gr.print(text, x, y)
+
 end
 
 function Base.new(t)
+
    if DEBUG_BASE then
       print("Base.new()")
    end
@@ -411,6 +466,7 @@ function Base.new(t)
    end
 
    return self
+
 end
 
 
@@ -518,24 +574,27 @@ local function onQueryBoundingBox(fixture)
    local body = fixture:getBody()
    local selfPtr = body:getUserData()
 
-   if selfPtr then
+   if selfPtr and selfPtr.present then
+      selfPtr:present()
 
-      if selfPtr.turret then
 
-         selfPtr.turret:present()
-      else
-         if DEBUG_TURRET then
-            print("Turret object have not present method.")
-         end
-      end
-      if selfPtr.base then
 
-         selfPtr.base:present()
-      else
-         if DEBUG_BASE then
-            print("Base object have not present method.")
-         end
-      end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
    end
    return true
 
@@ -551,16 +610,17 @@ end
 
 local function drawTanks()
 
-
    gr.setColor({ 1, 1, 1 })
 
 
-   for _, v in ipairs(tanks) do
-      v.base:present()
-      v.turret:present()
-   end
 
 
+
+
+
+
+
+   queryBoundingBox()
 end
 
 local playerTankKeyconfigIds = {}
@@ -637,6 +697,7 @@ local function bindPlayerTankKeys()
       bmode, { key = direction },
       function(sc)
          playerTank["right"](playerTank)
+         print("r")
          return false, sc
       end,
       i18n("mt" .. direction), pushId("mt" .. direction))
@@ -647,6 +708,7 @@ local function bindPlayerTankKeys()
       bmode, { key = direction },
       function(sc)
          playerTank["left"](playerTank)
+         print("l")
          return false, sc
       end,
       i18n("mt" .. direction), pushId("mt" .. direction))
@@ -657,6 +719,7 @@ local function bindPlayerTankKeys()
       bmode, { key = direction },
       function(sc)
          playerTank["up"](playerTank)
+         print("u")
          return false, sc
       end,
       i18n("mt" .. direction), pushId("mt" .. direction))
@@ -667,6 +730,7 @@ local function bindPlayerTankKeys()
       bmode, { key = direction },
       function(sc)
          playerTank["down"](playerTank)
+         print("d")
          return false, sc
       end,
       i18n("mt" .. direction), pushId("mt" .. direction))
@@ -733,7 +797,7 @@ local function bindCameraControl()
 
    end
 
-   local bindMode = "keypressed"
+   local bindMode = "isdown"
 
    KeyConfig.bind(bindMode, { key = "a" }, makeMoveFunction(1., 0),
    i18n("mcleft"), "camleft")
@@ -791,7 +855,8 @@ end
 local function konsolePresent()
 
    gr.setColor({ 1, 1, 1, 1 })
-   linesbuf:pushi(string.format("camera x, y: %d, %d", cam.x, cam.y))
+   linesbuf:pushi(string.format("camera x, y, rot, scale: %d, %d, %f, %f",
+   cam.x, cam.y, cam.rot, cam.scale))
 
    if mode == "command" then
       cmdline = removeFirstColon(cmdline)
@@ -801,22 +866,44 @@ local function konsolePresent()
    linesbuf:draw()
 end
 
+local function backgroundPresent()
+   gr.clear({ 0.5, 0.5, 0.5, 1 })
+end
+
 local function mainPresent()
-   gr.clear(0.2, 0.2, 0.2)
+   backgroundPresent()
+
+
 
    cam:attach()
    drawTanks()
-   presentDrawlist()
+
    cam:detach()
 
 
-   drawBoundingBox()
+
 
    drawlist = {}
 
-   changeKeyConfigListbackground()
+
 
    coroutine.yield()
+end
+
+local function drawCameraAxixes()
+   local color = { 0., 0.1, 0.97 }
+   local lw = 5
+   local radius = 40
+   local len = W * 2
+   local oldwidth = gr.getLineWidth()
+   gr.setColor(color)
+   gr.setLineWidth(lw)
+   gr.circle("fill", cam.x, cam.y, radius)
+   gr.line(cam.x, cam.y, cam.x + len, cam.y)
+   gr.line(cam.x, cam.y, cam.x - len, cam.y)
+   gr.line(cam.x, cam.y, cam.x, cam.y + len)
+   gr.line(cam.x, cam.y, cam.x, cam.y - len)
+   gr.setLineWidth(oldwidth)
 end
 
 local function draw()
@@ -824,6 +911,8 @@ local function draw()
    if not ok then
 
    end
+
+   drawCameraAxixes()
    konsolePresent()
 end
 
@@ -887,6 +976,7 @@ local function leaveCommandMode()
    cmdline = ""
 end
 
+
 function konsolePrint(...)
    for _, v in ipairs({ ... }) do
       if type(v) == "string" then
@@ -900,8 +990,8 @@ end
 local function evalCommand()
    local preload = [[
         local inspect = require 'inspect'
-        local systemPrint = print
-        print = konsolePrint
+        --local systemPrint = print
+        --print = konsolePrint
     ]]
    local f, loaderrmsg = load(preload .. cmdline)
    local time = 2
@@ -919,8 +1009,6 @@ local function evalCommand()
    end
    table.insert(cmdhistory, cmdline)
 end
-
-local prevcmdline
 
 local function processCommandModeKeys(key)
    if key == "backspace" then
@@ -1002,7 +1090,7 @@ end
 local function bindCameraZoomKeys()
    local Shortcut = KeyConfig.Shortcut
    local zoomSpeed = 0.01
-   local zoomLower, zoomHigher = 0.3, 2
+   local zoomLower, zoomHigher = 0.15, 3.5
 
    KeyConfig.bind(
    "isdown",
@@ -1085,15 +1173,16 @@ end
 
 local function createDrawCoroutine()
    drawCoro = coroutine.create(function()
-      logo = Logo.new()
       if DEBUG_DRAW_THREAD then
          print("drawCoro started")
       end
       while true do
+         print("go to logo present()")
 
          while showLogo == true do
             logo:present()
          end
+         print("goto mainPresent()")
 
          while showLogo == false do
             mainPresent()
@@ -1144,6 +1233,7 @@ local function init()
 
    pworld:setCallbacks(onBeginContact, onEndContact)
 
+   logo = Logo.new()
    cam = require('camera').new()
    if DEBUG_CAMERA then
       print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
@@ -1155,6 +1245,13 @@ local function init()
 
 
    createDrawCoroutine()
+
+   local len = 10
+   for i = 1, len do
+      for j = 1, len do
+
+      end
+   end
 end
 
 local function quit()
@@ -1166,7 +1263,6 @@ local function mousemoved(_, _, _, _)
 end
 
 local function wheelmoved(_, _)
-
 end
 
 local function mousepressed(x, y, btn)
@@ -1175,11 +1271,13 @@ local function mousepressed(x, y, btn)
 
 
       print("before worldCoords", x, y)
+      local timeout = 2.5
+      linesbuf:push(timeout, "mousepressed(%d, %d)", x, y)
       x, y = cam:worldCoords(x, y)
+      linesbuf:push(timeout, "in world coordinates (%d, %d)", x, y)
       print("after worldCoords", x, y)
 
-
-
+      x, y = x * PIX2M, y * PIX2M
       spawn(vector.new(x, y))
    end
 end
