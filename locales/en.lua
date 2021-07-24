@@ -6,8 +6,8 @@ return {
     en = {
         mtleft = "move tank left",
         mtright = "move tank right",
-        mtup = "move tank up",
-        mtdown = "move tank down",
+        mtforward = "move tank forward",
+        mtbackward = "move tank backward",
 
         mcleft = "move camera left",
         mcright = "move camera right",

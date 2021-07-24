@@ -39,6 +39,8 @@ DEBUG_DRAW_THREAD = true
 DEFAULT_W, DEFAULT_H = 1024, 768
 W, H = love.graphics.getDimensions()
 
+cmd_drawBodyStat = true
+
 
 local tlx, tly, brx, bry = 0., 0., W, H
 
@@ -186,52 +188,58 @@ end
 local VALUE = 0.
 
 function Tank:left()
-   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-      print("Tank:left")
-   end
-   local x, y = -VALUE, 0
-   if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. "applyForce x, y", x, y)
-   end
-   self.pbody:applyForce(x, y)
+
+
+
+
+
+
+
+
 end
 
 function Tank:right()
+
+
+
+
+
+
+
+
+end
+
+local forceScale = 2
+
+function Tank:forward()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-      print("Tank:right")
+      print("Tank:forward")
    end
-   local x, y = VALUE, 0
-   if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. "applyForce x, y", x, y)
-   end
+
+
+
+
+   local x, y = self.dir.x * forceScale, self.dir.y * forceScale
+   print('applied', x, y)
    self.pbody:applyForce(x, y)
 end
 
-function Tank:up()
+function Tank:backward()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-      print("Tank:up")
+      print("Tank:backward")
    end
-   local x, y = 0, -VALUE
-   if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. "applyForce x, y", x, y)
-   end
-   self.pbody:applyForce(x, y)
-end
 
-function Tank:down()
-   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-      print("Tank:down")
-   end
-   local x, y = 0, VALUE
-   if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. "applyForce x, y", x, y)
-   end
-   self.pbody:applyForce(x, y)
+
+
+
+   local x, y = self.dir.x * forceScale, self.dir.y * forceScale
+   print('applied', x, y)
+   self.pbody:applyForce(-x, -y)
 end
 
 local tankCounter = 0
 
-function Tank.new(pos)
+function Tank.new(pos, dir)
    if DEBUG_TANK then
       print('Start of Tank creating..')
    end
@@ -240,12 +248,17 @@ function Tank.new(pos)
 
    tankCounter = tankCounter + 1
 
+   self.pbody = love.physics.newBody(pworld, x, y, "dynamic")
 
-   self.pbody = love.physics.newBody(pworld, x, y, "static")
 
    self.pbody:setUserData(self)
 
+   if not dir then
+      dir = vector.new(0, -1)
+   end
+
    self.id = tankCounter
+   self.dir = dir:clone()
    self.turret = Turret.new(self)
    self.base = Base.new(self)
    self.movementDelta = 1.
@@ -277,6 +290,22 @@ local function drawBodyStat(body)
    local vx, vy = body:getLinearVelocity()
    local scale = 7.
    gr.line(x, y, x + vx * scale, y + vy * scale)
+
+
+
+end
+
+function Tank:drawDirectionVector()
+   if self.dir then
+      local x, y = self.pbody:getWorldCenter()
+      local scale = 50
+      local color = { 0.8, 0.95, 0.99, 1 }
+      x, y = x * M2PIX, y * M2PIX
+      gr.setColor(color)
+
+
+      gr.line(x, y, x + self.dir.x * scale, y + self.dir.y * scale)
+   end
 end
 
 function Tank:present()
@@ -290,7 +319,10 @@ function Tank:present()
    else
       colprint('Tank ' .. self.id .. ' is damaged. No turret.')
    end
-   drawBodyStat(self.pbody)
+   if cmd_drawBodyStat then
+      self:drawDirectionVector()
+      drawBodyStat(self.pbody)
+   end
 end
 
 function Turret.new(t)
@@ -351,7 +383,7 @@ end
 function Turret:present()
 
    local imgw, imgh = (self.img):getDimensions()
-   local r, sx, sy, ox, oy = 0., 1., 1., imgw / 2, imgh / 2
+   local r, sx, sy, ox, oy = 0., 1., 1., 0, 0
 
    local shape = self.f:getShape()
    local cshape = self.f:getShape()
@@ -365,16 +397,18 @@ function Turret:present()
    r = cshape:getRadius() * M2PIX
 
 
+   r = r * 0.8
+
+   gr.setColor({ 1, 0.5, 0, 0.5 })
+   gr.circle("fill", px, py, r)
 
 
 
-   sx = sx * 2
-   sy = sy * 2
 
    gr.setColor({ 1, 1, 1, 1 })
    love.graphics.draw(
    self.img,
-   px, py,
+   px - imgw / 2, py - imgh / 2,
    0,
    sx, sy,
    ox, oy)
@@ -396,7 +430,7 @@ end
 function Base:present()
 
    local imgw, imgh = (self.img):getDimensions()
-   local r, sx, sy, ox, oy = math.rad(0.), 1., 1., imgw / 2, imgh / 2
+   local r, sx, sy, ox, oy = 0, 1., 1., 0, 0
 
    local shape = self.f:getShape()
    local cshape = self.f:getShape()
@@ -411,14 +445,15 @@ function Base:present()
    gr.setColor({ 1, 0, 0, 0.5 })
    gr.circle("fill", px, py, r)
 
-   sx = sx * 2
-   sy = sy * 2
 
-   gr.setColor({ 1, 1, 1, 0.5 })
+
+   local angle = self.pbody:getAngle()
+
+   gr.setColor({ 1, 1, 1, 1 })
    love.graphics.draw(
    self.img,
-   px, py,
-   0,
+   px - imgw / 2, py - imgh / 2,
+   angle,
    sx, sy,
    ox, oy)
 
@@ -633,10 +668,23 @@ local function onQueryBoundingBox(fixture)
 end
 
 local function queryBoundingBox()
+
+
+
+
+
+
+
+
+
+
+   local x1, y1 = -20000, -20000
+   local x2, y2 = 20000, 20000
    pworld:queryBoundingBox(
-   tlx * PIX2M, tly * PIX2M,
-   brx * PIX2M, bry * PIX2M,
+   x1 * PIX2M, y1 * PIX2M,
+   x2 * PIX2M, y2 * PIX2M,
    onQueryBoundingBox)
+
 
 end
 
@@ -712,7 +760,6 @@ local function bindPlayerTankKeys()
       bmode, { key = direction },
       function(sc)
          playerTank["right"](playerTank)
-         print("r")
          return false, sc
       end,
       i18n("mt" .. direction), pushId("mt" .. direction))
@@ -723,29 +770,26 @@ local function bindPlayerTankKeys()
       bmode, { key = direction },
       function(sc)
          playerTank["left"](playerTank)
-         print("l")
          return false, sc
       end,
       i18n("mt" .. direction), pushId("mt" .. direction))
 
 
-      direction = "up"
+      direction = "forward"
       kc.bind(
-      bmode, { key = direction },
+      bmode, { key = "up" },
       function(sc)
-         playerTank["up"](playerTank)
-         print("u")
+         playerTank["forward"](playerTank)
          return false, sc
       end,
       i18n("mt" .. direction), pushId("mt" .. direction))
 
 
-      direction = "down"
+      direction = "backward"
       kc.bind(
-      bmode, { key = direction },
+      bmode, { key = "down" },
       function(sc)
-         playerTank["down"](playerTank)
-         print("d")
+         playerTank["backward"](playerTank)
          return false, sc
       end,
       i18n("mt" .. direction), pushId("mt" .. direction))
@@ -754,22 +798,6 @@ local function bindPlayerTankKeys()
 
    else
       error("There is no player tank object instance, sorry.")
-   end
-end
-
-local function playerTankUpdate()
-   if playerTank then
-
-      local lk = love.keyboard
-      if lk.isDown("left") then
-         playerTank:left()
-      elseif lk.isDown("right") then
-         playerTank:right()
-      elseif lk.isDown("up") then
-         playerTank:up()
-      elseif lk.isDown("down") then
-         playerTank:down()
-      end
    end
 end
 
@@ -882,12 +910,14 @@ end
 local function konsolePresent()
 
    gr.setColor({ 1, 1, 1, 1 })
-   linesbuf:pushi(string.format("camera x, y, rot, scale: %d, %d, %f, %f",
+   linesbuf:pushi(string.format("camera x = %d, y = %d, rot = %f, scale = %f",
    cam.x, cam.y, cam.rot, cam.scale))
 
    if mode == "command" then
       cmdline = removeFirstColon(cmdline)
-      linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
+      if cmdline then
+         linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
+      end
    end
 
    linesbuf:draw()
@@ -944,7 +974,6 @@ local function draw()
 end
 
 local function update(dt)
-
    camTimer:update(dt)
    pworld:update(1 / 60)
    linesbuf:update()
@@ -1108,17 +1137,18 @@ local function keypressed(key)
 end
 
 
-local function spawn(pos)
+local function spawn(pos, dir)
    local res
    local ok, errmsg = pcall(function()
       if #tanks >= 1 then
          unbindPlayerTankKeys()
       end
-      local t = Tank.new(pos)
+      local t = Tank.new(pos, dir)
       table.insert(tanks, t)
 
       playerTank = t
       res = t
+      print("Tank spawn at", pos.x, pos.y)
       bindPlayerTankKeys()
    end)
    if not ok then
