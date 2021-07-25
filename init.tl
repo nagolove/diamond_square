@@ -418,16 +418,19 @@ local function drawFixture(f: love.physics.Fixture)
 end
 
 function Turret:update()
-    local mx, my = love.mouse.getPosition()
-    mx, my = cam:worldCoords(mx, my)
-    mx, my = mx * PIX2M, PIX2M
+    -- поворачивать башню только у танка игрока
+    if playerTank and self.tank == playerTank then
+        local mx, my = love.mouse.getPosition()
+        mx, my = cam:worldCoords(mx, my)
+        mx, my = mx * PIX2M, PIX2M
 
-    local x, y = self.pbody:getWorldCenter()
-    --local d = vec2.new(x - mx, y - my)
-    local d = vec2.new(mx - x, my - y)
-    local a, r = d:normalizeInplace():toPolar()
-    print("a, r", a, r)
-    self.angle = a
+        local x, y = self.pbody:getWorldCenter()
+        --local d = vec2.new(x - mx, y - my)
+        local d = vec2.new(mx - x, my - y)
+        local a, _ = d:normalizeInplace():toPolar()
+        --print("a, r", a, r)
+        self.angle = a
+    end
 end
 
 function Turret:present()

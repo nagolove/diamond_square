@@ -425,8 +425,8 @@ function Turret:update()
    local x, y = self.pbody:getWorldCenter()
 
    local d = vec2.new(mx - x, my - y)
-   local a, r = d:normalizeInplace():toPolar()
-   print("a, r", a, r)
+   local a, _ = d:normalizeInplace():toPolar()
+
    self.angle = a
 end
 
