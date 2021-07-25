@@ -38,8 +38,8 @@ DEBUG_DRAW_THREAD = true
 
 DEFAULT_W, DEFAULT_H = 1024, 768
 W, H = love.graphics.getDimensions()
-
 cmd_drawBodyStat = true
+cmd_drawCameraAxixes = false
 
 
 local tlx, tly, brx, bry = 0., 0., W, H
@@ -72,6 +72,7 @@ local playerTankKeyconfigIds = {}
 local Shortcut = KeyConfig.Shortcut
 
 local Turret = {}
+
 
 
 
@@ -206,7 +207,7 @@ function Tank:left()
 
    local imp = -angularImpulseScale * rot
    if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. " applyAngularImpulse", imp)
+
    end
    self.pbody:applyAngularImpulse(imp)
 end
@@ -217,7 +218,7 @@ function Tank:right()
    end
    local imp = angularImpulseScale * rot
    if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. " applyAngularImpulse", imp)
+
    end
    self.pbody:applyAngularImpulse(imp)
 end
@@ -231,7 +232,7 @@ function Tank:forward()
 
 
    local x, y = self.dir.x * forceScale, self.dir.y * forceScale
-   print('applied', x, y)
+
    self.pbody:applyForce(x, y)
 end
 
@@ -261,7 +262,6 @@ function Tank.new(pos, dir)
    tankCounter = tankCounter + 1
 
    self.pbody = love.physics.newBody(pworld, 0, 0, "dynamic")
-
    self.pbody:setUserData(self)
 
    if not dir then
@@ -276,12 +276,17 @@ function Tank.new(pos, dir)
    self.base = Base.new(self)
 
    if DEBUG_PHYSICS then
-      print("pbody:getAngularDamping()", self.pbody:getAngularDamping())
-      print("pbody:getLinearDamping()", self.pbody:getLinearDamping())
+      print("angular damping", self.pbody:getAngularDamping())
+      print("linear damping", self.pbody:getLinearDamping())
    end
 
+   self.pbody:setAngularDamping(3.99)
+   self.pbody:setLinearDamping(2)
 
-
+   if DEBUG_PHYSICS then
+      print("angular damping", self.pbody:getAngularDamping())
+      print("linear damping", self.pbody:getLinearDamping())
+   end
 
    if DEBUG_TANK then
       print('self.turret', self.turret)
@@ -332,6 +337,9 @@ function Tank:update()
 
 
    self.dir = vec2.fromPolar(self.pbody:getAngle(), unit)
+   if self.turret then
+      self.turret:update()
+   end
 
    return self
 end
@@ -409,6 +417,19 @@ local function drawFixture(f)
    end
 end
 
+function Turret:update()
+   local mx, my = love.mouse.getPosition()
+   mx, my = cam:worldCoords(mx, my)
+   mx, my = mx * PIX2M, PIX2M
+
+   local x, y = self.pbody:getWorldCenter()
+
+   local d = vec2.new(mx - x, my - y)
+   local a, r = d:normalizeInplace():toPolar()
+   print("a, r", a, r)
+   self.angle = a
+end
+
 function Turret:present()
 
    local imgw, imgh = (self.img):getDimensions()
@@ -428,8 +449,10 @@ function Turret:present()
 
    r = r * 0.8
 
-   gr.setColor({ 1, 0.5, 0, 0.5 })
-   gr.circle("fill", px, py, r)
+
+
+
+
 
 
 
@@ -437,10 +460,10 @@ function Turret:present()
    gr.setColor({ 1, 1, 1, 1 })
    love.graphics.draw(
    self.img,
-   px - imgw / 2, py - imgh / 2,
-   0,
+   px, py,
+   self.angle,
    sx, sy,
-   ox, oy)
+   ox + imgw / 2, oy + imgh / 2)
 
 
 
@@ -471,8 +494,8 @@ function Base:present()
    px, py = px * M2PIX, py * M2PIX
    r = cshape:getRadius() * M2PIX
 
-   gr.setColor({ 1, 0, 0, 0.5 })
-   gr.circle("fill", px, py, r)
+
+
 
 
 
@@ -489,14 +512,14 @@ function Base:present()
    love.graphics.draw(
    self.img,
    px, py,
-   angle,
+   angle + math.pi / 2,
    sx, sy,
    ox + imgw / 2, oy + imgh / 2)
 
 
-   local black = { 0, 0, 0, 1 }
-   gr.setColor(black)
-   gr.rectangle("line", px, py, imgw, imgh)
+
+
+
 
 
 
@@ -1061,8 +1084,9 @@ local function draw()
    if not ok then
 
    end
-
-   drawCameraAxixes()
+   if cmd_drawCameraAxixes then
+      drawCameraAxixes()
+   end
    konsolePresent()
 end
 
@@ -1458,13 +1482,29 @@ local function mousepressed(x, y, btn)
       print("before worldCoords", x, y)
       local timeout = 2.5
       linesbuf:push(timeout, "mousepressed(%d, %d)", x, y)
-
-
+      x, y = cam:worldCoords(x, y)
       linesbuf:push(timeout, "in world coordinates (%d, %d)", x, y)
       print("after worldCoords", x, y)
 
       x, y = x * PIX2M, y * PIX2M
       spawn(vector.new(x, y))
+   elseif btn == 2 then
+      local count = 100
+      for i = 2, count do
+
+
+
+         print("before worldCoords", x, y)
+         local timeout = 2.5
+         linesbuf:push(timeout, "mousepressed(%d, %d)", x, y)
+
+
+         linesbuf:push(timeout, "in world coordinates (%d, %d)", x, y)
+         print("after worldCoords", x, y)
+
+         x, y = x * PIX2M, y * PIX2M
+         spawn(vector.new(x, y))
+      end
    end
 end
 
