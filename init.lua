@@ -6,10 +6,9 @@ local Mode = {}
 
 
 
-require("global")
-love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
+SCENE_PREFIX = "scenes/t80u"
 
-local Tank = require("tank")
+love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
 local List = require("list")
 require("love")
@@ -20,13 +19,36 @@ require("vector")
 require("Timer")
 require("imgui")
 
+DEBUG_BASE = false
+DEBUG_TANK = false
+DEBUG_TANK_MOVEMENT = false
+DEBUG_TURRET = false
+DEBUG_CAMERA = false
+DEBUG_PHYSICS = true
+DEBUG_LOGO = false
+DEBUG_DRAW_THREAD = true
+
+DEFAULT_W, DEFAULT_H = 1024, 768
+W, H = love.graphics.getDimensions()
+cmd_drawBodyStat = true
+cmd_drawCameraAxixes = false
+
 
 local tlx, tly, brx, bry = 0., 0., W, H
+
+
+
+M2PIX = 10
+
+PIX2M = 1 / 10
+
+local forceScale = 100
 
 
 local camTimer = require("Timer").new()
 local drawlist = {}
 local gr = love.graphics
+local vec2 = require("vector")
 
 local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode = "normal"
@@ -40,6 +62,92 @@ local drawCoro = nil
 local showLogo = true
 local playerTankKeyconfigIds = {}
 local Shortcut = KeyConfig.Shortcut
+
+local Turret = {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+local Turret_mt = {
+   __index = Turret,
+}
+
+local Base = {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+local BaseP = {}
+
+
+
+
+
+
+
+
+
+
+
+
+local BaseP_mt = {
+   __index = BaseP,
+}
+
+local Base_mt = {
+   __index = Base,
+}
+
+local Tank = {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local Tank_mt = {
+   __index = Tank,
+}
 
 local Logo = {}
 
@@ -98,22 +206,657 @@ end
 
 local VALUE = 0.
 
-local function drawFixture(f)
+local angularImpulseScale = 5
+local rot = math.pi / 4
+
+function Tank:left()
+   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
+      print("Tank:left")
+   end
+
+
+   local imp = -angularImpulseScale * rot
+   if DEBUG_PHYSICS then
+
+   end
+   self.pbody:applyAngularImpulse(imp)
+end
+
+function Tank:right()
+   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
+      print("Tank:right")
+   end
+   local imp = angularImpulseScale * rot
+   if DEBUG_PHYSICS then
+
+   end
+   self.pbody:applyAngularImpulse(imp)
+end
+
+function Tank:forward()
+   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
+      print("Tank:forward")
+   end
+
+
+
+
+   local x, y = self.dir.x * forceScale, self.dir.y * forceScale
+
+   self.pbody:applyForce(x, y)
+end
+
+function Tank:backward()
+   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
+      print("Tank:backward")
+   end
+
+
+
+
+   local x, y = self.dir.x * forceScale, self.dir.y * forceScale
+   print('applied', x, y)
+   self.pbody:applyForce(-x, -y)
+end
+
+local tankCounter = 0
+
+
+
+function Tank.new(pos, dir)
+   if DEBUG_TANK then
+      print('Start of Tank creating..')
+   end
+   local self = setmetatable({}, Tank_mt)
+
+   tankCounter = tankCounter + 1
+
+   self.pbody = love.physics.newBody(pworld, 0, 0, "dynamic")
+   self.pbody:setUserData(self)
+
+   if not dir then
+      dir = vector.new(0, -1)
+   end
+
+
+   self.id = tankCounter
+   self.dir = dir:clone()
+   self.pos = pos:clone()
+   self.turret = Turret.new(self)
+
+   self.base = BaseP.new(self)
+
+   if DEBUG_PHYSICS then
+      print("angular damping", self.pbody:getAngularDamping())
+      print("linear damping", self.pbody:getLinearDamping())
+   end
+
+   self.pbody:setAngularDamping(3.99)
+   self.pbody:setLinearDamping(2)
+
+   if DEBUG_PHYSICS then
+      print("angular damping", self.pbody:getAngularDamping())
+      print("linear damping", self.pbody:getLinearDamping())
+   end
+
+   if DEBUG_TANK then
+      print('self.turret', self.turret)
+      print('self.base', self.base)
+      print('End of Tank creating.')
+   end
+   return self
+end
+
+local function drawBodyStat(body)
+   local radius = 10
+   local x, y = body:getWorldCenter()
+   x, y = x * M2PIX, y * M2PIX
+
+
+   gr.setColor({ 0.1, 1, 0.1 })
+   gr.circle("fill", x, y, radius)
+
+
+   gr.setColor({ 0, 0, 0, 1 })
+   gr.circle("fill", x, y, 2)
+
+   local vx, vy = body:getLinearVelocity()
+   local scale = 7.
+   gr.line(x, y, x + vx * scale, y + vy * scale)
+
+
+
+end
+
+function Tank:drawDirectionVector()
+   if self.dir then
+      local x, y = self.pbody:getWorldCenter()
+      local scale = 50
+      local color = { 0., 0.05, 0.99, 1 }
+      x, y = x * M2PIX, y * M2PIX
+      gr.setColor(color)
+
+
+      gr.line(x, y, x + self.dir.x * scale, y + self.dir.y * scale)
+   end
+end
+
+function Tank:resetVelocities()
+   if self.pbody then
+      self.pbody:setAngularVelocity(0)
+      self.pbody:setLinearVelocity(0, 0)
+   end
+end
+
+function Tank:update()
+   local unit = 1
+
+
+   self.dir = vec2.fromPolar(self.pbody:getAngle(), unit)
+   if self.turret then
+      self.turret:update()
+   end
+
+   return self
+end
+
+function Tank:present()
+   if self.base and self.base.present then
+      self.base:present()
+   else
+      colprint('Tank ' .. self.id .. ' is damaged. No base.')
+   end
+   if self.turret and self.turret.present then
+      self.turret:present()
+   else
+      colprint('Tank ' .. self.id .. ' is damaged. No turret.')
+   end
+   if cmd_drawBodyStat then
+      self:drawDirectionVector()
+      drawBodyStat(self.pbody)
+   end
+end
+
+function Turret.new(t)
+
+   if DEBUG_TURRET then
+      print("Start of Turret creating..")
+   end
+   if not t then
+      error("Could'not create Turret without Tank object")
+   end
+
+   local self = setmetatable({}, Turret_mt)
+   self.tank = t
+   self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
+   self.pbody = t.pbody
+
+   if DEBUG_TURRET then
+      print("self.tank", self.tank)
+      print("self.pbody", self.pbody)
+      print("self.img", self.img)
+   end
+
+   local w, _ = (self.img):getDimensions()
+   local r = w / 2
+   local px, py = self.tank.pbody:getPosition()
+
+
+
+   if DEBUG_TURRET then
+      print("circle shape created x, y, r", px, py)
+   end
+
+   return self
+
+end
+
+local __ONCE__ = false
+
+local function drawFixture(f, color)
+   local defaultcolor = { 1, 0.5, 0, 0.5 }
+   if not color then
+      color = defaultcolor
+   end
    local shape = f:getShape()
    local shapeType = shape:getType()
+   local body = f:getBody()
    if shapeType == 'circle' then
       local cShape = shape
       local px, py = cShape:getPoint()
       local radius = cShape:getRadius()
-      px, py = f:getBody():getWorldPoints(px, py)
+      px, py = body:getWorldPoints(px, py)
       local lw = 3
       local olw = gr.getLineWidth()
       gr.setLineWidth(lw)
-      gr.circle("line", px * M2PIX, py * M2PIX, radius)
+      gr.setColor(color)
+      gr.circle("line", px * M2PIX, py * M2PIX, radius * M2PIX)
+      gr.setLineWidth(olw)
+   elseif shapeType == 'polygon' then
+      local pShape = shape
+      local points = { pShape:getPoints() }
+      local i = 1
+      while i < #points do
+         points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+         points[i] = points[i] * M2PIX
+         points[i + 1] = points[i + 1] * M2PIX
+         i = i + 2
+      end
+      if not __ONCE__ then
+         __ONCE__ = true
+         print("vertices", inspect(points))
+      end
+      local lw = 3
+      local olw = gr.getLineWidth()
+      gr.setLineWidth(lw)
+      gr.setColor(color)
+      gr.polygon("line", points)
       gr.setLineWidth(olw)
    else
       error("Shape type " .. shapeType .. " unsupported.")
    end
+end
+
+function Turret:update()
+
+   if playerTank and self.tank == playerTank then
+      local mx, my = love.mouse.getPosition()
+      mx, my = cam:worldCoords(mx, my)
+      mx, my = mx * PIX2M, PIX2M
+
+      local x, y = self.pbody:getWorldCenter()
+
+      local d = vec2.new(mx - x, my - y)
+      local a, _ = d:normalizeInplace():toPolar()
+
+      self.angle = a
+   end
+end
+
+function Turret:present()
+
+   if not self.f then
+      return
+   end
+
+   local imgw, imgh = (self.img):getDimensions()
+   local r, sx, sy, ox, oy = 0., 1., 1., 0, 0
+
+   local shape = self.f:getShape()
+   local cshape = self.f:getShape()
+
+   if shape:getType() ~= "circle" then
+      error("Only circle shape allowed.")
+   end
+   local px, py = cshape:getPoint()
+   px, py = self.pbody:getWorldPoints(px, py)
+   px, py = px * M2PIX, py * M2PIX
+   r = cshape:getRadius() * M2PIX
+
+
+
+
+   if DEBUG_PHYSICS then
+
+
+      drawFixture(self.f)
+   end
+
+
+
+
+
+
+   gr.setColor({ 1, 1, 1, 1 })
+   love.graphics.draw(
+   self.img,
+   px, py,
+   self.angle,
+   sx, sy,
+   ox + imgw / 2, oy + imgh / 2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+end
+
+function BaseP:present()
+
+   local imgw, imgh = (self.img):getDimensions()
+   local r, sx, sy, ox, oy = 0, 1., 1., 0, 0
+
+   local body = self.f:getBody()
+   local shape = self.f:getShape()
+   if shape:getType() ~= "polygon" then
+      error("Tank BaseP shape should be polygon.")
+   end
+   local pShape = self.f:getShape()
+
+   if DEBUG_PHYSICS then
+      drawFixture(self.f, { 0, 0, 0, 1 })
+   end
+
+
+   local points = { pShape:getPoints() }
+   local i = 1
+   while i < #points do
+      points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+      points[i] = points[i] * M2PIX
+      points[i + 1] = points[i + 1] * M2PIX
+      i = i + 2
+   end
+
+
+
+
+
+
+   local px, py = 0, 0
+
+
+   local angle = self.pbody:getAngle()
+
+
+
+   love.graphics.push()
+
+
+
+
+   gr.setColor({ 1, 1, 1, 1 })
+   love.graphics.draw(
+   self.img,
+   px, py,
+   angle + math.pi / 2,
+   sx, sy,
+   ox + imgw / 2, oy + imgh / 2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   love.graphics.pop()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   for _, f in ipairs(self.pbody:getFixtures()) do
+
+   end
+
+   local x, y = self.pbody:getWorldCenter()
+   x, y = x * M2PIX, y * M2PIX
+   local text = string.format("%d", self.tank.id)
+   gr.print(text, x, y)
+
+end
+
+function Base:present()
+
+   local imgw, imgh = (self.img):getDimensions()
+   local r, sx, sy, ox, oy = 0, 1., 1., 0, 0
+
+   local shape = self.f:getShape()
+   local cshape = self.f:getShape()
+
+   if shape:getType() ~= "circle" then
+
+      return
+   end
+
+   local px, py = cshape:getPoint()
+   px, py = self.pbody:getWorldPoints(px, py)
+   px, py = px * M2PIX, py * M2PIX
+   r = cshape:getRadius() * M2PIX
+
+   if DEBUG_PHYSICS then
+
+
+      drawFixture(self.f, { 0, 0, 0, 1 })
+   end
+
+
+
+   local angle = self.pbody:getAngle()
+
+
+
+   love.graphics.push()
+
+
+
+
+   gr.setColor({ 1, 1, 1, 1 })
+   love.graphics.draw(
+   self.img,
+   px, py,
+   angle + math.pi / 2,
+   sx, sy,
+   ox + imgw / 2, oy + imgh / 2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   love.graphics.pop()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   for _, f in ipairs(self.pbody:getFixtures()) do
+
+   end
+
+   local x, y = self.pbody:getWorldCenter()
+   x, y = x * M2PIX, y * M2PIX
+   local text = string.format("%d", self.tank.id)
+   gr.print(text, x, y)
+
+end
+
+function BaseP.new(t)
+
+   if DEBUG_BASE then
+      print("BaseP.new()")
+   end
+   if not t then
+      error("Could'not create BaseP without Tank object")
+   end
+
+   local self = setmetatable({}, BaseP_mt)
+   self.tank = t
+   self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
+
+
+   local rectXY = { 86, 72 }
+   local rectWH = { 84, 111 }
+
+   self.pbody = t.pbody
+
+   if DEBUG_BASE then
+      print("self.tank", self.tank)
+      print("self.pbody", self.pbody)
+      print("self.img", self.img)
+   end
+
+   local w, _ = (self.img):getDimensions()
+   local px, py = t.pos.x, t.pos.y
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   local vertices = {
+      px - rectWH[1] / 2 * PIX2M,
+      py - rectWH[2] / 2 * PIX2M,
+
+      px + rectWH[1] / 2 * PIX2M,
+      py - rectWH[2] / 2 * PIX2M,
+
+      px + rectWH[1] / 2 * PIX2M,
+      py + rectWH[2] / 2 * PIX2M,
+
+      px - rectWH[1] / 2 * PIX2M,
+      py + rectWH[2] / 2 * PIX2M,
+   }
+
+   local shape = love.physics.newPolygonShape(vertices)
+   self.f = love.physics.newFixture(self.pbody, shape)
+   if DEBUG_TURRET then
+      print("polygon shape created x, y, r", px, py)
+   end
+
+   return self
+
+end
+
+function Base.new(t)
+
+   if DEBUG_BASE then
+      print("Base.new()")
+   end
+   if not t then
+      error("Could'not create Base without Tank object")
+   end
+
+   local self = setmetatable({}, Base_mt)
+   self.tank = t
+   self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
+   self.pbody = t.pbody
+
+   if DEBUG_BASE then
+      print("self.tank", self.tank)
+      print("self.pbody", self.pbody)
+      print("self.img", self.img)
+   end
+
+   local w, _ = (self.img):getDimensions()
+
+   local r = w / 2
+   local px, py = t.pos.x, t.pos.y
+   local shape = love.physics.newCircleShape(px, py, r * PIX2M)
+
+   self.f = love.physics.newFixture(self.pbody, shape)
+
+   if DEBUG_TURRET then
+      print("circle shape created x, y, r", px, py)
+   end
+
+   return self
+
 end
 
 
@@ -217,31 +960,11 @@ end
 
 local function onQueryBoundingBox(fixture)
 
-
    local body = fixture:getBody()
    local selfPtr = body:getUserData()
 
    if selfPtr and selfPtr.present then
       selfPtr:present()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    end
    return true
 
@@ -576,9 +1299,9 @@ local function drawCameraAxixes()
 end
 
 local function draw()
-   local ok = coroutine.resume(drawCoro)
+   local ok, errmsg = coroutine.resume(drawCoro)
    if not ok then
-
+      error("drawCoro thread is end: " .. errmsg)
    end
    if cmd_drawCameraAxixes then
       drawCameraAxixes()
