@@ -399,7 +399,12 @@ function Turret.new(t: Tank): Turret
     -- }}}
 end
 
-local function drawFixture(f: love.physics.Fixture)
+local function drawFixture(f: love.physics.Fixture, color: {number})
+    local defaultcolor = {1, 0.5, 0, 0.5}
+    if not color then
+        color = defaultcolor
+    end
+
     local shape = f:getShape()
     local shapeType = shape:getType()
     if shapeType == 'circle' then
@@ -410,7 +415,8 @@ local function drawFixture(f: love.physics.Fixture)
         local lw = 3
         local olw = gr.getLineWidth()
         gr.setLineWidth(lw)
-        gr.circle("line", px * M2PIX, py * M2PIX, radius)
+        gr.setColor(color)
+        gr.circle("line", px * M2PIX, py * M2PIX, radius * M2PIX)
         gr.setLineWidth(olw)
     else
         error("Shape type " .. shapeType .. " unsupported.")
@@ -450,10 +456,13 @@ function Turret:present()
     r = cshape:getRadius() * M2PIX
     --print('cshape:getRadius()', cshape:getRadius())
 
-    r = r * 0.8
+    --r = r * 0.8
 
-    --gr.setColor{1, 0.5, 0, 0.5}
-    --gr.circle("fill", px, py, r)
+    if DEBUG_PHYSICS then
+        --gr.setColor{1, 0.5, 0, 0.5}
+        --gr.circle("fill", px, py, r)
+        drawFixture(self.f)
+    end
 
     --sx = sx * 2
     --sy = sy * 2
@@ -497,8 +506,11 @@ function Base:present()
     px, py = px * M2PIX, py * M2PIX
     r = cshape:getRadius() * M2PIX
 
-    --gr.setColor{1, 0, 0, 0.5}
-    --gr.circle("fill", px, py, r)
+    if DEBUG_PHYSICS then
+        --gr.setColor{1, 0, 0, 0.5}
+        --gr.circle("fill", px, py, r)
+        drawFixture(self.f, {0, 0, 0, 1})
+    end
 
     --sx = sx * 2
     --sy = sy * 2

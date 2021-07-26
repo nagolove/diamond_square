@@ -399,7 +399,12 @@ function Turret.new(t)
 
 end
 
-local function drawFixture(f)
+local function drawFixture(f, color)
+   local defaultcolor = { 1, 0.5, 0, 0.5 }
+   if not color then
+      color = defaultcolor
+   end
+
    local shape = f:getShape()
    local shapeType = shape:getType()
    if shapeType == 'circle' then
@@ -410,7 +415,8 @@ local function drawFixture(f)
       local lw = 3
       local olw = gr.getLineWidth()
       gr.setLineWidth(lw)
-      gr.circle("line", px * M2PIX, py * M2PIX, radius)
+      gr.setColor(color)
+      gr.circle("line", px * M2PIX, py * M2PIX, radius * M2PIX)
       gr.setLineWidth(olw)
    else
       error("Shape type " .. shapeType .. " unsupported.")
@@ -418,16 +424,19 @@ local function drawFixture(f)
 end
 
 function Turret:update()
-   local mx, my = love.mouse.getPosition()
-   mx, my = cam:worldCoords(mx, my)
-   mx, my = mx * PIX2M, PIX2M
 
-   local x, y = self.pbody:getWorldCenter()
+   if playerTank and self.tank == playerTank then
+      local mx, my = love.mouse.getPosition()
+      mx, my = cam:worldCoords(mx, my)
+      mx, my = mx * PIX2M, PIX2M
 
-   local d = vec2.new(mx - x, my - y)
-   local a, _ = d:normalizeInplace():toPolar()
+      local x, y = self.pbody:getWorldCenter()
 
-   self.angle = a
+      local d = vec2.new(mx - x, my - y)
+      local a, _ = d:normalizeInplace():toPolar()
+
+      self.angle = a
+   end
 end
 
 function Turret:present()
@@ -447,10 +456,13 @@ function Turret:present()
    r = cshape:getRadius() * M2PIX
 
 
-   r = r * 0.8
 
 
+   if DEBUG_PHYSICS then
 
+
+      drawFixture(self.f)
+   end
 
 
 
@@ -494,8 +506,11 @@ function Base:present()
    px, py = px * M2PIX, py * M2PIX
    r = cshape:getRadius() * M2PIX
 
+   if DEBUG_PHYSICS then
 
 
+      drawFixture(self.f, { 0, 0, 0, 1 })
+   end
 
 
 
