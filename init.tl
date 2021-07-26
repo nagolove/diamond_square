@@ -26,14 +26,6 @@ global DEBUG_TURRET = false
 global DEBUG_CAMERA = false
 global DEBUG_PHYSICS = true
 global DEBUG_LOGO = false
-
---local DEBUG_BASE = true
---local DEBUG_TANK = true
---local DEBUG_TANK_MOVEMENT = false
---local DEBUG_TURRET = true
---local DEBUG_CAMERA = true
---local DEBUG_PHYSICS = true
---local DEBUG_LOGO = true
 global DEBUG_DRAW_THREAD = true
 
 global DEFAULT_W, DEFAULT_H = 1024, 768
@@ -101,6 +93,24 @@ local record Base
     present: function(Base)
     -- }}}
 end
+
+-- ходовая часть с полигоном
+local record BaseP
+    -- {{{
+    pbody: love.physics.Body
+    f: love.physics.Fixture
+    img: love.graphics.Image
+    --pos: vector -- центр поворота корпуса
+    tank: Tank
+
+    new: function(t: Tank): BaseP
+    present: function(BaseP)
+    -- }}}
+end
+
+local BaseP_mt: metatable<BaseP> = {
+    __index = BaseP,
+}
 
 local Base_mt: metatable<Base> = {
     __index = Base,
@@ -273,7 +283,8 @@ function Tank.new(pos: vector, dir: vector): Tank
     self.dir = dir:clone()
     self.pos = pos:clone()
     self.turret = Turret.new(self)
-    self.base = Base.new(self)
+    --self.base = Base.new(self)
+    self.base = BaseP.new(self) as Base
 
     if DEBUG_PHYSICS then
         print("angular damping", self.pbody:getAngularDamping())
@@ -399,24 +410,46 @@ function Turret.new(t: Tank): Turret
     -- }}}
 end
 
+local __ONCE__ = false
+
 local function drawFixture(f: love.physics.Fixture, color: {number})
     local defaultcolor = {1, 0.5, 0, 0.5}
     if not color then
         color = defaultcolor
     end
-
     local shape = f:getShape()
     local shapeType = shape:getType()
+    local body = f:getBody()
     if shapeType == 'circle' then
         local cShape: love.physics.CircleShape = shape as love.physics.CircleShape
         local px, py = cShape:getPoint()
         local radius = cShape:getRadius()
-        px, py = f:getBody():getWorldPoints(px, py)
+        px, py = body:getWorldPoints(px, py)
         local lw = 3
         local olw = gr.getLineWidth()
         gr.setLineWidth(lw)
         gr.setColor(color)
         gr.circle("line", px * M2PIX, py * M2PIX, radius * M2PIX)
+        gr.setLineWidth(olw)
+    elseif shapeType == 'polygon' then
+        local pShape: love.physics.PolygonShape = shape as love.physics.PolygonShape
+        local points = {pShape:getPoints()}
+        local i = 1
+        while i < #points do
+            points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+            points[i] = points[i] * M2PIX
+            points[i + 1] = points[i + 1] * M2PIX
+            i = i + 2
+        end
+        if not __ONCE__ then
+            __ONCE__ = true
+            print("vertices", inspect(points))
+        end
+        local lw = 3
+        local olw = gr.getLineWidth()
+        gr.setLineWidth(lw)
+        gr.setColor(color)
+        gr.polygon("line", points)
         gr.setLineWidth(olw)
     else
         error("Shape type " .. shapeType .. " unsupported.")
@@ -491,6 +524,111 @@ function Turret:present()
     -- }}}
 end
 
+function BaseP:present()
+    -- {{{
+    local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
+    local r, sx, sy, ox, oy: number = 0, 1., 1., 0, 0
+    --local kx, ky: number = 1., 1.
+    local shape = self.f:getShape()
+    local cshape = self.f:getShape() as love.physics.CircleShape
+
+    if DEBUG_PHYSICS then
+        drawFixture(self.f, {0, 0, 0, 1})
+    end
+
+    if shape:getType() ~= "circle" then
+        return
+    end
+
+    local px, py = cshape:getPoint()
+    px, py = self.pbody:getWorldPoints(px, py)
+    px, py = px * M2PIX, py * M2PIX
+    r = cshape:getRadius() * M2PIX
+
+    --sx = sx * 2
+    --sy = sy * 2
+    local angle = self.pbody:getAngle()
+
+    --px, py = px - imgw / 2, py - imgh / 2,
+
+    love.graphics.push()
+    --love.graphics.translate(-imgw / 2, -imgh / 2)
+    --love.graphics.rotate(angle)
+    --love.graphics.translate(imgw / 2, imgh / 2)
+
+    gr.setColor{1, 1, 1, 1}
+    love.graphics.draw(
+        self.img as love.graphics.Drawable,
+        px, py,
+        angle + math.pi / 2, 
+        sx, sy, 
+        ox + imgw / 2, oy + imgh / 2
+    )
+
+    --local black = {0, 0, 0, 1}
+    --gr.setColor(black)
+    --gr.rectangle("line", px, py, imgw, imgh)
+
+    --love.graphics.draw(
+        --self.img as love.graphics.Drawable,
+        --px, py,
+        --0,
+        --sx, sy, 
+        --ox, oy
+    --)
+
+    --love.graphics.translate(-imgw / 2, -imgh / 2)
+    love.graphics.pop()
+
+    --gr.setColor{1, 1, 1, 1}
+    --love.graphics.draw(
+        --self.img as love.graphics.Drawable,
+        --px - imgw / 2, py - imgh / 2,
+        --angle, 
+        --sx, sy, 
+        --ox, oy
+    --)
+
+    --[[
+    gr.setColor{1, 1, 1, 0.5}
+    love.graphics.draw(
+        self.img as love.graphics.Drawable,
+        0, 0,
+        0,
+        1, 1,
+        0, 0
+    )
+
+    gr.setColor{1, 1, 1, 0.5}
+    love.graphics.draw(
+        self.img as love.graphics.Drawable,
+        0, 0,
+        0,
+        1, 1,
+        0, 0
+    )
+
+    gr.setColor{1, 1, 1, 0.5}
+    love.graphics.draw(
+        self.img as love.graphics.Drawable,
+        0, 0,
+        0,
+        1, 1,
+        100, 300
+    )
+    --]]
+
+    for _, f in ipairs(self.pbody:getFixtures()) do
+        --drawFixture(f)
+    end
+
+    local x, y = self.pbody:getWorldCenter()
+    x, y = x * M2PIX, y * M2PIX
+    local text = string.format("%d", self.tank.id)
+    gr.print(text, x, y)
+    -- }}}
+end
+
 function Base:present()
     -- {{{
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
@@ -498,9 +636,12 @@ function Base:present()
     --local kx, ky: number = 1., 1.
     local shape = self.f:getShape()
     local cshape = self.f:getShape() as love.physics.CircleShape
+
     if shape:getType() ~= "circle" then
-        error("Only circle shape allowed.")
+        --error("Only circle shape allowed.")
+        return
     end
+
     local px, py = cshape:getPoint()
     px, py = self.pbody:getWorldPoints(px, py)
     px, py = px * M2PIX, py * M2PIX
@@ -596,6 +737,68 @@ function Base:present()
     -- }}}
 end
 
+function BaseP.new(t: Tank): BaseP
+    -- {{{
+    if DEBUG_BASE then
+        print("BaseP.new()")
+    end
+    if not t then
+        error("Could'not create BaseP without Tank object")
+    end
+
+    local self: BaseP = setmetatable({} as BaseP, BaseP_mt)
+    self.tank = t
+    self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
+
+    -- цифры получены из картинки tank_body_small.png
+    local rectXY = {86, 72}
+    local rectWH = {84, 111}
+    
+    self.pbody = t.pbody
+
+    if DEBUG_BASE then
+        print("self.tank", self.tank)
+        print("self.pbody", self.pbody)
+        print("self.img", self.img)
+    end
+
+    local w, _ = (self.img as love.graphics.Texture):getDimensions()
+    --local shape = love.physics.newRectangleShape(w, h)
+    local px, py = t.pos.x, t.pos.y
+    --local shape = love.physics.newCircleShape(px, py, r * PIX2M)
+
+    --px, py = 0, 0
+    local vertices = {
+        px + rectXY[1] * PIX2M, 
+        py + rectXY[2] * PIX2M,  
+
+        px + (rectXY[1] + rectWH[1]) * PIX2M,
+        py + rectXY[2] * PIX2M,
+
+        px + (rectXY[1] + rectWH[1]) * PIX2M,
+        py + (rectXY[2] + rectWH[2]) * PIX2M,
+
+        px + rectXY[1] * PIX2M,
+        py + (rectXY[2] + rectWH[2]) * PIX2M,
+    }
+    --local vertices = {
+        --rectXY[1], rectXY[2],  
+        --rectXY[1] + rectWH[1], rectXY[1],
+        --rectXY[1] + rectWH[1], rectXY[2] + rectWH[2],
+        --rectXY[1], rectXY[2] + rectWH[2]
+    --}
+
+    local shape = love.physics.newPolygonShape(vertices)
+    self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
+    print("self.f:getType()", self.f:getShape():getType())
+    if DEBUG_TURRET then
+        print("polygon shape created x, y, r", px, py)
+    end
+
+    return self
+    -- }}}
+end
+
 function Base.new(t: Tank): Base
     -- {{{
     if DEBUG_BASE then
@@ -607,8 +810,6 @@ function Base.new(t: Tank): Base
 
     local self: Base = setmetatable({} as Base, Base_mt)
     self.tank = t
-    --self.img = love.graphics.newImage(SCENE_PREFIX .. "/korpus1.png")
-    --self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body.png")
     self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
     self.pbody = t.pbody
 
@@ -621,7 +822,6 @@ function Base.new(t: Tank): Base
     local w, _ = (self.img as love.graphics.Texture):getDimensions()
     --local shape = love.physics.newRectangleShape(w, h)
     local r = w / 2
-    --local px, py = self.tank.pbody:getPosition()
     local px, py = t.pos.x, t.pos.y
     local shape = love.physics.newCircleShape(px, py, r * PIX2M)
     --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
@@ -1095,9 +1295,9 @@ local function drawCameraAxixes()
 end
 
 local function draw()
-    local ok: boolean = coroutine.resume(drawCoro)
+    local ok, errmsg: boolean, string = coroutine.resume(drawCoro) as (boolean, string)
     if not ok then
-        --error("drawCoro thread is end")
+        error("drawCoro thread is end: " .. errmsg)
     end
     if cmd_drawCameraAxixes then
         drawCameraAxixes()
