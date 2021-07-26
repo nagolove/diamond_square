@@ -534,22 +534,33 @@ function BaseP:present()
    local imgw, imgh = (self.img):getDimensions()
    local r, sx, sy, ox, oy = 0, 1., 1., 0, 0
 
+   local body = self.f:getBody()
    local shape = self.f:getShape()
-   local cshape = self.f:getShape()
+   if shape:getType() ~= "polygon" then
+      error("Tank BaseP shape should be polygon.")
+   end
+   local pShape = self.f:getShape()
 
    if DEBUG_PHYSICS then
       drawFixture(self.f, { 0, 0, 0, 1 })
    end
 
-   if shape:getType() ~= "circle" then
-      return
+
+   local points = { pShape:getPoints() }
+   local i = 1
+   while i < #points do
+      points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+      points[i] = points[i] * M2PIX
+      points[i + 1] = points[i + 1] * M2PIX
+      i = i + 2
    end
 
-   local px, py = cshape:getPoint()
-   px, py = self.pbody:getWorldPoints(px, py)
-   px, py = px * M2PIX, py * M2PIX
-   r = cshape:getRadius() * M2PIX
 
+
+
+
+
+   local px, py = 0, 0
 
 
    local angle = self.pbody:getAngle()
@@ -787,6 +798,7 @@ function BaseP.new(t)
 
 
 
+
    local vertices = {
       px - rectWH[1] / 2 * PIX2M,
       py - rectWH[2] / 2 * PIX2M,
@@ -800,13 +812,6 @@ function BaseP.new(t)
       px - rectWH[1] / 2 * PIX2M,
       py + rectWH[2] / 2 * PIX2M,
    }
-
-
-
-
-
-
-
 
    local shape = love.physics.newPolygonShape(vertices)
    self.f = love.physics.newFixture(self.pbody, shape)
@@ -955,31 +960,11 @@ end
 
 local function onQueryBoundingBox(fixture)
 
-
    local body = fixture:getBody()
    local selfPtr = body:getUserData()
 
    if selfPtr and selfPtr.present then
       selfPtr:present()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    end
    return true
 

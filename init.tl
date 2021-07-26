@@ -534,22 +534,33 @@ function BaseP:present()
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
     local r, sx, sy, ox, oy: number = 0, 1., 1., 0, 0
     --local kx, ky: number = 1., 1.
+    local body = self.f:getBody()
     local shape = self.f:getShape()
-    local cshape = self.f:getShape() as love.physics.CircleShape
+    if shape:getType() ~= "polygon" then
+        error("Tank BaseP shape should be polygon.")
+    end
+    local pShape: love.physics.PolygonShape = self.f:getShape() as love.physics.PolygonShape
 
     if DEBUG_PHYSICS then
         drawFixture(self.f, {0, 0, 0, 1})
     end
 
-    if shape:getType() ~= "circle" then
-        return
+    --local pShape: love.physics.PolygonShape = shape as love.physics.PolygonShape
+    local points = {pShape:getPoints()}
+    local i = 1
+    while i < #points do
+        points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+        points[i] = points[i] * M2PIX
+        points[i + 1] = points[i + 1] * M2PIX
+        i = i + 2
     end
 
-    local px, py = cshape:getPoint()
-    px, py = self.pbody:getWorldPoints(px, py)
-    px, py = px * M2PIX, py * M2PIX
-    r = cshape:getRadius() * M2PIX
+    --local px, py = pshape:getPoint()
+    --px, py = self.pbody:getWorldPoints(px, py)
+    --px, py = px * M2PIX, py * M2PIX
+    --r = cshape:getRadius() * M2PIX
 
+    local px, py = 0, 0
     --sx = sx * 2
     --sy = sy * 2
     local angle = self.pbody:getAngle()
@@ -949,31 +960,11 @@ end
 
 local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
     -- {{{
-    --print("onQueryBoundingBox")
     local body = fixture:getBody()
     local selfPtr: Tank = body:getUserData() as Tank
     --проверка на существование связанного объекта, проверка на наличие метода отрисовки через запрос, отрисовка.
     if selfPtr and selfPtr.present then
         selfPtr:present()
-        --[[
-        --print("selfPtr")
-        if selfPtr.turret then 
-            --print("turret.present");
-            selfPtr.turret:present()
-        else
-            if DEBUG_TURRET then
-                print("Turret object have not present method.")
-            end
-        end
-        if selfPtr.base then
-            --print("base.present");
-            selfPtr.base:present()
-        else
-            if DEBUG_BASE then
-                print("Base object have not present method.")
-            end
-        end
-        --]]
     end
     return true
     -- }}}
