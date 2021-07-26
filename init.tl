@@ -311,9 +311,14 @@ local function drawBodyStat(body: love.physics.Body)
     local radius = 10
     local x, y = body:getWorldCenter()
     x, y = x * M2PIX, y * M2PIX
+
     -- зеленый цвет кружка
     gr.setColor{0.1, 1, 0.1}
     gr.circle("fill", x, y, radius)
+
+    -- с черной точкой
+    gr.setColor{0, 0, 0, 1}
+    gr.circle("fill", x, y, 2)
 
     local vx, vy = body:getLinearVelocity()
     local scale = 7.
@@ -383,7 +388,6 @@ function Turret.new(t: Tank): Turret
 
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.tank = t
-    --self.img = love.graphics.newImage(SCENE_PREFIX .. "/bashnya1.png")
     self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
     self.pbody = t.pbody
 
@@ -394,13 +398,10 @@ function Turret.new(t: Tank): Turret
     end
 
     local w, _ = (self.img as love.graphics.Texture):getDimensions()
-    --local shape = love.physics.newRectangleShape(w, h)
     local r = w / 2
     local px, py = self.tank.pbody:getPosition()
-    --local shape = love.physics.newCircleShape(px, py, r * PIX2M)
-    local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
-    --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
-    self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
+    --local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
+    --self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
 
     if DEBUG_TURRET then
         print("circle shape created x, y, r", px, py)
@@ -474,6 +475,10 @@ end
 
 function Turret:present()
     -- {{{
+    if not self.f then
+        return
+    end
+
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
     local r, sx, sy, ox, oy: number = 0., 1., 1., 0, 0
     --local kx, ky: number = 1., 1.
@@ -763,11 +768,10 @@ function BaseP.new(t: Tank): BaseP
     end
 
     local w, _ = (self.img as love.graphics.Texture):getDimensions()
-    --local shape = love.physics.newRectangleShape(w, h)
     local px, py = t.pos.x, t.pos.y
-    --local shape = love.physics.newCircleShape(px, py, r * PIX2M)
-
     --px, py = 0, 0
+
+    --[[
     local vertices = {
         px + rectXY[1] * PIX2M, 
         py + rectXY[2] * PIX2M,  
@@ -781,16 +785,25 @@ function BaseP.new(t: Tank): BaseP
         px + rectXY[1] * PIX2M,
         py + (rectXY[2] + rectWH[2]) * PIX2M,
     }
-    --local vertices = {
-        --rectXY[1], rectXY[2],  
-        --rectXY[1] + rectWH[1], rectXY[1],
-        --rectXY[1] + rectWH[1], rectXY[2] + rectWH[2],
-        --rectXY[1], rectXY[2] + rectWH[2]
-    --}
+    --]]
+
+    -- XXX Не используется rectXY, будут проблемы при перемещении выделения на текстуре.
+    local vertices = {
+        px - rectWH[1] / 2 * PIX2M, 
+        py - rectWH[2] / 2 * PIX2M,  
+
+        px + rectWH[1] / 2 * PIX2M, 
+        py - rectWH[2] / 2 * PIX2M,  
+
+        px + rectWH[1] / 2 * PIX2M, 
+        py + rectWH[2] / 2 * PIX2M,  
+
+        px - rectWH[1] / 2 * PIX2M,
+        py + rectWH[2] / 2 * PIX2M,
+    }
 
     local shape = love.physics.newPolygonShape(vertices)
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
-    print("self.f:getType()", self.f:getShape():getType())
     if DEBUG_TURRET then
         print("polygon shape created x, y, r", px, py)
     end

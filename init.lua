@@ -312,8 +312,13 @@ local function drawBodyStat(body)
    local x, y = body:getWorldCenter()
    x, y = x * M2PIX, y * M2PIX
 
+
    gr.setColor({ 0.1, 1, 0.1 })
    gr.circle("fill", x, y, radius)
+
+
+   gr.setColor({ 0, 0, 0, 1 })
+   gr.circle("fill", x, y, 2)
 
    local vx, vy = body:getLinearVelocity()
    local scale = 7.
@@ -383,7 +388,6 @@ function Turret.new(t)
 
    local self = setmetatable({}, Turret_mt)
    self.tank = t
-
    self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
    self.pbody = t.pbody
 
@@ -394,13 +398,10 @@ function Turret.new(t)
    end
 
    local w, _ = (self.img):getDimensions()
-
    local r = w / 2
    local px, py = self.tank.pbody:getPosition()
 
-   local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
 
-   self.f = love.physics.newFixture(self.pbody, shape)
 
    if DEBUG_TURRET then
       print("circle shape created x, y, r", px, py)
@@ -473,6 +474,10 @@ function Turret:update()
 end
 
 function Turret:present()
+
+   if not self.f then
+      return
+   end
 
    local imgw, imgh = (self.img):getDimensions()
    local r, sx, sy, ox, oy = 0., 1., 1., 0, 0
@@ -763,24 +768,39 @@ function BaseP.new(t)
    end
 
    local w, _ = (self.img):getDimensions()
-
    local px, py = t.pos.x, t.pos.y
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
    local vertices = {
-      px + rectXY[1] * PIX2M,
-      py + rectXY[2] * PIX2M,
+      px - rectWH[1] / 2 * PIX2M,
+      py - rectWH[2] / 2 * PIX2M,
 
-      px + (rectXY[1] + rectWH[1]) * PIX2M,
-      py + rectXY[2] * PIX2M,
+      px + rectWH[1] / 2 * PIX2M,
+      py - rectWH[2] / 2 * PIX2M,
 
-      px + (rectXY[1] + rectWH[1]) * PIX2M,
-      py + (rectXY[2] + rectWH[2]) * PIX2M,
+      px + rectWH[1] / 2 * PIX2M,
+      py + rectWH[2] / 2 * PIX2M,
 
-      px + rectXY[1] * PIX2M,
-      py + (rectXY[2] + rectWH[2]) * PIX2M,
+      px - rectWH[1] / 2 * PIX2M,
+      py + rectWH[2] / 2 * PIX2M,
    }
+
 
 
 
@@ -790,7 +810,6 @@ function BaseP.new(t)
 
    local shape = love.physics.newPolygonShape(vertices)
    self.f = love.physics.newFixture(self.pbody, shape)
-   print("self.f:getType()", self.f:getShape():getType())
    if DEBUG_TURRET then
       print("polygon shape created x, y, r", px, py)
    end
