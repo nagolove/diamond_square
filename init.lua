@@ -31,6 +31,7 @@ DEBUG_CAMERA = false
 DEBUG_PHYSICS = true
 DEBUG_LOGO = false
 DEBUG_DRAW_THREAD = true
+DEBUG_TEXCOORDS = true
 
 
 DEFAULT_W, DEFAULT_H = 1024, 768
@@ -108,6 +109,7 @@ local Vertex = {}
 
 
 local BaseP = {}
+
 
 
 
@@ -517,7 +519,7 @@ function Turret:present()
    if DEBUG_PHYSICS then
 
 
-      drawFixture(self.f)
+
    end
 
 
@@ -577,17 +579,16 @@ function BaseP:present()
    local angle = self.pbody:getAngle()
 
 
+
+
+
+
+
+
+
+
+
    gr.setColor({ 1, 1, 1, 1 })
-
-
-
-
-
-
-
-
-
-
    self:updateMeshVerts()
    gr.draw(self.mesh, 0, 0)
 
@@ -724,6 +725,7 @@ function BaseP.new(t)
    self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
 
 
+
    local rectXY = { 86, 72 }
    local rectWH = { 84, 111 }
 
@@ -762,14 +764,55 @@ function BaseP.new(t)
 
    self:initMeshVerts()
    self.mesh = love.graphics.newMesh(self.meshVerts, "triangles", "dynamic")
-   self.mesh:setTexture(self.img)
    self:updateMeshVerts()
+   self.mesh:setTexture(self.img)
+   self:updateMeshTexCoords(rectXY[1], rectXY[2], rectWH[1], rectWH[2])
 
    if not self.mesh then
       error("Could'not create Mesh")
    end
 
    return self
+
+end
+
+function BaseP:updateMeshTexCoords(x, y, w, h)
+
+   print("updateMeshTexCoords", x, y, w, h)
+
+   local imgw, imgh = (self.img):getDimensions()
+
+   local unitw, unith = w / imgw, h / imgh
+
+   local x_, y_ = x / imgw, y / imgh
+
+
+   self.meshVerts[4][3] = x_
+   self.meshVerts[4][4] = y_
+   self.meshVerts[5][3] = x_ + unitw
+   self.meshVerts[5][4] = y_ + unith
+   self.meshVerts[6][3] = x_
+   self.meshVerts[6][4] = y_ + unith
+
+
+   self.meshVerts[3][3] = x_
+   self.meshVerts[3][4] = y_
+   self.meshVerts[1][3] = x_ + unitw
+   self.meshVerts[1][4] = y_
+   self.meshVerts[2][3] = x_ + unitw
+   self.meshVerts[2][4] = y_ + unith
+
+   if DEBUG_TEXCOORDS then
+      local msg = string.format("(%f, %f), (%f, %f), (%f, %f)",
+      self.meshVerts[4][3],
+      self.meshVerts[4][4],
+      self.meshVerts[5][3],
+      self.meshVerts[5][4],
+      self.meshVerts[6][3],
+      self.meshVerts[6][4])
+
+      print(string.format("BaseP.self.meshVerts texture coordinates: " .. msg))
+   end
 
 end
 
@@ -788,18 +831,13 @@ function BaseP:updateMeshVerts()
    self.mesh:setVertices(self.meshVerts)
 
    local body = self.f:getBody()
-
    local pShape = self.f:getShape()
    local points = { pShape:getPoints() }
    local i = 1
-   local j = 1
    while i < #points do
       points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
       points[i] = points[i] * M2PIX
       points[i + 1] = points[i + 1] * M2PIX
-
-
-      j = j + 1
       i = i + 2
    end
 
@@ -807,40 +845,38 @@ function BaseP:updateMeshVerts()
    self.meshVerts[1][1] = points[1]
    self.meshVerts[1][2] = points[2]
 
-   self.meshVerts[1][3] = 0
-   self.meshVerts[1][4] = 0
+
+
 
    self.meshVerts[2][1] = points[3]
    self.meshVerts[2][2] = points[4]
 
-   self.meshVerts[2][3] = 1
-   self.meshVerts[2][4] = 0
+
+
 
    self.meshVerts[3][1] = points[7]
    self.meshVerts[3][2] = points[8]
 
-   self.meshVerts[3][3] = 0
-   self.meshVerts[3][4] = 1
+
+
 
 
    self.meshVerts[5][1] = points[3]
    self.meshVerts[5][2] = points[4]
 
-   self.meshVerts[5][3] = 1
-   self.meshVerts[5][4] = 0
+
+
 
    self.meshVerts[6][1] = points[5]
    self.meshVerts[6][2] = points[6]
 
-   self.meshVerts[6][3] = 1
-   self.meshVerts[6][4] = 1
+
+
 
    self.meshVerts[4][1] = points[7]
    self.meshVerts[4][2] = points[8]
 
-   self.meshVerts[4][3] = 0
-   self.meshVerts[4][4] = 1
-
+   print("self.meshVerts", inspect(self.meshVerts))
 end
 
 function Base.new(t)
