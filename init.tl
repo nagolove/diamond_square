@@ -95,6 +95,17 @@ local record Base
     -- }}}
 end
 
+local record Vertex
+    x: number
+    y: number
+    u: number
+    v: number
+    r: number
+    g: number
+    b: number
+    a: number
+end
+
 -- ходовая часть с полигоном
 local record BaseP
     -- {{{
@@ -103,9 +114,15 @@ local record BaseP
     img: love.graphics.Image
     --pos: vector -- центр поворота корпуса
     tank: Tank
+    mesh: love.graphics.Mesh
+
+    --meshVerts: {Vertex}
+    meshVerts: {{number}}
 
     new: function(t: Tank): BaseP
     present: function(BaseP)
+    updateMeshVerts: function(BaseP)
+    initMeshVerts: function(BaseP)
     -- }}}
 end
 
@@ -559,7 +576,9 @@ function BaseP:present()
     local px, py = 0, 0
     local angle = self.pbody:getAngle()
 
+
     gr.setColor{1, 1, 1, 1}
+    --[[
     love.graphics.draw(
         self.img as love.graphics.Drawable,
         px, py,
@@ -567,18 +586,10 @@ function BaseP:present()
         sx, sy, 
         ox + imgw / 2, oy + imgh / 2
     )
+    --]]
 
-    --local black = {0, 0, 0, 1}
-    --gr.setColor(black)
-    --gr.rectangle("line", px, py, imgw, imgh)
-
-    --love.graphics.draw(
-        --self.img as love.graphics.Drawable,
-        --px, py,
-        --0,
-        --sx, sy, 
-        --ox, oy
-    --)
+    self:updateMeshVerts()
+    gr.draw(self.mesh as love.graphics.Drawable, 0, 0)
 
     --for _, f in ipairs(self.pbody:getFixtures()) do
         ----drawFixture(f)
@@ -728,22 +739,6 @@ function BaseP.new(t: Tank): BaseP
     local px, py = t.pos.x, t.pos.y
     --px, py = 0, 0
 
-    --[[
-    local vertices = {
-        px + rectXY[1] * PIX2M, 
-        py + rectXY[2] * PIX2M,  
-
-        px + (rectXY[1] + rectWH[1]) * PIX2M,
-        py + rectXY[2] * PIX2M,
-
-        px + (rectXY[1] + rectWH[1]) * PIX2M,
-        py + (rectXY[2] + rectWH[2]) * PIX2M,
-
-        px + rectXY[1] * PIX2M,
-        py + (rectXY[2] + rectWH[2]) * PIX2M,
-    }
-    --]]
-
     -- XXX Не используется rectXY, будут проблемы при перемещении выделения на текстуре.
     local vertices = {
         px - rectWH[1] / 2 * PIX2M, 
@@ -765,8 +760,87 @@ function BaseP.new(t: Tank): BaseP
         print("polygon shape created x, y, r", px, py)
     end
 
+    self:initMeshVerts()
+    self.mesh = love.graphics.newMesh(self.meshVerts as {{number}}, "triangles", "dynamic")
+    self.mesh:setTexture(self.img as gr.Texture)
+    self:updateMeshVerts()
+    
+    if not self.mesh then
+        error("Could'not create Mesh")
+    end
+
     return self
     -- }}}
+end
+
+function BaseP:initMeshVerts()
+    self.meshVerts = {}
+    for i = 1, 6 do
+        table.insert(self.meshVerts, {
+            0, 0,           -- x, y
+            0, 0,           -- u, v
+            1, 1, 1, 1,     -- r, g, b, a
+        })
+    end
+end
+
+function BaseP:updateMeshVerts()
+    self.mesh:setVertices(self.meshVerts)
+
+    local body = self.f:getBody()
+    --local shape = self.f:getShape()
+    local pShape: love.physics.PolygonShape = self.f:getShape() as love.physics.PolygonShape
+    local points = {pShape:getPoints()}
+    local i = 1
+    local j = 1 -- индексы вершин меша
+    while i < #points do
+        points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+        points[i] = points[i] * M2PIX
+        points[i + 1] = points[i + 1] * M2PIX
+        --self.meshVerts[j][1] = points[i]
+        --self.meshVerts[j][2] = points[i + 1]
+        j = j + 1
+        i = i + 2
+    end
+
+    -- tri1
+    self.meshVerts[1][1] = points[1]
+    self.meshVerts[1][2] = points[2]
+
+    self.meshVerts[1][3] = 0
+    self.meshVerts[1][4] = 0
+
+    self.meshVerts[2][1] = points[3]
+    self.meshVerts[2][2] = points[4]
+
+    self.meshVerts[2][3] = 1
+    self.meshVerts[2][4] = 0
+
+    self.meshVerts[3][1] = points[7]
+    self.meshVerts[3][2] = points[8]
+
+    self.meshVerts[3][3] = 0
+    self.meshVerts[3][4] = 1
+
+    -- tri2
+    self.meshVerts[5][1] = points[3]
+    self.meshVerts[5][2] = points[4]
+
+    self.meshVerts[5][3] = 1
+    self.meshVerts[5][4] = 0
+
+    self.meshVerts[6][1] = points[5]
+    self.meshVerts[6][2] = points[6]
+
+    self.meshVerts[6][3] = 1
+    self.meshVerts[6][4] = 1
+
+    self.meshVerts[4][1] = points[7]
+    self.meshVerts[4][2] = points[8]
+
+    self.meshVerts[4][3] = 0
+    self.meshVerts[4][4] = 1
+
 end
 
 function Base.new(t: Tank): Base

@@ -18,6 +18,10 @@ require("camera")
 require("vector")
 require("Timer")
 require("imgui")
+local i18n = require("i18n")
+local inspect = require("inspect")
+local vec2 = require("vector")
+
 
 DEBUG_BASE = false
 DEBUG_TANK = false
@@ -27,6 +31,7 @@ DEBUG_CAMERA = false
 DEBUG_PHYSICS = true
 DEBUG_LOGO = false
 DEBUG_DRAW_THREAD = true
+
 
 DEFAULT_W, DEFAULT_H = 1024, 768
 W, H = love.graphics.getDimensions()
@@ -48,15 +53,11 @@ local forceScale = 100
 local camTimer = require("Timer").new()
 local drawlist = {}
 local gr = love.graphics
-local vec2 = require("vector")
 
 local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode = "normal"
 local cmdline, prevcmdline = "", ""
 local cmdhistory = {}
-
-local i18n = require("i18n")
-local inspect = require("inspect")
 
 local drawCoro = nil
 local showLogo = true
@@ -94,8 +95,25 @@ local Base = {}
 
 
 
+local Vertex = {}
+
+
+
+
+
+
+
+
+
+
 
 local BaseP = {}
+
+
+
+
+
+
 
 
 
@@ -555,30 +573,11 @@ function BaseP:present()
       i = i + 2
    end
 
-
-
-
-
-
    local px, py = 0, 0
-
-
    local angle = self.pbody:getAngle()
 
 
-
-   love.graphics.push()
-
-
-
-
    gr.setColor({ 1, 1, 1, 1 })
-   love.graphics.draw(
-   self.img,
-   px, py,
-   angle + math.pi / 2,
-   sx, sy,
-   ox + imgw / 2, oy + imgh / 2)
 
 
 
@@ -589,54 +588,12 @@ function BaseP:present()
 
 
 
+   self:updateMeshVerts()
+   gr.draw(self.mesh, 0, 0)
 
 
 
 
-
-   love.graphics.pop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   for _, f in ipairs(self.pbody:getFixtures()) do
-
-   end
 
    local x, y = self.pbody:getWorldCenter()
    x, y = x * M2PIX, y * M2PIX
@@ -783,22 +740,6 @@ function BaseP.new(t)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    local vertices = {
       px - rectWH[1] / 2 * PIX2M,
       py - rectWH[2] / 2 * PIX2M,
@@ -819,7 +760,86 @@ function BaseP.new(t)
       print("polygon shape created x, y, r", px, py)
    end
 
+   self:initMeshVerts()
+   self.mesh = love.graphics.newMesh(self.meshVerts, "triangles", "dynamic")
+   self.mesh:setTexture(self.img)
+   self:updateMeshVerts()
+
+   if not self.mesh then
+      error("Could'not create Mesh")
+   end
+
    return self
+
+end
+
+function BaseP:initMeshVerts()
+   self.meshVerts = {}
+   for i = 1, 6 do
+      table.insert(self.meshVerts, {
+         0, 0,
+         0, 0,
+         1, 1, 1, 1,
+      })
+   end
+end
+
+function BaseP:updateMeshVerts()
+   self.mesh:setVertices(self.meshVerts)
+
+   local body = self.f:getBody()
+
+   local pShape = self.f:getShape()
+   local points = { pShape:getPoints() }
+   local i = 1
+   local j = 1
+   while i < #points do
+      points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+      points[i] = points[i] * M2PIX
+      points[i + 1] = points[i + 1] * M2PIX
+
+
+      j = j + 1
+      i = i + 2
+   end
+
+
+   self.meshVerts[1][1] = points[1]
+   self.meshVerts[1][2] = points[2]
+
+   self.meshVerts[1][3] = 0
+   self.meshVerts[1][4] = 0
+
+   self.meshVerts[2][1] = points[3]
+   self.meshVerts[2][2] = points[4]
+
+   self.meshVerts[2][3] = 1
+   self.meshVerts[2][4] = 0
+
+   self.meshVerts[3][1] = points[7]
+   self.meshVerts[3][2] = points[8]
+
+   self.meshVerts[3][3] = 0
+   self.meshVerts[3][4] = 1
+
+
+   self.meshVerts[5][1] = points[3]
+   self.meshVerts[5][2] = points[4]
+
+   self.meshVerts[5][3] = 1
+   self.meshVerts[5][4] = 0
+
+   self.meshVerts[6][1] = points[5]
+   self.meshVerts[6][2] = points[6]
+
+   self.meshVerts[6][3] = 1
+   self.meshVerts[6][4] = 1
+
+   self.meshVerts[4][1] = points[7]
+   self.meshVerts[4][2] = points[8]
+
+   self.meshVerts[4][3] = 0
+   self.meshVerts[4][4] = 1
 
 end
 
