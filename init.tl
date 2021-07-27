@@ -28,7 +28,7 @@ global DEBUG_TANK = false
 global DEBUG_TANK_MOVEMENT = false
 global DEBUG_TURRET = false
 global DEBUG_CAMERA = false
-global DEBUG_PHYSICS = true
+global DEBUG_PHYSICS = false
 global DEBUG_LOGO = false
 global DEBUG_DRAW_THREAD = true
 global DEBUG_TEXCOORDS = true
@@ -72,11 +72,18 @@ local record Turret
     img: love.graphics.Image
     angle: number
     tank: Tank
+    -- куда смотрит башня, направление выстрела
+    dir: vector
 
     new: function(t: Tank): Turret
     present: function(Turret)
     update: function(Turret)
+    fire: function(Turret)
     -- }}}
+end
+
+local record Bullet
+    body: love.physics.Body
 end
 
 local Turret_mt: metatable<Turret> = {
@@ -94,17 +101,6 @@ local record Base
     new: function(t: Tank): Base
     present: function(Base)
     -- }}}
-end
-
-local record Vertex
-    x: number
-    y: number
-    u: number
-    v: number
-    r: number
-    g: number
-    b: number
-    a: number
 end
 
 -- ходовая часть с полигоном
@@ -158,6 +154,7 @@ local record Tank
     update: function(Tank): Tank
 
     resetVelocities: function(Tank)
+    updateDir: function(Tank)
     left: function(Tank)
     right: function(Tank)
     forward: function(Tank)
@@ -207,6 +204,28 @@ global tanks: {Tank} = {}
 global playerTank: Tank
 -- Логотип, картинка
 global logo: Logo
+-- Все снаряды вырущенные из танков, пока не уничтоженные
+global bullets: {Bullet} = {}
+
+local bullerRadius = 40
+
+local function drawBullets()
+    for _, b in ipairs(bullets) do
+        local px, py = b.body:getWorldCenter()
+        px, py = px * M2PIX, py * M2PIX
+        gr.setColor{0, 0, 0, 1}
+        gr.circle("fill", px, py, bullerRadius)
+    end
+end
+
+function Turret:fire()
+    local px, py = self.tank.pbody:getWorldCenter()
+    local bullet: Bullet = {}
+    bullet.body = love.physics.newBody(pworld, 0, 0, "kinematic")
+    local shape = love.physics.newCircleShape(px, py, bullerRadius)
+    love.physics.newFixture(bullet.body, shape as love.physics.Shape)
+    table.insert(bullets, bullet)
+end
 
 local function presentDrawlist()
     for _, v in ipairs(drawlist) do
@@ -368,11 +387,18 @@ function Tank:resetVelocities()
     end
 end
 
-function Tank:update(): Tank
+function Tank:updateDir()
     local unit = 1
+    -- возможно зад перепутан с передом
+    self.dir = vec2.fromPolar(self.pbody:getAngle() + math.pi / 2, unit)
+end
+
+function Tank:update(): Tank
     --print("Tank:update()")
     --print("body angle", self.pbody:getAngle())
-    self.dir = vec2.fromPolar(self.pbody:getAngle(), unit)
+
+    self:updateDir()
+
     if self.turret then
         self.turret:update()
     end
@@ -420,8 +446,8 @@ function Turret.new(t: Tank): Turret
     local w, _ = (self.img as love.graphics.Texture):getDimensions()
     local r = w / 2
     local px, py = self.tank.pbody:getPosition()
-    --local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
-    --self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
+    local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
+    self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
 
     if DEBUG_TURRET then
         print("circle shape created x, y, r", px, py)
@@ -485,10 +511,12 @@ function Turret:update()
         mx, my = mx * PIX2M, PIX2M
 
         local x, y = self.pbody:getWorldCenter()
-        --local d = vec2.new(x - mx, y - my)
         local d = vec2.new(mx - x, my - y)
-        local a, _ = d:normalizeInplace():toPolar()
-        --print("a, r", a, r)
+        self.dir = d:normalizeInplace()
+        local a, _ = d:toPolar()
+        if self.angle then
+            linesbuf:push(1, "angle %f, d (%f, %f)", self.angle, d.x, d.y)
+        end
         self.angle = a
     end
 end
@@ -496,7 +524,7 @@ end
 function Turret:present()
     -- {{{
     if not self.f then
-        return
+        error("Turret:present() - fixture is nil")
     end
 
     local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
@@ -512,20 +540,12 @@ function Turret:present()
     px, py = self.pbody:getWorldPoints(px, py)
     px, py = px * M2PIX, py * M2PIX
     r = cshape:getRadius() * M2PIX
-    --print('cshape:getRadius()', cshape:getRadius())
-
-    --r = r * 0.8
 
     if DEBUG_PHYSICS then
         --gr.setColor{1, 0.5, 0, 0.5}
         --gr.circle("fill", px, py, r)
         --drawFixture(self.f)
     end
-
-    --sx = sx * 2
-    --sy = sy * 2
-
-    --px, py = px - imgw / 2, py - imgh / 2,
 
     gr.setColor{1, 1, 1, 1}
     love.graphics.draw(
@@ -546,13 +566,14 @@ function Turret:present()
     --local x, y = self.pbody:getWorldCenter()
     --local text = string.format("%d", self.tank.id)
     --gr.print(text, x, y)
+
     -- }}}
 end
 
 function BaseP:present()
     -- {{{
-    local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
-    local r, sx, sy, ox, oy: number = 0, 1., 1., 0, 0
+    --local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
+    --local r, sx, sy, ox, oy: number = 0, 1., 1., 0, 0
     --local kx, ky: number = 1., 1.
     local body = self.f:getBody()
     local shape = self.f:getShape()
@@ -575,8 +596,8 @@ function BaseP:present()
         i = i + 2
     end
 
-    local px, py = 0, 0
-    local angle = self.pbody:getAngle()
+    --local px, py = 0, 0
+    --local angle = self.pbody:getAngle()
 
     --[[
     love.graphics.draw(
@@ -845,38 +866,23 @@ function BaseP:updateMeshVerts()
     self.meshVerts[1][1] = points[1]
     self.meshVerts[1][2] = points[2]
 
-    --self.meshVerts[1][3] = 0
-    --self.meshVerts[1][4] = 0
-
     self.meshVerts[2][1] = points[3]
     self.meshVerts[2][2] = points[4]
 
-    --self.meshVerts[2][3] = 1
-    --self.meshVerts[2][4] = 0
-
     self.meshVerts[3][1] = points[7]
     self.meshVerts[3][2] = points[8]
-
-    --self.meshVerts[3][3] = 0
-    --self.meshVerts[3][4] = 1
 
     -- tri2
     self.meshVerts[5][1] = points[3]
     self.meshVerts[5][2] = points[4]
 
-    --self.meshVerts[5][3] = 1
-    --self.meshVerts[5][4] = 0
-
     self.meshVerts[6][1] = points[5]
     self.meshVerts[6][2] = points[6]
-
-    --self.meshVerts[6][3] = 1
-    --self.meshVerts[6][4] = 1
 
     self.meshVerts[4][1] = points[7]
     self.meshVerts[4][2] = points[8]
 
-    print("self.meshVerts", inspect(self.meshVerts))
+    --print("self.meshVerts", inspect(self.meshVerts))
 end
 
 function Base.new(t: Tank): Base
@@ -1116,7 +1122,7 @@ local function bindPlayerTankKeys()
 
         direction = "right"
         kc.bind(
-            bmode, { key = direction },
+            bmode, { key = "d" },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["right"](playerTank)
                 return false, sc
@@ -1126,7 +1132,7 @@ local function bindPlayerTankKeys()
 
         direction = "left"
         kc.bind(
-            bmode, { key = direction },
+            bmode, { key = "a" },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["left"](playerTank)
                 return false, sc
@@ -1136,7 +1142,7 @@ local function bindPlayerTankKeys()
 
         direction = "forward"
         kc.bind(
-            bmode, { key = "up" },
+            bmode, { key = "w" },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["forward"](playerTank)
                 return false, sc
@@ -1146,7 +1152,7 @@ local function bindPlayerTankKeys()
 
         direction = "backward"
         kc.bind(
-            bmode, { key = "down" },
+            bmode, { key = "s" },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["backward"](playerTank)
                 return false, sc
@@ -1219,13 +1225,13 @@ local function bindCameraControl()
 
     local bindMode: KeyConfig.BindType = "isdown"
     --local bindMode = "isdown"
-    KeyConfig.bind(bindMode, { key = "a" }, makeMoveFunction(1., 0), 
+    KeyConfig.bind(bindMode, { key = "left" }, makeMoveFunction(1., 0), 
         i18n("mcleft"), "camleft")
-    KeyConfig.bind(bindMode, { key = "d" }, makeMoveFunction(-1.0, 0.), 
+    KeyConfig.bind(bindMode, { key = "right" }, makeMoveFunction(-1.0, 0.), 
         i18n("mcright"), "camright")
-    KeyConfig.bind(bindMode, { key = "w" }, makeMoveFunction(0., 1.), 
+    KeyConfig.bind(bindMode, { key = "up" }, makeMoveFunction(0., 1.), 
         i18n("mcup"), "camup") 
-    KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.), 
+    KeyConfig.bind(bindMode, { key = "down" }, makeMoveFunction(0., -1.), 
         i18n("mcdown"), "camdown")
 
     KeyConfig.bind("keypressed", { key = "c" }, function(sc: Shortcut): boolean, Shortcut
@@ -1325,6 +1331,7 @@ local function mainPresent()
 
     cam:attach()
     queryBoundingBox()
+    drawBullets()
     presentDrawlist()
     cam:detach()
 
@@ -1764,6 +1771,7 @@ local function mousepressed(x: number, y: number, btn: integer)
         x, y = x * PIX2M, y * PIX2M
         spawn(vector.new(x, y))
     elseif btn == 2 then
+        --[[
         local count = 100
         for i = 2, count do
             -- значения координат мыши привести к мировым координатам камеры
@@ -1779,6 +1787,10 @@ local function mousepressed(x: number, y: number, btn: integer)
             --x, y = cam:cameraCoords(x, y)
             x, y = x * PIX2M, y * PIX2M
             spawn(vector.new(x, y))
+        end
+        --]]
+        if playerTank and playerTank.turret then
+            playerTank.turret:fire()
         end
     end
 end

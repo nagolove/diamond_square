@@ -28,7 +28,7 @@ DEBUG_TANK = false
 DEBUG_TANK_MOVEMENT = false
 DEBUG_TURRET = false
 DEBUG_CAMERA = false
-DEBUG_PHYSICS = true
+DEBUG_PHYSICS = false
 DEBUG_LOGO = false
 DEBUG_DRAW_THREAD = true
 DEBUG_TEXCOORDS = true
@@ -79,6 +79,13 @@ local Turret = {}
 
 
 
+
+
+
+local Bullet = {}
+
+
+
 local Turret_mt = {
    __index = Turret,
 }
@@ -86,17 +93,6 @@ local Turret_mt = {
 local Base = {}
 
 
-
-
-
-
-
-
-
-
-
-
-local Vertex = {}
 
 
 
@@ -137,6 +133,7 @@ local Base_mt = {
 }
 
 local Tank = {}
+
 
 
 
@@ -207,6 +204,28 @@ tanks = {}
 
 
 
+
+bullets = {}
+
+local bullerRadius = 40
+
+local function drawBullets()
+   for _, b in ipairs(bullets) do
+      local px, py = b.body:getWorldCenter()
+      px, py = px * M2PIX, py * M2PIX
+      gr.setColor({ 0, 0, 0, 1 })
+      gr.circle("fill", px, py, bullerRadius)
+   end
+end
+
+function Turret:fire()
+   local px, py = self.tank.pbody:getWorldCenter()
+   local bullet = {}
+   bullet.body = love.physics.newBody(pworld, 0, 0, "kinematic")
+   local shape = love.physics.newCircleShape(px, py, bullerRadius)
+   love.physics.newFixture(bullet.body, shape)
+   table.insert(bullets, bullet)
+end
 
 local function presentDrawlist()
    for _, v in ipairs(drawlist) do
@@ -368,11 +387,18 @@ function Tank:resetVelocities()
    end
 end
 
-function Tank:update()
+function Tank:updateDir()
    local unit = 1
 
+   self.dir = vec2.fromPolar(self.pbody:getAngle() + math.pi / 2, unit)
+end
 
-   self.dir = vec2.fromPolar(self.pbody:getAngle(), unit)
+function Tank:update()
+
+
+
+   self:updateDir()
+
    if self.turret then
       self.turret:update()
    end
@@ -420,8 +446,8 @@ function Turret.new(t)
    local w, _ = (self.img):getDimensions()
    local r = w / 2
    local px, py = self.tank.pbody:getPosition()
-
-
+   local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
+   self.f = love.physics.newFixture(self.pbody, shape)
 
    if DEBUG_TURRET then
       print("circle shape created x, y, r", px, py)
@@ -485,10 +511,12 @@ function Turret:update()
       mx, my = mx * PIX2M, PIX2M
 
       local x, y = self.pbody:getWorldCenter()
-
       local d = vec2.new(mx - x, my - y)
-      local a, _ = d:normalizeInplace():toPolar()
-
+      self.dir = d:normalizeInplace()
+      local a, _ = d:toPolar()
+      if self.angle then
+         linesbuf:push(1, "angle %f, d (%f, %f)", self.angle, d.x, d.y)
+      end
       self.angle = a
    end
 end
@@ -496,7 +524,7 @@ end
 function Turret:present()
 
    if not self.f then
-      return
+      error("Turret:present() - fixture is nil")
    end
 
    local imgw, imgh = (self.img):getDimensions()
@@ -513,19 +541,11 @@ function Turret:present()
    px, py = px * M2PIX, py * M2PIX
    r = cshape:getRadius() * M2PIX
 
-
-
-
    if DEBUG_PHYSICS then
 
 
 
    end
-
-
-
-
-
 
    gr.setColor({ 1, 1, 1, 1 })
    love.graphics.draw(
@@ -547,12 +567,13 @@ function Turret:present()
 
 
 
+
 end
 
 function BaseP:present()
 
-   local imgw, imgh = (self.img):getDimensions()
-   local r, sx, sy, ox, oy = 0, 1., 1., 0, 0
+
+
 
    local body = self.f:getBody()
    local shape = self.f:getShape()
@@ -575,8 +596,8 @@ function BaseP:present()
       i = i + 2
    end
 
-   local px, py = 0, 0
-   local angle = self.pbody:getAngle()
+
+
 
 
 
@@ -845,38 +866,23 @@ function BaseP:updateMeshVerts()
    self.meshVerts[1][1] = points[1]
    self.meshVerts[1][2] = points[2]
 
-
-
-
    self.meshVerts[2][1] = points[3]
    self.meshVerts[2][2] = points[4]
-
-
-
 
    self.meshVerts[3][1] = points[7]
    self.meshVerts[3][2] = points[8]
 
 
-
-
-
    self.meshVerts[5][1] = points[3]
    self.meshVerts[5][2] = points[4]
-
-
-
 
    self.meshVerts[6][1] = points[5]
    self.meshVerts[6][2] = points[6]
 
-
-
-
    self.meshVerts[4][1] = points[7]
    self.meshVerts[4][2] = points[8]
 
-   print("self.meshVerts", inspect(self.meshVerts))
+
 end
 
 function Base.new(t)
@@ -1116,7 +1122,7 @@ local function bindPlayerTankKeys()
 
       direction = "right"
       kc.bind(
-      bmode, { key = direction },
+      bmode, { key = "d" },
       function(sc)
          playerTank["right"](playerTank)
          return false, sc
@@ -1126,7 +1132,7 @@ local function bindPlayerTankKeys()
 
       direction = "left"
       kc.bind(
-      bmode, { key = direction },
+      bmode, { key = "a" },
       function(sc)
          playerTank["left"](playerTank)
          return false, sc
@@ -1136,7 +1142,7 @@ local function bindPlayerTankKeys()
 
       direction = "forward"
       kc.bind(
-      bmode, { key = "up" },
+      bmode, { key = "w" },
       function(sc)
          playerTank["forward"](playerTank)
          return false, sc
@@ -1146,7 +1152,7 @@ local function bindPlayerTankKeys()
 
       direction = "backward"
       kc.bind(
-      bmode, { key = "down" },
+      bmode, { key = "s" },
       function(sc)
          playerTank["backward"](playerTank)
          return false, sc
@@ -1219,13 +1225,13 @@ local function bindCameraControl()
 
    local bindMode = "isdown"
 
-   KeyConfig.bind(bindMode, { key = "a" }, makeMoveFunction(1., 0),
+   KeyConfig.bind(bindMode, { key = "left" }, makeMoveFunction(1., 0),
    i18n("mcleft"), "camleft")
-   KeyConfig.bind(bindMode, { key = "d" }, makeMoveFunction(-1.0, 0.),
+   KeyConfig.bind(bindMode, { key = "right" }, makeMoveFunction(-1.0, 0.),
    i18n("mcright"), "camright")
-   KeyConfig.bind(bindMode, { key = "w" }, makeMoveFunction(0., 1.),
+   KeyConfig.bind(bindMode, { key = "up" }, makeMoveFunction(0., 1.),
    i18n("mcup"), "camup")
-   KeyConfig.bind(bindMode, { key = "s" }, makeMoveFunction(0., -1.),
+   KeyConfig.bind(bindMode, { key = "down" }, makeMoveFunction(0., -1.),
    i18n("mcdown"), "camdown")
 
    KeyConfig.bind("keypressed", { key = "c" }, function(sc)
@@ -1325,6 +1331,7 @@ local function mainPresent()
 
    cam:attach()
    queryBoundingBox()
+   drawBullets()
    presentDrawlist()
    cam:detach()
 
@@ -1764,21 +1771,26 @@ local function mousepressed(x, y, btn)
       x, y = x * PIX2M, y * PIX2M
       spawn(vector.new(x, y))
    elseif btn == 2 then
-      local count = 100
-      for i = 2, count do
 
 
 
-         print("before worldCoords", x, y)
-         local timeout = 2.5
-         linesbuf:push(timeout, "mousepressed(%d, %d)", x, y)
 
 
-         linesbuf:push(timeout, "in world coordinates (%d, %d)", x, y)
-         print("after worldCoords", x, y)
 
-         x, y = x * PIX2M, y * PIX2M
-         spawn(vector.new(x, y))
+
+
+
+
+
+
+
+
+
+
+
+
+      if playerTank and playerTank.turret then
+         playerTank.turret:fire()
       end
    end
 end
