@@ -18,7 +18,11 @@ require "camera"
 require "vector"
 require "Timer"
 require "imgui"
+local i18n = require "i18n"
+local inspect = require "inspect"
+local vec2 = require "vector"
 
+-- {{{
 global DEBUG_BASE = false
 global DEBUG_TANK = false
 global DEBUG_TANK_MOVEMENT = false
@@ -27,6 +31,7 @@ global DEBUG_CAMERA = false
 global DEBUG_PHYSICS = true
 global DEBUG_LOGO = false
 global DEBUG_DRAW_THREAD = true
+-- }}}
 
 global DEFAULT_W, DEFAULT_H = 1024, 768
 global W, H = love.graphics.getDimensions()
@@ -48,15 +53,11 @@ global cam: Camera
 local camTimer: Timer = require "Timer".new()
 local drawlist: {function} = {}
 local gr = love.graphics
-local vec2 = require "vector"
 
 local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode: Mode = "normal"
 local cmdline, prevcmdline: string = "", ""
 local cmdhistory: {string} = {}
-
-local i18n = require "i18n"
-local inspect = require "inspect"
 
 local drawCoro: thread = nil
 local showLogo = true
@@ -555,22 +556,8 @@ function BaseP:present()
         i = i + 2
     end
 
-    --local px, py = pshape:getPoint()
-    --px, py = self.pbody:getWorldPoints(px, py)
-    --px, py = px * M2PIX, py * M2PIX
-    --r = cshape:getRadius() * M2PIX
-
     local px, py = 0, 0
-    --sx = sx * 2
-    --sy = sy * 2
     local angle = self.pbody:getAngle()
-
-    --px, py = px - imgw / 2, py - imgh / 2,
-
-    love.graphics.push()
-    --love.graphics.translate(-imgw / 2, -imgh / 2)
-    --love.graphics.rotate(angle)
-    --love.graphics.translate(imgw / 2, imgh / 2)
 
     gr.setColor{1, 1, 1, 1}
     love.graphics.draw(
@@ -593,50 +580,9 @@ function BaseP:present()
         --ox, oy
     --)
 
-    --love.graphics.translate(-imgw / 2, -imgh / 2)
-    love.graphics.pop()
-
-    --gr.setColor{1, 1, 1, 1}
-    --love.graphics.draw(
-        --self.img as love.graphics.Drawable,
-        --px - imgw / 2, py - imgh / 2,
-        --angle, 
-        --sx, sy, 
-        --ox, oy
-    --)
-
-    --[[
-    gr.setColor{1, 1, 1, 0.5}
-    love.graphics.draw(
-        self.img as love.graphics.Drawable,
-        0, 0,
-        0,
-        1, 1,
-        0, 0
-    )
-
-    gr.setColor{1, 1, 1, 0.5}
-    love.graphics.draw(
-        self.img as love.graphics.Drawable,
-        0, 0,
-        0,
-        1, 1,
-        0, 0
-    )
-
-    gr.setColor{1, 1, 1, 0.5}
-    love.graphics.draw(
-        self.img as love.graphics.Drawable,
-        0, 0,
-        0,
-        1, 1,
-        100, 300
-    )
-    --]]
-
-    for _, f in ipairs(self.pbody:getFixtures()) do
-        --drawFixture(f)
-    end
+    --for _, f in ipairs(self.pbody:getFixtures()) do
+        ----drawFixture(f)
+    --end
 
     local x, y = self.pbody:getWorldCenter()
     x, y = x * M2PIX, y * M2PIX
