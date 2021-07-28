@@ -27,21 +27,23 @@ local vec2 = require "vector"
 global DEBUG_BASE = false
 global DEBUG_TANK = false
 global DEBUG_TANK_MOVEMENT = false
-global DEBUG_TURRET = true
+global DEBUG_TURRET = false
 global DEBUG_CAMERA = false
-global DEBUG_PHYSICS = true
 global DEBUG_LOGO = false
-global DEBUG_DRAW_THREAD = true
-global DEBUG_TEXCOORDS = true
+
+--global DEBUG_DRAW_THREAD = true
+--global DEBUG_TEXCOORDS = true
+--global DEBUG_PHYSICS = true
+
+global DEBUG_DRAW_THREAD = false
+global DEBUG_TEXCOORDS = false
+global DEBUG_PHYSICS = false
 -- }}}
 
 global DEFAULT_W, DEFAULT_H = 1024, 768
 global W, H = love.graphics.getDimensions()
 global cmd_drawBodyStat: boolean = true
 global cmd_drawCameraAxixes: boolean = false
-
--- Не работают когда двигается камера?
---local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
 
 -- Танк длиной пять метров имеет отображаемый размер 50 пикселей
 -- коэффициент на который домножаю при переводе из метров в пиксели
@@ -134,6 +136,7 @@ local record BaseP
     --pos: vector -- центр поворота корпуса
     tank: Tank
     mesh: love.graphics.Mesh
+    pshape: lp.PolygonShape
 
     --meshVerts: {Vertex}
     meshVerts: {{number}}
@@ -409,9 +412,6 @@ local function drawBodyStat(body: love.physics.Body)
     local vx, vy = body:getLinearVelocity()
     local scale = 7.
     gr.line(x, y, x + vx * scale, y + vy * scale)
-
-    --local tlx, tly, brx, bry = body:getBoundingBox()
-    --tlx, tly, brx, bry = tlx * M2PIX, tly * M2PIX, brx * M2PIX, bry * M2PIX
 end
 
 function Tank:drawDirectionVector()
@@ -622,18 +622,18 @@ function BaseP:present()
     --local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
     --local r, sx, sy, ox, oy: number = 0, 1., 1., 0, 0
     --local kx, ky: number = 1., 1.
-    local body = self.f:getBody()
+    --local body = self.f:getBody()
     local shape = self.f:getShape()
     if shape:getType() ~= "polygon" then
         error("Tank BaseP shape should be polygon.")
     end
-    local pShape: lp.PolygonShape = self.f:getShape() as lp.PolygonShape
+    --local pShape: lp.PolygonShape = self.f:getShape() as lp.PolygonShape
 
     if DEBUG_PHYSICS then
         drawFixture(self.f, {0, 0, 0, 1})
     end
 
-    --local pShape: love.physics.PolygonShape = shape as love.physics.PolygonShape
+    --[[
     local points = {pShape:getPoints()}
     local i = 1
     while i < #points do
@@ -642,27 +642,12 @@ function BaseP:present()
         points[i + 1] = points[i + 1] * M2PIX
         i = i + 2
     end
-
-    --local px, py = 0, 0
-    --local angle = self.pbody:getAngle()
-
-    --[[
-    love.graphics.draw(
-        self.img as love.graphics.Drawable,
-        px, py,
-        angle + math.pi / 2, 
-        sx, sy, 
-        ox + imgw / 2, oy + imgh / 2
-    )
     --]]
 
     gr.setColor{1, 1, 1, 1}
     self:updateMeshVerts()
     gr.draw(self.mesh as love.graphics.Drawable, 0, 0)
-
-    --for _, f in ipairs(self.pbody:getFixtures()) do
-        ----drawFixture(f)
-    --end
+    --print("baseP:present()")
 
     local x, y = self.pbody:getWorldCenter()
     x, y = x * M2PIX, y * M2PIX
@@ -805,9 +790,7 @@ function BaseP.new(t: Tank): BaseP
         print("self.img", self.img)
     end
 
-    --local w, _ = (self.img as love.graphics.Texture):getDimensions()
     local px, py = t.pos.x, t.pos.y
-    --px, py = 0, 0
 
     -- XXX Не используется rectXY, будут проблемы при перемещении выделения на текстуре.
     local vertices = {
@@ -826,6 +809,7 @@ function BaseP.new(t: Tank): BaseP
 
     local shape = love.physics.newPolygonShape(vertices)
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
+    self.pshape = shape
     if DEBUG_TURRET then
         print("polygon shape created x, y, r", px, py)
     end
@@ -896,40 +880,48 @@ function BaseP:initMeshVerts()
     end
 end
 
+-- TODO сделать меньше копирований
+-- TODO Попробовать выставялть матрицы проекции для каждого танка вместо
+-- заполнения сетки.
 function BaseP:updateMeshVerts()
-    self.mesh:setVertices(self.meshVerts)
+    if self.tank.pbody:isAwake() then
+        self.mesh:setVertices(self.meshVerts)
 
-    local body = self.f:getBody()
-    local pShape: love.physics.PolygonShape = self.f:getShape() as love.physics.PolygonShape
-    local points = {pShape:getPoints()}
-    local i = 1
-    while i < #points do
-        points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
-        points[i] = points[i] * M2PIX
-        points[i + 1] = points[i + 1] * M2PIX
-        i = i + 2
+        local body = self.f:getBody()
+
+        --    1   2   3   4   5   6   7   8
+        local x1, y1, x2, y2, x3, y3, x4, y4 = self.pshape:getPoints()
+        x1, y1 = body:getWorldPoints(x1, y1)
+        x2, y2 = body:getWorldPoints(x2, y2)
+        x3, y3 = body:getWorldPoints(x3, y3)
+        x4, y4 = body:getWorldPoints(x4, y4)
+
+        x1, y1 = M2PIX * x1, M2PIX * y1
+        x2, y2 = M2PIX * x2, M2PIX * y2
+        x3, y3 = M2PIX * x3, M2PIX * y3
+        x4, y4 = M2PIX * x4, M2PIX * y4
+
+        -- tri1
+        self.meshVerts[1][1] = x1
+        self.meshVerts[1][2] = y1
+
+        self.meshVerts[2][1] = x2
+        self.meshVerts[2][2] = y2
+
+        self.meshVerts[3][1] = x4
+        self.meshVerts[3][2] = y4
+
+        -- tri2
+        self.meshVerts[5][1] = x2
+        self.meshVerts[5][2] = y2
+
+        self.meshVerts[6][1] = x3
+        self.meshVerts[6][2] = y3
+
+        self.meshVerts[4][1] = x4
+        self.meshVerts[4][2] = y4
+        --]]
     end
-
-    -- tri1
-    self.meshVerts[1][1] = points[1]
-    self.meshVerts[1][2] = points[2]
-
-    self.meshVerts[2][1] = points[3]
-    self.meshVerts[2][2] = points[4]
-
-    self.meshVerts[3][1] = points[7]
-    self.meshVerts[3][2] = points[8]
-
-    -- tri2
-    self.meshVerts[5][1] = points[3]
-    self.meshVerts[5][2] = points[4]
-
-    self.meshVerts[6][1] = points[5]
-    self.meshVerts[6][2] = points[6]
-
-    self.meshVerts[4][1] = points[7]
-    self.meshVerts[4][2] = points[8]
-
     --print("self.meshVerts", inspect(self.meshVerts))
 end
 
@@ -1084,14 +1076,7 @@ local function queryBoundingBox()
     if cam then
         local tlx, tly = cam:worldCoords(0, 0)
         local brx, bry = cam:worldCoords(gr.getDimensions())
-
-        --print("gr.getDimensions()", gr.getDimensions())
-        --print("W, H", W, H)
-
-        brx, bry = brx + W * PIX2M, bry + H * PIX2M
-        --print('tlx, tly', tlx, tly)
-        --print('brx, bry', brx, bry)
-        --print('---------')
+        brx, bry = brx + W, bry + H
 
         pworld:queryBoundingBox(
             tlx * PIX2M, tly * PIX2M, 
@@ -1395,11 +1380,9 @@ local function mainPresent()
     presentDrawlist()
     cam:detach()
 
-    --cam:attach()
     if DEBUG_PHYSICS then
         drawQueryBox()
     end
-    --cam:detach()
     drawlist = {}
 
     changeKeyConfigListbackground()

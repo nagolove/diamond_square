@@ -27,21 +27,23 @@ local vec2 = require("vector")
 DEBUG_BASE = false
 DEBUG_TANK = false
 DEBUG_TANK_MOVEMENT = false
-DEBUG_TURRET = true
+DEBUG_TURRET = false
 DEBUG_CAMERA = false
-DEBUG_PHYSICS = true
 DEBUG_LOGO = false
-DEBUG_DRAW_THREAD = true
-DEBUG_TEXCOORDS = true
+
+
+
+
+
+DEBUG_DRAW_THREAD = false
+DEBUG_TEXCOORDS = false
+DEBUG_PHYSICS = false
 
 
 DEFAULT_W, DEFAULT_H = 1024, 768
 W, H = love.graphics.getDimensions()
 cmd_drawBodyStat = true
 cmd_drawCameraAxixes = false
-
-
-
 
 
 
@@ -127,6 +129,7 @@ local Base = {}
 
 
 local BaseP = {}
+
 
 
 
@@ -409,9 +412,6 @@ local function drawBodyStat(body)
    local vx, vy = body:getLinearVelocity()
    local scale = 7.
    gr.line(x, y, x + vx * scale, y + vy * scale)
-
-
-
 end
 
 function Tank:drawDirectionVector()
@@ -622,28 +622,16 @@ function BaseP:present()
 
 
 
-   local body = self.f:getBody()
+
    local shape = self.f:getShape()
    if shape:getType() ~= "polygon" then
       error("Tank BaseP shape should be polygon.")
    end
-   local pShape = self.f:getShape()
+
 
    if DEBUG_PHYSICS then
       drawFixture(self.f, { 0, 0, 0, 1 })
    end
-
-
-   local points = { pShape:getPoints() }
-   local i = 1
-   while i < #points do
-      points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
-      points[i] = points[i] * M2PIX
-      points[i + 1] = points[i + 1] * M2PIX
-      i = i + 2
-   end
-
-
 
 
 
@@ -659,9 +647,6 @@ function BaseP:present()
    gr.setColor({ 1, 1, 1, 1 })
    self:updateMeshVerts()
    gr.draw(self.mesh, 0, 0)
-
-
-
 
 
    local x, y = self.pbody:getWorldCenter()
@@ -805,9 +790,7 @@ function BaseP.new(t)
       print("self.img", self.img)
    end
 
-
    local px, py = t.pos.x, t.pos.y
-
 
 
    local vertices = {
@@ -826,6 +809,7 @@ function BaseP.new(t)
 
    local shape = love.physics.newPolygonShape(vertices)
    self.f = love.physics.newFixture(self.pbody, shape)
+   self.pshape = shape
    if DEBUG_TURRET then
       print("polygon shape created x, y, r", px, py)
    end
@@ -896,40 +880,48 @@ function BaseP:initMeshVerts()
    end
 end
 
+
 function BaseP:updateMeshVerts()
-   self.mesh:setVertices(self.meshVerts)
+   if self.tank.pbody:isAwake() then
+      self.mesh:setVertices(self.meshVerts)
 
-   local body = self.f:getBody()
-   local pShape = self.f:getShape()
-   local points = { pShape:getPoints() }
-   local i = 1
-   while i < #points do
-      points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
-      points[i] = points[i] * M2PIX
-      points[i + 1] = points[i + 1] * M2PIX
-      i = i + 2
+      local body = self.f:getBody()
+
+
+      local x1, y1, x2, y2, x3, y3, x4, y4 = self.pshape:getPoints()
+      x1, y1 = body:getWorldPoints(x1, y1)
+      x2, y2 = body:getWorldPoints(x2, y2)
+      x3, y3 = body:getWorldPoints(x3, y3)
+      x4, y4 = body:getWorldPoints(x4, y4)
+
+      x1, y1 = M2PIX * x1, M2PIX * y1
+      x2, y2 = M2PIX * x2, M2PIX * y2
+      x3, y3 = M2PIX * x3, M2PIX * y3
+      x4, y4 = M2PIX * x4, M2PIX * y4
+
+
+      self.meshVerts[1][1] = x1
+      self.meshVerts[1][2] = y1
+
+      self.meshVerts[2][1] = x2
+      self.meshVerts[2][2] = y2
+
+      self.meshVerts[3][1] = x4
+      self.meshVerts[3][2] = y4
+
+
+      self.meshVerts[5][1] = x2
+      self.meshVerts[5][2] = y2
+
+      self.meshVerts[6][1] = x3
+      self.meshVerts[6][2] = y3
+
+      self.meshVerts[4][1] = x4
+      self.meshVerts[4][2] = y4
+
+   else
+      print("I'm sleeping")
    end
-
-
-   self.meshVerts[1][1] = points[1]
-   self.meshVerts[1][2] = points[2]
-
-   self.meshVerts[2][1] = points[3]
-   self.meshVerts[2][2] = points[4]
-
-   self.meshVerts[3][1] = points[7]
-   self.meshVerts[3][2] = points[8]
-
-
-   self.meshVerts[5][1] = points[3]
-   self.meshVerts[5][2] = points[4]
-
-   self.meshVerts[6][1] = points[5]
-   self.meshVerts[6][2] = points[6]
-
-   self.meshVerts[4][1] = points[7]
-   self.meshVerts[4][2] = points[8]
-
 
 end
 
@@ -1084,14 +1076,7 @@ local function queryBoundingBox()
    if cam then
       local tlx, tly = cam:worldCoords(0, 0)
       local brx, bry = cam:worldCoords(gr.getDimensions())
-
-
-
-
-      brx, bry = brx + W * PIX2M, bry + H * PIX2M
-
-
-
+      brx, bry = brx + W, bry + H
 
       pworld:queryBoundingBox(
       tlx * PIX2M, tly * PIX2M,
@@ -1395,11 +1380,9 @@ local function mainPresent()
    presentDrawlist()
    cam:detach()
 
-
    if DEBUG_PHYSICS then
       drawQueryBox()
    end
-
    drawlist = {}
 
    changeKeyConfigListbackground()
