@@ -11,6 +11,7 @@ global SCENE_PREFIX = "scenes/t80u"
 love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
 local List = require "list"
+local metrics = require "metrics"
 require "love"
 require "common"
 require "keyconfig"
@@ -1709,6 +1710,7 @@ local function bindCommandModeHotkey()
 end
 
 local function init()
+    metrics.init()
     setWindowMode()
 
     loadLocales()
@@ -1746,17 +1748,21 @@ local function init()
 end
 
 local function quit()
+    metrics.quit()
     unbindPlayerTankKeys()
     tanks = {}
 end
 
-local function mousemoved(_: number, _: number, _: number, _: number)
+local function mousemoved(x: number, y: number, dx: number, dy: number)
+    metrics.mousemoved(x, y, dx, dy)
 end
 
-local function wheelmoved(_: number, _: number)
+local function wheelmoved(x: number, y: number)
+    metrics.wheelmoved(x, y)
 end
 
 local function mousepressed(x: number, y: number, btn: integer)
+    metrics.mousepressed(x, y, btn)
     if btn == 1 then
         -- значения координат мыши привести к мировым координатам камеры
         --print("mousepressed")
@@ -1796,12 +1802,14 @@ local function mousepressed(x: number, y: number, btn: integer)
 end
 
 local function resize(w: integer, h: integer)
+    metrics.resize(w, h)
     if DEBUG_CAMERA then
         print("tanks window resized to w, h", w, h)
     end
 end
 
 local function textinput(text: string)
+    metrics.textinput(text)
     if mode == "command" then
         cmdline = cmdline .. text
     end
