@@ -4,18 +4,22 @@
 return {
     language = "English",
     en = {
+        -- move tank
         mtleft = "move tank left",
         mtright = "move tank right",
         mtforward = "move tank forward",
         mtbackward = "move tank backward",
 
+        -- move camera
         mcleft = "move camera left",
         mcright = "move camera right",
         mcup = "move camera up",
         mcdown = "move camera down",
+
         commandmode = "go to command mode",
         cam2tank = "move camera to player tank",
         konsole = "show or hide konsole",
+        fire = "fire",
 
         --[[
         -- {{{

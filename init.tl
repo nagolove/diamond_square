@@ -27,9 +27,9 @@ local vec2 = require "vector"
 global DEBUG_BASE = false
 global DEBUG_TANK = false
 global DEBUG_TANK_MOVEMENT = false
-global DEBUG_TURRET = false
+global DEBUG_TURRET = true
 global DEBUG_CAMERA = false
-global DEBUG_PHYSICS = false
+global DEBUG_PHYSICS = true
 global DEBUG_LOGO = false
 global DEBUG_DRAW_THREAD = true
 global DEBUG_TEXCOORDS = true
@@ -41,7 +41,7 @@ global cmd_drawBodyStat: boolean = true
 global cmd_drawCameraAxixes: boolean = false
 
 -- Не работают когда двигается камера?
-local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
+--local tlx, tly, brx, bry: number, number, number, number = 0., 0., W, H 
 
 -- Танк длиной пять метров имеет отображаемый размер 50 пикселей
 -- коэффициент на который домножаю при переводе из метров в пиксели
@@ -55,6 +55,7 @@ global cam: Camera
 local camTimer: Timer = require "Timer".new()
 local drawlist: {function} = {}
 local gr = love.graphics
+local lp = love.physics
 
 local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode: Mode = "normal"
@@ -65,6 +66,10 @@ local drawCoro: thread = nil
 local showLogo = true
 local playerTankKeyconfigIds: {string} = {}
 local Shortcut = KeyConfig.Shortcut
+
+local angularImpulseScale = 5
+local rot = math.pi / 4
+local zoomLower, zoomHigher = 0.075, 3.5
 
 local record Turret
     -- {{{
@@ -85,7 +90,23 @@ end
 
 local record Bullet
     body: love.physics.Body
+    timestamp: number
 end
+
+--[[
+local record BulletPool
+    new: function(BulletPool, num: integer): BulletPool
+    spaw: function(x: number, y: number): Bullet
+end
+
+function BulletPool.new(num: integer): BulletPool
+    local BulletPool_mt: metatable<BulletPool> = {
+        __index = BulletPool,
+    }
+    local self = setmetatable({} as BulletPool, BulletPool_mt)
+    return self
+end
+--]]
 
 local Turret_mt: metatable<Turret> = {
     __index = Turret,
@@ -160,6 +181,7 @@ local record Tank
     right: function(Tank)
     forward: function(Tank)
     backward: function(Tank)
+    fire: function(Tank)
     -- }}}
 end
 
@@ -209,23 +231,48 @@ global logo: Logo
 global bullets: {Bullet} = {}
 
 local bullerRadius = 40
+local bulletColor = {0, 0, 0, 1}
+-- Продолжительность жизни снаряда в секундах.
+local bulletLifetime = 1
 
 local function drawBullets()
     for _, b in ipairs(bullets) do
         local px, py = b.body:getWorldCenter()
         px, py = px * M2PIX, py * M2PIX
-        gr.setColor{0, 0, 0, 1}
+        gr.setColor(bulletColor)
         gr.circle("fill", px, py, bullerRadius)
     end
 end
 
-function Turret:fire()
-    local px, py = self.tank.pbody:getWorldCenter()
+local function updateBullets()
+    local alive: {Bullet} = {}
+    local now = love.timer.getTime()
+    for _, v in ipairs(bullets) do
+        local diff = now - v.timestamp
+        if diff > bulletLifetime then
+            -- умер снаряд
+        end
+        table.insert(alive, v)
+    end
+    bullets = alive
+end
+
+-- размеры в метрах
+local function spawnBullet(px: number, py: number)
     local bullet: Bullet = {}
     bullet.body = love.physics.newBody(pworld, 0, 0, "kinematic")
+    bullet.timestamp = love.timer.getTime()
     local shape = love.physics.newCircleShape(px, py, bullerRadius)
     love.physics.newFixture(bullet.body, shape as love.physics.Shape)
     table.insert(bullets, bullet)
+end
+
+function Turret:fire()
+    if DEBUG_TURRET then
+        print("Turret:fire()")
+    end
+    local px, py = self.tank.pbody:getWorldCenter()
+    spawnBullet(px, py)
 end
 
 local function presentDrawlist()
@@ -244,10 +291,11 @@ local function push2drawlist(f: function)
     table.insert(drawlist, f)
 end
 
-local VALUE = 0.
-
-local angularImpulseScale = 5
-local rot = math.pi / 4
+function Tank:fire()
+    if self.turret then
+        self.turret:fire()
+    end
+end
 
 function Tank:left()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
@@ -277,7 +325,6 @@ function Tank:forward()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:forward")
     end
-    --local x, y = 0, -VALUE
     --if DEBUG_PHYSICS then
         --print("Tank " .. self.id .. "applyForce x, y", x, y)
     --end
@@ -290,7 +337,6 @@ function Tank:backward()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:backward")
     end
-    --local x, y = 0, VALUE
     --if DEBUG_PHYSICS then
         --print("Tank " .. self.id .. "applyForce x, y", x, y)
     --end
@@ -516,7 +562,7 @@ function Turret:update()
         self.dir = d:normalizeInplace()
         local a, _ = d:toPolar()
         if self.angle then
-            linesbuf:push(1, "angle %f, d (%f, %f)", self.angle, d.x, d.y)
+            --linesbuf:push(1, "angle %f, d (%f, %f)", self.angle, d.x, d.y)
         end
         self.angle = a
     end
@@ -581,7 +627,7 @@ function BaseP:present()
     if shape:getType() ~= "polygon" then
         error("Tank BaseP shape should be polygon.")
     end
-    local pShape: love.physics.PolygonShape = self.f:getShape() as love.physics.PolygonShape
+    local pShape: lp.PolygonShape = self.f:getShape() as lp.PolygonShape
 
     if DEBUG_PHYSICS then
         drawFixture(self.f, {0, 0, 0, 1})
@@ -722,9 +768,9 @@ function Base:present()
     )
     --]]
 
-    for _, f in ipairs(self.pbody:getFixtures()) do
-        --drawFixture(f)
-    end
+    --for _, f in ipairs(self.pbody:getFixtures()) do
+        ----drawFixture(f)
+    --end
 
     local x, y = self.pbody:getWorldCenter()
     x, y = x * M2PIX, y * M2PIX
@@ -759,7 +805,7 @@ function BaseP.new(t: Tank): BaseP
         print("self.img", self.img)
     end
 
-    local w, _ = (self.img as love.graphics.Texture):getDimensions()
+    --local w, _ = (self.img as love.graphics.Texture):getDimensions()
     local px, py = t.pos.x, t.pos.y
     --px, py = 0, 0
 
@@ -785,7 +831,8 @@ function BaseP.new(t: Tank): BaseP
     end
 
     self:initMeshVerts()
-    self.mesh = love.graphics.newMesh(self.meshVerts as {{number}}, "triangles", "dynamic")
+    self.mesh = love.graphics.newMesh(self.meshVerts as {{number}}, 
+        "triangles", "dynamic")
     self:updateMeshVerts()
     self.mesh:setTexture(self.img as gr.Texture)
     self:updateMeshTexCoords(rectXY[1], rectXY[2], rectWH[1], rectWH[2])
@@ -840,7 +887,7 @@ end
 
 function BaseP:initMeshVerts()
     self.meshVerts = {}
-    for i = 1, 6 do
+    for _ = 1, 6 do
         table.insert(self.meshVerts, {
             0, 0,           -- 1, 2         - x, y
             0, 0,           -- 3, 4         - u, v
@@ -1034,24 +1081,24 @@ local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
 end
 
 local function queryBoundingBox()
-    --tlx = tlx + cam.x
-    --brx = brx + cam.x
-    --tly = tly + cam.y
-    --bry = bry + cam.y
+    if cam then
+        local tlx, tly = cam:worldCoords(0, 0)
+        local brx, bry = cam:worldCoords(gr.getDimensions())
 
-    --pworld:queryBoundingBox(
-        --tlx * PIX2M, tly * PIX2M, 
-        --brx * PIX2M, bry * PIX2M, 
-        --onQueryBoundingBox
-    --)
-    local x1, y1 = -20000, -20000
-    local x2, y2 = 20000, 20000
-    pworld:queryBoundingBox(
-        x1 * PIX2M, y1 * PIX2M, 
-        x2 * PIX2M, y2 * PIX2M, 
-        onQueryBoundingBox
-    )
+        --print("gr.getDimensions()", gr.getDimensions())
+        --print("W, H", W, H)
 
+        brx, bry = brx + W * PIX2M, bry + H * PIX2M
+        --print('tlx, tly', tlx, tly)
+        --print('brx, bry', brx, bry)
+        --print('---------')
+
+        pworld:queryBoundingBox(
+            tlx * PIX2M, tly * PIX2M, 
+            brx * PIX2M, bry * PIX2M, 
+            onQueryBoundingBox
+        )
+    end
 end
 
 local function unbindPlayerTankKeys()
@@ -1169,6 +1216,17 @@ local function bindPlayerTankKeys()
             end,
             i18n("mt" .. direction), pushId("mt" .. direction)
         )
+
+        kc.bind(
+            "isdown", { key = "space" },
+            function(sc: Shortcut): boolean, Shortcut
+                if playerTank then
+                    playerTank:fire()
+                end
+                return false, sc
+            end,
+            i18n("fike"), pushId("fire")
+        )
         -- }}}
     else
         error("There is no player tank object instance, sorry.")
@@ -1262,18 +1320,20 @@ local function bindEscape()
     end)
 end
 
-local function drawBoundingBox()
+local function drawQueryBox()
     local oldwidth = gr.getLineWidth()
     local lwidth = 4
     gr.setLineWidth(lwidth)
     gr.setColor{0., 0., 1.}
     -- видимые границы камеры
 
-    local tlx_, tly_ = cam:worldCoords(tlx, tly)
-    local brx_, bry_ = cam:worldCoords(brx, bry)
+    --[[
+    local tlx_, tly_ = cam:worldCoords(0, 0)
+    local brx_, bry_ = cam:worldCoords(W, H)
 
     gr.rectangle("line", tlx_, tly_, brx_ - tlx_, bry_ - tly_)
     gr.setLineWidth(oldwidth)
+    --]]
 end
 
 local function removeFirstColon(s: string): string
@@ -1328,20 +1388,21 @@ end
 local function mainPresent()
     backgroundPresent()
 
-    --push2drawlist(drawTanks)
+    push2drawlist(queryBoundingBox)
+    push2drawlist(drawBullets)
 
     cam:attach()
-    queryBoundingBox()
-    drawBullets()
     presentDrawlist()
     cam:detach()
 
     --cam:attach()
-    --drawBoundingBox()
+    if DEBUG_PHYSICS then
+        drawQueryBox()
+    end
     --cam:detach()
     drawlist = {}
 
-    --changeKeyConfigListbackground()
+    changeKeyConfigListbackground()
 
     coroutine.yield()
 end
@@ -1391,6 +1452,7 @@ local function update(dt: number)
     updateTanks()
 end
 
+--[[
 local function processValue(key: string)
     local t = 0.5
     if key == "n" then
@@ -1404,6 +1466,7 @@ local function processValue(key: string)
         print("VALUE", VALUE)
     end
 end
+--]]
 
 local function backspaceCmdLine()
     local u8 = require "utf8"
@@ -1473,13 +1536,13 @@ local function evalCommand()
         --local systemPrint = print
         --print = konsolePrint
     ]]
-    local f, loaderrmsg: function, string = load(preload .. cmdline)
+    local func, loaderrmsg: function, string = load(preload .. cmdline)
     local time = 2
-    if not f then
+    if not func then
         linesbuf:push(time, "load() errmsg: " .. loaderrmsg)
     else
         local ok, pcallerrmsg: boolean, string = pcall(function()
-            f()
+            func()
         end)
         if not ok then
             linesbuf:push(time, "pcall() errmsg: " .. pcallerrmsg)
@@ -1548,7 +1611,7 @@ local function keypressed(key: string)
     end
     --]]
 
-    processValue(key)
+    --processValue(key)
 end
 
 -- положение в метрах
@@ -1574,7 +1637,6 @@ end
 
 local function bindCameraZoomKeys()
     local zoomSpeed = 0.01
-    local zoomLower, zoomHigher = 0.15, 3.5
 
     KeyConfig.bind(
         "isdown",
@@ -1684,6 +1746,7 @@ local function createDrawCoroutine()
     end)
 end
 
+--[[
 local function bindCommandModeHotkey()
     KeyConfig.bind(
         "keypressed", 
@@ -1707,6 +1770,20 @@ local function bindCommandModeHotkey()
         end,
         i18n("commandmode"),
         "commandmode")
+end
+--]]
+
+-- параметры в метрах
+local function makeArmy(x: number, y: number)
+    x = x or 0
+    y = y or 0
+    local len = 10
+    local space = 30
+    for i = 1, len do
+        for j = 1, len do
+            spawn(vector.new(x + i * space, y + j * space))
+        end
+    end
 end
 
 local function init()
@@ -1739,12 +1816,10 @@ local function init()
 
     createDrawCoroutine()
 
-    local len = 10
-    for i = 1, len do
-        for j = 1, len do
-            --spawn(vector.new(i * 100, j * 100))
-        end
-    end
+    makeArmy()
+    makeArmy(0, 500)
+    makeArmy(500, 0)
+    makeArmy(500, 500)
 end
 
 local function quit()
@@ -1801,11 +1876,14 @@ local function mousepressed(x: number, y: number, btn: integer)
     end
 end
 
-local function resize(w: integer, h: integer)
-    metrics.resize(w, h)
+local function resize(neww: integer, newh: integer)
+    metrics.resize(neww, newh)
     if DEBUG_CAMERA then
-        print("tanks window resized to w, h", w, h)
+        print("tanks window resized to w, h", neww, newh)
     end
+    W, H = neww, newh
+    -- FIXME Нужно менять эти переменные?
+    --DEFAULT_W, DEFAULT_H = neww, newh
 end
 
 local function textinput(text: string)
