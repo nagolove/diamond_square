@@ -1395,21 +1395,24 @@ function konsolePrint(...)
 end
 
 local function evalCommand()
-   local preload = [[
-        local inspect = require 'inspect'
-        --local systemPrint = print
-        --print = konsolePrint
-    ]]
+
+
+
+
+
+   local preload = [[]]
    local func, loaderrmsg = load(preload .. cmdline)
    local time = 2
    if not func then
       linesbuf:push(time, "load() errmsg: " .. loaderrmsg)
+      print("load() errmsg:|" .. loaderrmsg .. "|")
    else
       local ok, pcallerrmsg = pcall(function()
          func()
       end)
       if not ok then
          linesbuf:push(time, "pcall() errmsg: " .. pcallerrmsg)
+         print("pcall() errmsg:|" .. pcallerrmsg .. "|")
       else
          cmdline = ""
       end
