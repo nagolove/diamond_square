@@ -55,7 +55,13 @@ local forceScale = 100
 
 global cam: Camera
 local camTimer: Timer = require "Timer".new()
-local drawlist: {function} = {}
+
+local record DrawNode
+    f: function
+    self: any
+end
+
+local drawlist: {DrawNode} = {}
 local gr = love.graphics
 local lp = love.physics
 
@@ -87,6 +93,7 @@ local record Turret
     present: function(Turret)
     update: function(Turret)
     fire: function(Turret)
+    rotateToMouse: function(Turret)
     -- }}}
 end
 
@@ -114,21 +121,8 @@ local Turret_mt: metatable<Turret> = {
     __index = Turret,
 }
 
-local record Base
-    -- {{{
-    pbody: love.physics.Body
-    f: love.physics.Fixture
-    img: love.graphics.Image
-    --pos: vector -- центр поворота корпуса
-    tank: Tank
-
-    new: function(t: Tank): Base
-    present: function(Base)
-    -- }}}
-end
-
 -- ходовая часть с полигоном
-local record BaseP
+local record Base
     -- {{{
     pbody: love.physics.Body
     f: love.physics.Fixture
@@ -141,17 +135,13 @@ local record BaseP
     --meshVerts: {Vertex}
     meshVerts: {{number}}
 
-    new: function(t: Tank): BaseP
-    present: function(BaseP)
-    updateMeshVerts: function(BaseP)
-    updateMeshTexCoords: function(BaseP, x: number, y: number, w: number, h: number)
-    initMeshVerts: function(BaseP)
+    new: function(t: Tank): Base
+    present: function(Base)
+    updateMeshVerts: function(Base)
+    updateMeshTexCoords: function(Base, x: number, y: number, w: number, h: number)
+    initMeshVerts: function(Base)
     -- }}}
 end
-
-local BaseP_mt: metatable<BaseP> = {
-    __index = BaseP,
-}
 
 local Base_mt: metatable<Base> = {
     __index = Base,
@@ -228,6 +218,8 @@ global pworld: love.physics.World
 global tanks: {Tank} = {}
 -- Танк, которым управляет игрок
 global playerTank: Tank
+-- Подложка
+global background: Background
 -- Логотип, картинка
 global logo: Logo
 -- Все снаряды вырущенные из танков, пока не уничтоженные
@@ -280,18 +272,22 @@ end
 
 local function presentDrawlist()
     for _, v in ipairs(drawlist) do
-        v()
+        if v.self then
+            v.f(v.self)
+        else
+            v.f()
+        end
     end
 end
 
-local function push2drawlist(f: function)
+local function push2drawlist(f: function, self: any)
     if not f then
         error("Draw could'not be nil.")
     end
     if type(f) ~= "function" then
         error("Draw function is not a function. It is a .. " .. type(f))
     end
-    table.insert(drawlist, f)
+    table.insert(drawlist, { f = f, self = self})
 end
 
 function Tank:fire()
@@ -372,8 +368,7 @@ function Tank.new(pos: vector, dir: vector): Tank
     self.dir = dir:clone()
     self.pos = pos:clone()
     self.turret = Turret.new(self)
-    --self.base = Base.new(self)
-    self.base = BaseP.new(self) as Base
+    self.base = Base.new(self)
 
     if DEBUG_PHYSICS then
         print("angular damping", self.pbody:getAngularDamping())
@@ -550,21 +545,30 @@ local function drawFixture(f: love.physics.Fixture, color: {number})
     end
 end
 
+function Turret:rotateToMouse()
+    local mx, my = love.mouse.getPosition()
+    mx, my = cam:worldCoords(mx, my)
+    mx, my = mx * PIX2M, PIX2M
+
+    local x, y = self.pbody:getWorldCenter()
+    local d = vec2.new(mx - x, my - y)
+    self.dir = d:normalizeInplace()
+    local a, _ = d:toPolar()
+    if self.angle then
+        --linesbuf:push(1, "angle %f, d (%f, %f)", self.angle, d.x, d.y)
+    end
+    push2drawlist(function()
+        local px, py = x * M2PIX, y * M2PIX
+        local K = 20
+        gr.line(px, py, px + self.dir.x * K, py + self.dir.y * K)
+    end)
+    self.angle = a
+end
+
 function Turret:update()
     -- поворачивать башню только у танка игрока
     if playerTank and self.tank == playerTank then
-        local mx, my = love.mouse.getPosition()
-        mx, my = cam:worldCoords(mx, my)
-        mx, my = mx * PIX2M, PIX2M
-
-        local x, y = self.pbody:getWorldCenter()
-        local d = vec2.new(mx - x, my - y)
-        self.dir = d:normalizeInplace()
-        local a, _ = d:toPolar()
-        if self.angle then
-            --linesbuf:push(1, "angle %f, d (%f, %f)", self.angle, d.x, d.y)
-        end
-        self.angle = a
+        self:rotateToMouse()
     end
 end
 
@@ -617,7 +621,7 @@ function Turret:present()
     -- }}}
 end
 
-function BaseP:present()
+function Base:present()
     -- {{{
     --local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
     --local r, sx, sy, ox, oy: number = 0, 1., 1., 0, 0
@@ -656,115 +660,7 @@ function BaseP:present()
     -- }}}
 end
 
-function Base:present()
-    -- {{{
-    local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
-    local r, sx, sy, ox, oy: number = 0, 1., 1., 0, 0
-    --local kx, ky: number = 1., 1.
-    local shape = self.f:getShape()
-    local cshape = self.f:getShape() as love.physics.CircleShape
-
-    if shape:getType() ~= "circle" then
-        --error("Only circle shape allowed.")
-        return
-    end
-
-    local px, py = cshape:getPoint()
-    px, py = self.pbody:getWorldPoints(px, py)
-    px, py = px * M2PIX, py * M2PIX
-    r = cshape:getRadius() * M2PIX
-
-    if DEBUG_PHYSICS then
-        --gr.setColor{1, 0, 0, 0.5}
-        --gr.circle("fill", px, py, r)
-        drawFixture(self.f, {0, 0, 0, 1})
-    end
-
-    --sx = sx * 2
-    --sy = sy * 2
-    local angle = self.pbody:getAngle()
-
-    --px, py = px - imgw / 2, py - imgh / 2,
-
-    love.graphics.push()
-    --love.graphics.translate(-imgw / 2, -imgh / 2)
-    --love.graphics.rotate(angle)
-    --love.graphics.translate(imgw / 2, imgh / 2)
-
-    gr.setColor{1, 1, 1, 1}
-    love.graphics.draw(
-        self.img as love.graphics.Drawable,
-        px, py,
-        angle + math.pi / 2, 
-        sx, sy, 
-        ox + imgw / 2, oy + imgh / 2
-    )
-
-    --local black = {0, 0, 0, 1}
-    --gr.setColor(black)
-    --gr.rectangle("line", px, py, imgw, imgh)
-
-    --love.graphics.draw(
-        --self.img as love.graphics.Drawable,
-        --px, py,
-        --0,
-        --sx, sy, 
-        --ox, oy
-    --)
-
-    --love.graphics.translate(-imgw / 2, -imgh / 2)
-    love.graphics.pop()
-
-    --gr.setColor{1, 1, 1, 1}
-    --love.graphics.draw(
-        --self.img as love.graphics.Drawable,
-        --px - imgw / 2, py - imgh / 2,
-        --angle, 
-        --sx, sy, 
-        --ox, oy
-    --)
-
-    --[[
-    gr.setColor{1, 1, 1, 0.5}
-    love.graphics.draw(
-        self.img as love.graphics.Drawable,
-        0, 0,
-        0,
-        1, 1,
-        0, 0
-    )
-
-    gr.setColor{1, 1, 1, 0.5}
-    love.graphics.draw(
-        self.img as love.graphics.Drawable,
-        0, 0,
-        0,
-        1, 1,
-        0, 0
-    )
-
-    gr.setColor{1, 1, 1, 0.5}
-    love.graphics.draw(
-        self.img as love.graphics.Drawable,
-        0, 0,
-        0,
-        1, 1,
-        100, 300
-    )
-    --]]
-
-    --for _, f in ipairs(self.pbody:getFixtures()) do
-        ----drawFixture(f)
-    --end
-
-    local x, y = self.pbody:getWorldCenter()
-    x, y = x * M2PIX, y * M2PIX
-    local text = string.format("%d", self.tank.id)
-    gr.print(text, x, y)
-    -- }}}
-end
-
-function BaseP.new(t: Tank): BaseP
+function Base.new(t: Tank): Base
     -- {{{
     if DEBUG_BASE then
         print("BaseP.new()")
@@ -773,7 +669,7 @@ function BaseP.new(t: Tank): BaseP
         error("Could'not create BaseP without Tank object")
     end
 
-    local self: BaseP = setmetatable({} as BaseP, BaseP_mt)
+    local self: Base = setmetatable({} as Base, Base_mt)
     self.tank = t
     self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
     --self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body.png")
@@ -829,7 +725,7 @@ function BaseP.new(t: Tank): BaseP
     -- }}}
 end
 
-function BaseP:updateMeshTexCoords(x: number, y: number, w: number, h: number)
+function Base:updateMeshTexCoords(x: number, y: number, w: number, h: number)
     -- {{{
     print("updateMeshTexCoords", x, y, w, h)
     -- размеры текстуры в пикселях
@@ -869,7 +765,7 @@ function BaseP:updateMeshTexCoords(x: number, y: number, w: number, h: number)
     -- }}}
 end
 
-function BaseP:initMeshVerts()
+function Base:initMeshVerts()
     self.meshVerts = {}
     for _ = 1, 6 do
         table.insert(self.meshVerts, {
@@ -883,8 +779,8 @@ end
 -- TODO сделать меньше копирований
 -- TODO Попробовать выставялть матрицы проекции для каждого танка вместо
 -- заполнения сетки.
-function BaseP:updateMeshVerts()
-    if self.tank.pbody:isAwake() then
+function Base:updateMeshVerts()
+    --if self.tank.pbody:isAwake() then
         self.mesh:setVertices(self.meshVerts)
 
         local body = self.f:getBody()
@@ -921,60 +817,9 @@ function BaseP:updateMeshVerts()
         self.meshVerts[4][1] = x4
         self.meshVerts[4][2] = y4
         --]]
-    end
+    --end
     --print("self.meshVerts", inspect(self.meshVerts))
 end
-
-function Base.new(t: Tank): Base
-    -- {{{
-    if DEBUG_BASE then
-        print("Base.new()")
-    end
-    if not t then
-        error("Could'not create Base without Tank object")
-    end
-
-    local self: Base = setmetatable({} as Base, Base_mt)
-    self.tank = t
-    self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
-    self.pbody = t.pbody
-
-    if DEBUG_BASE then
-        print("self.tank", self.tank)
-        print("self.pbody", self.pbody)
-        print("self.img", self.img)
-    end
-
-    local w, _ = (self.img as love.graphics.Texture):getDimensions()
-    --local shape = love.physics.newRectangleShape(w, h)
-    local r = w / 2
-    local px, py = t.pos.x, t.pos.y
-    local shape = love.physics.newCircleShape(px, py, r * PIX2M)
-    --newRectangleShape: function(x: number, y: number, width: number, height: number, angle: number): PolygonShape
-    self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
-
-    if DEBUG_TURRET then
-        print("circle shape created x, y, r", px, py)
-    end
-
-    return self
-    -- }}}
-end
-
---{{{
---[[
-local function drawTestCircle()
-    local w, h = gr.getDimensions()
-    local rad = 100
-    local lwidth = 3
-    local oldwidth = gr.getLineWidth()
-    gr.setLineWidth(lwidth)
-    local centerx, centery = w / 2, h / 2
-    gr.circle("line", centerx, centery, rad)
-    gr.setLineWidth(oldwidth)
-end
---]]
---}}}
 
 local function onBeginContact(
     _: love.physics.Fixture, 
@@ -1072,11 +917,31 @@ local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
     -- }}}
 end
 
+local function drawQueryBox(x: number, y: number, w: number, h: number)
+    local oldwidth = gr.getLineWidth()
+    local lwidth = 4
+    gr.setLineWidth(lwidth)
+    gr.setColor{0., 0., 1.}
+    gr.rectangle("line", x, y, w, h)
+    gr.setLineWidth(oldwidth)
+end
+
 local function queryBoundingBox()
     if cam then
         local tlx, tly = cam:worldCoords(0, 0)
         local brx, bry = cam:worldCoords(gr.getDimensions())
         brx, bry = brx + W, bry + H
+
+        if DEBUG_PHYSICS then
+            push2drawlist(function()
+                local oldwidth = gr.getLineWidth()
+                local lwidth = 4
+                gr.setLineWidth(lwidth)
+                gr.setColor{0., 0., 1.}
+                gr.rectangle("line", tlx, tly, brx - tlx, bry - tly)
+                gr.setLineWidth(oldwidth)
+            end)
+        end
 
         pworld:queryBoundingBox(
             tlx * PIX2M, tly * PIX2M, 
@@ -1121,76 +986,40 @@ local function bindPlayerTankKeys()
         local kc = KeyConfig
         local bmode: kc.BindType = "isdown"
 
-        -- Непонятное и наверно ненужное перечисление.
-        local enum E
-            "left"
-            "right"
-            "forward"
-            "backward"
-            "resetVelocities"
-        end
-
-        -- {{{
-        --[[
-        local function bindDirection(direction: E)
-            kc.bind(
-                mode, { key = direction },
-                function(sc: Shortcut): boolean, Shortcut
-                    playerTank[direction as E](playerTank)
-                    playerTank[direction](playerTank)
-                    return false, sc
-                end,
-                "move tank " .. direction, pushId("mt" .. direction)
-            )
-        end
-
-        bindDirection("left")
-        bindDirection("right")
-        bindDirection("up")
-        bindDirection("down")
-        --]]
-        -- }}}
-
-        local direction: E 
-
-        direction = "right"
         kc.bind(
             bmode, { key = "d" },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["right"](playerTank)
                 return false, sc
             end,
-            i18n("mt" .. direction), pushId("mt" .. direction)
+            i18n("mt" .. "right"), pushId("mt" .. "right")
         )
 
-        direction = "left"
         kc.bind(
             bmode, { key = "a" },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["left"](playerTank)
                 return false, sc
             end,
-            i18n("mt" .. direction), pushId("mt" .. direction)
+            i18n("mt" .. "left"), pushId("mt" .. "left")
         )
 
-        direction = "forward"
         kc.bind(
             bmode, { key = "w" },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["forward"](playerTank)
                 return false, sc
             end,
-            i18n("mt" .. direction), pushId("mt" .. direction)
+            i18n("mt" .. "forward"), pushId("mt" .. "forward")
         )
 
-        direction = "backward"
         kc.bind(
             bmode, { key = "s" },
             function(sc: Shortcut): boolean, Shortcut
                 playerTank["backward"](playerTank)
                 return false, sc
             end,
-            i18n("mt" .. direction), pushId("mt" .. direction)
+            i18n("mt" .. "backward"), pushId("mt" .. "backward")
         )
 
         kc.bind(
@@ -1199,7 +1028,7 @@ local function bindPlayerTankKeys()
                 playerTank["resetVelocities"](playerTank)
                 return false, sc
             end,
-            i18n("mt" .. direction), pushId("mt" .. direction)
+            i18n("resetVelocities"), pushId("resetVelocities")
         )
 
         kc.bind(
@@ -1250,10 +1079,7 @@ local function bindCameraControl()
             --end
             local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
             camTimer:during(cameraAnimationDuration, function(dt: number, time: number, delay: number)
-                --cam:move(-reldx * (delay - time) * xc, -reldy * (delay - time) * yc)
                 local dx, dy = -reldx * (delay - time) * xc, -reldy * (delay - time) * yc
-                --print("delay - time", delay - time)
-                --print("dx, dy", dx, dy)
                 if delay - time > 0 then
                     cam:move(dx * dt, dy * dt)
                 end
@@ -1268,7 +1094,6 @@ local function bindCameraControl()
     end
 
     local bindMode: KeyConfig.BindType = "isdown"
-    --local bindMode = "isdown"
     KeyConfig.bind(bindMode, { key = "left" }, makeMoveFunction(1., 0), 
         i18n("mcleft"), "camleft")
     KeyConfig.bind(bindMode, { key = "right" }, makeMoveFunction(-1.0, 0.), 
@@ -1278,10 +1103,12 @@ local function bindCameraControl()
     KeyConfig.bind(bindMode, { key = "down" }, makeMoveFunction(0., -1.), 
         i18n("mcdown"), "camdown")
 
-    KeyConfig.bind("keypressed", { key = "c" }, function(sc: Shortcut): boolean, Shortcut
-        moveCameraToPlayer()
-        return false, sc
-    end, i18n("cam2tank"), "cam2tank")
+    KeyConfig.bind("keypressed", { key = "c" }, 
+        function(sc: Shortcut): boolean, Shortcut
+            moveCameraToPlayer()
+            return false, sc
+        end, 
+        i18n("cam2tank"), "cam2tank")
 end
 
 local function bindKonsole()
@@ -1305,22 +1132,6 @@ local function bindEscape()
     end)
 end
 
-local function drawQueryBox()
-    local oldwidth = gr.getLineWidth()
-    local lwidth = 4
-    gr.setLineWidth(lwidth)
-    gr.setColor{0., 0., 1.}
-    -- видимые границы камеры
-
-    --[[
-    local tlx_, tly_ = cam:worldCoords(0, 0)
-    local brx_, bry_ = cam:worldCoords(W, H)
-
-    gr.rectangle("line", tlx_, tly_, brx_ - tlx_, bry_ - tly_)
-    gr.setLineWidth(oldwidth)
-    --]]
-end
-
 local function removeFirstColon(s: string): string
     if not s then
         return nil
@@ -1333,7 +1144,7 @@ local function removeFirstColon(s: string): string
 end
 
 --[[
-{{{
+{{{ removeFirstColon tests
 colprint("test removeFirstColon(':ss'): " .. removeFirstColon(':ss'))
 colprint("test removeFirstColon(':'): " .. removeFirstColon(':'))
 colprint("test removeFirstColon('::'): " .. removeFirstColon('::'))
@@ -1351,7 +1162,6 @@ function printBody(body: love.physics.Body)
 end
 
 local function konsolePresent()
-    --linesbuf.show = true
     gr.setColor{1, 1, 1, 1}
     linesbuf:pushi(string.format("camera x = %d, y = %d, rot = %f, scale = %f", 
         cam.x, cam.y, cam.rot, cam.scale))
@@ -1366,13 +1176,41 @@ local function konsolePresent()
     linesbuf:draw()
 end
 
-local function backgroundPresent()
-    gr.clear{0.5, 0.5, 0.5, 1}
+local record Background
+    img: gr.Image
+
+    new: function(): Background
+    present: function()
+end
+
+function Background.new(): Background
+    local Background_mt: metatable<Background> = {
+        __index = Background,
+    }
+    local self = setmetatable({} as Background, Background_mt)
+    --self.img = gr.newImage(SCENE_PREFIX .. "/grass.jpg")
+    --self.img = gr.newImage(SCENE_PREFIX .. "/forrest_ground_01_diff_4k.jpg")
+    self.img = gr.newImage(SCENE_PREFIX .. "/grass3.jpg")
+
+    return self
+end
+
+function Background:present()
+    local len = 50
+    local imgw, imgh = (self.img as gr.Texture):getDimensions()
+    --local sx, sy = 0.1, 0.1
+    local sx, sy = 1, 1
+    --gr.setColor(1, 1, 1, 0.5)
+    for i = 0, len - 1 do
+        for j = 0, len - 1 do
+            gr.draw(self.img as gr.Drawable, i * imgw * sx, j * imgh * sy, 0, sx, sy)
+        end
+    end
+    --gr.clear{0.5, 0.5, 0.5, 1}
 end
 
 local function mainPresent()
-    backgroundPresent()
-
+    push2drawlist(Background.present, background)
     push2drawlist(queryBoundingBox)
     push2drawlist(drawBullets)
 
@@ -1433,6 +1271,7 @@ local function update(dt: number)
     pworld:update(1 / 60)
     linesbuf:update()
     updateTanks()
+    updateBullets()
 end
 
 --[[
@@ -1798,6 +1637,8 @@ local function init()
     bindKonsole()
 
     createDrawCoroutine()
+
+    background = Background.new()
 
     makeArmy()
     makeArmy(0, 500)

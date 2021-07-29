@@ -21,6 +21,8 @@ return {
         konsole = "show or hide konsole",
         fire = "fire",
 
+        resetVelocities = "reset velocity",
+
         --[[
         -- {{{
         pos = "Position", -- пространство(??)

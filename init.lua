@@ -55,6 +55,12 @@ local forceScale = 100
 
 
 local camTimer = require("Timer").new()
+
+local DrawNode = {}
+
+
+
+
 local drawlist = {}
 local gr = love.graphics
 local lp = love.physics
@@ -74,6 +80,7 @@ local rot = math.pi / 4
 local zoomLower, zoomHigher = 0.075, 3.5
 
 local Turret = {}
+
 
 
 
@@ -114,6 +121,7 @@ local Turret_mt = {
    __index = Turret,
 }
 
+
 local Base = {}
 
 
@@ -128,30 +136,12 @@ local Base = {}
 
 
 
-local BaseP = {}
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local BaseP_mt = {
-   __index = BaseP,
-}
 
 local Base_mt = {
    __index = Base,
@@ -231,6 +221,8 @@ tanks = {}
 
 
 
+
+
 bullets = {}
 
 local bullerRadius = 40
@@ -280,18 +272,22 @@ end
 
 local function presentDrawlist()
    for _, v in ipairs(drawlist) do
-      v()
+      if v.self then
+         v.f(v.self)
+      else
+         v.f()
+      end
    end
 end
 
-local function push2drawlist(f)
+local function push2drawlist(f, self)
    if not f then
       error("Draw could'not be nil.")
    end
    if type(f) ~= "function" then
       error("Draw function is not a function. It is a .. " .. type(f))
    end
-   table.insert(drawlist, f)
+   table.insert(drawlist, { f = f, self = self })
 end
 
 function Tank:fire()
@@ -372,8 +368,7 @@ function Tank.new(pos, dir)
    self.dir = dir:clone()
    self.pos = pos:clone()
    self.turret = Turret.new(self)
-
-   self.base = BaseP.new(self)
+   self.base = Base.new(self)
 
    if DEBUG_PHYSICS then
       print("angular damping", self.pbody:getAngularDamping())
@@ -550,21 +545,30 @@ local function drawFixture(f, color)
    end
 end
 
+function Turret:rotateToMouse()
+   local mx, my = love.mouse.getPosition()
+   mx, my = cam:worldCoords(mx, my)
+   mx, my = mx * PIX2M, PIX2M
+
+   local x, y = self.pbody:getWorldCenter()
+   local d = vec2.new(mx - x, my - y)
+   self.dir = d:normalizeInplace()
+   local a, _ = d:toPolar()
+   if self.angle then
+
+   end
+   push2drawlist(function()
+      local px, py = x * M2PIX, y * M2PIX
+      local K = 20
+      gr.line(px, py, px + self.dir.x * K, py + self.dir.y * K)
+   end)
+   self.angle = a
+end
+
 function Turret:update()
 
    if playerTank and self.tank == playerTank then
-      local mx, my = love.mouse.getPosition()
-      mx, my = cam:worldCoords(mx, my)
-      mx, my = mx * PIX2M, PIX2M
-
-      local x, y = self.pbody:getWorldCenter()
-      local d = vec2.new(mx - x, my - y)
-      self.dir = d:normalizeInplace()
-      local a, _ = d:toPolar()
-      if self.angle then
-
-      end
-      self.angle = a
+      self:rotateToMouse()
    end
 end
 
@@ -617,7 +621,7 @@ function Turret:present()
 
 end
 
-function BaseP:present()
+function Base:present()
 
 
 
@@ -656,115 +660,7 @@ function BaseP:present()
 
 end
 
-function Base:present()
-
-   local imgw, imgh = (self.img):getDimensions()
-   local r, sx, sy, ox, oy = 0, 1., 1., 0, 0
-
-   local shape = self.f:getShape()
-   local cshape = self.f:getShape()
-
-   if shape:getType() ~= "circle" then
-
-      return
-   end
-
-   local px, py = cshape:getPoint()
-   px, py = self.pbody:getWorldPoints(px, py)
-   px, py = px * M2PIX, py * M2PIX
-   r = cshape:getRadius() * M2PIX
-
-   if DEBUG_PHYSICS then
-
-
-      drawFixture(self.f, { 0, 0, 0, 1 })
-   end
-
-
-
-   local angle = self.pbody:getAngle()
-
-
-
-   love.graphics.push()
-
-
-
-
-   gr.setColor({ 1, 1, 1, 1 })
-   love.graphics.draw(
-   self.img,
-   px, py,
-   angle + math.pi / 2,
-   sx, sy,
-   ox + imgw / 2, oy + imgh / 2)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   love.graphics.pop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   local x, y = self.pbody:getWorldCenter()
-   x, y = x * M2PIX, y * M2PIX
-   local text = string.format("%d", self.tank.id)
-   gr.print(text, x, y)
-
-end
-
-function BaseP.new(t)
+function Base.new(t)
 
    if DEBUG_BASE then
       print("BaseP.new()")
@@ -773,7 +669,7 @@ function BaseP.new(t)
       error("Could'not create BaseP without Tank object")
    end
 
-   local self = setmetatable({}, BaseP_mt)
+   local self = setmetatable({}, Base_mt)
    self.tank = t
    self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
 
@@ -829,7 +725,7 @@ function BaseP.new(t)
 
 end
 
-function BaseP:updateMeshTexCoords(x, y, w, h)
+function Base:updateMeshTexCoords(x, y, w, h)
 
    print("updateMeshTexCoords", x, y, w, h)
 
@@ -869,7 +765,7 @@ function BaseP:updateMeshTexCoords(x, y, w, h)
 
 end
 
-function BaseP:initMeshVerts()
+function Base:initMeshVerts()
    self.meshVerts = {}
    for _ = 1, 6 do
       table.insert(self.meshVerts, {
@@ -881,100 +777,49 @@ function BaseP:initMeshVerts()
 end
 
 
-function BaseP:updateMeshVerts()
-   if self.tank.pbody:isAwake() then
-      self.mesh:setVertices(self.meshVerts)
-
-      local body = self.f:getBody()
 
 
-      local x1, y1, x2, y2, x3, y3, x4, y4 = self.pshape:getPoints()
-      x1, y1 = body:getWorldPoints(x1, y1)
-      x2, y2 = body:getWorldPoints(x2, y2)
-      x3, y3 = body:getWorldPoints(x3, y3)
-      x4, y4 = body:getWorldPoints(x4, y4)
+function Base:updateMeshVerts()
 
-      x1, y1 = M2PIX * x1, M2PIX * y1
-      x2, y2 = M2PIX * x2, M2PIX * y2
-      x3, y3 = M2PIX * x3, M2PIX * y3
-      x4, y4 = M2PIX * x4, M2PIX * y4
+   self.mesh:setVertices(self.meshVerts)
+
+   local body = self.f:getBody()
 
 
-      self.meshVerts[1][1] = x1
-      self.meshVerts[1][2] = y1
+   local x1, y1, x2, y2, x3, y3, x4, y4 = self.pshape:getPoints()
+   x1, y1 = body:getWorldPoints(x1, y1)
+   x2, y2 = body:getWorldPoints(x2, y2)
+   x3, y3 = body:getWorldPoints(x3, y3)
+   x4, y4 = body:getWorldPoints(x4, y4)
 
-      self.meshVerts[2][1] = x2
-      self.meshVerts[2][2] = y2
+   x1, y1 = M2PIX * x1, M2PIX * y1
+   x2, y2 = M2PIX * x2, M2PIX * y2
+   x3, y3 = M2PIX * x3, M2PIX * y3
+   x4, y4 = M2PIX * x4, M2PIX * y4
 
-      self.meshVerts[3][1] = x4
-      self.meshVerts[3][2] = y4
+
+   self.meshVerts[1][1] = x1
+   self.meshVerts[1][2] = y1
+
+   self.meshVerts[2][1] = x2
+   self.meshVerts[2][2] = y2
+
+   self.meshVerts[3][1] = x4
+   self.meshVerts[3][2] = y4
 
 
-      self.meshVerts[5][1] = x2
-      self.meshVerts[5][2] = y2
+   self.meshVerts[5][1] = x2
+   self.meshVerts[5][2] = y2
 
-      self.meshVerts[6][1] = x3
-      self.meshVerts[6][2] = y3
+   self.meshVerts[6][1] = x3
+   self.meshVerts[6][2] = y3
 
-      self.meshVerts[4][1] = x4
-      self.meshVerts[4][2] = y4
+   self.meshVerts[4][1] = x4
+   self.meshVerts[4][2] = y4
 
-   else
-      print("I'm sleeping")
-   end
+
 
 end
-
-function Base.new(t)
-
-   if DEBUG_BASE then
-      print("Base.new()")
-   end
-   if not t then
-      error("Could'not create Base without Tank object")
-   end
-
-   local self = setmetatable({}, Base_mt)
-   self.tank = t
-   self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
-   self.pbody = t.pbody
-
-   if DEBUG_BASE then
-      print("self.tank", self.tank)
-      print("self.pbody", self.pbody)
-      print("self.img", self.img)
-   end
-
-   local w, _ = (self.img):getDimensions()
-
-   local r = w / 2
-   local px, py = t.pos.x, t.pos.y
-   local shape = love.physics.newCircleShape(px, py, r * PIX2M)
-
-   self.f = love.physics.newFixture(self.pbody, shape)
-
-   if DEBUG_TURRET then
-      print("circle shape created x, y, r", px, py)
-   end
-
-   return self
-
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 local function onBeginContact(
    _,
@@ -1072,11 +917,31 @@ local function onQueryBoundingBox(fixture)
 
 end
 
+local function drawQueryBox(x, y, w, h)
+   local oldwidth = gr.getLineWidth()
+   local lwidth = 4
+   gr.setLineWidth(lwidth)
+   gr.setColor({ 0., 0., 1. })
+   gr.rectangle("line", x, y, w, h)
+   gr.setLineWidth(oldwidth)
+end
+
 local function queryBoundingBox()
    if cam then
       local tlx, tly = cam:worldCoords(0, 0)
       local brx, bry = cam:worldCoords(gr.getDimensions())
       brx, bry = brx + W, bry + H
+
+      if DEBUG_PHYSICS then
+         push2drawlist(function()
+            local oldwidth = gr.getLineWidth()
+            local lwidth = 4
+            gr.setLineWidth(lwidth)
+            gr.setColor({ 0., 0., 1. })
+            gr.rectangle("line", tlx, tly, brx - tlx, bry - tly)
+            gr.setLineWidth(oldwidth)
+         end)
+      end
 
       pworld:queryBoundingBox(
       tlx * PIX2M, tly * PIX2M,
@@ -1121,76 +986,40 @@ local function bindPlayerTankKeys()
       local kc = KeyConfig
       local bmode = "isdown"
 
-
-      local E = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      local direction
-
-      direction = "right"
       kc.bind(
       bmode, { key = "d" },
       function(sc)
          playerTank["right"](playerTank)
          return false, sc
       end,
-      i18n("mt" .. direction), pushId("mt" .. direction))
+      i18n("mt" .. "right"), pushId("mt" .. "right"))
 
 
-      direction = "left"
       kc.bind(
       bmode, { key = "a" },
       function(sc)
          playerTank["left"](playerTank)
          return false, sc
       end,
-      i18n("mt" .. direction), pushId("mt" .. direction))
+      i18n("mt" .. "left"), pushId("mt" .. "left"))
 
 
-      direction = "forward"
       kc.bind(
       bmode, { key = "w" },
       function(sc)
          playerTank["forward"](playerTank)
          return false, sc
       end,
-      i18n("mt" .. direction), pushId("mt" .. direction))
+      i18n("mt" .. "forward"), pushId("mt" .. "forward"))
 
 
-      direction = "backward"
       kc.bind(
       bmode, { key = "s" },
       function(sc)
          playerTank["backward"](playerTank)
          return false, sc
       end,
-      i18n("mt" .. direction), pushId("mt" .. direction))
+      i18n("mt" .. "backward"), pushId("mt" .. "backward"))
 
 
       kc.bind(
@@ -1199,7 +1028,7 @@ local function bindPlayerTankKeys()
          playerTank["resetVelocities"](playerTank)
          return false, sc
       end,
-      i18n("mt" .. direction), pushId("mt" .. direction))
+      i18n("resetVelocities"), pushId("resetVelocities"))
 
 
       kc.bind(
@@ -1250,10 +1079,7 @@ local function bindCameraControl()
 
          local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
          camTimer:during(cameraAnimationDuration, function(dt, time, delay)
-
             local dx, dy = -reldx * (delay - time) * xc, -reldy * (delay - time) * yc
-
-
             if delay - time > 0 then
                cam:move(dx * dt, dy * dt)
             end
@@ -1268,7 +1094,6 @@ local function bindCameraControl()
    end
 
    local bindMode = "isdown"
-
    KeyConfig.bind(bindMode, { key = "left" }, makeMoveFunction(1., 0),
    i18n("mcleft"), "camleft")
    KeyConfig.bind(bindMode, { key = "right" }, makeMoveFunction(-1.0, 0.),
@@ -1278,10 +1103,12 @@ local function bindCameraControl()
    KeyConfig.bind(bindMode, { key = "down" }, makeMoveFunction(0., -1.),
    i18n("mcdown"), "camdown")
 
-   KeyConfig.bind("keypressed", { key = "c" }, function(sc)
+   KeyConfig.bind("keypressed", { key = "c" },
+   function(sc)
       moveCameraToPlayer()
       return false, sc
-   end, i18n("cam2tank"), "cam2tank")
+   end,
+   i18n("cam2tank"), "cam2tank")
 end
 
 local function bindKonsole()
@@ -1303,22 +1130,6 @@ local function bindEscape()
       end
       return false, sc
    end)
-end
-
-local function drawQueryBox()
-   local oldwidth = gr.getLineWidth()
-   local lwidth = 4
-   gr.setLineWidth(lwidth)
-   gr.setColor({ 0., 0., 1. })
-
-
-
-
-
-
-
-
-
 end
 
 local function removeFirstColon(s)
@@ -1351,7 +1162,6 @@ function printBody(body)
 end
 
 local function konsolePresent()
-
    gr.setColor({ 1, 1, 1, 1 })
    linesbuf:pushi(string.format("camera x = %d, y = %d, rot = %f, scale = %f",
    cam.x, cam.y, cam.rot, cam.scale))
@@ -1366,13 +1176,41 @@ local function konsolePresent()
    linesbuf:draw()
 end
 
-local function backgroundPresent()
-   gr.clear({ 0.5, 0.5, 0.5, 1 })
+local Background = {}
+
+
+
+
+
+
+function Background.new()
+   local Background_mt = {
+      __index = Background,
+   }
+   local self = setmetatable({}, Background_mt)
+
+
+   self.img = gr.newImage(SCENE_PREFIX .. "/grass3.jpg")
+
+   return self
+end
+
+function Background:present()
+   local len = 50
+   local imgw, imgh = (self.img):getDimensions()
+
+   local sx, sy = 1, 1
+
+   for i = 0, len - 1 do
+      for j = 0, len - 1 do
+         gr.draw(self.img, i * imgw * sx, j * imgh * sy, 0, sx, sy)
+      end
+   end
+
 end
 
 local function mainPresent()
-   backgroundPresent()
-
+   push2drawlist(Background.present, background)
    push2drawlist(queryBoundingBox)
    push2drawlist(drawBullets)
 
@@ -1433,6 +1271,7 @@ local function update(dt)
    pworld:update(1 / 60)
    linesbuf:update()
    updateTanks()
+   updateBullets()
 end
 
 
@@ -1798,6 +1637,8 @@ local function init()
    bindKonsole()
 
    createDrawCoroutine()
+
+   background = Background.new()
 
    makeArmy()
    makeArmy(0, 500)
