@@ -230,6 +230,35 @@ local bulletColor = { 0, 0, 0, 1 }
 
 local bulletLifetime = 1
 
+local vecl = require("vector-light")
+
+local function drawArrow(
+   fromx, fromy, tox, toy,
+   color)
+
+   local angle = math.pi / 11
+   local arrowDiv = 20
+
+   color = color or { 1, 1, 1, 1 }
+   local x, y = fromx - tox, fromy - toy
+   local abs = math.abs
+   local ux, uy = vecl.normalize(abs(fromx - tox), abs(fromy - toy))
+   local len = vecl.len(x, y) / arrowDiv
+   local lx, ly = vecl.rotate(angle, ux, uy)
+   local rx, ry = vecl.rotate(-angle, ux, uy)
+   lx, ly = len * lx, len * ly
+   rx, ry = len * rx, len * ry
+
+   gr.setColor(color)
+
+
+   gr.line(tox, toy, tox - lx, toy - ly)
+
+   gr.line(tox, toy, tox - rx, toy - ry)
+
+   gr.line(fromx, fromy, tox, toy)
+end
+
 local function drawBullets()
    for _, b in ipairs(bullets) do
       local px, py = b.body:getWorldCenter()
@@ -392,6 +421,7 @@ function Tank.new(pos, dir)
 end
 
 local function drawBodyStat(body)
+   local color = { 0, 0, 0, 1 }
    local radius = 10
    local x, y = body:getWorldCenter()
    x, y = x * M2PIX, y * M2PIX
@@ -401,24 +431,22 @@ local function drawBodyStat(body)
    gr.circle("fill", x, y, radius)
 
 
-   gr.setColor({ 0, 0, 0, 1 })
+   gr.setColor(color)
    gr.circle("fill", x, y, 2)
 
    local vx, vy = body:getLinearVelocity()
    local scale = 7.
-   gr.line(x, y, x + vx * scale, y + vy * scale)
+
+   drawArrow(x, y, x + vx * scale, y + vy * scale, color)
 end
 
 function Tank:drawDirectionVector()
    if self.dir then
       local x, y = self.pbody:getWorldCenter()
-      local scale = 50
+      local scale = 100
       local color = { 0., 0.05, 0.99, 1 }
       x, y = x * M2PIX, y * M2PIX
-      gr.setColor(color)
-
-
-      gr.line(x, y, x + self.dir.x * scale, y + self.dir.y * scale)
+      drawArrow(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
    end
 end
 
@@ -545,30 +573,32 @@ local function drawFixture(f, color)
    end
 end
 
+
 function Turret:rotateToMouse()
    local mx, my = love.mouse.getPosition()
    mx, my = cam:worldCoords(mx, my)
    mx, my = mx * PIX2M, my * PIX2M
 
    local x, y = self.pbody:getWorldCenter()
-
    local d = vec2.new(x - mx, y - my)
    self.dir = d:normalizeInplace()
    local a, _ = d:toPolar()
-   if self.angle then
-
-   end
-   push2drawlist(function()
-      local px, py = x * M2PIX, y * M2PIX
-      local K = 20
-      gr.setColor({ 1, 0, 0, 1 })
 
 
-      local x1, y1, x2, y2 = x, y, mx, my
-      gr.line(x1, y1, x2, y2)
-      print("line", x1, y1, x2, y2)
-   end)
-   self.angle = a
+
+
+
+
+
+
+
+
+
+
+
+
+
+   self.angle = -a
 end
 
 function Turret:update()
@@ -1028,7 +1058,7 @@ local function bindPlayerTankKeys()
          end
          return false, sc
       end,
-      i18n("fike"), pushId("fire"))
+      i18n("fire"), pushId("fire"))
 
 
    else
@@ -1242,6 +1272,10 @@ local function draw()
       drawCameraAxixes()
    end
    konsolePresent()
+
+   drawArrow(300, 600, 400, 600, { 1, 0, 0, 1 })
+   drawArrow(0, 0, 40, 700, { 0, 1, 0, 1 })
+   drawArrow(600, 300, 40, 300, { 0, 0, 1, 1 })
 end
 
 local function updateTanks()

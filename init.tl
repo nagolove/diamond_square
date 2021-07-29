@@ -51,6 +51,9 @@ global M2PIX = 10
 -- коэффициент на который домножаю при переводе из пикселей в метры
 global PIX2M = 1 / 10
 
+local tankCollisionGroup = 1
+local bulletCollisionGroup = -1
+
 local forceScale = 100
 
 global cam: Camera
@@ -230,6 +233,35 @@ local bulletColor = {0, 0, 0, 1}
 -- Продолжительность жизни снаряда в секундах.
 local bulletLifetime = 1
 
+local vecl = require "vector-light"
+
+local function drawArrow(
+    fromx: number, fromy: number, tox: number, toy: number, 
+    color: {number}
+)
+    local angle = math.pi / 11
+    local arrowDiv = 20
+
+    color = color or {1, 1, 1, 1}
+    local x, y = fromx - tox, fromy - toy
+    local abs = math.abs
+    local ux, uy = vecl.normalize(abs(fromx - tox), abs(fromy - toy))
+    local len = vecl.len(x, y) / arrowDiv
+    local lx, ly = vecl.rotate(angle, ux, uy)
+    local rx, ry = vecl.rotate(-angle, ux, uy)
+    lx, ly = len * lx, len * ly
+    rx, ry = len * rx, len * ry
+
+    gr.setColor(color)
+
+    -- left line
+    gr.line(tox, toy, tox - lx, toy - ly)
+    -- right line
+    gr.line(tox, toy, tox - rx, toy - ry)
+    -- main line
+    gr.line(fromx, fromy, tox, toy)
+end
+
 local function drawBullets()
     for _, b in ipairs(bullets) do
         local px, py = b.body:getWorldCenter()
@@ -253,12 +285,16 @@ local function updateBullets()
 end
 
 -- размеры в метрах
-local function spawnBullet(px: number, py: number)
+local function spawnBullet(px: number, py: number, dirx: number, diry: number)
     local bullet: Bullet = {}
     bullet.body = love.physics.newBody(pworld, 0, 0, "kinematic")
     bullet.timestamp = love.timer.getTime()
     local shape = love.physics.newCircleShape(px, py, bullerRadius)
-    love.physics.newFixture(bullet.body, shape as love.physics.Shape)
+    local fixture = love.physics.newFixture(bullet.body, shape as love.physics.Shape)
+    fixture:setGroupIndex(bulletCollisionGroup)
+    if dirx and diry then
+        bullet.body:applyLinearImpulse(dirx, diry)
+    end
     table.insert(bullets, bullet)
 end
 
@@ -300,8 +336,6 @@ function Tank:left()
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:left")
     end
-    --self.pbody:applyForce(x, y)
-    --local theta = self.dir - rot
     local imp = -angularImpulseScale * rot
     if DEBUG_PHYSICS then
         --print("Tank " .. self.id .. " applyAngularImpulse", imp)
@@ -328,7 +362,6 @@ function Tank:forward()
         --print("Tank " .. self.id .. "applyForce x, y", x, y)
     --end
     local x, y = self.dir.x * forceScale, self.dir.y * forceScale
-    --print('applied', x, y)
     self.pbody:applyForce(x, y)
 end
 
@@ -392,6 +425,7 @@ function Tank.new(pos: vector, dir: vector): Tank
 end
 
 local function drawBodyStat(body: love.physics.Body)
+    local color = {0, 0, 0, 1}
     local radius = 10
     local x, y = body:getWorldCenter()
     x, y = x * M2PIX, y * M2PIX
@@ -401,24 +435,22 @@ local function drawBodyStat(body: love.physics.Body)
     gr.circle("fill", x, y, radius)
 
     -- с черной точкой
-    gr.setColor{0, 0, 0, 1}
+    gr.setColor(color)
     gr.circle("fill", x, y, 2)
 
     local vx, vy = body:getLinearVelocity()
     local scale = 7.
-    gr.line(x, y, x + vx * scale, y + vy * scale)
+    --gr.line(x, y, x + vx * scale, y + vy * scale)
+    drawArrow(x, y, x + vx * scale, y + vy * scale, color)
 end
 
 function Tank:drawDirectionVector()
     if self.dir then
         local x, y = self.pbody:getWorldCenter()
-        local scale = 50
+        local scale = 100
         local color = {0., 0.05, 0.99, 1}
         x, y = x * M2PIX, y * M2PIX
-        gr.setColor(color)
-        --print("self.dir", inspect(self.dir))
-        --print("drawDirectionVector", x, y, x + self.dir.x * scale, y + self.dir.y * scale)
-        gr.line(x, y, x + self.dir.x * scale, y + self.dir.y * scale)
+        drawArrow(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
     end
 end
 
@@ -490,6 +522,7 @@ function Turret.new(t: Tank): Turret
     local px, py = self.tank.pbody:getPosition()
     local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
+    self.f:setGroupIndex(tankCollisionGroup)
 
     if DEBUG_TURRET then
         print("circle shape created x, y, r", px, py)
@@ -545,19 +578,18 @@ local function drawFixture(f: love.physics.Fixture, color: {number})
     end
 end
 
+-- Как сделать медленный поворот башни?
 function Turret:rotateToMouse()
     local mx, my = love.mouse.getPosition()
     mx, my = cam:worldCoords(mx, my)
     mx, my = mx * PIX2M, my * PIX2M
 
     local x, y = self.pbody:getWorldCenter()
-    --local d = vec2.new(mx - x, my - y)
     local d = vec2.new(x - mx, y - my)
     self.dir = d:normalizeInplace()
     local a, _ = d:toPolar()
-    if self.angle then
-        --linesbuf:push(1, "angle %f, d (%f, %f)", self.angle, d.x, d.y)
-    end
+
+    --[[
     push2drawlist(function()
         local px, py = x * M2PIX, y * M2PIX
         local K = 20
@@ -566,9 +598,12 @@ function Turret:rotateToMouse()
         --local x1, y1, x2, y2 = px, py, px + self.dir.x * K, py + self.dir.y * K
         local x1, y1, x2, y2 = x, y, mx, my
         gr.line(x1, y1, x2, y2)
+        drawArrow(x1, y1, x2, y2, {0, 1, 1, 1})
         print("line", x1, y1, x2, y2)
     end)
-    self.angle = a
+    --]]
+
+    self.angle = -a
 end
 
 function Turret:update()
@@ -694,6 +729,7 @@ function Base.new(t: Tank): Base
 
     local shape = love.physics.newPolygonShape(vertices)
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
+    self.f:setGroupIndex(tankCollisionGroup)
     self.pshape = shape
     if DEBUG_TURRET then
         print("polygon shape created x, y, r", px, py)
@@ -1028,7 +1064,7 @@ local function bindPlayerTankKeys()
                 end
                 return false, sc
             end,
-            i18n("fike"), pushId("fire")
+            i18n("fire"), pushId("fire")
         )
         -- }}}
     else
@@ -1242,6 +1278,10 @@ local function draw()
         drawCameraAxixes()
     end
     konsolePresent()
+
+    drawArrow(300, 600, 400, 600, {1, 0, 0, 1})
+    drawArrow(0, 0, 40, 700, {0, 1, 0, 1})
+    drawArrow(600, 300, 40, 300, {0, 0, 1, 1})
 end
 
 local function updateTanks()
@@ -1652,6 +1692,10 @@ end
 local function mousepressed(x: number, y: number, btn: integer)
     metrics.mousepressed(x, y, btn)
     if btn == 1 then
+        if playerTank then
+            playerTank:fire()
+        end
+    elseif btn == 2 then
         -- значения координат мыши привести к мировым координатам камеры
         --print("mousepressed")
         --print("x, y", x, y)
@@ -1664,28 +1708,6 @@ local function mousepressed(x: number, y: number, btn: integer)
         --x, y = cam:cameraCoords(x, y)
         x, y = x * PIX2M, y * PIX2M
         spawn(vector.new(x, y))
-    elseif btn == 2 then
-        --[[
-        local count = 100
-        for i = 2, count do
-            -- значения координат мыши привести к мировым координатам камеры
-            --print("mousepressed")
-            --print("x, y", x, y)
-            print("before worldCoords", x, y)
-            local timeout = 2.5
-            linesbuf:push(timeout, "mousepressed(%d, %d)", x, y)
-            --x, y = cam:worldCoords(x, y)
-            --x, y = cam:cameraCoords(x, y)
-            linesbuf:push(timeout, "in world coordinates (%d, %d)", x, y)
-            print("after worldCoords", x, y)
-            --x, y = cam:cameraCoords(x, y)
-            x, y = x * PIX2M, y * PIX2M
-            spawn(vector.new(x, y))
-        end
-        --]]
-        if playerTank and playerTank.turret then
-            playerTank.turret:fire()
-        end
     end
 end
 
