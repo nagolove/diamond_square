@@ -548,10 +548,11 @@ end
 function Turret:rotateToMouse()
     local mx, my = love.mouse.getPosition()
     mx, my = cam:worldCoords(mx, my)
-    mx, my = mx * PIX2M, PIX2M
+    mx, my = mx * PIX2M, my * PIX2M
 
     local x, y = self.pbody:getWorldCenter()
-    local d = vec2.new(mx - x, my - y)
+    --local d = vec2.new(mx - x, my - y)
+    local d = vec2.new(x - mx, y - my)
     self.dir = d:normalizeInplace()
     local a, _ = d:toPolar()
     if self.angle then
@@ -560,7 +561,12 @@ function Turret:rotateToMouse()
     push2drawlist(function()
         local px, py = x * M2PIX, y * M2PIX
         local K = 20
-        gr.line(px, py, px + self.dir.x * K, py + self.dir.y * K)
+        gr.setColor{1, 0, 0, 1}
+        --gr.circle("fill", 0, 0, 1000)
+        --local x1, y1, x2, y2 = px, py, px + self.dir.x * K, py + self.dir.y * K
+        local x1, y1, x2, y2 = x, y, mx, my
+        gr.line(x1, y1, x2, y2)
+        print("line", x1, y1, x2, y2)
     end)
     self.angle = a
 end
@@ -623,40 +629,23 @@ end
 
 function Base:present()
     -- {{{
-    --local imgw, imgh = (self.img as love.graphics.Texture):getDimensions()
-    --local r, sx, sy, ox, oy: number = 0, 1., 1., 0, 0
-    --local kx, ky: number = 1., 1.
-    --local body = self.f:getBody()
     local shape = self.f:getShape()
     if shape:getType() ~= "polygon" then
         error("Tank BaseP shape should be polygon.")
     end
-    --local pShape: lp.PolygonShape = self.f:getShape() as lp.PolygonShape
 
     if DEBUG_PHYSICS then
         drawFixture(self.f, {0, 0, 0, 1})
     end
 
-    --[[
-    local points = {pShape:getPoints()}
-    local i = 1
-    while i < #points do
-        points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
-        points[i] = points[i] * M2PIX
-        points[i + 1] = points[i + 1] * M2PIX
-        i = i + 2
-    end
-    --]]
-
     gr.setColor{1, 1, 1, 1}
     self:updateMeshVerts()
     gr.draw(self.mesh as love.graphics.Drawable, 0, 0)
-    --print("baseP:present()")
 
-    local x, y = self.pbody:getWorldCenter()
-    x, y = x * M2PIX, y * M2PIX
-    local text = string.format("%d", self.tank.id)
-    gr.print(text, x, y)
+    --local x, y = self.pbody:getWorldCenter()
+    --x, y = x * M2PIX, y * M2PIX
+    --local text = string.format("%d", self.tank.id)
+    --gr.print(text, x, y)
     -- }}}
 end
 
@@ -1200,7 +1189,7 @@ function Background:present()
     local imgw, imgh = (self.img as gr.Texture):getDimensions()
     --local sx, sy = 0.1, 0.1
     local sx, sy = 1, 1
-    --gr.setColor(1, 1, 1, 0.5)
+    gr.setColor(1, 1, 1, 1)
     for i = 0, len - 1 do
         for j = 0, len - 1 do
             gr.draw(self.img as gr.Drawable, i * imgw * sx, j * imgh * sy, 0, sx, sy)

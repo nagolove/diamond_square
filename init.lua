@@ -548,10 +548,11 @@ end
 function Turret:rotateToMouse()
    local mx, my = love.mouse.getPosition()
    mx, my = cam:worldCoords(mx, my)
-   mx, my = mx * PIX2M, PIX2M
+   mx, my = mx * PIX2M, my * PIX2M
 
    local x, y = self.pbody:getWorldCenter()
-   local d = vec2.new(mx - x, my - y)
+
+   local d = vec2.new(x - mx, y - my)
    self.dir = d:normalizeInplace()
    local a, _ = d:toPolar()
    if self.angle then
@@ -560,7 +561,12 @@ function Turret:rotateToMouse()
    push2drawlist(function()
       local px, py = x * M2PIX, y * M2PIX
       local K = 20
-      gr.line(px, py, px + self.dir.x * K, py + self.dir.y * K)
+      gr.setColor({ 1, 0, 0, 1 })
+
+
+      local x1, y1, x2, y2 = x, y, mx, my
+      gr.line(x1, y1, x2, y2)
+      print("line", x1, y1, x2, y2)
    end)
    self.angle = a
 end
@@ -623,40 +629,23 @@ end
 
 function Base:present()
 
-
-
-
-
    local shape = self.f:getShape()
    if shape:getType() ~= "polygon" then
       error("Tank BaseP shape should be polygon.")
    end
 
-
    if DEBUG_PHYSICS then
       drawFixture(self.f, { 0, 0, 0, 1 })
    end
-
-
-
-
-
-
-
-
-
-
-
 
    gr.setColor({ 1, 1, 1, 1 })
    self:updateMeshVerts()
    gr.draw(self.mesh, 0, 0)
 
 
-   local x, y = self.pbody:getWorldCenter()
-   x, y = x * M2PIX, y * M2PIX
-   local text = string.format("%d", self.tank.id)
-   gr.print(text, x, y)
+
+
+
 
 end
 
@@ -1200,7 +1189,7 @@ function Background:present()
    local imgw, imgh = (self.img):getDimensions()
 
    local sx, sy = 1, 1
-
+   gr.setColor(1, 1, 1, 1)
    for i = 0, len - 1 do
       for j = 0, len - 1 do
          gr.draw(self.img, i * imgw * sx, j * imgh * sy, 0, sx, sy)
