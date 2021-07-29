@@ -27,9 +27,10 @@ local vec2 = require "vector"
 global DEBUG_BASE = false
 global DEBUG_TANK = false
 global DEBUG_TANK_MOVEMENT = false
-global DEBUG_TURRET = false
+global DEBUG_TURRET = true
 global DEBUG_CAMERA = false
 global DEBUG_LOGO = false
+global DEBUG_BULLET = true
 
 --global DEBUG_DRAW_THREAD = true
 --global DEBUG_TEXCOORDS = true
@@ -51,8 +52,9 @@ global M2PIX = 10
 -- коэффициент на который домножаю при переводе из пикселей в метры
 global PIX2M = 1 / 10
 
-local tankCollisionGroup = 1
-local bulletCollisionGroup = -1
+--local tankCollisionGroup = 1
+--local bulletCollisionGroup = -1
+local bulletMask = 1
 
 local forceScale = 100
 
@@ -228,8 +230,9 @@ global logo: Logo
 -- Все снаряды вырущенные из танков, пока не уничтоженные
 global bullets: {Bullet} = {}
 
-local bullerRadius = 40
-local bulletColor = {0, 0, 0, 1}
+-- В пикселях
+local bulletRadius = 4
+local bulletColor = {1, 1, 1, 1}
 -- Продолжительность жизни снаряда в секундах.
 local bulletLifetime = 1
 
@@ -267,7 +270,10 @@ local function drawBullets()
         local px, py = b.body:getWorldCenter()
         px, py = px * M2PIX, py * M2PIX
         gr.setColor(bulletColor)
-        gr.circle("fill", px, py, bullerRadius)
+        if DEBUG_BULLET then
+            --print("bullet", px, py, bulletRadius)
+        end
+        gr.circle("fill", px, py, bulletRadius)
     end
 end
 
@@ -286,13 +292,18 @@ end
 
 -- размеры в метрах
 local function spawnBullet(px: number, py: number, dirx: number, diry: number)
+    print("spawnBullet")
     local bullet: Bullet = {}
-    bullet.body = love.physics.newBody(pworld, 0, 0, "kinematic")
+    bullet.body = love.physics.newBody(pworld, px, py, "kinematic")
+    --bullet.body = love.physics.newBody(pworld, px, py, "static")
     bullet.timestamp = love.timer.getTime()
-    local shape = love.physics.newCircleShape(px, py, bullerRadius)
-    local fixture = love.physics.newFixture(bullet.body, shape as love.physics.Shape)
-    fixture:setGroupIndex(bulletCollisionGroup)
+    --local shape = love.physics.newCircleShape(px, py, bulletRadius)
+    local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
+    local fixture = love.physics.newFixture(bullet.body, shape as lp.Shape)
+    --fixture:setGroupIndex(bulletCollisionGroup)
+    fixture:setMask(bulletMask)
     if dirx and diry then
+        print("bullet.body:applyLinearImpulse", dirx, diry)
         bullet.body:applyLinearImpulse(dirx, diry)
     end
     table.insert(bullets, bullet)
@@ -303,7 +314,9 @@ function Turret:fire()
         print("Turret:fire()")
     end
     local px, py = self.tank.pbody:getWorldCenter()
-    spawnBullet(px, py)
+    local scale = 3
+    print("pbody", px, py)
+    spawnBullet(px, py, self.dir.x * scale, self.dir.y * scale)
 end
 
 local function presentDrawlist()
@@ -522,7 +535,7 @@ function Turret.new(t: Tank): Turret
     local px, py = self.tank.pbody:getPosition()
     local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
-    self.f:setGroupIndex(tankCollisionGroup)
+    --self.f:setGroupIndex(tankCollisionGroup)
 
     if DEBUG_TURRET then
         print("circle shape created x, y, r", px, py)
@@ -729,7 +742,7 @@ function Base.new(t: Tank): Base
 
     local shape = love.physics.newPolygonShape(vertices)
     self.f = love.physics.newFixture(self.pbody, shape as love.physics.Shape)
-    self.f:setGroupIndex(tankCollisionGroup)
+    --self.f:setGroupIndex(tankCollisionGroup)
     self.pshape = shape
     if DEBUG_TURRET then
         print("polygon shape created x, y, r", px, py)
@@ -1279,9 +1292,9 @@ local function draw()
     end
     konsolePresent()
 
-    drawArrow(300, 600, 400, 600, {1, 0, 0, 1})
-    drawArrow(0, 0, 40, 700, {0, 1, 0, 1})
-    drawArrow(600, 300, 40, 300, {0, 0, 1, 1})
+    --drawArrow(300, 600, 400, 600, {1, 0, 0, 1})
+    --drawArrow(0, 0, 40, 700, {0, 1, 0, 1})
+    --drawArrow(600, 300, 40, 300, {0, 0, 1, 1})
 end
 
 local function updateTanks()

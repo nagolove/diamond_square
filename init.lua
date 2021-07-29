@@ -27,9 +27,10 @@ local vec2 = require("vector")
 DEBUG_BASE = false
 DEBUG_TANK = false
 DEBUG_TANK_MOVEMENT = false
-DEBUG_TURRET = false
+DEBUG_TURRET = true
 DEBUG_CAMERA = false
 DEBUG_LOGO = false
+DEBUG_BULLET = true
 
 
 
@@ -50,6 +51,10 @@ cmd_drawCameraAxixes = false
 M2PIX = 10
 
 PIX2M = 1 / 10
+
+
+
+local bulletMask = 1
 
 local forceScale = 100
 
@@ -225,8 +230,9 @@ tanks = {}
 
 bullets = {}
 
-local bullerRadius = 40
-local bulletColor = { 0, 0, 0, 1 }
+
+local bulletRadius = 4
+local bulletColor = { 1, 1, 1, 1 }
 
 local bulletLifetime = 1
 
@@ -264,7 +270,10 @@ local function drawBullets()
       local px, py = b.body:getWorldCenter()
       px, py = px * M2PIX, py * M2PIX
       gr.setColor(bulletColor)
-      gr.circle("fill", px, py, bullerRadius)
+      if DEBUG_BULLET then
+
+      end
+      gr.circle("fill", px, py, bulletRadius)
    end
 end
 
@@ -282,12 +291,21 @@ local function updateBullets()
 end
 
 
-local function spawnBullet(px, py)
+local function spawnBullet(px, py, dirx, diry)
+   print("spawnBullet")
    local bullet = {}
-   bullet.body = love.physics.newBody(pworld, 0, 0, "kinematic")
+   bullet.body = love.physics.newBody(pworld, px, py, "kinematic")
+
    bullet.timestamp = love.timer.getTime()
-   local shape = love.physics.newCircleShape(px, py, bullerRadius)
-   love.physics.newFixture(bullet.body, shape)
+
+   local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
+   local fixture = love.physics.newFixture(bullet.body, shape)
+
+   fixture:setMask(bulletMask)
+   if dirx and diry then
+      print("bullet.body:applyLinearImpulse", dirx, diry)
+      bullet.body:applyLinearImpulse(dirx, diry)
+   end
    table.insert(bullets, bullet)
 end
 
@@ -296,7 +314,9 @@ function Turret:fire()
       print("Turret:fire()")
    end
    local px, py = self.tank.pbody:getWorldCenter()
-   spawnBullet(px, py)
+   local scale = 3
+   print("pbody", px, py)
+   spawnBullet(px, py, self.dir.x * scale, self.dir.y * scale)
 end
 
 local function presentDrawlist()
@@ -329,8 +349,6 @@ function Tank:left()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:left")
    end
-
-
    local imp = -angularImpulseScale * rot
    if DEBUG_PHYSICS then
 
@@ -357,7 +375,6 @@ function Tank:forward()
 
 
    local x, y = self.dir.x * forceScale, self.dir.y * forceScale
-
    self.pbody:applyForce(x, y)
 end
 
@@ -518,6 +535,7 @@ function Turret.new(t)
    local px, py = self.tank.pbody:getPosition()
    local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
    self.f = love.physics.newFixture(self.pbody, shape)
+
 
    if DEBUG_TURRET then
       print("circle shape created x, y, r", px, py)
@@ -724,6 +742,7 @@ function Base.new(t)
 
    local shape = love.physics.newPolygonShape(vertices)
    self.f = love.physics.newFixture(self.pbody, shape)
+
    self.pshape = shape
    if DEBUG_TURRET then
       print("polygon shape created x, y, r", px, py)
@@ -1273,9 +1292,9 @@ local function draw()
    end
    konsolePresent()
 
-   drawArrow(300, 600, 400, 600, { 1, 0, 0, 1 })
-   drawArrow(0, 0, 40, 700, { 0, 1, 0, 1 })
-   drawArrow(600, 300, 40, 300, { 0, 0, 1, 1 })
+
+
+
 end
 
 local function updateTanks()
@@ -1686,6 +1705,10 @@ end
 local function mousepressed(x, y, btn)
    metrics.mousepressed(x, y, btn)
    if btn == 1 then
+      if playerTank then
+         playerTank:fire()
+      end
+   elseif btn == 2 then
 
 
 
@@ -1698,28 +1721,6 @@ local function mousepressed(x, y, btn)
 
       x, y = x * PIX2M, y * PIX2M
       spawn(vector.new(x, y))
-   elseif btn == 2 then
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      if playerTank and playerTank.turret then
-         playerTank.turret:fire()
-      end
    end
 end
 
