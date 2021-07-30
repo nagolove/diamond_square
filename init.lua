@@ -1027,6 +1027,9 @@ local function bindPlayerTankKeys()
       kc.bind(
       bmode, { key = "d" },
       function(sc)
+         if mode ~= "normal" then
+            return false, sc
+         end
          playerTank["right"](playerTank)
          return false, sc
       end,
@@ -1036,6 +1039,9 @@ local function bindPlayerTankKeys()
       kc.bind(
       bmode, { key = "a" },
       function(sc)
+         if mode ~= "normal" then
+            return false, sc
+         end
          playerTank["left"](playerTank)
          return false, sc
       end,
@@ -1045,6 +1051,9 @@ local function bindPlayerTankKeys()
       kc.bind(
       bmode, { key = "w" },
       function(sc)
+         if mode ~= "normal" then
+            return false, sc
+         end
          playerTank["forward"](playerTank)
          return false, sc
       end,
@@ -1054,6 +1063,9 @@ local function bindPlayerTankKeys()
       kc.bind(
       bmode, { key = "s" },
       function(sc)
+         if mode ~= "normal" then
+            return false, sc
+         end
          playerTank["backward"](playerTank)
          return false, sc
       end,
@@ -1063,6 +1075,9 @@ local function bindPlayerTankKeys()
       kc.bind(
       bmode, { key = "v" },
       function(sc)
+         if mode ~= "normal" then
+            return false, sc
+         end
          playerTank["resetVelocities"](playerTank)
          return false, sc
       end,
@@ -1072,6 +1087,9 @@ local function bindPlayerTankKeys()
       kc.bind(
       "isdown", { key = "space" },
       function(sc)
+         if mode ~= "normal" then
+            return false, sc
+         end
          if playerTank then
             playerTank:fire()
          end
@@ -1112,9 +1130,9 @@ local function bindCameraControl()
    local function makeMoveFunction(xc, yc)
 
       return function(sc)
-
-
-
+         if mode ~= "normal" then
+            return false, sc
+         end
          local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
          camTimer:during(cameraAnimationDuration, function(dt, time, delay)
             local dx, dy = -reldx * (delay - time) * xc, -reldy * (delay - time) * yc
@@ -1143,6 +1161,9 @@ local function bindCameraControl()
 
    KeyConfig.bind("keypressed", { key = "c" },
    function(sc)
+      if mode ~= "normal" then
+         return false, sc
+      end
       moveCameraToPlayer()
       return false, sc
    end,
@@ -1150,17 +1171,23 @@ local function bindCameraControl()
 end
 
 local function bindKonsole()
-   KeyConfig.bind("keypressed", { key = "`" }, function(sc)
+   KeyConfig.bind("keypressed", { key = "`" },
+   function(sc)
+      if mode ~= "normal" then
+         return false, sc
+      end
       linesbuf.show = not linesbuf.show
       return false, sc
    end)
+
 end
+
 
 local function bindEscape()
    KeyConfig.bind("keypressed", { key = "escape" }, function(sc)
-
-
-
+      if mode ~= "normal" then
+         return false, sc
+      end
       if showLogo == true then
          love.event.quit()
       else
@@ -1316,22 +1343,6 @@ local function update(dt)
    updateBullets()
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local function backspaceCmdLine()
    local u8 = require("utf8")
 
@@ -1358,20 +1369,22 @@ end
 local historyfname = "cmdhistory.txt"
 
 local function enterCommandMode()
-   print("command mode enabled.")
-   mode = "command"
-   cmdline = ""
-   love.keyboard.setKeyRepeat(true)
-   love.keyboard.setTextInput(true)
-   local history = love.filesystem.read(historyfname)
-   if history then
-      print("commands history loaded.")
-      cmdhistory = {}
-      for s in history:gmatch("[^\r\n]+") do
-         table.insert(cmdhistory, s)
-         print("s", s)
+   if linesbuf.show then
+      print("command mode enabled.")
+      mode = "command"
+      cmdline = ""
+      love.keyboard.setKeyRepeat(true)
+      love.keyboard.setTextInput(true)
+      local history = love.filesystem.read(historyfname)
+      if history then
+         print("commands history loaded.")
+         cmdhistory = {}
+         for s in history:gmatch("[^\r\n]+") do
+            table.insert(cmdhistory, s)
+            print("s", s)
+         end
+         print("all entries.")
       end
-      print("all entries.")
    end
 end
 
@@ -1403,6 +1416,8 @@ local function evalCommand()
    local preload = [[]]
    local func, loaderrmsg = load(preload .. cmdline)
    local time = 2
+
+
    if not func then
       linesbuf:push(time, "load() errmsg: " .. loaderrmsg)
       print("load() errmsg:|" .. loaderrmsg .. "|")
@@ -1454,31 +1469,6 @@ local function keypressed(key)
          enterCommandMode()
       end
    end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
 
 

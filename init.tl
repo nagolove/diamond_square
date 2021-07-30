@@ -1027,6 +1027,9 @@ local function bindPlayerTankKeys()
         kc.bind(
             bmode, { key = "d" },
             function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
                 playerTank["right"](playerTank)
                 return false, sc
             end,
@@ -1036,6 +1039,9 @@ local function bindPlayerTankKeys()
         kc.bind(
             bmode, { key = "a" },
             function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
                 playerTank["left"](playerTank)
                 return false, sc
             end,
@@ -1045,6 +1051,9 @@ local function bindPlayerTankKeys()
         kc.bind(
             bmode, { key = "w" },
             function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
                 playerTank["forward"](playerTank)
                 return false, sc
             end,
@@ -1054,6 +1063,9 @@ local function bindPlayerTankKeys()
         kc.bind(
             bmode, { key = "s" },
             function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
                 playerTank["backward"](playerTank)
                 return false, sc
             end,
@@ -1063,6 +1075,9 @@ local function bindPlayerTankKeys()
         kc.bind(
             bmode, { key = "v" },
             function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
                 playerTank["resetVelocities"](playerTank)
                 return false, sc
             end,
@@ -1072,6 +1087,9 @@ local function bindPlayerTankKeys()
         kc.bind(
             "isdown", { key = "space" },
             function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
                 if playerTank then
                     playerTank:fire()
                 end
@@ -1112,9 +1130,9 @@ local function bindCameraControl()
     local function makeMoveFunction(xc: number, yc: number): function(sc: Shortcut): boolean, Shortcut
         -- {{{
         return function(sc: Shortcut): boolean, Shortcut
-            --if mode ~= "normal" then
-                --return false, sc
-            --end
+            if mode ~= "normal" then
+                return false, sc
+            end
             local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
             camTimer:during(cameraAnimationDuration, function(dt: number, time: number, delay: number)
                 local dx, dy = -reldx * (delay - time) * xc, -reldy * (delay - time) * yc
@@ -1143,6 +1161,9 @@ local function bindCameraControl()
 
     KeyConfig.bind("keypressed", { key = "c" }, 
         function(sc: Shortcut): boolean, Shortcut
+            if mode ~= "normal" then
+                return false, sc
+            end
             moveCameraToPlayer()
             return false, sc
         end, 
@@ -1150,17 +1171,23 @@ local function bindCameraControl()
 end
 
 local function bindKonsole()
-    KeyConfig.bind("keypressed", { key = "`" }, function(sc: Shortcut): boolean, Shortcut
-        linesbuf.show = not linesbuf.show
-        return false, sc
-    end)
+    KeyConfig.bind("keypressed", { key = "`" }, 
+        function(sc: Shortcut): boolean, Shortcut
+            if mode ~= "normal" then
+                return false, sc
+            end
+            linesbuf.show = not linesbuf.show
+            return false, sc
+        end
+    )
 end
 
+-- Сомнительная функция, не работает наверное.
 local function bindEscape()
     KeyConfig.bind("keypressed", { key = "escape" }, function(sc: Shortcut): boolean, Shortcut
-        --if mode ~= "normal" then
-            --return false, sc
-        --end
+        if mode ~= "normal" then
+            return false, sc
+        end
         if showLogo == true then
             love.event.quit()
         else
@@ -1316,22 +1343,6 @@ local function update(dt: number)
     updateBullets()
 end
 
---[[
-local function processValue(key: string)
-    local t = 0.5
-    if key == "n" then
-        VALUE = VALUE - t
-        print("VALUE", VALUE)
-    elseif key == "m" then
-        VALUE = VALUE + t
-        print("VALUE", VALUE)
-    elseif key == "b" then
-        VALUE = 0
-        print("VALUE", VALUE)
-    end
-end
---]]
-
 local function backspaceCmdLine()
     local u8 = require "utf8"
     -- get the byte offset to the last UTF-8 character in the string.
@@ -1358,20 +1369,22 @@ end
 local historyfname = "cmdhistory.txt"
 
 local function enterCommandMode()
-    print("command mode enabled.")
-    mode = "command"
-    cmdline = ""
-    love.keyboard.setKeyRepeat(true)
-    love.keyboard.setTextInput(true)
-    local history = love.filesystem.read(historyfname)
-    if history then
-        print("commands history loaded.")
-        cmdhistory = {}
-        for s in history:gmatch("[^\r\n]+") do
-            table.insert(cmdhistory, s)
-            print("s", s)
+    if linesbuf.show then
+        print("command mode enabled.")
+        mode = "command"
+        cmdline = ""
+        love.keyboard.setKeyRepeat(true)
+        love.keyboard.setTextInput(true)
+        local history = love.filesystem.read(historyfname)
+        if history then
+            print("commands history loaded.")
+            cmdhistory = {}
+            for s in history:gmatch("[^\r\n]+") do
+                table.insert(cmdhistory, s)
+                print("s", s)
+            end
+            print("all entries.")
         end
-        print("all entries.")
     end
 end
 
@@ -1456,31 +1469,6 @@ local function keypressed(key: string)
             enterCommandMode()
         end
     end
-
-    --[[
-    if key == "space" then
-        -- {{{ Testing timer
-        print("space pressed")
-        local animLen = 3
-        camTimer:during(animLen, function(_: number, time: number, _: number)
-            push2drawlist(function()
-                gr.setColor{1., 0., 0.}
-                local radius = 50
-                --print("time", time)
-                --print("delay", delay)
-                --print("a", a)
-                gr.circle("fill", W / 2, H / 2, radius * time)
-            end)
-            --cam:move(-reldx * (delay - time) * xc, -reldy * (delay - time) * yc)
-        end,
-        function()
-            print("after space")
-        end)
-        -- }}}
-    end
-    --]]
-
-    --processValue(key)
 end
 
 -- положение в метрах
