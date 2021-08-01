@@ -1,9 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
-
-
-local Mode = {}
-
-
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pairs = _tl_compat and _tl_compat.pairs or pairs; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 SCENE_PREFIX = "scenes/t80u"
@@ -22,6 +17,8 @@ require("imgui")
 local i18n = require("i18n")
 local inspect = require("inspect")
 local vec2 = require("vector")
+local gr = love.graphics
+local lp = love.physics
 
 
 DEBUG_BASE = false
@@ -58,23 +55,26 @@ local bulletMask = 1
 
 local forceScale = 100
 
-
-local camTimer = require("Timer").new()
-
 local DrawNode = {}
 
 
 
 
-local drawlist = {}
-local gr = love.graphics
-local lp = love.physics
+
+local Mode = {}
+
+
 
 local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode = "normal"
 local cmdline, prevcmdline = "", ""
 local cmdhistory = {}
+suggestList = List.new()
 
+
+local drawlist = {}
+
+local camTimer = require("Timer").new()
 local drawCoro = nil
 local showLogo = true
 local playerTankKeyconfigIds = {}
@@ -329,7 +329,7 @@ local function presentDrawlist()
    end
 end
 
-local function push2drawlist(f, self)
+function push2drawlist(f, self)
    if not f then
       error("Draw could'not be nil.")
    end
@@ -1410,12 +1410,32 @@ function konsolePrint(...)
 end
 
 local function evalCommand()
+   local preload = [[
+        function vars()
+            for k, v in pairs(_G) do
+                local ok, errmsg = pcall(function()
+                    --print(k, v)
+                    if suggestList then
+                        local line = string.format("%s: %s", tostring(k), inspect(v)))
+                        -- обязательно вызывать метод :clear()?
+                        suggestList:clear()
+                        suggestList:add(line)
+                        print(line)
+                    end
+                end)
+                if not ok then
+                    print('Error in listing occured:', errmsg)
+                end
+            end
+        end
 
+        local inspect = require 'inspect'
+        -- XXX Global variable
+        systemPrint = print
+        print = konsolePrint
+    ]]
 
-
-
-
-   local preload = [[]]
+   cmdline = trim(cmdline)
    local func, loaderrmsg = load(preload .. cmdline)
    local time = 2
 
@@ -1434,36 +1454,51 @@ local function evalCommand()
          cmdline = ""
       end
    end
-   local trimmed = trim(cmdline) or ""
-   if #trimmed ~= 0 then
+
+   if #cmdline ~= 0 then
       table.insert(cmdhistory, cmdline)
       love.filesystem.append(historyfname, cmdline .. "\n")
    end
+   suggestList = nil
 end
+
+local cmdhistoryIndex = 0
 
 local function setPreviousCommand()
    print('setPreviousCommand')
-   prevcmdline = cmdline
+
    if #cmdhistory ~= 0 then
-      print("cmdline", cmdline)
-      cmdline = cmdhistory[#cmdhistory]
+      if cmdhistoryIndex - 1 < 1 then
+         cmdhistoryIndex = #cmdhistory
+      else
+         cmdhistoryIndex = cmdhistoryIndex - 1
+      end
+      cmdline = cmdhistory[cmdhistoryIndex]
       print("cmdline", cmdline)
    end
 end
 
 local function setNextCommand()
    print('setNextCommand')
-   if prevcmdline then
-      print("cmdline", cmdline)
-      cmdline = prevcmdline
+   if #cmdhistory ~= 0 then
+      if cmdhistoryIndex + 1 > #cmdhistory then
+         cmdhistoryIndex = 1
+      else
+         cmdhistoryIndex = cmdhistoryIndex + 1
+      end
+      cmdline = cmdhistory[cmdhistoryIndex]
       print("cmdline", cmdline)
    end
 end
 
-local suggestList = List.new()
-
 local function suggestCompletion()
+   if not suggestList then
+      suggestList = List.new()
+   end
 
+   for k, v in pairs(_G) do
+      suggestList:add(string.format("%s: %s", tostring(k), tostring(v)))
+   end
 end
 
 local function processCommandModeKeys(key)

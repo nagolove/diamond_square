@@ -1,17 +1,11 @@
 -- vim: fdm=marker
 -- vim: set colorcolumn=85
 
-local enum Mode
-    "normal"
-    "command"
-end
-
 global SCENE_PREFIX = "scenes/t80u"
 
 love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
-local List = require "list"
-local metrics = require "metrics"
+-- {{{ require
 require "love"
 require "common"
 require "keyconfig"
@@ -19,70 +13,23 @@ require "camera"
 require "vector"
 require "Timer"
 require "imgui"
+
+local List = require "list"
 local i18n = require "i18n"
 local inspect = require "inspect"
+local metrics = require "metrics"
 local vec2 = require "vector"
-
--- {{{
-global DEBUG_BASE = false
-global DEBUG_TANK = false
-global DEBUG_TANK_MOVEMENT = false
-global DEBUG_TURRET = true
-global DEBUG_CAMERA = false
-global DEBUG_LOGO = false
-global DEBUG_BULLET = true
-
---global DEBUG_DRAW_THREAD = true
---global DEBUG_TEXCOORDS = true
---global DEBUG_PHYSICS = true
-
-global DEBUG_DRAW_THREAD = false
-global DEBUG_TEXCOORDS = false
-global DEBUG_PHYSICS = false
+local vecl = require "vector-light"
 -- }}}
 
-global DEFAULT_W, DEFAULT_H = 1024, 768
-global W, H = love.graphics.getDimensions()
-global cmd_drawBodyStat: boolean = true
-global cmd_drawCameraAxixes: boolean = false
-
--- Танк длиной пять метров имеет отображаемый размер 50 пикселей
--- коэффициент на который домножаю при переводе из метров в пиксели
-global M2PIX = 10
--- коэффициент на который домножаю при переводе из пикселей в метры
-global PIX2M = 1 / 10
-
---local tankCollisionGroup = 1
---local bulletCollisionGroup = -1
-local bulletMask = 1
-
-local forceScale = 100
-
-global cam: Camera
-local camTimer: Timer = require "Timer".new()
+local gr = love.graphics
+local lp = love.physics
+local Shortcut = KeyConfig.Shortcut
 
 local record DrawNode
     f: function
     self: any
 end
-
-local drawlist: {DrawNode} = {}
-local gr = love.graphics
-local lp = love.physics
-
-local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
-local mode: Mode = "normal"
-local cmdline, prevcmdline: string = "", ""
-local cmdhistory: {string} = {}
-
-local drawCoro: thread = nil
-local showLogo = true
-local playerTankKeyconfigIds: {string} = {}
-local Shortcut = KeyConfig.Shortcut
-
-local angularImpulseScale = 5
-local rot = math.pi / 4
-local zoomLower, zoomHigher = 0.075, 3.5
 
 local record Turret
     -- {{{
@@ -107,6 +54,7 @@ local record Bullet
     timestamp: number
 end
 
+-- {{{ BulletPool prototype
 --[[
 local record BulletPool
     new: function(BulletPool, num: integer): BulletPool
@@ -121,10 +69,7 @@ function BulletPool.new(num: integer): BulletPool
     return self
 end
 --]]
-
-local Turret_mt: metatable<Turret> = {
-    __index = Turret,
-}
+-- }}}
 
 -- ходовая часть с полигоном
 local record Base
@@ -147,10 +92,6 @@ local record Base
     initMeshVerts: function(Base)
     -- }}}
 end
-
-local Base_mt: metatable<Base> = {
-    __index = Base,
-}
 
 local record Tank
     -- {{{
@@ -183,10 +124,6 @@ local record Tank
     -- }}}
 end
 
-local Tank_mt: metatable<Tank> = {
-    __index = Tank,
-}
-
 local record Logo
     -- {{{
     image: love.graphics.Image
@@ -201,10 +138,6 @@ local record Logo
     -- }}}
 end
 
-local Logo_mt: metatable<Logo> = {
-    __index = Logo,
-}
-
 local type CameraSettings = record
     -- {{{
     dx: number
@@ -212,11 +145,67 @@ local type CameraSettings = record
     -- }}}
 end
 
+-- {{{ DEBUG globals
+global DEBUG_BASE = false
+global DEBUG_TANK = false
+global DEBUG_TANK_MOVEMENT = false
+global DEBUG_TURRET = true
+global DEBUG_CAMERA = false
+global DEBUG_LOGO = false
+global DEBUG_BULLET = true
+
+--global DEBUG_DRAW_THREAD = true
+--global DEBUG_TEXCOORDS = true
+--global DEBUG_PHYSICS = true
+
+global DEBUG_DRAW_THREAD = false
+global DEBUG_TEXCOORDS = false
+global DEBUG_PHYSICS = false
+
+-- Глобальные флаги отображения
+global cmd_drawBodyStat: boolean = true
+global cmd_drawCameraAxixes: boolean = false
+-- }}}
+
+-- Размеры экрана по-умолчанию(начальное положение)
+global DEFAULT_W, DEFAULT_H = 1024, 768
+-- Размеры экрана
+global W, H = love.graphics.getDimensions()
+--[[ Танк длиной пять метров имеет отображаемый размер 50 пикселей
+коэффициент на который домножаю при переводе из метров в пиксели --]]
+global M2PIX = 10
+-- коэффициент на который домножаю при переводе из пикселей в метры
+global PIX2M = 1 / 10
+--local tankCollisionGroup = 1
+--local bulletCollisionGroup = -1
+-- Пули не сталкиваются с танками
+local bulletMask = 1
+-- Множитель передачи импульса на шасси танка.
+local forceScale = 100
+-- {{{ Konsole editing
+local enum Mode
+    "normal"
+    "command"
+end
+local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
+local mode: Mode = "normal"
+local cmdline, prevcmdline: string = "", ""
+local cmdhistory: {string} = {}
+global suggestList: List = List.new()
+-- }}}
+local drawlist: {DrawNode} = {}
+global cam: Camera
+local camTimer: Timer = require "Timer".new()
+local drawCoro: thread = nil
+global showLogo = true
+local playerTankKeyconfigIds: {string} = {}
+local angularImpulseScale = 5
+local rot = math.pi / 4
+local zoomLower, zoomHigher = 0.075, 3.5
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
     dx = 100, dy = 100,
 }
-
 -- Экземпляр box2d
 global pworld: love.physics.World
 -- Все танки, в том числе и тот, которым управляет игрок.
@@ -229,14 +218,11 @@ global background: Background
 global logo: Logo
 -- Все снаряды вырущенные из танков, пока не уничтоженные
 global bullets: {Bullet} = {}
-
--- В пикселях
+-- Радиус снаряда пушки в пикселях
 local bulletRadius = 4
 local bulletColor = {1, 1, 1, 1}
 -- Продолжительность жизни снаряда в секундах.
 local bulletLifetime = 1
-
-local vecl = require "vector-light"
 
 local function drawArrow(
     fromx: number, fromy: number, tox: number, toy: number, 
@@ -329,7 +315,7 @@ local function presentDrawlist()
     end
 end
 
-local function push2drawlist(f: function, self: any)
+function push2drawlist(f: function, self: any)
     if not f then
         error("Draw could'not be nil.")
     end
@@ -395,6 +381,10 @@ local tankCounter = 0
 -- местоположение передавать в метрах
 -- направление шасси - нормализованный вектор
 function Tank.new(pos: vector, dir: vector): Tank
+    local Tank_mt: metatable<Tank> = {
+        __index = Tank,
+    }
+
     if DEBUG_TANK then
         print('Start of Tank creating..')
     end
@@ -518,6 +508,10 @@ function Turret.new(t: Tank): Turret
     if not t then
         error("Could'not create Turret without Tank object")
     end
+
+    local Turret_mt: metatable<Turret> = {
+        __index = Turret,
+    }
 
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.tank = t
@@ -698,6 +692,10 @@ function Base:present()
 end
 
 function Base.new(t: Tank): Base
+    local Base_mt: metatable<Base> = {
+        __index = Base,
+    }
+
     -- {{{
     if DEBUG_BASE then
         print("BaseP.new()")
@@ -1410,12 +1408,32 @@ function konsolePrint(...: any)
 end
 
 local function evalCommand()
-    --local preload = [[
-        --local inspect = require 'inspect'
-        ----local systemPrint = print
-        ----print = konsolePrint
-    --]]
-    local preload = [[]]
+    local preload = [[
+        function vars()
+            for k, v in pairs(_G) do
+                local ok, errmsg = pcall(function()
+                    --print(k, v)
+                    if suggestList then
+                        local line = string.format("%s: %s", tostring(k), inspect(v))
+                        -- обязательно вызывать метод :clear()?
+                        suggestList:clear()
+                        suggestList:add(line)
+                        print(line)
+                    end
+                end)
+                if not ok then
+                    print('Error in listing occured:', errmsg)
+                end
+            end
+        end
+
+        local inspect = require 'inspect'
+        -- XXX Global variable
+        systemPrint = print
+        --print = konsolePrint
+    ]]
+    --local preload = [[]]
+    cmdline = trim(cmdline)
     local func, loaderrmsg: function, string = load(preload .. cmdline)
     local time = 2
 
@@ -1434,36 +1452,51 @@ local function evalCommand()
             cmdline = ""
         end
     end
-    local trimmed = trim(cmdline) or ""
-    if #trimmed ~= 0 then
+    --local trimmed = trim(cmdline) or ""
+    if #cmdline ~= 0 then
         table.insert(cmdhistory, cmdline)
         love.filesystem.append(historyfname, cmdline .. "\n")
     end
+    suggestList = nil
 end
+
+local cmdhistoryIndex = 0
 
 local function setPreviousCommand()
     print('setPreviousCommand')
-    prevcmdline = cmdline
+    --prevcmdline = cmdline
     if #cmdhistory ~= 0 then
-        print("cmdline", cmdline)
-        cmdline = cmdhistory[#cmdhistory]
+        if cmdhistoryIndex - 1 < 1 then
+            cmdhistoryIndex = #cmdhistory
+        else
+            cmdhistoryIndex = cmdhistoryIndex - 1
+        end
+        cmdline = cmdhistory[cmdhistoryIndex]
         print("cmdline", cmdline)
     end
 end
 
 local function setNextCommand()
     print('setNextCommand')
-    if prevcmdline then
-        print("cmdline", cmdline)
-        cmdline = prevcmdline
+    if #cmdhistory ~= 0 then
+        if cmdhistoryIndex + 1 > #cmdhistory then
+            cmdhistoryIndex = 1
+        else
+            cmdhistoryIndex = cmdhistoryIndex + 1
+        end
+        cmdline = cmdhistory[cmdhistoryIndex]
         print("cmdline", cmdline)
     end
 end
 
-local suggestList: List = List.new()
-
 local function suggestCompletion()
--- Как рисовать список идентификаторов?
+    if not suggestList then
+        suggestList = List.new()
+    end
+    -- Как рисовать список идентификаторов?
+    for k, v in pairs(_G as {any:any}) do
+        suggestList:add(string.format("%s: %s", tostring(k), tostring(v)))
+    end
 end
 
 local function processCommandModeKeys(key: string)
@@ -1580,6 +1613,10 @@ local function bindFullscreenSwitcher()
 end
 
 function Logo.new(): Logo
+    local Logo_mt: metatable<Logo> = {
+        __index = Logo,
+    }
+
     if DEBUG_LOGO then
         print("Logo.new()")
     end
