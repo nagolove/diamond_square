@@ -26,11 +26,27 @@ local gr = love.graphics
 local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
 
+local enum Mode
+    "normal"
+    "command"
+end
+
 local record DrawNode
     f: function
     self: any
 end
 
+-- Подложка арены
+local record Background
+    -- {{{
+    img: gr.Image
+
+    new: function(): Background
+    present: function()
+    -- }}}
+end
+
+-- Пушка вместе с башней
 local record Turret
     -- {{{
     pbody: love.physics.Body
@@ -49,13 +65,16 @@ local record Turret
     -- }}}
 end
 
+-- Снаряд
 local record Bullet
+    -- {{{
     body: love.physics.Body
     timestamp: number
+    -- }}}
 end
 
--- {{{ BulletPool prototype
 --[[
+-- {{{ BulletPool prototype
 local record BulletPool
     new: function(BulletPool, num: integer): BulletPool
     spaw: function(x: number, y: number): Bullet
@@ -68,10 +87,10 @@ function BulletPool.new(num: integer): BulletPool
     local self = setmetatable({} as BulletPool, BulletPool_mt)
     return self
 end
---]]
 -- }}}
+--]]
 
--- ходовая часть с полигоном
+-- Ходовая часть с полигоном
 local record Base
     -- {{{
     pbody: love.physics.Body
@@ -93,6 +112,7 @@ local record Base
     -- }}}
 end
 
+-- Класс основного боевого танка.
 local record Tank
     -- {{{
     pbody: love.physics.Body
@@ -124,6 +144,7 @@ local record Tank
     -- }}}
 end
 
+-- Заставка
 local record Logo
     -- {{{
     image: love.graphics.Image
@@ -167,6 +188,7 @@ global cmd_drawBodyStat: boolean = true
 global cmd_drawCameraAxixes: boolean = false
 -- }}}
 
+-- {{{ Global and local variables.
 -- Размеры экрана по-умолчанию(начальное положение)
 global DEFAULT_W, DEFAULT_H = 1024, 768
 -- Размеры экрана
@@ -183,13 +205,10 @@ local bulletMask = 1
 -- Множитель передачи импульса на шасси танка.
 local forceScale = 100
 -- {{{ Konsole editing
-local enum Mode
-    "normal"
-    "command"
-end
+local historyfname = "cmdhistory.txt"
 local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 local mode: Mode = "normal"
-local cmdline, prevcmdline: string = "", ""
+local cmdline: string = ""
 local cmdhistory: {string} = {}
 global suggestList: List = List.new()
 -- }}}
@@ -223,11 +242,14 @@ local bulletRadius = 4
 local bulletColor = {1, 1, 1, 1}
 -- Продолжительность жизни снаряда в секундах.
 local bulletLifetime = 1
+local tankCounter = 0
+-- }}}
 
 local function drawArrow(
     fromx: number, fromy: number, tox: number, toy: number, 
     color: {number}
 )
+    -- {{{
     local angle = math.pi / 11
     local arrowDiv = 20
 
@@ -249,9 +271,11 @@ local function drawArrow(
     gr.line(tox, toy, tox - rx, toy - ry)
     -- main line
     gr.line(fromx, fromy, tox, toy)
+    -- }}}
 end
 
 local function drawBullets()
+    -- {{{
     for _, b in ipairs(bullets) do
         local px, py = b.body:getWorldCenter()
         px, py = px * M2PIX, py * M2PIX
@@ -261,9 +285,11 @@ local function drawBullets()
         end
         gr.circle("fill", px, py, bulletRadius)
     end
+    -- }}}
 end
 
 local function updateBullets()
+    -- {{{
     local alive: {Bullet} = {}
     local now = love.timer.getTime()
     for _, v in ipairs(bullets) do
@@ -274,10 +300,12 @@ local function updateBullets()
         table.insert(alive, v)
     end
     bullets = alive
+    -- }}}
 end
 
 -- размеры в метрах
 local function spawnBullet(px: number, py: number, dirx: number, diry: number)
+    -- {{{
     print("spawnBullet")
     local bullet: Bullet = {}
     bullet.body = love.physics.newBody(pworld, px, py, "kinematic")
@@ -293,9 +321,11 @@ local function spawnBullet(px: number, py: number, dirx: number, diry: number)
         bullet.body:applyLinearImpulse(dirx, diry)
     end
     table.insert(bullets, bullet)
+    -- }}}
 end
 
 function Turret:fire()
+    -- {{{
     if DEBUG_TURRET then
         print("Turret:fire()")
     end
@@ -303,9 +333,11 @@ function Turret:fire()
     local scale = 3
     print("pbody", px, py)
     spawnBullet(px, py, self.dir.x * scale, self.dir.y * scale)
+    -- }}}
 end
 
 local function presentDrawlist()
+    -- {{{
     for _, v in ipairs(drawlist) do
         if v.self then
             v.f(v.self)
@@ -313,9 +345,11 @@ local function presentDrawlist()
             v.f()
         end
     end
+    -- }}}
 end
 
 function push2drawlist(f: function, self: any)
+    -- {{{
     if not f then
         error("Draw could'not be nil.")
     end
@@ -323,15 +357,19 @@ function push2drawlist(f: function, self: any)
         error("Draw function is not a function. It is a .. " .. type(f))
     end
     table.insert(drawlist, { f = f, self = self})
+    -- }}}
 end
 
 function Tank:fire()
+    -- {{{
     if self.turret then
         self.turret:fire()
     end
+    -- }}}
 end
 
 function Tank:left()
+    -- {{{
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:left")
     end
@@ -340,9 +378,11 @@ function Tank:left()
         --print("Tank " .. self.id .. " applyAngularImpulse", imp)
     end
     self.pbody:applyAngularImpulse(imp)
+    -- }}}
 end
 
 function Tank:right()
+    -- {{{
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:right")
     end
@@ -351,9 +391,11 @@ function Tank:right()
         --print("Tank " .. self.id .. " applyAngularImpulse", imp)
     end
     self.pbody:applyAngularImpulse(imp)
+    -- }}}
 end
 
 function Tank:forward()
+    -- {{{
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:forward")
     end
@@ -362,9 +404,11 @@ function Tank:forward()
     --end
     local x, y = self.dir.x * forceScale, self.dir.y * forceScale
     self.pbody:applyForce(x, y)
+    -- }}}
 end
 
 function Tank:backward()
+    -- {{{
     if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
         print("Tank:backward")
     end
@@ -374,13 +418,13 @@ function Tank:backward()
     local x, y = self.dir.x * forceScale, self.dir.y * forceScale
     print('applied', x, y)
     self.pbody:applyForce(-x, -y)
+    -- }}}
 end
-
-local tankCounter = 0
 
 -- местоположение передавать в метрах
 -- направление шасси - нормализованный вектор
 function Tank.new(pos: vector, dir: vector): Tank
+    -- {{{
     local Tank_mt: metatable<Tank> = {
         __index = Tank,
     }
@@ -425,9 +469,11 @@ function Tank.new(pos: vector, dir: vector): Tank
         print('End of Tank creating.')
     end
     return self
+    -- }}}
 end
 
 local function drawBodyStat(body: love.physics.Body)
+    -- {{{
     local color = {0, 0, 0, 1}
     local radius = 10
     local x, y = body:getWorldCenter()
@@ -445,9 +491,11 @@ local function drawBodyStat(body: love.physics.Body)
     local scale = 7.
     --gr.line(x, y, x + vx * scale, y + vy * scale)
     drawArrow(x, y, x + vx * scale, y + vy * scale, color)
+    -- }}}
 end
 
 function Tank:drawDirectionVector()
+    -- {{{
     if self.dir then
         local x, y = self.pbody:getWorldCenter()
         local scale = 100
@@ -455,22 +503,28 @@ function Tank:drawDirectionVector()
         x, y = x * M2PIX, y * M2PIX
         drawArrow(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
     end
+    -- }}}
 end
 
 function Tank:resetVelocities()
+    -- {{{
     if self.pbody then
         self.pbody:setAngularVelocity(0)
         self.pbody:setLinearVelocity(0, 0)
     end
+    -- }}}
 end
 
 function Tank:updateDir()
+    -- {{{
     local unit = 1
     -- возможно зад перепутан с передом
     self.dir = vec2.fromPolar(self.pbody:getAngle() + math.pi / 2, unit)
+    -- }}}
 end
 
 function Tank:update(): Tank
+    -- {{{
     --print("Tank:update()")
     --print("body angle", self.pbody:getAngle())
 
@@ -481,9 +535,11 @@ function Tank:update(): Tank
     end
 
     return self
+    -- }}}
 end
 
 function Tank:present()
+    -- {{{
     if self.base and self.base.present then
         self.base:present()
     else
@@ -498,6 +554,7 @@ function Tank:present()
         self:drawDirectionVector()
         drawBodyStat(self.pbody)
     end
+    -- }}}
 end
 
 function Turret.new(t: Tank): Turret
@@ -542,6 +599,7 @@ end
 local __ONCE__ = false
 
 local function drawFixture(f: love.physics.Fixture, color: {number})
+    -- {{{
     local defaultcolor = {1, 0.5, 0, 0.5}
     if not color then
         color = defaultcolor
@@ -583,10 +641,12 @@ local function drawFixture(f: love.physics.Fixture, color: {number})
     else
         error("Shape type " .. shapeType .. " unsupported.")
     end
+    -- }}}
 end
 
 -- Как сделать медленный поворот башни?
 function Turret:rotateToMouse()
+    -- {{{
     local mx, my = love.mouse.getPosition()
     mx, my = cam:worldCoords(mx, my)
     mx, my = mx * PIX2M, my * PIX2M
@@ -611,13 +671,16 @@ function Turret:rotateToMouse()
     --]]
 
     self.angle = -a
+    -- }}}
 end
 
 function Turret:update()
+    -- {{{
     -- поворачивать башню только у танка игрока
     if playerTank and self.tank == playerTank then
         self:rotateToMouse()
     end
+    -- }}}
 end
 
 function Turret:present()
@@ -692,11 +755,11 @@ function Base:present()
 end
 
 function Base.new(t: Tank): Base
+    -- {{{
     local Base_mt: metatable<Base> = {
         __index = Base,
     }
 
-    -- {{{
     if DEBUG_BASE then
         print("BaseP.new()")
     end
@@ -802,6 +865,7 @@ function Base:updateMeshTexCoords(x: number, y: number, w: number, h: number)
 end
 
 function Base:initMeshVerts()
+    -- {{{
     self.meshVerts = {}
     for _ = 1, 6 do
         table.insert(self.meshVerts, {
@@ -810,12 +874,14 @@ function Base:initMeshVerts()
             1, 1, 1, 1,     -- 5, 6, 7, 8   - r, g, b, a
         })
     end
+    -- }}}
 end
 
 -- TODO сделать меньше копирований
 -- TODO Попробовать выставялть матрицы проекции для каждого танка вместо
 -- заполнения сетки.
 function Base:updateMeshVerts()
+    -- {{{
     --if self.tank.pbody:isAwake() then
         self.mesh:setVertices(self.meshVerts)
 
@@ -855,6 +921,7 @@ function Base:updateMeshVerts()
         --]]
     --end
     --print("self.meshVerts", inspect(self.meshVerts))
+    -- }}}
 end
 
 local function onBeginContact(
@@ -903,7 +970,6 @@ local function onBeginContact(
 
   --]]
   -- }}}
-
 end
 
 local function onEndContact(
@@ -911,9 +977,8 @@ local function onEndContact(
         _: love.physics.Fixture,
         _: love.physics.Contact
     )
-
-    --[[
     -- {{{
+    --[[
   if drawContactPoints then
     local x1, y1, x2, y2 = contact:getPositions()
     local body1 = fixture1:getBody()
@@ -938,8 +1003,8 @@ local function onEndContact(
     end
   end
   --]]
-end
     -- }}}
+end
 
 local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
     -- {{{
@@ -954,15 +1019,18 @@ local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
 end
 
 local function drawQueryBox(x: number, y: number, w: number, h: number)
+    -- {{{
     local oldwidth = gr.getLineWidth()
     local lwidth = 4
     gr.setLineWidth(lwidth)
     gr.setColor{0., 0., 1.}
     gr.rectangle("line", x, y, w, h)
     gr.setLineWidth(oldwidth)
+    -- }}}
 end
 
 local function queryBoundingBox()
+    -- {{{
     if cam then
         local tlx, tly = cam:worldCoords(0, 0)
         local brx, bry = cam:worldCoords(gr.getDimensions())
@@ -985,15 +1053,20 @@ local function queryBoundingBox()
             onQueryBoundingBox
         )
     end
+    -- }}}
 end
 
 local function unbindPlayerTankKeys()
+    -- {{{
     for _, id in ipairs(playerTankKeyconfigIds) do
         KeyConfig.unbind(id)
     end
+    playerTankKeyconfigIds = {}
+    -- }}}
 end
 
 local function loadLocales()
+    -- {{{
     local localePath = SCENE_PREFIX .. "/locales"
     local files = love.filesystem.getDirectoryItems(localePath)
     print("locale files", inspect(files))
@@ -1009,9 +1082,11 @@ local function loadLocales()
     --i18n.setLocale('en')
     i18n.setLocale('ru')
     --print("i18n", inspect(i18n))
+    -- }}}
 end
 
 local function bindPlayerTankKeys()
+    -- {{{
     local function pushId(id: string): string
         table.insert(playerTankKeyconfigIds, id)
         return id
@@ -1099,29 +1174,37 @@ local function bindPlayerTankKeys()
     else
         error("There is no player tank object instance, sorry.")
     end
+    -- }}}
 end
 
 local function changeKeyConfigListbackground()
+    -- {{{
     KeyConfig.setListSetupCallback(function(list: List)
         list.colors.normal = {bg = {0.19, 0.61, 0.88}, fg = {1, 1., 1., 1.}}
     end)
+    -- }}}
 end
 
 local function drawui()
+    -- {{{
     imgui.StyleColorsLight()
     imgui.ShowDemoWindow()
     imgui.ShowUserGuide()
+    -- }}}
 end
 
 local function moveCameraToPlayer()
+    -- {{{
     if playerTank then
         local x, y = playerTank.pbody:getWorldCenter()
         x, y = x * M2PIX, y * M2PIX
         cam:lookAt(x, y)
     end
+    -- }}}
 end
 
 local function bindCameraControl()
+    -- {{{
     -- не прямой а квадратичный зум?
     local cameraAnimationDuration = 0.2
 
@@ -1166,9 +1249,11 @@ local function bindCameraControl()
             return false, sc
         end, 
         i18n("cam2tank"), "cam2tank")
+    -- }}}
 end
 
 local function bindKonsole()
+    -- {{{
     KeyConfig.bind("keypressed", { key = "`" }, 
         function(sc: Shortcut): boolean, Shortcut
             if mode ~= "normal" then
@@ -1178,10 +1263,12 @@ local function bindKonsole()
             return false, sc
         end
     )
+    -- }}}
 end
 
 -- Сомнительная функция, не работает наверное.
 local function bindEscape()
+    -- {{{
     KeyConfig.bind("keypressed", { key = "escape" }, function(sc: Shortcut): boolean, Shortcut
         if mode ~= "normal" then
             return false, sc
@@ -1193,9 +1280,11 @@ local function bindEscape()
         end
         return false, sc
     end)
+    -- }}}
 end
 
 local function removeFirstColon(s: string): string
+    -- {{{
     if not s then
         return nil
     end
@@ -1204,6 +1293,7 @@ local function removeFirstColon(s: string): string
     else
         return s
     end
+    -- }}}
 end
 
 --[[
@@ -1215,6 +1305,7 @@ colprint("test removeFirstColon('::'): " .. removeFirstColon('::'))
 --]]
 
 function printBody(body: love.physics.Body)
+    -- {{{
     print(">>>>>>>>")
     print("mass:", body:getMass())
     local x, y = body:getWorldCenter()
@@ -1222,12 +1313,15 @@ function printBody(body: love.physics.Body)
     print("getWorldCenter() x, y in pixels", x, y)
     print("getAngle()", body:getAngle())
     print(">>>>>>>>")
+    -- }}}
 end
 
 local function konsolePresent()
+    -- {{{
     gr.setColor{1, 1, 1, 1}
-    linesbuf:pushi(string.format("camera x = %d, y = %d, rot = %f, scale = %f", 
-        cam.x, cam.y, cam.rot, cam.scale))
+    linesbuf:pushi(string.format(
+            "camera x = %d, y = %d, rot = %f, scale = %f", 
+            cam.x, cam.y, cam.rot, cam.scale))
 
     if mode == "command" then
         cmdline = removeFirstColon(cmdline)
@@ -1237,16 +1331,14 @@ local function konsolePresent()
     end
 
     linesbuf:draw()
-end
-
-local record Background
-    img: gr.Image
-
-    new: function(): Background
-    present: function()
+    if suggestList then
+        suggestList:draw()
+    end
+    -- }}}
 end
 
 function Background.new(): Background
+    -- {{{
     local Background_mt: metatable<Background> = {
         __index = Background,
     }
@@ -1256,9 +1348,11 @@ function Background.new(): Background
     self.img = gr.newImage(SCENE_PREFIX .. "/grass3.jpg")
 
     return self
+    -- }}}
 end
 
 function Background:present()
+    -- {{{
     local len = 50
     local imgw, imgh = (self.img as gr.Texture):getDimensions()
     --local sx, sy = 0.1, 0.1
@@ -1270,9 +1364,11 @@ function Background:present()
         end
     end
     --gr.clear{0.5, 0.5, 0.5, 1}
+    -- }}}
 end
 
 local function mainPresent()
+    -- {{{
     push2drawlist(Background.present, background)
     push2drawlist(queryBoundingBox)
     push2drawlist(drawBullets)
@@ -1289,9 +1385,11 @@ local function mainPresent()
     changeKeyConfigListbackground()
 
     coroutine.yield()
+    -- }}}
 end
 
 local function drawCameraAxixes()
+    -- {{{
     local color = {0., 0.1, 0.97}
     local lw = 5
     local radius = 40
@@ -1305,9 +1403,11 @@ local function drawCameraAxixes()
     gr.line(cam.x, cam.y, cam.x, cam.y + len)
     gr.line(cam.x, cam.y, cam.x, cam.y - len)
     gr.setLineWidth(oldwidth)
+    -- }}}
 end
 
 local function draw()
+    -- {{{
     local ok, errmsg: boolean, string = coroutine.resume(drawCoro) as (boolean, string)
     if not ok then
         error("drawCoro thread is end: " .. errmsg)
@@ -1320,9 +1420,11 @@ local function draw()
     --drawArrow(300, 600, 400, 600, {1, 0, 0, 1})
     --drawArrow(0, 0, 40, 700, {0, 1, 0, 1})
     --drawArrow(600, 300, 40, 300, {0, 0, 1, 1})
+    -- }}}
 end
 
 local function updateTanks()
+    -- {{{
     local alive: {Tank} = {}
     for _, v in ipairs(tanks) do
         local t =  v:update()
@@ -1331,17 +1433,21 @@ local function updateTanks()
         end
     end
     tanks = alive
+    -- }}}
 end
 
 local function update(dt: number)
+    -- {{{
     camTimer:update(dt)
     pworld:update(1 / 60)
     linesbuf:update()
     updateTanks()
     updateBullets()
+    -- }}}
 end
 
 local function backspaceCmdLine()
+    -- {{{
     local u8 = require "utf8"
     -- get the byte offset to the last UTF-8 character in the string.
     local byteoffset = u8.offset(cmdline, -1)
@@ -1350,6 +1456,7 @@ local function backspaceCmdLine()
         -- string.sub operates on bytes rather than UTF-8 characters, so we couldn't do string.sub(text, 1, -2).
         cmdline = string.sub(cmdline, 1, byteoffset - 1)
     end
+    -- }}}
 end
 
 function PRINT(...: string)
@@ -1364,9 +1471,8 @@ function INSPECT(t: any): string
     return inspect(t)
 end
 
-local historyfname = "cmdhistory.txt"
-
 local function enterCommandMode()
+    -- {{{
     if linesbuf.show then
         print("command mode enabled.")
         mode = "command"
@@ -1386,18 +1492,22 @@ local function enterCommandMode()
         end
         --]]
     end
+    -- }}}
 end
 
 local function leaveCommandMode()
+    -- {{{
     print("command mode disabled.")
     mode = "normal"
     love.keyboard.setKeyRepeat(false)
     love.keyboard.setTextInput(false)
     cmdline = ""
+    -- }}}
 end
 
 -- TODO
 function konsolePrint(...: any)
+    -- {{{
     for _, v in ipairs({...}) do
         if type(v) == "string" then
             linesbuf:push(0.5, tostring(v))
@@ -1405,9 +1515,11 @@ function konsolePrint(...: any)
             colprint("konsolePrint warning")
         end
     end
+    -- }}}
 end
 
 local function evalCommand()
+    -- {{{
     local preload = [[
         function vars()
             for k, v in pairs(_G) do
@@ -1458,11 +1570,13 @@ local function evalCommand()
         love.filesystem.append(historyfname, cmdline .. "\n")
     end
     suggestList = nil
+    -- }}}
 end
 
 local cmdhistoryIndex = 0
 
 local function setPreviousCommand()
+    -- {{{
     print('setPreviousCommand')
     --prevcmdline = cmdline
     if #cmdhistory ~= 0 then
@@ -1474,9 +1588,11 @@ local function setPreviousCommand()
         cmdline = cmdhistory[cmdhistoryIndex]
         print("cmdline", cmdline)
     end
+    -- }}}
 end
 
 local function setNextCommand()
+    -- {{{
     print('setNextCommand')
     if #cmdhistory ~= 0 then
         if cmdhistoryIndex + 1 > #cmdhistory then
@@ -1487,9 +1603,11 @@ local function setNextCommand()
         cmdline = cmdhistory[cmdhistoryIndex]
         print("cmdline", cmdline)
     end
+    -- }}}
 end
 
 local function suggestCompletion()
+    -- {{{
     if not suggestList then
         suggestList = List.new()
     end
@@ -1497,9 +1615,11 @@ local function suggestCompletion()
     for k, v in pairs(_G as {any:any}) do
         suggestList:add(string.format("%s: %s", tostring(k), tostring(v)))
     end
+    -- }}}
 end
 
 local function processCommandModeKeys(key: string)
+    -- {{{
     if key == "backspace" then
         backspaceCmdLine()
     elseif key == "tab" then
@@ -1514,9 +1634,11 @@ local function processCommandModeKeys(key: string)
     elseif key == "down" then
         setNextCommand()
     end
+    -- }}}
 end
 
 local function keypressed(key: string)
+    -- {{{
     if showLogo then
         showLogo = false
         print("showLogo", showLogo)
@@ -1529,10 +1651,12 @@ local function keypressed(key: string)
             enterCommandMode()
         end
     end
+    -- }}}
 end
 
 -- положение в метрах
-local function spawn(pos: vector, dir: vector): Tank
+local function spawnTank(pos: vector, dir: vector): Tank
+    -- {{{
     local res: Tank
     local ok, errmsg: boolean, string = pcall(function()
         if #tanks >= 1 then
@@ -1550,9 +1674,11 @@ local function spawn(pos: vector, dir: vector): Tank
         error("Could'not load. Please implement stub-tank. " .. errmsg)
     end
     return res
+    -- }}}
 end
 
 local function bindCameraZoomKeys()
+    -- {{{
     local zoomSpeed = 0.01
 
     KeyConfig.bind(
@@ -1585,6 +1711,7 @@ local function bindCameraZoomKeys()
         "zoom camera out",
         "zoomout"
     )
+    -- }}}
 end
 
 local function setWindowMode()
@@ -1596,6 +1723,7 @@ local function setFullscreenMode()
 end
 
 local function bindFullscreenSwitcher()
+    -- {{{
     KeyConfig.bind(
         "keypressed", 
         { key = "f11" }, 
@@ -1610,9 +1738,11 @@ local function bindFullscreenSwitcher()
         end,
         "switch fullscreen and windowed modes", 
         "switchwindowmode")
+        -- }}}
 end
 
 function Logo.new(): Logo
+    -- {{{
     local Logo_mt: metatable<Logo> = {
         __index = Logo,
     }
@@ -1635,16 +1765,20 @@ function Logo.new(): Logo
         print("self.sx, self.sy:", self.sx, self.sy)
     end
     return self
+    -- }}}
 end
 
 function Logo:present()
+    -- {{{
     gr.setColor{1, 1, 1, 1}
     --print('Logo:present() self.sx, self.sy:', self.sx, self.sy)
     love.graphics.draw(self.image as gr.Drawable, 0, 0, 0., self.sx, self.sy)
     coroutine.yield()
+    -- }}}
 end
 
 local function createDrawCoroutine()
+    -- {{{
     drawCoro = coroutine.create(function()
         if DEBUG_DRAW_THREAD then
             print("drawCoro started")
@@ -1665,9 +1799,11 @@ local function createDrawCoroutine()
             print("drawCoro finished")
         end
     end)
+    -- }}}
 end
 
 --[[
+-- {{{ bindCommandModeHotkey
 local function bindCommandModeHotkey()
     KeyConfig.bind(
         "keypressed", 
@@ -1692,22 +1828,26 @@ local function bindCommandModeHotkey()
         i18n("commandmode"),
         "commandmode")
 end
+-- }}}
 --]]
 
 -- параметры в метрах
 local function makeArmy(x: number, y: number)
+    -- {{{
     x = x or 0
     y = y or 0
     local len = 10
     local space = 30
     for i = 1, len do
         for j = 1, len do
-            spawn(vector.new(x + i * space, y + j * space))
+            spawnTank(vector.new(x + i * space, y + j * space))
         end
     end
+    -- }}}
 end
 
 local function init()
+    -- {{{
     metrics.init()
     setWindowMode()
 
@@ -1743,12 +1883,15 @@ local function init()
     makeArmy(0, 500)
     makeArmy(500, 0)
     makeArmy(500, 500)
+    -- }}}
 end
 
 local function quit()
+    -- {{{
     metrics.quit()
     unbindPlayerTankKeys()
     tanks = {}
+    -- }}}
 end
 
 local function mousemoved(x: number, y: number, dx: number, dy: number)
@@ -1760,28 +1903,22 @@ local function wheelmoved(x: number, y: number)
 end
 
 local function mousepressed(x: number, y: number, btn: integer)
+    -- {{{
     metrics.mousepressed(x, y, btn)
     if btn == 1 then
         if playerTank then
             playerTank:fire()
         end
     elseif btn == 2 then
-        -- значения координат мыши привести к мировым координатам камеры
-        --print("mousepressed")
-        --print("x, y", x, y)
-        print("before worldCoords", x, y)
-        local timeout = 2.5
-        linesbuf:push(timeout, "mousepressed(%d, %d)", x, y)
         x, y = cam:worldCoords(x, y)
-        linesbuf:push(timeout, "in world coordinates (%d, %d)", x, y)
-        print("after worldCoords", x, y)
-        --x, y = cam:cameraCoords(x, y)
         x, y = x * PIX2M, y * PIX2M
-        spawn(vector.new(x, y))
+        spawnTank(vector.new(x, y))
     end
+    -- }}}
 end
 
 local function resize(neww: integer, newh: integer)
+    -- {{{
     metrics.resize(neww, newh)
     if DEBUG_CAMERA then
         print("tanks window resized to w, h", neww, newh)
@@ -1789,16 +1926,21 @@ local function resize(neww: integer, newh: integer)
     W, H = neww, newh
     -- FIXME Нужно менять эти переменные?
     --DEFAULT_W, DEFAULT_H = neww, newh
+    -- }}}
 end
 
 local function textinput(text: string)
+    -- {{{
     metrics.textinput(text)
     if mode == "command" then
+        -- Здесь добавить курсор.
         cmdline = cmdline .. text
     end
+    -- }}}
 end
 
 return {
+    -- {{{
     init = init,
     quit = quit,
     draw = draw,
@@ -1810,4 +1952,5 @@ return {
     textinput = textinput,
     mousemoved = mousemoved,
     wheelmoved = wheelmoved
+    -- }}}
 }
