@@ -1375,16 +1375,18 @@ local function enterCommandMode()
         cmdline = ""
         love.keyboard.setKeyRepeat(true)
         love.keyboard.setTextInput(true)
-        local history = love.filesystem.read(historyfname)
-        if history then
+        --[[
+        local historydata = love.filesystem.read(historyfname)
+        if historydata then
             print("commands history loaded.")
             cmdhistory = {}
-            for s in history:gmatch("[^\r\n]+") do
+            for s in historydata:gmatch("[^\r\n]+") do
                 table.insert(cmdhistory, s)
                 print("s", s)
             end
             print("all entries.")
         end
+        --]]
     end
 end
 
@@ -1439,20 +1441,45 @@ local function evalCommand()
     end
 end
 
+local function setPreviousCommand()
+    print('setPreviousCommand')
+    prevcmdline = cmdline
+    if #cmdhistory ~= 0 then
+        print("cmdline", cmdline)
+        cmdline = cmdhistory[#cmdhistory]
+        print("cmdline", cmdline)
+    end
+end
+
+local function setNextCommand()
+    print('setNextCommand')
+    if prevcmdline then
+        print("cmdline", cmdline)
+        cmdline = prevcmdline
+        print("cmdline", cmdline)
+    end
+end
+
+local suggestList: List = List.new()
+
+local function suggestCompletion()
+-- Как рисовать список идентификаторов?
+end
+
 local function processCommandModeKeys(key: string)
     if key == "backspace" then
         backspaceCmdLine()
+    elseif key == "tab" then
+        print('tab pressed.')
+        suggestCompletion()
     elseif key == "escape" then
         leaveCommandMode()
     elseif key == "return" then
         evalCommand()
     elseif key == "up" then
-        prevcmdline = cmdline
-        cmdline = cmdhistory[#cmdhistory]
+        setPreviousCommand()
     elseif key == "down" then
-        if prevcmdline then
-            cmdline = prevcmdline
-        end
+        setNextCommand()
     end
 end
 
