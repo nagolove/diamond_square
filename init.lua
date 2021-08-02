@@ -187,6 +187,8 @@ DEBUG_PHYSICS = false
 cmd_drawBodyStat = true
 cmd_drawCameraAxixes = false
 
+local debugStack = {}
+
 
 
 
@@ -244,6 +246,79 @@ local bulletColor = { 1, 1, 1, 1 }
 local bulletLifetime = 1
 local tankCounter = 0
 
+
+function disableDEBUG()
+
+   DEBUG_BASE = false
+   DEBUG_TANK = false
+   DEBUG_TANK_MOVEMENT = false
+   DEBUG_TURRET = false
+   DEBUG_CAMERA = false
+   DEBUG_LOGO = false
+   DEBUG_BULLET = false
+   DEBUG_DRAW_THREAD = false
+   DEBUG_TEXCOORDS = false
+   DEBUG_PHYSICS = false
+   cmd_drawBodyStat = false
+   cmd_drawCameraAxixes = false
+
+end
+
+function enableDEBUG()
+
+   DEBUG_BASE = true
+   DEBUG_TANK = true
+   DEBUG_TANK_MOVEMENT = true
+   DEBUG_TURRET = true
+   DEBUG_CAMERA = true
+   DEBUG_LOGO = true
+   DEBUG_BULLET = true
+   DEBUG_DRAW_THREAD = true
+   DEBUG_TEXCOORDS = true
+   DEBUG_PHYSICS = true
+   cmd_drawBodyStat = true
+   cmd_drawCameraAxixes = true
+
+end
+
+function pushDEBUG()
+
+   table.insert(debugStack, {
+      ["DEBUG_BASE "] = DEBUG_BASE,
+      ["DEBUG_TANK "] = DEBUG_TANK,
+      ["DEBUG_TANK_MOVEMENT "] = DEBUG_TANK_MOVEMENT,
+      ["DEBUG_TURRET "] = DEBUG_TURRET,
+      ["DEBUG_CAMERA "] = DEBUG_CAMERA,
+      ["DEBUG_LOGO "] = DEBUG_LOGO,
+      ["DEBUG_BULLET "] = DEBUG_BULLET,
+      ["DEBUG_DRAW_THREAD "] = DEBUG_DRAW_THREAD,
+      ["DEBUG_TEXCOORDS "] = DEBUG_TEXCOORDS,
+      ["DEBUG_PHYSICS "] = DEBUG_PHYSICS,
+      ["cmd_drawBodyStat "] = cmd_drawBodyStat,
+      ["cmd_drawCameraAxixes "] = cmd_drawCameraAxixes,
+   })
+
+end
+
+function popDEBUG()
+
+   if #debugStack >= 1 then
+      local entry = debugStack[#debugStack]
+      DEBUG_BASE = entry["DEBUG_BASE"]
+      DEBUG_TANK = entry["DEBUG_TANK"]
+      DEBUG_TANK_MOVEMENT = entry["DEBUG_TANK_MOVEMENT"]
+      DEBUG_TURRET = entry["DEBUG_TURRET"]
+      DEBUG_CAMERA = entry["DEBUG_CAMERA"]
+      DEBUG_LOGO = entry["DEBUG_LOGO"]
+      DEBUG_BULLET = entry["DEBUG_BULLET"]
+      DEBUG_DRAW_THREAD = entry["DEBUG_DRAW_THREAD"]
+      DEBUG_TEXCOORDS = entry["DEBUG_TEXCOORDS"]
+      DEBUG_PHYSICS = entry["DEBUG_PHYSICS"]
+      cmd_drawBodyStat = entry["cmd_drawBodyStat"]
+      cmd_drawCameraAxixes = entry["cmd_drawCameraAxixes"]
+   end
+
+end
 
 local function drawArrow(
    fromx, fromy, tox, toy,
@@ -374,10 +449,11 @@ function Tank:left()
       print("Tank:left")
    end
    local imp = -angularImpulseScale * rot
+   print("mass", self.pbody:getMass())
    if DEBUG_PHYSICS then
-
+      print("Tank " .. self.id .. " applyAngularImpulse", imp)
    end
-   self.pbody:applyAngularImpulse(imp)
+   self.pbody:applyTorque(imp)
 
 end
 
@@ -387,10 +463,11 @@ function Tank:right()
       print("Tank:right")
    end
    local imp = angularImpulseScale * rot
+   print("mass", self.pbody:getMass())
    if DEBUG_PHYSICS then
-
+      print("Tank " .. self.id .. " applyAngularImpulse", imp)
    end
-   self.pbody:applyAngularImpulse(imp)
+   self.pbody:applyTorque(imp)
 
 end
 
@@ -399,10 +476,10 @@ function Tank:forward()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:forward")
    end
-
-
-
    local x, y = self.dir.x * forceScale, self.dir.y * forceScale
+   if DEBUG_PHYSICS then
+      print("Tank " .. self.id .. " applyForce x, y", x, y)
+   end
    self.pbody:applyForce(x, y)
 
 end
@@ -826,7 +903,9 @@ end
 
 function Base:updateMeshTexCoords(x, y, w, h)
 
-   print("updateMeshTexCoords", x, y, w, h)
+
+
+
 
    local imgw, imgh = (self.img):getDimensions()
 
@@ -1015,17 +1094,6 @@ local function onQueryBoundingBox(fixture)
       selfPtr:present()
    end
    return true
-
-end
-
-local function drawQueryBox(x, y, w, h)
-
-   local oldwidth = gr.getLineWidth()
-   local lwidth = 4
-   gr.setLineWidth(lwidth)
-   gr.setColor({ 0., 0., 1. })
-   gr.rectangle("line", x, y, w, h)
-   gr.setLineWidth(oldwidth)
 
 end
 
@@ -1332,7 +1400,8 @@ local function konsolePresent()
 
    linesbuf:draw()
    if suggestList then
-      suggestList:draw()
+
+
    end
 
 end
@@ -1377,9 +1446,6 @@ local function mainPresent()
    presentDrawlist()
    cam:detach()
 
-   if DEBUG_PHYSICS then
-      drawQueryBox()
-   end
    drawlist = {}
 
    changeKeyConfigListbackground()
@@ -1518,18 +1584,46 @@ function konsolePrint(...)
 
 end
 
+local ok, errmsg = pcall(function()
+   require("tabular")
+   local tabular = require("tabular")
+   print(tabular.show(_G))
+end)
+if not ok then
+   print("tabular loading errmsg:", errmsg)
+end
+
 local function evalCommand()
 
    local preload = [[
-        function vars()
+        local inspect = require 'inspect'
+        --local tabular = require 'tabular'
+
+        function help()
+            print('Добро пожаловать в консоль цикла разработки.')
+            print('Попробуйте команду vars() для вывода всех переменных доступных программе.')
+            print('Команда vars("log") для вывода всех переменных по шаблону.')
+            print('Команда display() для отображения переменной.')
+        end
+
+        function display(r)
+            print(inspect(r))
+        end
+
+        function vars(pattern)
             for k, v in pairs(_G) do
                 local ok, errmsg = pcall(function()
-                    --print(k, v)
+                    local line = string.format("%s: %s", tostring(k), inspect(v))
                     if suggestList then
-                        local line = string.format("%s: %s", tostring(k), inspect(v))
                         -- обязательно вызывать метод :clear()?
-                        suggestList:clear()
+                        --suggestList:clear()
                         suggestList:add(line)
+                    end
+                    if pattern and #line ~= 0 then
+                        if string.match(line, pattern) then
+                            print(line)
+                        end
+                    else
                         print(line)
                     end
                 end)
@@ -1539,10 +1633,10 @@ local function evalCommand()
             end
         end
 
-        local inspect = require 'inspect'
         -- XXX Global variable
         systemPrint = print
         --print = konsolePrint
+
     ]]
 
    cmdline = trim(cmdline)
@@ -1560,8 +1654,6 @@ local function evalCommand()
       if not ok then
          linesbuf:push(time, "pcall() errmsg: " .. pcallerrmsg)
          print("pcall() errmsg:|" .. pcallerrmsg .. "|")
-      else
-         cmdline = ""
       end
    end
 
@@ -1667,7 +1759,9 @@ local function spawnTank(pos, dir)
 
       playerTank = t
       res = t
-      print("Tank spawn at", pos.x, pos.y)
+      if DEBUG_TANK then
+         print("Tank spawn at", pos.x, pos.y)
+      end
       bindPlayerTankKeys()
    end)
    if not ok then
@@ -1838,11 +1932,14 @@ local function makeArmy(x, y)
    y = y or 0
    local len = 10
    local space = 30
+   pushDEBUG()
+   disableDEBUG()
    for i = 1, len do
       for j = 1, len do
          spawnTank(vector.new(x + i * space, y + j * space))
       end
    end
+   popDEBUG()
 
 end
 
@@ -1883,6 +1980,9 @@ local function init()
    makeArmy(0, 500)
    makeArmy(500, 0)
    makeArmy(500, 500)
+
+   enableDEBUG()
+
 
 end
 
