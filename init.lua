@@ -207,7 +207,7 @@ PIX2M = 1 / 10
 
 local bulletMask = 1
 
-local forceScale = 100
+tankForceScale = 10
 
 local historyfname = "cmdhistory.txt"
 local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
@@ -247,6 +247,7 @@ local bulletColor = { 1, 1, 1, 1 }
 
 local bulletLifetime = 1
 local tankCounter = 0
+local rng = love.math.newRandomGenerator()
 
 
 function disableDEBUG()
@@ -478,11 +479,12 @@ function Tank:forward()
    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
       print("Tank:forward")
    end
-   local x, y = self.dir.x * forceScale, self.dir.y * forceScale
+   local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
    if DEBUG_PHYSICS then
       print("Tank " .. self.id .. " applyForce x, y", x, y)
    end
    self.pbody:applyForce(x, y)
+
 
 end
 
@@ -494,9 +496,10 @@ function Tank:backward()
 
 
 
-   local x, y = self.dir.x * forceScale, self.dir.y * forceScale
+   local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
    print('applied', x, y)
-   self.pbody:applyForce(-x, -y)
+   self.pbody:applyForce(x, y)
+
 
 end
 
@@ -1127,12 +1130,13 @@ local function queryBoundingBox()
 end
 
 local function unbindPlayerTankKeys()
-
-   for _, id in ipairs(playerTankKeyconfigIds) do
-      KeyConfig.unbind(id)
+   if #playerTankKeyconfigIds ~= 0 then
+      for id in ipairs(playerTankKeyconfigIds) do
+         KeyConfig.unbindid(id)
+      end
+      playerTankKeyconfigIds = {}
+      collectgarbage("collect")
    end
-   playerTankKeyconfigIds = {}
-
 end
 
 local function loadLocales()
@@ -1157,92 +1161,86 @@ end
 
 local function bindPlayerTankKeys()
 
-   local function pushId(id)
-      table.insert(playerTankKeyconfigIds, id)
-      return id
-   end
-
    if playerTank then
 
       local kc = KeyConfig
       local bmode = "isdown"
 
-      kc.bind(
-      bmode, { key = "d" },
-      function(sc)
-         if mode ~= "normal" then
+      local ids = {
+         kc.bind(
+         bmode, { key = "d" },
+         function(sc)
+            if mode ~= "normal" then
+               return false, sc
+            end
+            playerTank["right"](playerTank)
             return false, sc
-         end
-         playerTank["right"](playerTank)
-         return false, sc
-      end,
-      i18n("mt" .. "right"), pushId("mt" .. "right"))
+         end,
+         i18n("mt" .. "right")),
 
-
-      kc.bind(
-      bmode, { key = "a" },
-      function(sc)
-         if mode ~= "normal" then
+         kc.bind(
+         bmode, { key = "a" },
+         function(sc)
+            if mode ~= "normal" then
+               return false, sc
+            end
+            playerTank["left"](playerTank)
             return false, sc
-         end
-         playerTank["left"](playerTank)
-         return false, sc
-      end,
-      i18n("mt" .. "left"), pushId("mt" .. "left"))
+         end,
+         i18n("mt" .. "left")),
 
-
-      kc.bind(
-      bmode, { key = "w" },
-      function(sc)
-         if mode ~= "normal" then
+         kc.bind(
+         bmode, { key = "w" },
+         function(sc)
+            if mode ~= "normal" then
+               return false, sc
+            end
+            playerTank["forward"](playerTank)
             return false, sc
-         end
-         playerTank["forward"](playerTank)
-         return false, sc
-      end,
-      i18n("mt" .. "forward"), pushId("mt" .. "forward"))
+         end,
+         i18n("mt" .. "forward")),
 
-
-      kc.bind(
-      bmode, { key = "s" },
-      function(sc)
-         if mode ~= "normal" then
+         kc.bind(
+         bmode, { key = "s" },
+         function(sc)
+            if mode ~= "normal" then
+               return false, sc
+            end
+            playerTank["backward"](playerTank)
             return false, sc
-         end
-         playerTank["backward"](playerTank)
-         return false, sc
-      end,
-      i18n("mt" .. "backward"), pushId("mt" .. "backward"))
+         end,
+         i18n("mt" .. "backward")),
 
-
-      kc.bind(
-      bmode, { key = "v" },
-      function(sc)
-         if mode ~= "normal" then
+         kc.bind(
+         bmode, { key = "v" },
+         function(sc)
+            if mode ~= "normal" then
+               return false, sc
+            end
+            playerTank["resetVelocities"](playerTank)
             return false, sc
-         end
-         playerTank["resetVelocities"](playerTank)
-         return false, sc
-      end,
-      i18n("resetVelocities"), pushId("resetVelocities"))
+         end,
+         i18n("resetVelocities")),
 
-
-      kc.bind(
-      "isdown", { key = "space" },
-      function(sc)
-         if mode ~= "normal" then
+         kc.bind(
+         "isdown", { key = "space" },
+         function(sc)
+            if mode ~= "normal" then
+               return false, sc
+            end
+            if playerTank then
+               playerTank:fire()
+            end
             return false, sc
-         end
-         if playerTank then
-            playerTank:fire()
-         end
-         return false, sc
-      end,
-      i18n("fire"), pushId("fire"))
-
+         end,
+         i18n("fire")),
+      }
+      for _, v in ipairs(ids) do
+         table.insert(playerTankKeyconfigIds, v)
+      end
 
    else
-      error("There is no player tank object instance, sorry.")
+      error("There is no player tank object instance, sorry. Keys are not binded.")
    end
 
 end
@@ -1386,12 +1384,19 @@ function printBody(body)
 
 end
 
+attachedVarsList = {}
+
 local function konsolePresent()
 
    gr.setColor({ 1, 1, 1, 1 })
-   linesbuf:pushi(string.format(
-   "camera x = %d, y = %d, rot = %f, scale = %f",
-   cam.x, cam.y, cam.rot, cam.scale))
+
+
+
+
+
+   for _, v in pairs(attachedVarsList) do
+      v()
+   end
 
    if mode == "command" then
       cmdline = removeFirstColon(cmdline)
@@ -1548,16 +1553,16 @@ local function enterCommandMode()
       love.keyboard.setKeyRepeat(true)
       love.keyboard.setTextInput(true)
 
+      local historydata = love.filesystem.read(historyfname)
+      if historydata then
 
+         cmdhistory = {}
+         for s in historydata:gmatch("[^\r\n]+") do
+            table.insert(cmdhistory, s)
 
+         end
 
-
-
-
-
-
-
-
+      end
 
    end
 
@@ -1586,48 +1591,78 @@ function konsolePrint(...)
 
 end
 
+function attach(varname)
+   if type(varname) == "string" then
+      attachedVarsList[varname] = function()
+
+
+         linesbuf:pushi(string.format("%s", tabular.show((_G)[varname])))
+
+
+      end
+   end
+end
+
+function detach(varname)
+   if type(varname) == "string" then
+      attachedVarsList[varname] = nil
+   end
+end
+
 local function evalCommand()
 
    local preload = [[
-        function ptabular(ref)
-            print(tabular(ref))
-        end
+function ptabular(ref)
+    print(tabular(ref, nil, "cyan"))
+end
 
-        function pinspect(ref)
-            print(inspect(ref))
-        end
+function pinspect(ref)
+    print(inspect(ref))
+end
 
-        function help()
-            print('Добро пожаловать в консоль цикла разработки.')
-            print('Попробуйте команду pinspect(_G) или ptabular(playerTank) для отображения значения переменной.')
-        end
+function help()
+    print('Добро пожаловать в консоль цикла разработки.')
+    print('Список команд:')
+    print('pinspect(_G)')
+    print('ptabular(playerTank) для отображения значения переменной.')
+    print('binds() все задействованные на данный момент клавиатурные сочетания')
+end
 
-        function vars(pattern)
-            for k, v in pairs(_G) do
-                local ok, errmsg = pcall(function()
-                    local line = string.format("%s: %s", tostring(k), inspect(v))
-                    if suggestList then
-                        -- обязательно вызывать метод :clear()?
-                        --suggestList:clear()
-                        suggestList:add(line)
-                    end
-                    if pattern and #line ~= 0 then
-                        if string.match(line, pattern) then
-                            print(line)
-                        end
-                    else
-                        print(line)
-                    end
-                end)
-                if not ok then
-                    print('Error in listing occured:', errmsg)
-                end
+function binds()
+    print(tabular(KeyConfig.getShortcutsDown()))
+    print(tabular(KeyConfig.getShortcutsPressed()))
+end
+
+function vars(pattern)
+    for k, v in pairs(_G) do
+        local ok, errmsg = pcall(function()
+            local line = string.format("%s: %s", tostring(k), inspect(v))
+            if suggestList then
+                -- обязательно вызывать метод :clear()?
+                --suggestList:clear()
+                suggestList:add(line)
             end
+            if pattern and #line ~= 0 then
+                if string.match(line, pattern) then
+                    print(line)
+                end
+            else
+                print(line)
+            end
+        end)
+        if not ok then
+            print('Error in listing occured:', errmsg)
         end
+    end
+end
 
-        -- XXX Global variable
-        systemPrint = print
-        --print = konsolePrint
+function detach(name)
+    attachedVarsList[name] = nil
+end
+
+-- XXX Global variable
+systemPrint = print
+--print = konsolePrint
 
     ]]
 
@@ -1754,7 +1789,7 @@ local function spawnTank(pos, dir)
       if DEBUG_TANK then
          print("Tank spawn at", pos.x, pos.y)
       end
-
+      bindPlayerTankKeys()
    end)
    if not ok then
       error("Could'not load. Please implement stub-tank. " .. errmsg)
@@ -1771,9 +1806,11 @@ local function bindCameraZoomKeys()
    "isdown",
    { key = "z" },
    function(sc)
+      print('zoom in')
       if mode ~= "normal" then
          return false, sc
       end
+      print('zoom in')
       if cam.scale < zoomHigher then
          cam:zoom(1. + zoomSpeed)
       end
@@ -1786,9 +1823,11 @@ local function bindCameraZoomKeys()
    "isdown",
    { key = "x" },
    function(sc)
+      print('zoom out')
       if mode ~= "normal" then
          return false, sc
       end
+      print('zoom out')
       if cam.scale > zoomLower then
          cam:zoom(1.0 - zoomSpeed)
       end
