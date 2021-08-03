@@ -6,6 +6,7 @@ global SCENE_PREFIX = "scenes/t80u"
 love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
 -- {{{ require
+require "tabular"
 require "love"
 require "common"
 require "keyconfig"
@@ -15,11 +16,12 @@ require "Timer"
 require "imgui"
 
 local List = require "list"
-local i18n = require "i18n"
-local inspect = require "inspect"
+global i18n = require "i18n"
 local metrics = require "metrics"
-local vec2 = require "vector"
-local vecl = require "vector-light"
+global vec2 = require "vector"
+global vecl = require "vector-light"
+global inspect = require "inspect"
+global tabular = require "tabular"
 -- }}}
 
 local gr = love.graphics
@@ -1584,30 +1586,20 @@ function konsolePrint(...: any)
     -- }}}
 end
 
-local ok, errmsg: boolean, string = pcall(function()
-    require "tabular"
-    local tabular = require "tabular"
-    print(tabular.show(_G))
-end)
-if not ok then
-    print("tabular loading errmsg:", errmsg)
-end
-
 local function evalCommand()
     -- {{{
     local preload = [[
-        local inspect = require 'inspect'
-        --local tabular = require 'tabular'
+        function ptabular(ref)
+            print(tabular(ref))
+        end
+
+        function pinspect(ref)
+            print(inspect(ref))
+        end
 
         function help()
             print('Добро пожаловать в консоль цикла разработки.')
-            print('Попробуйте команду vars() для вывода всех переменных доступных программе.')
-            print('Команда vars("log") для вывода всех переменных по шаблону.')
-            print('Команда display() для отображения переменной.')
-        end
-
-        function display(r)
-            print(inspect(r))
+            print('Попробуйте команду pinspect(_G) или ptabular(playerTank) для отображения значения переменной.')
         end
 
         function vars(pattern)
@@ -1762,7 +1754,7 @@ local function spawnTank(pos: vector, dir: vector): Tank
         if DEBUG_TANK then
             print("Tank spawn at", pos.x, pos.y)
         end
-        bindPlayerTankKeys()
+        --bindPlayerTankKeys()
     end)
     if not ok then
         error("Could'not load. Please implement stub-tank. " .. errmsg)
