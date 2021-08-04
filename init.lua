@@ -224,7 +224,7 @@ showLogo = true
 local playerTankKeyconfigIds = {}
 local angularImpulseScale = 5
 local rot = math.pi / 4
-local zoomLower, zoomHigher = 0.075, 3.5
+camZoomLower, camZoomHigher = 0.075, 3.5
 local cameraSettings = {
 
    dx = 100, dy = 100,
@@ -1594,11 +1594,7 @@ end
 function attach(varname)
    if type(varname) == "string" then
       attachedVarsList[varname] = function()
-
-
          linesbuf:pushi(string.format("%s", tabular.show((_G)[varname])))
-
-
       end
    end
 end
@@ -1798,44 +1794,53 @@ local function spawnTank(pos, dir)
 
 end
 
+cameraKeyConfigIds = {}
+
 local function bindCameraZoomKeys()
 
    local zoomSpeed = 0.01
 
-   KeyConfig.bind(
-   "isdown",
-   { key = "z" },
-   function(sc)
-      print('zoom in')
-      if mode ~= "normal" then
-         return false, sc
-      end
-      print('zoom in')
-      if cam.scale < zoomHigher then
-         cam:zoom(1. + zoomSpeed)
-      end
-      return false, sc
-   end,
-   "zoom camera in",
-   "zoomin")
+   local ids = {
+      KeyConfig.bind(
+      "isdown",
+      { key = "z" },
+      function(sc)
+         print('zoom in')
 
-   KeyConfig.bind(
-   "isdown",
-   { key = "x" },
-   function(sc)
-      print('zoom out')
-      if mode ~= "normal" then
-         return false, sc
-      end
-      print('zoom out')
-      if cam.scale > zoomLower then
-         cam:zoom(1.0 - zoomSpeed)
-      end
-      return false, sc
-   end,
-   "zoom camera out",
-   "zoomout")
 
+
+         print('zoom in')
+         if cam.scale < camZoomHigher then
+            cam:zoom(1. + zoomSpeed)
+         end
+         return false, sc
+      end,
+      "zoom camera in",
+      "zoomin"),
+
+      KeyConfig.bind(
+      "isdown",
+      { key = "x" },
+      function(sc)
+         print('zoom out')
+
+
+
+         print('zoom out')
+         if cam.scale > camZoomLower then
+            cam:zoom(1.0 - zoomSpeed)
+         end
+         return false, sc
+      end,
+      "zoom camera out",
+      "zoomout"),
+
+   }
+   cameraKeyConfigIds = {}
+   for _, v in ipairs(ids) do
+      table.insert(cameraKeyConfigIds, v)
+   end
+   print('bindCameraZoomKeys')
 
 end
 

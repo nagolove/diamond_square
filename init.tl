@@ -224,7 +224,7 @@ global showLogo = true
 local playerTankKeyconfigIds: {integer} = {}
 local angularImpulseScale = 5
 local rot = math.pi / 4
-local zoomLower, zoomHigher = 0.075, 3.5
+global camZoomLower, camZoomHigher = 0.075, 3.5
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
     dx = 100, dy = 100,
@@ -1594,11 +1594,7 @@ end
 function attach(varname: string)
     if type(varname) == "string" then
         attachedVarsList[varname] = function()
-            --print("attachVar upvalue call")
-            --linesbuf:pushi(string.format("%s", inspect((_G as {any:any})[varname])))
             linesbuf:pushi(string.format("%s", tabular.show((_G as {any:any})[varname])))
-            --linesbuf:pushi(string.format( "camera x = %d, y = %d, rot = %f, scale = %f", 
-            --cam.x, cam.y, cam.rot, cam.scale))
         end
     end
 end
@@ -1798,44 +1794,53 @@ local function spawnTank(pos: vector, dir: vector): Tank
     -- }}}
 end
 
+global cameraKeyConfigIds: {integer} = {}
+
 local function bindCameraZoomKeys()
     -- {{{
     local zoomSpeed = 0.01
 
-    KeyConfig.bind(
-        "isdown",
-        { key = "z" },
-        function(sc: Shortcut): boolean, Shortcut
-            print('zoom in')
-            if mode ~= "normal" then
-                return false, sc
-            end
-            print('zoom in')
-            if cam.scale < zoomHigher then
-                cam:zoom(1. + zoomSpeed)
-            end
-            return false, sc
-        end,
-        "zoom camera in",
-        "zoomin"
-    )
-    KeyConfig.bind(
-        "isdown",
-        { key = "x" },
-        function(sc: Shortcut): boolean, Shortcut
-            print('zoom out')
-            if mode ~= "normal" then
-                return false, sc
-            end
-            print('zoom out')
-            if cam.scale > zoomLower then
-                cam:zoom(1.0 - zoomSpeed)
-            end
-            return false, sc
-        end,
-        "zoom camera out",
-        "zoomout"
-    )
+    local ids = {
+        KeyConfig.bind(
+                "isdown",
+                { key = "z" },
+                function(sc: Shortcut): boolean, Shortcut
+                    print('zoom in')
+                    --if mode ~= "normal" then
+                        --return false, sc
+                    --end
+                    print('zoom in')
+                    if cam.scale < camZoomHigher then
+                        cam:zoom(1. + zoomSpeed)
+                    end
+                    return false, sc
+                end,
+                "zoom camera in",
+                "zoomin"
+            ),
+            KeyConfig.bind(
+                "isdown",
+                { key = "x" },
+                function(sc: Shortcut): boolean, Shortcut
+                    print('zoom out')
+                    --if mode ~= "normal" then
+                        --return false, sc
+                    --end
+                    print('zoom out')
+                    if cam.scale > camZoomLower then
+                        cam:zoom(1.0 - zoomSpeed)
+                    end
+                    return false, sc
+                end,
+                "zoom camera out",
+                "zoomout"
+            )
+    }
+    cameraKeyConfigIds = {}
+    for _, v in ipairs(ids) do
+        table.insert(cameraKeyConfigIds, v)
+    end
+    print('bindCameraZoomKeys')
     -- }}}
 end
 
