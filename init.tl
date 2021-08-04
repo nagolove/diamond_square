@@ -645,12 +645,12 @@ end
 function Tank:present()
     -- {{{
     if self.base and self.base.present then
-        --self.base:present()
+        self.base:present()
     else
         colprint('Tank ' .. self.id .. ' is damaged. No base.')
     end
     if self.turret and self.turret.present then
-        self.turret:present()
+        --self.turret:present()
     else
         colprint('Tank ' .. self.id .. ' is damaged. No turret.')
     end
@@ -1005,11 +1005,12 @@ function Base:present()
     end
     --]]
 
+    basesMesh:setVertices(basesMeshVerts, 1 + baseMeshIndex, 6)
     baseMeshIndex = baseMeshIndex + 6
     baseMeshCount = baseMeshCount + 1
 
-    basesMesh:setVertices(basesMeshVerts)
-    basesMesh:setDrawRange(1, baseMeshIndex)
+    --basesMesh:setVertices(basesMeshVerts)
+    --basesMesh:setDrawRange(1, baseMeshIndex)
     --]]
 --end
 --print("self.meshVerts", inspect(self.meshVerts))
@@ -1497,6 +1498,8 @@ local function mainPresent()
     drawCameraCircle()
 
     drawlist = {}
+
+    linesbuf:pushi("tankCounter %d", tankCounter)
 
     changeKeyConfigListbackground()
 
@@ -2111,16 +2114,22 @@ local function init()
 
     background = Background.new()
 
-    makeArmy()
-    makeArmy()
-    makeArmy()
-    makeArmy()
-    makeArmy()
-    makeArmy()
-    makeArmy()
-    makeArmy(0, 500)
-    makeArmy(500, 0)
-    makeArmy(500, 500)
+    --makeArmy()
+    --makeArmy()
+    --makeArmy()
+
+    --makeArmy()
+    --makeArmy()
+    --makeArmy()
+
+    for _ = 1, 30 do 
+        spawnTank(vector.new(100, 100))
+    end
+
+    --makeArmy()
+    --makeArmy(0, 500)
+    --makeArmy(500, 0)
+    --makeArmy(500, 500)
 
     enableDEBUG()
 
