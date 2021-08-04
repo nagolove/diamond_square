@@ -194,6 +194,7 @@ local debugStack = {}
 
 
 
+
 DEFAULT_W, DEFAULT_H = 1024, 768
 
 W, H = love.graphics.getDimensions()
@@ -207,7 +208,8 @@ PIX2M = 1 / 10
 
 local bulletMask = 1
 
-tankForceScale = 10
+tankForceScale = 3
+
 
 local historyfname = "cmdhistory.txt"
 local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
@@ -215,15 +217,17 @@ local mode = "normal"
 local cmdline = ""
 local cmdhistory = {}
 suggestList = List.new()
+attachedVarsList = {}
+
 
 local drawlist = {}
 
 local camTimer = require("Timer").new()
 local drawCoro = nil
 showLogo = true
-local playerTankKeyconfigIds = {}
-local angularImpulseScale = 5
-local rot = math.pi / 4
+playerTankKeyconfigIds = {}
+angularImpulseScale = 5
+rot = math.pi / 4
 camZoomLower, camZoomHigher = 0.075, 3.5
 local cameraSettings = {
 
@@ -245,9 +249,11 @@ bullets = {}
 local bulletRadius = 4
 local bulletColor = { 1, 1, 1, 1 }
 
-local bulletLifetime = 1
-local tankCounter = 0
-local rng = love.math.newRandomGenerator()
+bulletLifetime = 1
+tankCounter = 0
+rng = love.math.newRandomGenerator()
+
+local cameraZoneR
 
 
 function disableDEBUG()
@@ -407,7 +413,7 @@ function Turret:fire()
    if DEBUG_TURRET then
       print("Turret:fire()")
    end
-   local px, py = self.tank.pbody:getWorldCenter()
+   local px, py = self.tank.physbody:getWorldCenter()
    local scale = 3
    print("pbody", px, py)
    spawnBullet(px, py, self.dir.x * scale, self.dir.y * scale)
@@ -452,11 +458,11 @@ function Tank:left()
       print("Tank:left")
    end
    local imp = -angularImpulseScale * rot
-   print("mass", self.pbody:getMass())
+   print("mass", self.physbody:getMass())
    if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. " applyAngularImpulse", imp)
+      print("Tank " .. self.id .. " applyTorque", imp)
    end
-   self.pbody:applyTorque(imp)
+   self.physbody:applyTorque(imp)
 
 end
 
@@ -466,11 +472,11 @@ function Tank:right()
       print("Tank:right")
    end
    local imp = angularImpulseScale * rot
-   print("mass", self.pbody:getMass())
+   print("mass", self.physbody:getMass())
    if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. " applyAngularImpulse", imp)
+      print("Tank " .. self.id .. " applyTorque", imp)
    end
-   self.pbody:applyTorque(imp)
+   self.physbody:applyTorque(imp)
 
 end
 
@@ -483,7 +489,7 @@ function Tank:forward()
    if DEBUG_PHYSICS then
       print("Tank " .. self.id .. " applyForce x, y", x, y)
    end
-   self.pbody:applyForce(x, y)
+   self.physbody:applyForce(x, y)
 
 
 end
@@ -498,7 +504,7 @@ function Tank:backward()
 
    local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
    print('applied', x, y)
-   self.pbody:applyForce(x, y)
+   self.physbody:applyForce(x, y)
 
 
 end
@@ -518,8 +524,8 @@ function Tank.new(pos, dir)
 
    tankCounter = tankCounter + 1
 
-   self.pbody = love.physics.newBody(pworld, 0, 0, "dynamic")
-   self.pbody:setUserData(self)
+   self.physbody = love.physics.newBody(pworld, 0, 0, "dynamic")
+   self.physbody:setUserData(self)
 
    if not dir then
       dir = vector.new(0, -1)
@@ -533,16 +539,16 @@ function Tank.new(pos, dir)
    self.base = Base.new(self)
 
    if DEBUG_PHYSICS then
-      print("angular damping", self.pbody:getAngularDamping())
-      print("linear damping", self.pbody:getLinearDamping())
+      print("angular damping", self.physbody:getAngularDamping())
+      print("linear damping", self.physbody:getLinearDamping())
    end
 
-   self.pbody:setAngularDamping(3.99)
-   self.pbody:setLinearDamping(2)
+   self.physbody:setAngularDamping(3.99)
+   self.physbody:setLinearDamping(2)
 
    if DEBUG_PHYSICS then
-      print("angular damping", self.pbody:getAngularDamping())
-      print("linear damping", self.pbody:getLinearDamping())
+      print("angular damping", self.physbody:getAngularDamping())
+      print("linear damping", self.physbody:getLinearDamping())
    end
 
    if DEBUG_TANK then
@@ -579,7 +585,7 @@ end
 function Tank:drawDirectionVector()
 
    if self.dir then
-      local x, y = self.pbody:getWorldCenter()
+      local x, y = self.physbody:getWorldCenter()
       local scale = 100
       local color = { 0., 0.05, 0.99, 1 }
       x, y = x * M2PIX, y * M2PIX
@@ -590,9 +596,9 @@ end
 
 function Tank:resetVelocities()
 
-   if self.pbody then
-      self.pbody:setAngularVelocity(0)
-      self.pbody:setLinearVelocity(0, 0)
+   if self.physbody then
+      self.physbody:setAngularVelocity(0)
+      self.physbody:setLinearVelocity(0, 0)
    end
 
 end
@@ -601,7 +607,7 @@ function Tank:updateDir()
 
    local unit = 1
 
-   self.dir = vec2.fromPolar(self.pbody:getAngle() + math.pi / 2, unit)
+   self.dir = vec2.fromPolar(self.physbody:getAngle() + math.pi / 2, unit)
 
 end
 
@@ -634,7 +640,7 @@ function Tank:present()
    end
    if cmd_drawBodyStat then
       self:drawDirectionVector()
-      drawBodyStat(self.pbody)
+      drawBodyStat(self.physbody)
    end
 
 end
@@ -654,20 +660,20 @@ function Turret.new(t)
 
    local self = setmetatable({}, Turret_mt)
    self.tank = t
-   self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
-   self.pbody = t.pbody
+   self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
+   self.physbody = t.physbody
 
    if DEBUG_TURRET then
       print("self.tank", self.tank)
-      print("self.pbody", self.pbody)
-      print("self.img", self.img)
+      print("self.pbody", self.physbody)
+      print("self.img", self.image)
    end
 
-   local w, _ = (self.img):getDimensions()
+   local w, _ = (self.image):getDimensions()
    local r = w / 2
-   local px, py = self.tank.pbody:getPosition()
+   local px, py = self.tank.physbody:getPosition()
    local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
-   self.f = love.physics.newFixture(self.pbody, shape)
+   self.fixture = love.physics.newFixture(self.physbody, shape)
 
 
    if DEBUG_TURRET then
@@ -733,7 +739,7 @@ function Turret:rotateToMouse()
    mx, my = cam:worldCoords(mx, my)
    mx, my = mx * PIX2M, my * PIX2M
 
-   local x, y = self.pbody:getWorldCenter()
+   local x, y = self.physbody:getWorldCenter()
    local d = vec2.new(x - mx, y - my)
    self.dir = d:normalizeInplace()
    local a, _ = d:toPolar()
@@ -767,21 +773,21 @@ end
 
 function Turret:present()
 
-   if not self.f then
+   if not self.fixture then
       error("Turret:present() - fixture is nil")
    end
 
-   local imgw, imgh = (self.img):getDimensions()
+   local imgw, imgh = (self.image):getDimensions()
    local r, sx, sy, ox, oy = 0., 1., 1., 0, 0
 
-   local shape = self.f:getShape()
-   local cshape = self.f:getShape()
+   local shape = self.fixture:getShape()
+   local cshape = self.fixture:getShape()
 
    if shape:getType() ~= "circle" then
       error("Only circle shape allowed.")
    end
    local px, py = cshape:getPoint()
-   px, py = self.pbody:getWorldPoints(px, py)
+   px, py = self.physbody:getWorldPoints(px, py)
    px, py = px * M2PIX, py * M2PIX
    r = cshape:getRadius() * M2PIX
 
@@ -793,7 +799,7 @@ function Turret:present()
 
    gr.setColor({ 1, 1, 1, 1 })
    love.graphics.draw(
-   self.img,
+   self.image,
    px, py,
    self.angle,
    sx, sy,
@@ -816,13 +822,13 @@ end
 
 function Base:present()
 
-   local shape = self.f:getShape()
+   local shape = self.fixture:getShape()
    if shape:getType() ~= "polygon" then
       error("Tank BaseP shape should be polygon.")
    end
 
    if DEBUG_PHYSICS then
-      drawFixture(self.f, { 0, 0, 0, 1 })
+      drawFixture(self.fixture, { 0, 0, 0, 1 })
    end
 
    gr.setColor({ 1, 1, 1, 1 })
@@ -851,19 +857,19 @@ function Base.new(t)
 
    local self = setmetatable({}, Base_mt)
    self.tank = t
-   self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
+   self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
 
 
 
    local rectXY = { 86, 72 }
    local rectWH = { 84, 111 }
 
-   self.pbody = t.pbody
+   self.physbody = t.physbody
 
    if DEBUG_BASE then
       print("self.tank", self.tank)
-      print("self.pbody", self.pbody)
-      print("self.img", self.img)
+      print("self.pbody", self.physbody)
+      print("self.img", self.image)
    end
 
    local px, py = t.pos.x, t.pos.y
@@ -884,9 +890,9 @@ function Base.new(t)
    }
 
    local shape = love.physics.newPolygonShape(vertices)
-   self.f = love.physics.newFixture(self.pbody, shape)
+   self.fixture = love.physics.newFixture(self.physbody, shape)
 
-   self.pshape = shape
+   self.polyshape = shape
    if DEBUG_TURRET then
       print("polygon shape created x, y, r", px, py)
    end
@@ -895,7 +901,7 @@ function Base.new(t)
    self.mesh = love.graphics.newMesh(self.meshVerts,
    "triangles", "dynamic")
    self:updateMeshVerts()
-   self.mesh:setTexture(self.img)
+   self.mesh:setTexture(self.image)
    self:updateMeshTexCoords(rectXY[1], rectXY[2], rectWH[1], rectWH[2])
 
    if not self.mesh then
@@ -912,7 +918,7 @@ function Base:updateMeshTexCoords(x, y, w, h)
 
 
 
-   local imgw, imgh = (self.img):getDimensions()
+   local imgw, imgh = (self.image):getDimensions()
 
    local unitw, unith = w / imgw, h / imgh
 
@@ -969,10 +975,10 @@ function Base:updateMeshVerts()
 
    self.mesh:setVertices(self.meshVerts)
 
-   local body = self.f:getBody()
+   local body = self.fixture:getBody()
 
 
-   local x1, y1, x2, y2, x3, y3, x4, y4 = self.pshape:getPoints()
+   local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
    x1, y1 = body:getWorldPoints(x1, y1)
    x2, y2 = body:getWorldPoints(x2, y2)
    x3, y3 = body:getWorldPoints(x3, y3)
@@ -1264,7 +1270,7 @@ end
 local function moveCameraToPlayer()
 
    if playerTank then
-      local x, y = playerTank.pbody:getWorldCenter()
+      local x, y = playerTank.physbody:getWorldCenter()
       x, y = x * M2PIX, y * M2PIX
       cam:lookAt(x, y)
    end
@@ -1384,24 +1390,24 @@ function printBody(body)
 
 end
 
-attachedVarsList = {}
+local function processAttachedVariables()
+   for _, v in pairs(attachedVarsList) do
+      v()
+   end
+end
 
 local function konsolePresent()
 
    gr.setColor({ 1, 1, 1, 1 })
 
-
-
-
-
-   for _, v in pairs(attachedVarsList) do
-      v()
-   end
+   processAttachedVariables()
 
    if mode == "command" then
       cmdline = removeFirstColon(cmdline)
       if cmdline then
-         linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
+
+         local prompt = ">: "
+         linesbuf:pushi(prompt .. cmdline)
       end
    end
 
@@ -1607,6 +1613,8 @@ end
 
 local function evalCommand()
 
+
+
    local preload = [[
 function ptabular(ref)
     print(tabular(ref, nil, "cyan"))
@@ -1660,7 +1668,40 @@ end
 systemPrint = print
 --print = konsolePrint
 
+if not __ATTACH_ONCE__ then
+    print('before')
+    -- attached variables
+    attach("playerTank")
+    attach("DEFAULT_W")
+    attach("DEFAULT_H")
+    attach("W")
+    attach("H")
+    attach("M2PIX")
+    attach("PIX2M")
+    attach("tankForceScale")
+    attach("cam")
+    attach("showLogo")
+    attach("playerTankKeyconfigIds")
+    attach("angularImpulseScale")
+    attach("rot")
+    attach("camZoomLower")
+    attach("camZoomHigher")
+    attach("pworld")
+    --attach("tanks")
+    attach("playerTank")
+    attach("background")
+    attach("logo")
+    --attach("bullets")
+    attach("bulletLifetime")
+    attach("tankCounter")
+    attach("rng")
+    print('after')
+    __ATTACH_ONCE__ = true
+end
     ]]
+
+
+
 
    cmdline = trim(cmdline)
    local func, loaderrmsg = load(preload .. cmdline)
@@ -1908,8 +1949,7 @@ function Logo:present()
 end
 
 local function createDrawCoroutine()
-
-   drawCoro = coroutine.create(function()
+   return coroutine.create(function()
       if DEBUG_DRAW_THREAD then
          print("drawCoro started")
       end
@@ -1929,7 +1969,6 @@ local function createDrawCoroutine()
          print("drawCoro finished")
       end
    end)
-
 end
 
 
@@ -2008,7 +2047,7 @@ local function init()
    bindEscape()
    bindKonsole()
 
-   createDrawCoroutine()
+   drawCoro = createDrawCoroutine()
 
    background = Background.new()
 
