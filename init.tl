@@ -93,6 +93,7 @@ end
 --]]
 
 local basesMesh: gr.Mesh
+local basesData: love.data.ByteData
 local basesMeshVerts: {{number}}
 local baseImage: gr.Image
 
@@ -2071,6 +2072,8 @@ local function initBaseMeshVerts()
             1, 1, 1, 1,     -- 5, 6, 7, 8   - r, g, b, a
         })
     end
+    basesData = love.data.newData()
+    print("basesMesh:getVertexFormat()\n", tabular.show(basesMesh:getVertexFormat()))
 end
 
 global baseTextureCoordinatesArr: {number}

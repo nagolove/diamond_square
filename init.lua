@@ -2071,6 +2071,7 @@ local function initBaseMeshVerts()
          1, 1, 1, 1,
       })
    end
+   print("basesMesh:getVertexFormat()", tabular.show(basesMesh:getVertexFormat()))
 end
 
 
