@@ -239,7 +239,7 @@ playerTankKeyconfigIds = {}
 angularImpulseScale = 5
 rot = math.pi / 4
 camZoomLower, camZoomHigher = 0.075, 3.5
-local meshBufferSize = 512
+local meshBufferSize = 4096
 local cameraSettings = {
 
    dx = 2000, dy = 2000,
@@ -1005,8 +1005,9 @@ function Base:present()
 
 
 
-   basesMesh:setVertices(basesMeshVerts, 1 + baseMeshIndex, 6)
-   baseMeshIndex = baseMeshIndex + 6
+
+   basesMesh:setVertices(basesMeshVerts, 1 + 6 * baseMeshCount, 6)
+
    baseMeshCount = baseMeshCount + 1
 
 
@@ -1486,6 +1487,7 @@ end
 
 local function mainPresent()
    baseMeshIndex = 0
+   baseMeshCount = 0
    push2drawlist(Background.present, background)
    push2drawlist(queryBoundingBox)
    push2drawlist(drawBullets)
@@ -2061,7 +2063,8 @@ end
 
 local function initBaseMeshVerts()
    basesMeshVerts = {}
-   for _ = 1, 6 * meshBufferSize do
+
+   for _ = 1, 6 * 1 do
       table.insert(basesMeshVerts, {
          0, 0,
          0, 0,
@@ -2126,10 +2129,10 @@ local function init()
       spawnTank(vector.new(100, 100))
    end
 
-
-
-
-
+   makeArmy()
+   makeArmy(0, 500)
+   makeArmy(500, 0)
+   makeArmy(500, 500)
 
    enableDEBUG()
 
