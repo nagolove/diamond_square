@@ -208,7 +208,7 @@ PIX2M = 1 / 10
 
 local bulletMask = 1
 
-tankForceScale = 3
+tankForceScale = 1
 
 
 local historyfname = "cmdhistory.txt"
@@ -231,7 +231,7 @@ rot = math.pi / 4
 camZoomLower, camZoomHigher = 0.075, 3.5
 local cameraSettings = {
 
-   dx = 100, dy = 100,
+   dx = 2000, dy = 2000,
 }
 
 
@@ -252,6 +252,7 @@ local bulletColor = { 1, 1, 1, 1 }
 bulletLifetime = 1
 tankCounter = 0
 rng = love.math.newRandomGenerator()
+
 
 local cameraZoneR
 
@@ -347,6 +348,9 @@ local function drawArrow(
    lx, ly = len * lx, len * ly
    rx, ry = len * rx, len * ry
 
+   local oldlinew = gr.getLineWidth()
+   local linew = 15
+   gr.setLineWidth(linew)
    gr.setColor(color)
 
 
@@ -356,6 +360,7 @@ local function drawArrow(
 
    gr.line(fromx, fromy, tox, toy)
 
+   gr.setLineWidth(oldlinew)
 end
 
 local function drawBullets()
@@ -1289,8 +1294,10 @@ local function bindCameraControl()
             return false, sc
          end
          local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
-         camTimer:during(cameraAnimationDuration, function(dt, time, delay)
-            local dx, dy = -reldx * (delay - time) * xc, -reldy * (delay - time) * yc
+         camTimer:during(cameraAnimationDuration,
+         function(dt, time, delay)
+            local dx = -reldx * (delay - time) * xc
+            local dy = -reldy * (delay - time) * yc
             if delay - time > 0 then
                cam:move(dx * dt, dy * dt)
             end
@@ -1449,6 +1456,27 @@ function Background:present()
 
 end
 
+local isCameraCircleOut = false
+
+local function drawCameraCircle()
+   local circleColor1 = { 1, 0, 0, 1 }
+   local circleColor2 = { 1, 1, 1, 1 }
+   local linew = 8
+   local w, h = gr.getDimensions()
+   local oldcolor = { gr.getColor() }
+   local olw = gr.getLineWidth()
+
+   if isCameraCircleOut then
+      gr.setColor(circleColor1)
+   else
+      gr.setColor(circleColor2)
+   end
+   gr.setLineWidth(linew)
+   gr.circle("line", w / 2, h / 2, cameraZoneR)
+   gr.setColor(oldcolor)
+   gr.setLineWidth(olw)
+end
+
 local function mainPresent()
 
    push2drawlist(Background.present, background)
@@ -1458,6 +1486,8 @@ local function mainPresent()
    cam:attach()
    presentDrawlist()
    cam:detach()
+
+   drawCameraCircle()
 
    drawlist = {}
 
@@ -1515,14 +1545,29 @@ local function updateTanks()
 
 end
 
-local function update(dt)
+local function moveCamera()
 
+
+
+
+   if playerTank then
+      local w, h = gr.getDimensions()
+      local centerx, centery = w / 2, h / 2
+      print("centerx, centery", centerx, centery)
+      local tankx, tanky = playerTank.physbody:getWorldCenter()
+      print("tankx, tanky", tankx, tanky)
+      local diff = vecl.dist(centerx, centery, tankx, tanky)
+      print("diff", diff)
+   end
+end
+
+local function update(dt)
    camTimer:update(dt)
    pworld:update(1 / 60)
    linesbuf:update()
    updateTanks()
    updateBullets()
-
+   moveCamera()
 end
 
 local function backspaceCmdLine()
@@ -1816,7 +1861,8 @@ local function spawnTank(pos, dir)
    local res
    local ok, errmsg = pcall(function()
       if #tanks >= 1 then
-         unbindPlayerTankKeys()
+
+
       end
       local t = Tank.new(pos, dir)
       table.insert(tanks, t)
@@ -1954,12 +2000,10 @@ local function createDrawCoroutine()
          print("drawCoro started")
       end
       while true do
-         print("go to logo present()")
 
          while showLogo == true do
             logo:present()
          end
-         print("goto mainPresent()")
 
          while showLogo == false do
             mainPresent()
@@ -2058,6 +2102,7 @@ local function init()
 
    enableDEBUG()
 
+   cameraZoneR = H / 2
 
 end
 
@@ -2087,7 +2132,9 @@ local function mousepressed(x, y, btn)
    elseif btn == 2 then
       x, y = cam:worldCoords(x, y)
       x, y = x * PIX2M, y * PIX2M
-      spawnTank(vector.new(x, y))
+      for i = 1, 10 do
+          spawnTank(vector.new(x, y))
+      end
    end
 
 end
@@ -2099,8 +2146,9 @@ local function resize(neww, newh)
       print("tanks window resized to w, h", neww, newh)
    end
    W, H = neww, newh
+   cameraZoneR = newh / 2
 
-
+   DEFAULT_W, DEFAULT_H = neww, newh
 
 end
 

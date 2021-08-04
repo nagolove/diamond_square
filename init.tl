@@ -92,15 +92,18 @@ end
 -- }}}
 --]]
 
+local basesMesh: gr.Mesh
+local basesMeshVerts: {{number}}
+local baseImage: gr.Image
+
 -- Ходовая часть с полигоном
 local record Base
     -- {{{
     physbody: love.physics.Body
     fixture: love.physics.Fixture
-    image: love.graphics.Image
     --pos: vector -- центр поворота корпуса
     tank: Tank
-    mesh: love.graphics.Mesh
+    --mesh: love.graphics.Mesh
     polyshape: lp.PolygonShape
 
     --meshVerts: {Vertex}
@@ -110,7 +113,6 @@ local record Base
     present: function(Base)
     updateMeshVerts: function(Base)
     updateMeshTexCoords: function(Base, x: number, y: number, w: number, h: number)
-    initMeshVerts: function(Base)
     -- }}}
 end
 
@@ -208,7 +210,7 @@ global PIX2M = 1 / 10
 -- Пули не сталкиваются с танками
 local bulletMask = 1
 -- Множитель передачи импульса на шасси танка.
-global tankForceScale = 3
+global tankForceScale = 1
 
 -- {{{ Konsole editing
 local historyfname = "cmdhistory.txt"
@@ -229,9 +231,10 @@ global playerTankKeyconfigIds: {integer} = {}
 global angularImpulseScale = 5
 global rot = math.pi / 4
 global camZoomLower, camZoomHigher = 0.075, 3.5
+local meshBufferSize = 2048
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
-    dx = 100, dy = 100,
+    dx = 2000, dy = 2000,
 }
 -- Экземпляр box2d
 global pworld: love.physics.World
@@ -253,6 +256,7 @@ global bulletLifetime = 1
 global tankCounter = 0
 global rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
+-- значение в пикселях
 local cameraZoneR: number
 -- }}}
 
@@ -347,6 +351,9 @@ local function drawArrow(
     lx, ly = len * lx, len * ly
     rx, ry = len * rx, len * ry
 
+    local oldlinew = gr.getLineWidth()
+    local linew = 15
+    gr.setLineWidth(linew)
     gr.setColor(color)
 
     -- left line
@@ -356,6 +363,7 @@ local function drawArrow(
     -- main line
     gr.line(fromx, fromy, tox, toy)
     -- }}}
+    gr.setLineWidth(oldlinew)
 end
 
 local function drawBullets()
@@ -857,8 +865,7 @@ function Base.new(t: Tank): Base
 
     local self: Base = setmetatable({} as Base, Base_mt)
     self.tank = t
-    self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
-    --self.img = love.graphics.newImage(SCENE_PREFIX .. "/tank_body.png")
+    --self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
 
     -- цифры получены из картинки tank_body_small.png
     local rectXY = {86, 72}
@@ -869,7 +876,7 @@ function Base.new(t: Tank): Base
     if DEBUG_BASE then
         print("self.tank", self.tank)
         print("self.pbody", self.physbody)
-        print("self.img", self.image)
+        --print("self.img", self.image)
     end
 
     local px, py = t.pos.x, t.pos.y
@@ -897,7 +904,7 @@ function Base.new(t: Tank): Base
         print("polygon shape created x, y, r", px, py)
     end
 
-    self:initMeshVerts()
+    --self:initMeshVerts()
     self.mesh = love.graphics.newMesh(self.meshVerts as {{number}}, 
         "triangles", "dynamic")
     self:updateMeshVerts()
@@ -954,17 +961,15 @@ function Base:updateMeshTexCoords(x: number, y: number, w: number, h: number)
     -- }}}
 end
 
-function Base:initMeshVerts()
-    -- {{{
-    self.meshVerts = {}
-    for _ = 1, 6 do
-        table.insert(self.meshVerts, {
+local function initBaseMeshVerts()
+    basesMeshVerts = {}
+    for _ = 1, 6 * meshBufferSize do
+        table.insert(basesMeshVerts, {
             0, 0,           -- 1, 2         - x, y
             0, 0,           -- 3, 4         - u, v
             1, 1, 1, 1,     -- 5, 6, 7, 8   - r, g, b, a
         })
     end
-    -- }}}
 end
 
 -- TODO сделать меньше копирований
@@ -1289,15 +1294,17 @@ local function bindCameraControl()
                 return false, sc
             end
             local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
-            camTimer:during(cameraAnimationDuration, function(dt: number, time: number, delay: number)
-                local dx, dy = -reldx * (delay - time) * xc, -reldy * (delay - time) * yc
-                if delay - time > 0 then
-                    cam:move(dx * dt, dy * dt)
-                end
-            end,
-            function()
-                --print("after camera moving")
-            end)
+            camTimer:during(cameraAnimationDuration, 
+                function(dt: number, time: number, delay: number)
+                    local dx = -reldx * (delay - time) * xc
+                    local dy = -reldy * (delay - time) * yc
+                    if delay - time > 0 then
+                        cam:move(dx * dt, dy * dt)
+                    end
+                end,
+                function()
+                    --print("after camera moving")
+                end)
             return true, sc
             --return false, sc
         end
@@ -1449,6 +1456,27 @@ function Background:present()
     -- }}}
 end
 
+local isCameraCircleOut: boolean = false
+
+local function drawCameraCircle()
+    local circleColor1 = {1, 0, 0, 1}
+    local circleColor2 = {1, 1, 1, 1}
+    local linew = 8
+    local w, h = gr.getDimensions()
+    local oldcolor = {gr.getColor()}
+    local olw = gr.getLineWidth()
+    --gr.setColor(isCameraCircleOut and circleColor1 or circleColor2)
+    if isCameraCircleOut then
+        gr.setColor(circleColor1)
+    else
+        gr.setColor(circleColor2)
+    end
+    gr.setLineWidth(linew)
+    gr.circle("line", w / 2, h / 2, cameraZoneR)
+    gr.setColor(oldcolor)
+    gr.setLineWidth(olw)
+end
+
 local function mainPresent()
     -- {{{
     push2drawlist(Background.present, background)
@@ -1458,6 +1486,8 @@ local function mainPresent()
     cam:attach()
     presentDrawlist()
     cam:detach()
+
+    drawCameraCircle()
 
     drawlist = {}
 
@@ -1515,14 +1545,29 @@ local function updateTanks()
     -- }}}
 end
 
+local function moveCamera()
+--[[
+Функция двигает камеру если координаты центра масс танка игрока выходят за
+радиус камеры.
+--]]
+    if playerTank then
+        local w, h = gr.getDimensions()
+        local centerx, centery = w / 2, h / 2
+        print("centerx, centery", centerx, centery)
+        local tankx, tanky = playerTank.physbody:getWorldCenter()
+        print("tankx, tanky", tankx, tanky)
+        local diff = vecl.dist(centerx, centery, tankx, tanky)
+        print("diff", diff)
+    end
+end
+
 local function update(dt: number)
-    -- {{{
     camTimer:update(dt)
     pworld:update(1 / 60)
     linesbuf:update()
     updateTanks()
     updateBullets()
-    -- }}}
+    moveCamera()
 end
 
 local function backspaceCmdLine()
@@ -1816,7 +1861,8 @@ local function spawnTank(pos: vector, dir: vector): Tank
     local res: Tank
     local ok, errmsg: boolean, string = pcall(function()
         if #tanks >= 1 then
-            unbindPlayerTankKeys()
+            -- XXX next line not work
+            -- unbindPlayerTankKeys()
         end
         local t = Tank.new(pos, dir)
         table.insert(tanks, t)
@@ -1954,12 +2000,10 @@ local function createDrawCoroutine(): thread
             print("drawCoro started")
         end
         while true do
-            print("go to logo present()")
             -- режим игрового меню
             while showLogo == true do
                 logo:present()
             end
-            print("goto mainPresent()")
             -- режим сражения
             while showLogo == false do
                 mainPresent()
@@ -2018,6 +2062,13 @@ local function makeArmy(x: number, y: number)
     -- }}}
 end
 
+local function initBasesMesh()
+    initMeshVerts()
+    basesMesh = gr.newMesh(basesMeshVerts, "triangles", "dynamic")
+    baseImage = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
+    basesMesh:setTexture(baseImage as gr.Texture)
+end
+
 local function init()
     -- {{{
     metrics.init()
@@ -2047,6 +2098,7 @@ local function init()
     bindEscape()
     bindKonsole()
 
+    initBasesMesh()
     drawCoro = createDrawCoroutine()
 
     background = Background.new()
@@ -2058,6 +2110,7 @@ local function init()
 
     enableDEBUG()
 
+    cameraZoneR = H / 2
     -- }}}
 end
 
@@ -2099,8 +2152,9 @@ local function resize(neww: integer, newh: integer)
         print("tanks window resized to w, h", neww, newh)
     end
     W, H = neww, newh
+    cameraZoneR = newh / 2
     -- FIXME Нужно менять эти переменные?
-    --DEFAULT_W, DEFAULT_H = neww, newh
+    DEFAULT_W, DEFAULT_H = neww, newh
     -- }}}
 end
 
