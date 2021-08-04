@@ -97,8 +97,10 @@ local basesMeshVerts: {{number}}
 local baseImage: gr.Image
 
 -- Смещение вершин в буфере полигональной сетки basesMesh
--- Индекс начинается с 0. 
+-- Индекс начинается с 0. Кратно 6.
 local baseMeshIndex: integer = 0
+-- Количество моделей в буфере.
+local baseMeshCount: integer = 0
 
 -- Ходовая часть с полигоном
 local record Base
@@ -237,7 +239,7 @@ global playerTankKeyconfigIds: {integer} = {}
 global angularImpulseScale = 5
 global rot = math.pi / 4
 global camZoomLower, camZoomHigher = 0.075, 3.5
-local meshBufferSize = 2048
+local meshBufferSize = 512
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
     dx = 2000, dy = 2000,
@@ -643,7 +645,7 @@ end
 function Tank:present()
     -- {{{
     if self.base and self.base.present then
-        self.base:present()
+        --self.base:present()
     else
         colprint('Tank ' .. self.id .. ' is damaged. No base.')
     end
@@ -884,7 +886,6 @@ function Base.new(t: Tank): Base
     if DEBUG_BASE then
         print("self.tank", self.tank)
         print("self.pbody", self.physbody)
-        --print("self.img", self.image)
     end
 
     local px, py = t.pos.x, t.pos.y
@@ -912,25 +913,7 @@ function Base.new(t: Tank): Base
         print("polygon shape created x, y, r", px, py)
     end
 
-    --self:initMeshVerts()
-    --self.mesh = love.graphics.newMesh(self.meshVerts as {{number}}, "triangles", "dynamic")
-    --self:updateMeshVerts()
-    --self.mesh:setTexture(self.image as gr.Texture)
-    --self:updateMeshTexCoords(rectXY[1], rectXY[2], rectWH[1], rectWH[2])
-    
-    if not self.mesh then
-        error("Could'not create Mesh")
-    end
-
     return self
-    -- }}}
-end
-
-function Base:updateMeshTexCoords(x: number, y: number, w: number, h: number)
-    -- {{{
-
-    --print("updateMeshTexCoords", x, y, w, h)
-
     -- }}}
 end
 
@@ -948,81 +931,89 @@ function Base:present()
         drawFixture(self.fixture, {0, 0, 0, 1})
     end
 
-    local x, y, w, h: number, number, number, number = self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
-        local body = self.fixture:getBody()
+    local body = self.fixture:getBody()
+    --    1   2   3   4   5   6   7   8
+    local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
 
-        --    1   2   3   4   5   6   7   8
-        local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
-        x1, y1 = body:getWorldPoints(x1, y1)
-        x2, y2 = body:getWorldPoints(x2, y2)
-        x3, y3 = body:getWorldPoints(x3, y3)
-        x4, y4 = body:getWorldPoints(x4, y4)
+    x1, y1 = body:getWorldPoints(x1, y1)
+    x2, y2 = body:getWorldPoints(x2, y2)
+    x3, y3 = body:getWorldPoints(x3, y3)
+    x4, y4 = body:getWorldPoints(x4, y4)
 
-        x1, y1 = M2PIX * x1, M2PIX * y1
-        x2, y2 = M2PIX * x2, M2PIX * y2
-        x3, y3 = M2PIX * x3, M2PIX * y3
-        x4, y4 = M2PIX * x4, M2PIX * y4
+    x1, y1 = M2PIX * x1, M2PIX * y1
+    x2, y2 = M2PIX * x2, M2PIX * y2
+    x3, y3 = M2PIX * x3, M2PIX * y3
+    x4, y4 = M2PIX * x4, M2PIX * y4
 
-        -- tri1
-        basesMeshVerts[baseMeshIndex + 1][1] = x1
-        basesMeshVerts[baseMeshIndex + 1][2] = y1
+    -- tri1
+    basesMeshVerts[baseMeshIndex + 1][1] = x1
+    basesMeshVerts[baseMeshIndex + 1][2] = y1
 
-        basesMeshVerts[baseMeshIndex + 2][1] = x2
-        basesMeshVerts[baseMeshIndex + 2][2] = y2
+    basesMeshVerts[baseMeshIndex + 2][1] = x2
+    basesMeshVerts[baseMeshIndex + 2][2] = y2
 
-        basesMeshVerts[baseMeshIndex + 3][1] = x4
-        basesMeshVerts[baseMeshIndex + 3][2] = y4
+    basesMeshVerts[baseMeshIndex + 3][1] = x4
+    basesMeshVerts[baseMeshIndex + 3][2] = y4
 
-        -- tri2
-        basesMeshVerts[baseMeshIndex + 5][1] = x2
-        basesMeshVerts[baseMeshIndex + 5][2] = y2
+    -- tri2
+    basesMeshVerts[baseMeshIndex + 5][1] = x2
+    basesMeshVerts[baseMeshIndex + 5][2] = y2
 
-        basesMeshVerts[baseMeshIndex + 6][1] = x3
-        basesMeshVerts[baseMeshIndex + 6][2] = y3
+    basesMeshVerts[baseMeshIndex + 6][1] = x3
+    basesMeshVerts[baseMeshIndex + 6][2] = y3
 
-        basesMeshVerts[baseMeshIndex + 4][1] = x4
-        basesMeshVerts[baseMeshIndex + 4][2] = y4
+    basesMeshVerts[baseMeshIndex + 4][1] = x4
+    basesMeshVerts[baseMeshIndex + 4][2] = y4
 
-        --local w, h = gr.getDimensions()
-        -- размеры текстуры в пикселях
-        local imgw, imgh = (baseImage as gr.Texture):getDimensions()
-        -- нормализованная ширина и высота
-        local unitw, unith = w / imgw, h / imgh
-        -- нормализованные координаты левого верхнего угла выделения
-        local x_, y_ = x / imgw, y / imgh
+    --local w, h = gr.getDimensions()
+    local rx, ry = self.rectXY[1], self.rectXY[2]
+    local rw, rh = self.rectWH[1], self.rectWH[2]
+    -- размеры текстуры в пикселях
+    local imgw, imgh = (baseImage as gr.Texture):getDimensions()
+    -- нормализованная ширина и высота
+    local unitw, unith = rw / imgw, rh / imgh
+    -- нормализованные координаты левого верхнего угла выделения
+    local x_, y_ = rx / imgw, ry / imgh
 
-        -- tri1
-        basesMeshVerts[baseMeshIndex + 4][3] = x_
-        basesMeshVerts[baseMeshIndex + 4][4] = y_
-        basesMeshVerts[baseMeshIndex + 5][3] = x_ + unitw
-        basesMeshVerts[baseMeshIndex + 5][4] = y_ + unith
-        basesMeshVerts[baseMeshIndex + 6][3] = x_
-        basesMeshVerts[baseMeshIndex + 6][4] = y_ + unith
+    -- tri1
+    basesMeshVerts[baseMeshIndex + 4][3] = x_
+    basesMeshVerts[baseMeshIndex + 4][4] = y_
+    basesMeshVerts[baseMeshIndex + 5][3] = x_ + unitw
+    basesMeshVerts[baseMeshIndex + 5][4] = y_ + unith
+    basesMeshVerts[baseMeshIndex + 6][3] = x_
+    basesMeshVerts[baseMeshIndex + 6][4] = y_ + unith
 
-        -- tri2
-        basesMeshVerts[baseMeshIndex + 3][3] = x_
-        basesMeshVerts[baseMeshIndex + 3][4] = y_
-        basesMeshVerts[baseMeshIndex + 1][3] = x_ + unitw
-        basesMeshVerts[baseMeshIndex + 1][4] = y_
-        basesMeshVerts[baseMeshIndex + 2][3] = x_ + unitw
-        basesMeshVerts[baseMeshIndex + 2][4] = y_ + unith
+    -- tri2
+    basesMeshVerts[baseMeshIndex + 3][3] = x_
+    basesMeshVerts[baseMeshIndex + 3][4] = y_
+    basesMeshVerts[baseMeshIndex + 1][3] = x_ + unitw
+    basesMeshVerts[baseMeshIndex + 1][4] = y_
+    basesMeshVerts[baseMeshIndex + 2][3] = x_ + unitw
+    basesMeshVerts[baseMeshIndex + 2][4] = y_ + unith
 
-        if DEBUG_TEXCOORDS then
-            local msg = string.format("(%f, %f), (%f, %f), (%f, %f)",
-                basesMeshVerts[baseMeshIndex + 4][3],
-                basesMeshVerts[baseMeshIndex + 4][4],
-                basesMeshVerts[baseMeshIndex + 5][3],
-                basesMeshVerts[baseMeshIndex + 5][4],
-                basesMeshVerts[baseMeshIndex + 6][3],
-                basesMeshVerts[baseMeshIndex + 6][4]
-            )
-            print(string.format("BaseP.self.meshVerts texture coordinates: " .. msg))
-        end
-        baseMeshIndex = baseMeshIndex + 6
-        --]]
-    --end
-    --print("self.meshVerts", inspect(self.meshVerts))
-    -- }}}
+    --[[
+    if DEBUG_TEXCOORDS then
+        local msg = string.format("(%f, %f), (%f, %f), (%f, %f)",
+            basesMeshVerts[baseMeshIndex + 4][3],
+            basesMeshVerts[baseMeshIndex + 4][4],
+            basesMeshVerts[baseMeshIndex + 5][3],
+            basesMeshVerts[baseMeshIndex + 5][4],
+            basesMeshVerts[baseMeshIndex + 6][3],
+            basesMeshVerts[baseMeshIndex + 6][4]
+        )
+        print(string.format("BaseP.self.meshVerts texture coordinates: " .. msg))
+    end
+    --]]
+
+    baseMeshIndex = baseMeshIndex + 6
+    baseMeshCount = baseMeshCount + 1
+
+    basesMesh:setVertices(basesMeshVerts)
+    basesMesh:setDrawRange(1, baseMeshIndex)
+    --]]
+--end
+--print("self.meshVerts", inspect(self.meshVerts))
+-- }}}
 end
 
 local function onBeginContact(
@@ -1489,6 +1480,7 @@ local function presentBasesMesh()
     gr.setColor(colorWhite)
     gr.draw(basesMesh as gr.Drawable, 0, 0)
     baseMeshIndex = 0
+    baseMeshCount = 0
 end
 
 local function mainPresent()
@@ -1567,11 +1559,11 @@ local function moveCamera()
     if playerTank then
         local w, h = gr.getDimensions()
         local centerx, centery = w / 2, h / 2
-        print("centerx, centery", centerx, centery)
+        --print("centerx, centery", centerx, centery)
         local tankx, tanky = playerTank.physbody:getWorldCenter()
-        print("tankx, tanky", tankx, tanky)
+        --print("tankx, tanky", tankx, tanky)
         local diff = vecl.dist(centerx, centery, tankx, tanky)
-        print("diff", diff)
+        --print("diff", diff)
     end
 end
 
@@ -1595,18 +1587,6 @@ local function backspaceCmdLine()
         cmdline = string.sub(cmdline, 1, byteoffset - 1)
     end
     -- }}}
-end
-
-function PRINT(...: string)
-    print(...)
-end
-
-function PINSPECT(t: any)
-    print(inspect(t))
-end
-
-function INSPECT(t: any): string
-    return inspect(t)
 end
 
 local function enterCommandMode()
@@ -2085,33 +2065,15 @@ local function initBaseMeshVerts()
             1, 1, 1, 1,     -- 5, 6, 7, 8   - r, g, b, a
         })
     end
-    basesMesh:setVertices(basesMeshVerts)
 end
 
 global baseTextureCoordinatesArr: {number}
 
 local function initBasesMesh()
+    basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "dynamic")
     initBaseMeshVerts()
-    basesMesh = gr.newMesh(basesMeshVerts, "triangles", "dynamic")
+    basesMesh:setVertices(basesMeshVerts)
     baseImage = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
-
-    -- цифры получены из картинки tank_body_small.png
-    local rectXY = {86, 72}
-    local rectWH = {84, 111}
-    local vertices = {
-        px - rectWH[1] / 2 * PIX2M, 
-        py - rectWH[2] / 2 * PIX2M,  
-
-        px + rectWH[1] / 2 * PIX2M, 
-        py - rectWH[2] / 2 * PIX2M,  
-
-        px + rectWH[1] / 2 * PIX2M, 
-        py + rectWH[2] / 2 * PIX2M,  
-
-        px - rectWH[1] / 2 * PIX2M,
-        py + rectWH[2] / 2 * PIX2M,
-    }
-    
     basesMesh:setTexture(baseImage as gr.Texture)
 end
 
@@ -2149,6 +2111,12 @@ local function init()
 
     background = Background.new()
 
+    makeArmy()
+    makeArmy()
+    makeArmy()
+    makeArmy()
+    makeArmy()
+    makeArmy()
     makeArmy()
     makeArmy(0, 500)
     makeArmy(500, 0)

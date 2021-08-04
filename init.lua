@@ -92,6 +92,16 @@ local Bullet = {}
 
 
 
+local basesMesh
+local basesMeshVerts
+local baseImage
+
+
+
+local baseMeshIndex = 0
+
+local baseMeshCount = 0
+
 
 local Base = {}
 
@@ -229,6 +239,7 @@ playerTankKeyconfigIds = {}
 angularImpulseScale = 5
 rot = math.pi / 4
 camZoomLower, camZoomHigher = 0.075, 3.5
+local meshBufferSize = 512
 local cameraSettings = {
 
    dx = 2000, dy = 2000,
@@ -634,7 +645,7 @@ end
 function Tank:present()
 
    if self.base and self.base.present then
-      self.base:present()
+
    else
       colprint('Tank ' .. self.id .. ' is damaged. No base.')
    end
@@ -825,27 +836,29 @@ function Turret:present()
 
 end
 
-function Base:present()
-
-   local shape = self.fixture:getShape()
-   if shape:getType() ~= "polygon" then
-      error("Tank BaseP shape should be polygon.")
-   end
-
-   if DEBUG_PHYSICS then
-      drawFixture(self.fixture, { 0, 0, 0, 1 })
-   end
-
-   gr.setColor({ 1, 1, 1, 1 })
-   self:updateMeshVerts()
-   gr.draw(self.mesh, 0, 0)
 
 
 
 
 
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function Base.new(t)
 
@@ -862,36 +875,34 @@ function Base.new(t)
 
    local self = setmetatable({}, Base_mt)
    self.tank = t
-   self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
 
 
 
-   local rectXY = { 86, 72 }
-   local rectWH = { 84, 111 }
+   self.rectXY = { 86, 72 }
+   self.rectWH = { 84, 111 }
 
    self.physbody = t.physbody
 
    if DEBUG_BASE then
       print("self.tank", self.tank)
       print("self.pbody", self.physbody)
-      print("self.img", self.image)
    end
 
    local px, py = t.pos.x, t.pos.y
 
 
    local vertices = {
-      px - rectWH[1] / 2 * PIX2M,
-      py - rectWH[2] / 2 * PIX2M,
+      px - self.rectWH[1] / 2 * PIX2M,
+      py - self.rectWH[2] / 2 * PIX2M,
 
-      px + rectWH[1] / 2 * PIX2M,
-      py - rectWH[2] / 2 * PIX2M,
+      px + self.rectWH[1] / 2 * PIX2M,
+      py - self.rectWH[2] / 2 * PIX2M,
 
-      px + rectWH[1] / 2 * PIX2M,
-      py + rectWH[2] / 2 * PIX2M,
+      px + self.rectWH[1] / 2 * PIX2M,
+      py + self.rectWH[2] / 2 * PIX2M,
 
-      px - rectWH[1] / 2 * PIX2M,
-      py + rectWH[2] / 2 * PIX2M,
+      px - self.rectWH[1] / 2 * PIX2M,
+      py + self.rectWH[2] / 2 * PIX2M,
    }
 
    local shape = love.physics.newPolygonShape(vertices)
@@ -902,88 +913,28 @@ function Base.new(t)
       print("polygon shape created x, y, r", px, py)
    end
 
-   self:initMeshVerts()
-   self.mesh = love.graphics.newMesh(self.meshVerts,
-   "triangles", "dynamic")
-   self:updateMeshVerts()
-   self.mesh:setTexture(self.image)
-   self:updateMeshTexCoords(rectXY[1], rectXY[2], rectWH[1], rectWH[2])
-
-   if not self.mesh then
-      error("Could'not create Mesh")
-   end
-
    return self
 
 end
 
-function Base:updateMeshTexCoords(x, y, w, h)
 
 
 
+function Base:present()
 
-
-   local imgw, imgh = (self.image):getDimensions()
-
-   local unitw, unith = w / imgw, h / imgh
-
-   local x_, y_ = x / imgw, y / imgh
-
-
-   self.meshVerts[4][3] = x_
-   self.meshVerts[4][4] = y_
-   self.meshVerts[5][3] = x_ + unitw
-   self.meshVerts[5][4] = y_ + unith
-   self.meshVerts[6][3] = x_
-   self.meshVerts[6][4] = y_ + unith
-
-
-   self.meshVerts[3][3] = x_
-   self.meshVerts[3][4] = y_
-   self.meshVerts[1][3] = x_ + unitw
-   self.meshVerts[1][4] = y_
-   self.meshVerts[2][3] = x_ + unitw
-   self.meshVerts[2][4] = y_ + unith
-
-   if DEBUG_TEXCOORDS then
-      local msg = string.format("(%f, %f), (%f, %f), (%f, %f)",
-      self.meshVerts[4][3],
-      self.meshVerts[4][4],
-      self.meshVerts[5][3],
-      self.meshVerts[5][4],
-      self.meshVerts[6][3],
-      self.meshVerts[6][4])
-
-      print(string.format("BaseP.self.meshVerts texture coordinates: " .. msg))
+   local shape = self.fixture:getShape()
+   if shape:getType() ~= "polygon" then
+      error("Tank BaseP shape should be polygon.")
    end
 
-end
-
-function Base:initMeshVerts()
-
-   self.meshVerts = {}
-   for _ = 1, 6 do
-      table.insert(self.meshVerts, {
-         0, 0,
-         0, 0,
-         1, 1, 1, 1,
-      })
+   if DEBUG_PHYSICS then
+      drawFixture(self.fixture, { 0, 0, 0, 1 })
    end
-
-end
-
-
-
-
-function Base:updateMeshVerts()
-
-
-   self.mesh:setVertices(self.meshVerts)
 
    local body = self.fixture:getBody()
 
-
    local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
+
    x1, y1 = body:getWorldPoints(x1, y1)
    x2, y2 = body:getWorldPoints(x2, y2)
    x3, y3 = body:getWorldPoints(x3, y3)
@@ -995,24 +946,70 @@ function Base:updateMeshVerts()
    x4, y4 = M2PIX * x4, M2PIX * y4
 
 
-   self.meshVerts[1][1] = x1
-   self.meshVerts[1][2] = y1
+   basesMeshVerts[baseMeshIndex + 1][1] = x1
+   basesMeshVerts[baseMeshIndex + 1][2] = y1
 
-   self.meshVerts[2][1] = x2
-   self.meshVerts[2][2] = y2
+   basesMeshVerts[baseMeshIndex + 2][1] = x2
+   basesMeshVerts[baseMeshIndex + 2][2] = y2
 
-   self.meshVerts[3][1] = x4
-   self.meshVerts[3][2] = y4
+   basesMeshVerts[baseMeshIndex + 3][1] = x4
+   basesMeshVerts[baseMeshIndex + 3][2] = y4
 
 
-   self.meshVerts[5][1] = x2
-   self.meshVerts[5][2] = y2
+   basesMeshVerts[baseMeshIndex + 5][1] = x2
+   basesMeshVerts[baseMeshIndex + 5][2] = y2
 
-   self.meshVerts[6][1] = x3
-   self.meshVerts[6][2] = y3
+   basesMeshVerts[baseMeshIndex + 6][1] = x3
+   basesMeshVerts[baseMeshIndex + 6][2] = y3
 
-   self.meshVerts[4][1] = x4
-   self.meshVerts[4][2] = y4
+   basesMeshVerts[baseMeshIndex + 4][1] = x4
+   basesMeshVerts[baseMeshIndex + 4][2] = y4
+
+
+   local rx, ry = self.rectXY[1], self.rectXY[2]
+   local rw, rh = self.rectWH[1], self.rectWH[2]
+
+   local imgw, imgh = (baseImage):getDimensions()
+
+   local unitw, unith = rw / imgw, rh / imgh
+
+   local x_, y_ = rx / imgw, ry / imgh
+
+
+   basesMeshVerts[baseMeshIndex + 4][3] = x_
+   basesMeshVerts[baseMeshIndex + 4][4] = y_
+   basesMeshVerts[baseMeshIndex + 5][3] = x_ + unitw
+   basesMeshVerts[baseMeshIndex + 5][4] = y_ + unith
+   basesMeshVerts[baseMeshIndex + 6][3] = x_
+   basesMeshVerts[baseMeshIndex + 6][4] = y_ + unith
+
+
+   basesMeshVerts[baseMeshIndex + 3][3] = x_
+   basesMeshVerts[baseMeshIndex + 3][4] = y_
+   basesMeshVerts[baseMeshIndex + 1][3] = x_ + unitw
+   basesMeshVerts[baseMeshIndex + 1][4] = y_
+   basesMeshVerts[baseMeshIndex + 2][3] = x_ + unitw
+   basesMeshVerts[baseMeshIndex + 2][4] = y_ + unith
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   baseMeshIndex = baseMeshIndex + 6
+   baseMeshCount = baseMeshCount + 1
+
+   basesMesh:setVertices(basesMeshVerts)
+   basesMesh:setDrawRange(1, baseMeshIndex)
 
 
 
@@ -1477,11 +1474,21 @@ local function drawCameraCircle()
    gr.setLineWidth(olw)
 end
 
-local function mainPresent()
+local colorWhite = { 1, 1, 1, 1 }
 
+local function presentBasesMesh()
+   gr.setColor(colorWhite)
+   gr.draw(basesMesh, 0, 0)
+   baseMeshIndex = 0
+   baseMeshCount = 0
+end
+
+local function mainPresent()
+   baseMeshIndex = 0
    push2drawlist(Background.present, background)
    push2drawlist(queryBoundingBox)
    push2drawlist(drawBullets)
+   push2drawlist(presentBasesMesh)
 
    cam:attach()
    presentDrawlist()
@@ -1494,7 +1501,6 @@ local function mainPresent()
    changeKeyConfigListbackground()
 
    coroutine.yield()
-
 end
 
 local function drawCameraAxixes()
@@ -1553,11 +1559,11 @@ local function moveCamera()
    if playerTank then
       local w, h = gr.getDimensions()
       local centerx, centery = w / 2, h / 2
-      print("centerx, centery", centerx, centery)
+
       local tankx, tanky = playerTank.physbody:getWorldCenter()
-      print("tankx, tanky", tankx, tanky)
+
       local diff = vecl.dist(centerx, centery, tankx, tanky)
-      print("diff", diff)
+
    end
 end
 
@@ -1581,18 +1587,6 @@ local function backspaceCmdLine()
       cmdline = string.sub(cmdline, 1, byteoffset - 1)
    end
 
-end
-
-function PRINT(...)
-   print(...)
-end
-
-function PINSPECT(t)
-   print(inspect(t))
-end
-
-function INSPECT(t)
-   return inspect(t)
 end
 
 local function enterCommandMode()
@@ -2062,6 +2056,27 @@ local function makeArmy(x, y)
 
 end
 
+local function initBaseMeshVerts()
+   basesMeshVerts = {}
+   for _ = 1, 6 * meshBufferSize do
+      table.insert(basesMeshVerts, {
+         0, 0,
+         0, 0,
+         1, 1, 1, 1,
+      })
+   end
+end
+
+
+
+local function initBasesMesh()
+   basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "dynamic")
+   initBaseMeshVerts()
+   basesMesh:setVertices(basesMeshVerts)
+   baseImage = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
+   basesMesh:setTexture(baseImage)
+end
+
 local function init()
 
    metrics.init()
@@ -2091,10 +2106,17 @@ local function init()
    bindEscape()
    bindKonsole()
 
+   initBasesMesh()
    drawCoro = createDrawCoroutine()
 
    background = Background.new()
 
+   makeArmy()
+   makeArmy()
+   makeArmy()
+   makeArmy()
+   makeArmy()
+   makeArmy()
    makeArmy()
    makeArmy(0, 500)
    makeArmy(500, 0)
@@ -2132,9 +2154,7 @@ local function mousepressed(x, y, btn)
    elseif btn == 2 then
       x, y = cam:worldCoords(x, y)
       x, y = x * PIX2M, y * PIX2M
-      for i = 1, 10 do
-          spawnTank(vector.new(x, y))
-      end
+      spawnTank(vector.new(x, y))
    end
 
 end
