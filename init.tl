@@ -96,9 +96,15 @@ local basesMesh: gr.Mesh
 local basesMeshVerts: {{number}}
 local baseImage: gr.Image
 
+-- Смещение вершин в буфере полигональной сетки basesMesh
+-- Индекс начинается с 0. 
+local baseMeshIndex: integer = 0
+
 -- Ходовая часть с полигоном
 local record Base
     -- {{{
+    rectXY: {number}
+    rectWH: {number}
     physbody: love.physics.Body
     fixture: love.physics.Fixture
     --pos: vector -- центр поворота корпуса
@@ -828,6 +834,7 @@ function Turret:present()
     -- }}}
 end
 
+--[[
 function Base:present()
     -- {{{
     local shape = self.fixture:getShape()
@@ -841,7 +848,7 @@ function Base:present()
 
     gr.setColor{1, 1, 1, 1}
     self:updateMeshVerts()
-    gr.draw(self.mesh as love.graphics.Drawable, 0, 0)
+    --gr.draw(self.mesh as love.graphics.Drawable, 0, 0)
 
     --local x, y = self.pbody:getWorldCenter()
     --x, y = x * M2PIX, y * M2PIX
@@ -849,6 +856,7 @@ function Base:present()
     --gr.print(text, x, y)
     -- }}}
 end
+--]]
 
 function Base.new(t: Tank): Base
     -- {{{
@@ -868,8 +876,8 @@ function Base.new(t: Tank): Base
     --self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
 
     -- цифры получены из картинки tank_body_small.png
-    local rectXY = {86, 72}
-    local rectWH = {84, 111}
+    self.rectXY = {86, 72}
+    self.rectWH = {84, 111}
     
     self.physbody = t.physbody
 
@@ -883,17 +891,17 @@ function Base.new(t: Tank): Base
 
     -- XXX Не используется rectXY, будут проблемы при перемещении выделения на текстуре.
     local vertices = {
-        px - rectWH[1] / 2 * PIX2M, 
-        py - rectWH[2] / 2 * PIX2M,  
+        px - self.rectWH[1] / 2 * PIX2M, 
+        py - self.rectWH[2] / 2 * PIX2M,  
 
-        px + rectWH[1] / 2 * PIX2M, 
-        py - rectWH[2] / 2 * PIX2M,  
+        px + self.rectWH[1] / 2 * PIX2M, 
+        py - self.rectWH[2] / 2 * PIX2M,  
 
-        px + rectWH[1] / 2 * PIX2M, 
-        py + rectWH[2] / 2 * PIX2M,  
+        px + self.rectWH[1] / 2 * PIX2M, 
+        py + self.rectWH[2] / 2 * PIX2M,  
 
-        px - rectWH[1] / 2 * PIX2M,
-        py + rectWH[2] / 2 * PIX2M,
+        px - self.rectWH[1] / 2 * PIX2M,
+        py + self.rectWH[2] / 2 * PIX2M,
     }
 
     local shape = love.physics.newPolygonShape(vertices)
@@ -905,11 +913,10 @@ function Base.new(t: Tank): Base
     end
 
     --self:initMeshVerts()
-    self.mesh = love.graphics.newMesh(self.meshVerts as {{number}}, 
-        "triangles", "dynamic")
-    self:updateMeshVerts()
-    self.mesh:setTexture(self.image as gr.Texture)
-    self:updateMeshTexCoords(rectXY[1], rectXY[2], rectWH[1], rectWH[2])
+    --self.mesh = love.graphics.newMesh(self.meshVerts as {{number}}, "triangles", "dynamic")
+    --self:updateMeshVerts()
+    --self.mesh:setTexture(self.image as gr.Texture)
+    --self:updateMeshTexCoords(rectXY[1], rectXY[2], rectWH[1], rectWH[2])
     
     if not self.mesh then
         error("Could'not create Mesh")
@@ -924,62 +931,24 @@ function Base:updateMeshTexCoords(x: number, y: number, w: number, h: number)
 
     --print("updateMeshTexCoords", x, y, w, h)
 
-    -- размеры текстуры в пикселях
-    local imgw, imgh = (self.image as gr.Texture):getDimensions()
-    -- нормализованная ширина и высота
-    local unitw, unith = w / imgw, h / imgh
-    -- нормализованные координаты левого верхнего угла выделения
-    local x_, y_ = x / imgw, y / imgh
-
-    -- tri1
-    self.meshVerts[4][3] = x_
-    self.meshVerts[4][4] = y_
-    self.meshVerts[5][3] = x_ + unitw
-    self.meshVerts[5][4] = y_ + unith
-    self.meshVerts[6][3] = x_
-    self.meshVerts[6][4] = y_ + unith
-
-    -- tri2
-    self.meshVerts[3][3] = x_
-    self.meshVerts[3][4] = y_
-    self.meshVerts[1][3] = x_ + unitw
-    self.meshVerts[1][4] = y_
-    self.meshVerts[2][3] = x_ + unitw
-    self.meshVerts[2][4] = y_ + unith
-
-    if DEBUG_TEXCOORDS then
-        local msg = string.format("(%f, %f), (%f, %f), (%f, %f)",
-            self.meshVerts[4][3],
-            self.meshVerts[4][4],
-            self.meshVerts[5][3],
-            self.meshVerts[5][4],
-            self.meshVerts[6][3],
-            self.meshVerts[6][4]
-        )
-        print(string.format("BaseP.self.meshVerts texture coordinates: " .. msg))
-    end
     -- }}}
-end
-
-local function initBaseMeshVerts()
-    basesMeshVerts = {}
-    for _ = 1, 6 * meshBufferSize do
-        table.insert(basesMeshVerts, {
-            0, 0,           -- 1, 2         - x, y
-            0, 0,           -- 3, 4         - u, v
-            1, 1, 1, 1,     -- 5, 6, 7, 8   - r, g, b, a
-        })
-    end
 end
 
 -- TODO сделать меньше копирований
 -- TODO Попробовать выставялть матрицы проекции для каждого танка вместо
 -- заполнения сетки.
-function Base:updateMeshVerts()
+function Base:present()
     -- {{{
-    --if self.tank.pbody:isAwake() then
-        self.mesh:setVertices(self.meshVerts)
+    local shape = self.fixture:getShape()
+    if shape:getType() ~= "polygon" then
+        error("Tank BaseP shape should be polygon.")
+    end
 
+    if DEBUG_PHYSICS then
+        drawFixture(self.fixture, {0, 0, 0, 1})
+    end
+
+    local x, y, w, h: number, number, number, number = self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
         local body = self.fixture:getBody()
 
         --    1   2   3   4   5   6   7   8
@@ -995,24 +964,61 @@ function Base:updateMeshVerts()
         x4, y4 = M2PIX * x4, M2PIX * y4
 
         -- tri1
-        self.meshVerts[1][1] = x1
-        self.meshVerts[1][2] = y1
+        basesMeshVerts[baseMeshIndex + 1][1] = x1
+        basesMeshVerts[baseMeshIndex + 1][2] = y1
 
-        self.meshVerts[2][1] = x2
-        self.meshVerts[2][2] = y2
+        basesMeshVerts[baseMeshIndex + 2][1] = x2
+        basesMeshVerts[baseMeshIndex + 2][2] = y2
 
-        self.meshVerts[3][1] = x4
-        self.meshVerts[3][2] = y4
+        basesMeshVerts[baseMeshIndex + 3][1] = x4
+        basesMeshVerts[baseMeshIndex + 3][2] = y4
 
         -- tri2
-        self.meshVerts[5][1] = x2
-        self.meshVerts[5][2] = y2
+        basesMeshVerts[baseMeshIndex + 5][1] = x2
+        basesMeshVerts[baseMeshIndex + 5][2] = y2
 
-        self.meshVerts[6][1] = x3
-        self.meshVerts[6][2] = y3
+        basesMeshVerts[baseMeshIndex + 6][1] = x3
+        basesMeshVerts[baseMeshIndex + 6][2] = y3
 
-        self.meshVerts[4][1] = x4
-        self.meshVerts[4][2] = y4
+        basesMeshVerts[baseMeshIndex + 4][1] = x4
+        basesMeshVerts[baseMeshIndex + 4][2] = y4
+
+        --local w, h = gr.getDimensions()
+        -- размеры текстуры в пикселях
+        local imgw, imgh = (baseImage as gr.Texture):getDimensions()
+        -- нормализованная ширина и высота
+        local unitw, unith = w / imgw, h / imgh
+        -- нормализованные координаты левого верхнего угла выделения
+        local x_, y_ = x / imgw, y / imgh
+
+        -- tri1
+        basesMeshVerts[baseMeshIndex + 4][3] = x_
+        basesMeshVerts[baseMeshIndex + 4][4] = y_
+        basesMeshVerts[baseMeshIndex + 5][3] = x_ + unitw
+        basesMeshVerts[baseMeshIndex + 5][4] = y_ + unith
+        basesMeshVerts[baseMeshIndex + 6][3] = x_
+        basesMeshVerts[baseMeshIndex + 6][4] = y_ + unith
+
+        -- tri2
+        basesMeshVerts[baseMeshIndex + 3][3] = x_
+        basesMeshVerts[baseMeshIndex + 3][4] = y_
+        basesMeshVerts[baseMeshIndex + 1][3] = x_ + unitw
+        basesMeshVerts[baseMeshIndex + 1][4] = y_
+        basesMeshVerts[baseMeshIndex + 2][3] = x_ + unitw
+        basesMeshVerts[baseMeshIndex + 2][4] = y_ + unith
+
+        if DEBUG_TEXCOORDS then
+            local msg = string.format("(%f, %f), (%f, %f), (%f, %f)",
+                basesMeshVerts[baseMeshIndex + 4][3],
+                basesMeshVerts[baseMeshIndex + 4][4],
+                basesMeshVerts[baseMeshIndex + 5][3],
+                basesMeshVerts[baseMeshIndex + 5][4],
+                basesMeshVerts[baseMeshIndex + 6][3],
+                basesMeshVerts[baseMeshIndex + 6][4]
+            )
+            print(string.format("BaseP.self.meshVerts texture coordinates: " .. msg))
+        end
+        baseMeshIndex = baseMeshIndex + 6
         --]]
     --end
     --print("self.meshVerts", inspect(self.meshVerts))
@@ -1477,11 +1483,20 @@ local function drawCameraCircle()
     gr.setLineWidth(olw)
 end
 
+local colorWhite = {1, 1, 1, 1}
+
+local function presentBasesMesh()
+    gr.setColor(colorWhite)
+    gr.draw(basesMesh as gr.Drawable, 0, 0)
+    baseMeshIndex = 0
+end
+
 local function mainPresent()
-    -- {{{
+    baseMeshIndex = 0
     push2drawlist(Background.present, background)
     push2drawlist(queryBoundingBox)
     push2drawlist(drawBullets)
+    push2drawlist(presentBasesMesh)
 
     cam:attach()
     presentDrawlist()
@@ -1494,7 +1509,6 @@ local function mainPresent()
     changeKeyConfigListbackground()
 
     coroutine.yield()
-    -- }}}
 end
 
 local function drawCameraAxixes()
@@ -2062,10 +2076,42 @@ local function makeArmy(x: number, y: number)
     -- }}}
 end
 
+local function initBaseMeshVerts()
+    basesMeshVerts = {}
+    for _ = 1, 6 * meshBufferSize do
+        table.insert(basesMeshVerts, {
+            0, 0,           -- 1, 2         - x, y
+            0, 0,           -- 3, 4         - u, v
+            1, 1, 1, 1,     -- 5, 6, 7, 8   - r, g, b, a
+        })
+    end
+    basesMesh:setVertices(basesMeshVerts)
+end
+
+global baseTextureCoordinatesArr: {number}
+
 local function initBasesMesh()
-    initMeshVerts()
+    initBaseMeshVerts()
     basesMesh = gr.newMesh(basesMeshVerts, "triangles", "dynamic")
     baseImage = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
+
+    -- цифры получены из картинки tank_body_small.png
+    local rectXY = {86, 72}
+    local rectWH = {84, 111}
+    local vertices = {
+        px - rectWH[1] / 2 * PIX2M, 
+        py - rectWH[2] / 2 * PIX2M,  
+
+        px + rectWH[1] / 2 * PIX2M, 
+        py - rectWH[2] / 2 * PIX2M,  
+
+        px + rectWH[1] / 2 * PIX2M, 
+        py + rectWH[2] / 2 * PIX2M,  
+
+        px - rectWH[1] / 2 * PIX2M,
+        py + rectWH[2] / 2 * PIX2M,
+    }
+    
     basesMesh:setTexture(baseImage as gr.Texture)
 end
 
