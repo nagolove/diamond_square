@@ -295,27 +295,57 @@ function base_present2(
 
     local vertex
 
-    vertex = dataptr[baseMeshIndex + 1]
-    .x = x1
-    .y = y1
-    .u = x_ + unitw
-    .v = y_
-    .r, 
-    .g = 1
-    .b = 1
-    .a = 1
+    --vertex = dataptr[baseMeshIndex + 1]
+    dataptr[baseMeshIndex + 1].x = x1
+    dataptr[baseMeshIndex + 1].y = y1
+    dataptr[baseMeshIndex + 1].u = x_ + unitw
+    dataptr[baseMeshIndex + 1].v = y_
+    dataptr[baseMeshIndex + 1].r, 
+    dataptr[baseMeshIndex + 1].g = 1
+    dataptr[baseMeshIndex + 1].b = 1
+    dataptr[baseMeshIndex + 1].a = 1
 
-    vertex = dataptr[baseMeshIndex + 2]
-    .x = x2
-    .y = y2
-    .u = x_ + unitw
+    --vertex = dataptr[baseMeshIndex + 2]
+    dataptr[baseMeshIndex + 2].x = x2
+    dataptr[baseMeshIndex + 2].y = y2
+    dataptr[baseMeshIndex + 2].u = x_ + unitw
+    dataptr[baseMeshIndex + 2].v = y_ + unith
+    dataptr[baseMeshIndex + 2].r = 1
+    dataptr[baseMeshIndex + 2].g = 1
+    dataptr[baseMeshIndex + 2].b = 1
+    dataptr[baseMeshIndex + 2].a = 1
+
+    --vertex = dataptr[baseMeshIndex + 3]
+    dataptr[baseMeshIndex + 3].x = x4
+    dataptr[baseMeshIndex + 3].y = y4
+    dataptr[baseMeshIndex + 3].u = x_
+    dataptr[baseMeshIndex + 3].v = y_
+    dataptr[baseMeshIndex + 3].r = 1
+    dataptr[baseMeshIndex + 3].g = 1
+    dataptr[baseMeshIndex + 3].b = 1
+    dataptr[baseMeshIndex + 3].a = 1
+
+    --vertex = dataptr[baseMeshIndex + 5]
+    dataptr[baseMeshIndex + 5].x = x2
+    dataptr[baseMeshIndex + 5].y = y2
+    dataptr[baseMeshIndex + 5].u = x_ + unitw
+    dataptr[baseMeshIndex + 5].v = y_ + unith
+    dataptr[baseMeshIndex + 5].r = 1
+    dataptr[baseMeshIndex + 5].g = 1
+    dataptr[baseMeshIndex + 5].b = 1
+    dataptr[baseMeshIndex + 5].a = 1
+
+    vertex = dataptr[baseMeshIndex + 6]
+    .x = x3
+    .y = y3
+    .u = x_
     .v = y_ + unith
     .r = 1
     .g = 1
     .b = 1
     .a = 1
 
-    vertex = dataptr[baseMeshIndex + 3]
+    vertex = dataptr[baseMeshIndex + 4]
     .x = x4
     .y = y4
     .u = x_
@@ -324,30 +354,6 @@ function base_present2(
     .g = 1
     .b = 1
     .a = 1
-
-    vertex = dataptr[baseMeshIndex + 5]
-    .x = x2
-    .y = y2
-    .u = x_ + unitw
-    .v = y_ + unith
-    .r = 1
-    .g = 1
-    .b = 1
-    .a = 1
-
-    vertex = dataptr[baseMeshIndex + 6]
-    vertex.x = x3
-    vertex.y = y3
-    vertex.u = x_
-    vertex.v = y_ + unith
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
-
-    vertex = dataptr[baseMeshIndex + 4]
-    vertex.x = x4
-    vertex.y = y4
-    vertex.u = x_
-    vertex.v = y_
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
 
      --DEBUG_TEXCOORDS 
     -- {{{
