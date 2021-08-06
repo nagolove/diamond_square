@@ -952,9 +952,17 @@ function Base:present()
 
 
 
+
+
+
+
    render.base_present(
    x1, y1, x2, y2, x3, y3, x4, y4,
    self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2])
+
+
+
+
 
 
 end
@@ -1417,13 +1425,8 @@ local function drawCameraCircle()
    gr.setLineWidth(olw)
 end
 
-local colorWhite = { 1, 1, 1, 1 }
-
 local function presentBasesMesh()
-   gr.setColor(colorWhite)
-   gr.draw(basesMesh, 0, 0)
-   baseMeshIndex = 0
-   baseMeshCount = 0
+   render.base_flush()
 end
 
 local function mainPresent()
@@ -2008,6 +2011,7 @@ end
 local function initBaseMeshVerts()
    print('initBaseMeshVerts')
    basesMeshVerts = {}
+
    for _ = 1, 6 * meshBufferSize do
 
       table.insert(basesMeshVerts, {
