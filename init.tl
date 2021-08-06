@@ -956,14 +956,14 @@ function Base:present()
         --x1, y1, x2, y2, x3, y3, x4, y4, 
         --self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
     --)
-    render.base_present(
-        x1, y1, x2, y2, x3, y3, x4, y4, 
-        self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
-    )
-    --render.base_present2(
+    --render.base_present(
         --x1, y1, x2, y2, x3, y3, x4, y4, 
         --self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
     --)
+    render.base_present2(
+        x1, y1, x2, y2, x3, y3, x4, y4, 
+        self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
+    )
 -- }}}
 end
 

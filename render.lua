@@ -215,7 +215,32 @@ local colorWhite = {1, 1, 1, 1}
 
 local inspect = require 'inspect'
 
+local function printImageData(imageData)
+    --local vertex_size = ffi.sizeof('fm_vertex')
+    --print('vertex_size', vertex_size)
+    --local pixel_size = ffi.sizeof('unsigned char[4]')
+    --print('pixel_size', pixel_size)
+    --local num_verts = meshBufferSize * 6
+    --local imageData = love.image.newImageData(num_verts / pixel_size * vertex_size, 1)
+    --local byteData = love.data.newByteData(num_verts * pixel_size)
+    --print("width", num_verts / pixel_size * vertex_size, 1)
+    local dataptr = ffi.cast("fm_vertex*", imageData:getPointer())
+    for i = 0, baseMeshCount * 6 do
+        local vert = dataptr[i]
+        print('i', i)
+        print("vert.x", vert.x)
+        print("vert.y", vert.y)
+        print("vert.u", vert.u)
+        print("vert.v", vert.v)
+        print("vert.r", vert.r)
+        print("vert.g", vert.g)
+        print("vert.b", vert.b)
+        print("vert.a", vert.a)
+    end
+end
+
 local function base_flush()
+    --[[
     for k, v in pairs(basesMeshVerts) do
         print(k, inspect(v))
         local vert = dataptr[k]
@@ -247,11 +272,98 @@ local function base_flush()
 
     end
     basesMesh:setVertices(imageData)
+    --]]
+    printImageData(imageData)
+    os.exit()
 
     love.graphics.setColor(colorWhite)
     love.graphics.draw(basesMesh, 0, 0)
     baseMeshIndex = 0
     baseMeshCount = 0
+end
+
+function base_present3(
+    x1, y1, x2, y2, x3, y3, x4, y4,
+    rx, ry, rw, rh
+)
+    -- размеры текстуры в пикселях
+    local imgw, imgh = baseImage:getDimensions()
+    -- нормализованная ширина и высота
+    local unitw, unith = rw / imgw, rh / imgh
+    -- нормализованные координаты левого верхнего угла выделения
+    local x_, y_ = rx / imgw, ry / imgh
+
+    local vertex
+
+    vertex = dataptr[baseMeshIndex + 1]
+
+    vertex.x = x1
+    vertex.y = y1
+    vertex.u = x_ + unitw
+    vertex.v = y_
+    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
+
+    vertex = dataptr[baseMeshIndex + 2]
+    vertex.x = x2
+    vertex.y = y2
+    vertex.u = x_ + unitw
+    vertex.v = y_ + unith
+    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
+
+    vertex = dataptr[baseMeshIndex + 3]
+    vertex.x = x4
+    vertex.y = y4
+    vertex.u = x_
+    vertex.v = y_
+    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
+
+    vertex = dataptr[baseMeshIndex + 5]
+    vertex.x = x2
+    vertex.y = y2
+    vertex.u = x_ + unitw
+    vertex.v = y_ + unith
+    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
+
+    vertex = dataptr[baseMeshIndex + 6]
+    vertex.x = x3
+    vertex.y = y3
+    vertex.u = x_
+    vertex.v = y_ + unith
+    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
+
+    vertex = dataptr[baseMeshIndex + 4]
+    vertex.x = x4
+    vertex.y = y4
+    vertex.u = x_
+    vertex.v = y_
+    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
+
+     --DEBUG_TEXCOORDS 
+    -- {{{
+    if DEBUG_TEXCOORDS then
+        --print('Do some printf.')
+        print('help me.')
+    end
+    -- }}}
+    --]]
+
+    --basesMesh:setVertices(basesMeshVerts, 1 + 6 * baseMeshCount, 6)
+
+    --basesMesh:setVertices(basesMeshVerts)
+    --basesMesh:setVertices(imageData, 1, 6)
+
+    --basesMesh:setVertices(imageData, 1 + 6 * baseMeshCount, 6)
+    --basesMesh:setVertices(basesMeshVerts, 1 + baseMeshIndex, 6)
+    
+    --print('baseMeshIndex', baseMeshIndex)
+    --print('basesMesh:getDrawRange()', basesMesh:getDrawRange())
+    
+    if baseMeshIndex ~= 0 then
+        --basesMesh:setDrawRange(1, baseMeshIndex/2)
+    end
+    --print("self.meshVerts", inspect(self.meshVerts))
+    baseMeshIndex = baseMeshIndex + 6
+    baseMeshCount = baseMeshCount + 1
 end
 
 return {
