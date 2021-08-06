@@ -282,7 +282,7 @@ local function base_flush()
     baseMeshCount = 0
 end
 
-function base_present3(
+function base_present2(
     x1, y1, x2, y2, x3, y3, x4, y4,
     rx, ry, rw, rh
 )
@@ -296,33 +296,44 @@ function base_present3(
     local vertex
 
     vertex = dataptr[baseMeshIndex + 1]
-
-    vertex.x = x1
-    vertex.y = y1
-    vertex.u = x_ + unitw
-    vertex.v = y_
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
+    .x = x1
+    .y = y1
+    .u = x_ + unitw
+    .v = y_
+    .r, 
+    .g = 1
+    .b = 1
+    .a = 1
 
     vertex = dataptr[baseMeshIndex + 2]
-    vertex.x = x2
-    vertex.y = y2
-    vertex.u = x_ + unitw
-    vertex.v = y_ + unith
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
+    .x = x2
+    .y = y2
+    .u = x_ + unitw
+    .v = y_ + unith
+    .r = 1
+    .g = 1
+    .b = 1
+    .a = 1
 
     vertex = dataptr[baseMeshIndex + 3]
-    vertex.x = x4
-    vertex.y = y4
-    vertex.u = x_
-    vertex.v = y_
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
+    .x = x4
+    .y = y4
+    .u = x_
+    .v = y_
+    .r = 1
+    .g = 1
+    .b = 1
+    .a = 1
 
     vertex = dataptr[baseMeshIndex + 5]
-    vertex.x = x2
-    vertex.y = y2
-    vertex.u = x_ + unitw
-    vertex.v = y_ + unith
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
+    .x = x2
+    .y = y2
+    .u = x_ + unitw
+    .v = y_ + unith
+    .r = 1
+    .g = 1
+    .b = 1
+    .a = 1
 
     vertex = dataptr[baseMeshIndex + 6]
     vertex.x = x3
