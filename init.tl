@@ -92,16 +92,16 @@ end
 -- }}}
 --]]
 
-local basesMesh: gr.Mesh
-local basesData: love.data.ByteData
-local basesMeshVerts: {{number}}
-local baseImage: gr.Image
+global basesMesh: gr.Mesh
+--global basesData: love.data.ByteData
+global basesMeshVerts: {{number}}
+global baseImage: gr.Image
 
 -- Смещение вершин в буфере полигональной сетки basesMesh
 -- Индекс начинается с 0. Кратно 6.
-local baseMeshIndex: integer = 0
+global baseMeshIndex: integer = 0
 -- Количество моделей в буфере.
-local baseMeshCount: integer = 0
+global baseMeshCount: integer = 0
 
 -- Ходовая часть с полигоном
 local record Base
@@ -120,8 +120,8 @@ local record Base
 
     new: function(t: Tank): Base
     present: function(Base)
-    updateMeshVerts: function(Base)
-    updateMeshTexCoords: function(Base, x: number, y: number, w: number, h: number)
+    --updateMeshVerts: function(Base)
+    --updateMeshTexCoords: function(Base, x: number, y: number, w: number, h: number)
     -- }}}
 end
 
@@ -193,7 +193,7 @@ global DEBUG_BULLET = true
 --global DEBUG_PHYSICS = true
 
 global DEBUG_DRAW_THREAD = false
-global DEBUG_TEXCOORDS = false
+global DEBUG_TEXCOORDS = true
 global DEBUG_PHYSICS = false
 
 -- Глобальные флаги отображения
@@ -240,7 +240,7 @@ global playerTankKeyconfigIds: {integer} = {}
 global angularImpulseScale = 5
 global rot = math.pi / 4
 global camZoomLower, camZoomHigher = 0.075, 3.5
-local meshBufferSize = 4096
+global meshBufferSize = 512
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
     dx = 2000, dy = 2000,
@@ -918,6 +918,8 @@ function Base.new(t: Tank): Base
     -- }}}
 end
 
+local render = require 'render'
+
 -- TODO сделать меньше копирований
 -- TODO Попробовать выставялть матрицы проекции для каждого танка вместо
 -- заполнения сетки.
@@ -946,76 +948,14 @@ function Base:present()
     x3, y3 = M2PIX * x3, M2PIX * y3
     x4, y4 = M2PIX * x4, M2PIX * y4
 
-    -- tri1
-    basesMeshVerts[baseMeshIndex + 1][1] = x1
-    basesMeshVerts[baseMeshIndex + 1][2] = y1
-
-    basesMeshVerts[baseMeshIndex + 2][1] = x2
-    basesMeshVerts[baseMeshIndex + 2][2] = y2
-
-    basesMeshVerts[baseMeshIndex + 3][1] = x4
-    basesMeshVerts[baseMeshIndex + 3][2] = y4
-
-    -- tri2
-    basesMeshVerts[baseMeshIndex + 5][1] = x2
-    basesMeshVerts[baseMeshIndex + 5][2] = y2
-
-    basesMeshVerts[baseMeshIndex + 6][1] = x3
-    basesMeshVerts[baseMeshIndex + 6][2] = y3
-
-    basesMeshVerts[baseMeshIndex + 4][1] = x4
-    basesMeshVerts[baseMeshIndex + 4][2] = y4
-
-    --local w, h = gr.getDimensions()
-    local rx, ry = self.rectXY[1], self.rectXY[2]
-    local rw, rh = self.rectWH[1], self.rectWH[2]
-    -- размеры текстуры в пикселях
-    local imgw, imgh = (baseImage as gr.Texture):getDimensions()
-    -- нормализованная ширина и высота
-    local unitw, unith = rw / imgw, rh / imgh
-    -- нормализованные координаты левого верхнего угла выделения
-    local x_, y_ = rx / imgw, ry / imgh
-
-    -- tri1
-    basesMeshVerts[baseMeshIndex + 4][3] = x_
-    basesMeshVerts[baseMeshIndex + 4][4] = y_
-    basesMeshVerts[baseMeshIndex + 5][3] = x_ + unitw
-    basesMeshVerts[baseMeshIndex + 5][4] = y_ + unith
-    basesMeshVerts[baseMeshIndex + 6][3] = x_
-    basesMeshVerts[baseMeshIndex + 6][4] = y_ + unith
-
-    -- tri2
-    basesMeshVerts[baseMeshIndex + 3][3] = x_
-    basesMeshVerts[baseMeshIndex + 3][4] = y_
-    basesMeshVerts[baseMeshIndex + 1][3] = x_ + unitw
-    basesMeshVerts[baseMeshIndex + 1][4] = y_
-    basesMeshVerts[baseMeshIndex + 2][3] = x_ + unitw
-    basesMeshVerts[baseMeshIndex + 2][4] = y_ + unith
-
-    --[[
-    if DEBUG_TEXCOORDS then
-        local msg = string.format("(%f, %f), (%f, %f), (%f, %f)",
-            basesMeshVerts[baseMeshIndex + 4][3],
-            basesMeshVerts[baseMeshIndex + 4][4],
-            basesMeshVerts[baseMeshIndex + 5][3],
-            basesMeshVerts[baseMeshIndex + 5][4],
-            basesMeshVerts[baseMeshIndex + 6][3],
-            basesMeshVerts[baseMeshIndex + 6][4]
-        )
-        print(string.format("BaseP.self.meshVerts texture coordinates: " .. msg))
-    end
-    --]]
-
-    --basesMesh:setVertices(basesMeshVerts, 1 + baseMeshIndex, 6)
-    basesMesh:setVertices(basesMeshVerts, 1 + 6 * baseMeshCount, 6)
-    --baseMeshIndex = baseMeshIndex + 6
-    baseMeshCount = baseMeshCount + 1
-
-    --basesMesh:setVertices(basesMeshVerts)
-    --basesMesh:setDrawRange(1, baseMeshIndex)
-    --]]
---end
---print("self.meshVerts", inspect(self.meshVerts))
+    --print("base_present", 
+        --x1, y1, x2, y2, x3, y3, x4, y4, 
+        --self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
+    --)
+    render.base_present(
+        x1, y1, x2, y2, x3, y3, x4, y4, 
+        self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
+    )
 -- }}}
 end
 
@@ -1645,7 +1585,10 @@ end
 function attach(varname: string)
     if type(varname) == "string" then
         attachedVarsList[varname] = function()
-            linesbuf:pushi(string.format("%s", tabular.show((_G as {any:any})[varname])))
+            local s = tabular.show((_G as {any:any})[varname])
+            if s then 
+                linesbuf:pushi(string.format("%s", s))
+            end
         end
     end
 end
@@ -2063,25 +2006,28 @@ local function makeArmy(x: number, y: number)
 end
 
 local function initBaseMeshVerts()
+    print('initBaseMeshVerts')
     basesMeshVerts = {}
-    --for _ = 1, 6 * meshBufferSize do
-    for _ = 1, 6 * 1 do
+    for _ = 1, 6 * meshBufferSize do
+    --for _ = 1, 6 * 1 do
         table.insert(basesMeshVerts, {
             0, 0,           -- 1, 2         - x, y
             0, 0,           -- 3, 4         - u, v
             1, 1, 1, 1,     -- 5, 6, 7, 8   - r, g, b, a
         })
     end
-    basesData = love.data.newData()
+    --basesData = love.data.newByteData()
     print("basesMesh:getVertexFormat()\n", tabular.show(basesMesh:getVertexFormat()))
 end
 
 global baseTextureCoordinatesArr: {number}
 
 local function initBasesMesh()
+    --basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "static")
     basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "dynamic")
+    --basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "stream")
     initBaseMeshVerts()
-    basesMesh:setVertices(basesMeshVerts)
+    --basesMesh:setVertices(basesMeshVerts)
     baseImage = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
     basesMesh:setTexture(baseImage as gr.Texture)
 end
@@ -2132,10 +2078,10 @@ local function init()
         spawnTank(vector.new(100, 100))
     end
 
-    makeArmy()
-    makeArmy(0, 500)
-    makeArmy(500, 0)
-    makeArmy(500, 500)
+    --makeArmy()
+    --makeArmy(0, 500)
+    --makeArmy(500, 0)
+    --makeArmy(500, 500)
 
     enableDEBUG()
 
