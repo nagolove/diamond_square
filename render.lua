@@ -13,7 +13,7 @@ local vertex_size = ffi.sizeof('fm_vertex')
 local pixel_size = ffi.sizeof('unsigned char[4]')
 local num_verts = meshBufferSize * 6
 local imageData = love.image.newImageData(num_verts / pixel_size * vertex_size, 1)
-local data = ffi.cast("fm_vertex*", imageData:getPointer())
+local dataptr = ffi.cast("fm_vertex*", imageData:getPointer())
 
 local function base_present(
     x1, y1, x2, y2, x3, y3, x4, y4,
@@ -59,7 +59,7 @@ local function base_present(
     basesMeshVerts[baseMeshIndex + 1][3] = x_ + unitw
     basesMeshVerts[baseMeshIndex + 1][4] = y_
 
-    vertex = data[baseMeshIndex + 1]
+    vertex = dataptr[baseMeshIndex + 1]
     vertex.x = x1
     vertex.y = y1
     vertex.u = x_ + unitw
@@ -71,7 +71,7 @@ local function base_present(
     basesMeshVerts[baseMeshIndex + 2][3] = x_ + unitw
     basesMeshVerts[baseMeshIndex + 2][4] = y_ + unith
 
-    vertex = data[baseMeshIndex + 2]
+    vertex = dataptr[baseMeshIndex + 2]
     vertex.x = x2
     vertex.y = y2
     vertex.u = x_ + unitw
@@ -83,7 +83,7 @@ local function base_present(
     basesMeshVerts[baseMeshIndex + 3][3] = x_
     basesMeshVerts[baseMeshIndex + 3][4] = y_
 
-    vertex = data[baseMeshIndex + 3]
+    vertex = dataptr[baseMeshIndex + 3]
     vertex.x = x4
     vertex.y = y4
     vertex.u = x_
@@ -96,7 +96,7 @@ local function base_present(
     basesMeshVerts[baseMeshIndex + 5][3] = x_ + unitw
     basesMeshVerts[baseMeshIndex + 5][4] = y_ + unith
 
-    vertex = data[baseMeshIndex + 5]
+    vertex = dataptr[baseMeshIndex + 5]
     vertex.x = x2
     vertex.y = y2
     vertex.u = x_ + unitw
@@ -108,9 +108,11 @@ local function base_present(
     basesMeshVerts[baseMeshIndex + 6][3] = x_
     basesMeshVerts[baseMeshIndex + 6][4] = y_ + unith
 
-    vertex = data[baseMeshIndex + 6]
+    vertex = dataptr[baseMeshIndex + 6]
     vertex.x = x3
     vertex.y = y3
+    vertex.u = x_
+    vertex.v = y_ + unith
     vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
 
     basesMeshVerts[baseMeshIndex + 4][1] = x4
@@ -118,7 +120,7 @@ local function base_present(
     basesMeshVerts[baseMeshIndex + 4][3] = x_
     basesMeshVerts[baseMeshIndex + 4][4] = y_
 
-    vertex = data[baseMeshIndex + 4]
+    vertex = dataptr[baseMeshIndex + 4]
     vertex.x = x4
     vertex.y = y4
     vertex.u = x_
@@ -144,7 +146,7 @@ local function base_present(
     --basesMesh:setVertices(basesMeshVerts, 1 + 6 * baseMeshCount, 6)
 
     --basesMesh:setVertices(basesMeshVerts)
-    --basesMesh:setVertices(imageData)
+    basesMesh:setVertices(imageData)
 
     --basesMesh:setVertices(basesMeshVerts, 1 + baseMeshIndex, 6)
     
