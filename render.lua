@@ -231,12 +231,19 @@ local function base_flush()
 
         vert.x = v[1]
         vert.y = v[2]
-        vert.u = v[3]
-        vert.v = v[4]
-        vert.r = v[5]
-        vert.g = v[6]
-        vert.b = v[7]
-        vert.a = v[8]
+
+        vert.u = 0
+        vert.v = 0
+        vert.r = 1
+        vert.g = 1
+        vert.b = 1
+        vert.a = 1
+        --vert.u = v[3]
+        --vert.v = v[4]
+        --vert.r = v[5]
+        --vert.g = v[6]
+        --vert.b = v[7]
+        --vert.a = v[8]
 
     end
     basesMesh:setVertices(imageData)
