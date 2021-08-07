@@ -240,7 +240,7 @@ playerTankKeyconfigIds = {}
 angularImpulseScale = 5
 rot = math.pi / 4
 camZoomLower, camZoomHigher = 0.075, 3.5
-meshBufferSize = 512
+meshBufferSize = 32
 local cameraSettings = {
 
    dx = 2000, dy = 2000,
@@ -409,7 +409,7 @@ local function spawnBullet(px, py, dirx, diry)
 
    print("spawnBullet")
    local bullet = {}
-   bullet.body = love.physics.newBody(pworld, px, py, "kinematic")
+   bullet.body = love.physics.newBody(physworld, px, py, "kinematic")
 
    bullet.timestamp = love.timer.getTime()
 
@@ -541,7 +541,7 @@ function Tank.new(pos, dir)
 
    tankCounter = tankCounter + 1
 
-   self.physbody = love.physics.newBody(pworld, 0, 0, "dynamic")
+   self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
    self.physbody:setUserData(self)
 
    if not dir then
@@ -956,14 +956,15 @@ function Base:present()
 
 
 
-   render.base_present(
+
+
+
+
+   render.base_present2(
    x1, y1, x2, y2, x3, y3, x4, y4,
    self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2])
 
-
-
-
-
+   render.base_incponiter()
 
 end
 
@@ -1079,7 +1080,7 @@ local function queryBoundingBox()
          end)
       end
 
-      pworld:queryBoundingBox(
+      physworld:queryBoundingBox(
       tlx * PIX2M, tly * PIX2M,
       brx * PIX2M, bry * PIX2M,
       onQueryBoundingBox)
@@ -1518,7 +1519,7 @@ end
 
 local function update(dt)
    camTimer:update(dt)
-   pworld:update(1 / 60)
+   physworld:update(1 / 60)
    linesbuf:update()
    updateTanks()
    updateBullets()
@@ -2044,13 +2045,13 @@ local function init()
    loadLocales()
 
    local canSleep = true
-   pworld = love.physics.newWorld(0., 0., canSleep)
+   physworld = love.physics.newWorld(0., 0., canSleep)
    if DEBUG_PHYSICS then
       print("physics world canSleep:", canSleep)
    end
 
 
-   pworld:setCallbacks(onBeginContact, onEndContact)
+   physworld:setCallbacks(onBeginContact, onEndContact)
 
    logo = Logo.new()
    cam = require('camera').new()
@@ -2078,7 +2079,8 @@ local function init()
 
 
 
-   for _ = 1, 30 do
+
+   for _ = 1, 3 do
       spawnTank(vector.new(100, 100))
    end
 

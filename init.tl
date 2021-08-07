@@ -240,13 +240,13 @@ global playerTankKeyconfigIds: {integer} = {}
 global angularImpulseScale = 5
 global rot = math.pi / 4
 global camZoomLower, camZoomHigher = 0.075, 3.5
-global meshBufferSize = 512
+global meshBufferSize = 32
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
     dx = 2000, dy = 2000,
 }
 -- Экземпляр box2d
-global pworld: love.physics.World
+global physworld: love.physics.World
 -- Все танки, в том числе и тот, которым управляет игрок.
 global tanks: {Tank} = {}
 -- Танк, которым управляет игрок
@@ -409,8 +409,8 @@ local function spawnBullet(px: number, py: number, dirx: number, diry: number)
     -- {{{
     print("spawnBullet")
     local bullet: Bullet = {}
-    bullet.body = love.physics.newBody(pworld, px, py, "kinematic")
-    --bullet.body = love.physics.newBody(pworld, px, py, "static")
+    bullet.body = love.physics.newBody(physworld, px, py, "kinematic")
+    --bullet.body = love.physics.newBody(physworld, px, py, "static")
     bullet.timestamp = love.timer.getTime()
     --local shape = love.physics.newCircleShape(px, py, bulletRadius)
     local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
@@ -541,7 +541,7 @@ function Tank.new(pos: vector, dir: vector): Tank
 
     tankCounter = tankCounter + 1
 
-    self.physbody = love.physics.newBody(pworld, 0, 0, "dynamic")
+    self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
     self.physbody:setUserData(self)
 
     if not dir then
@@ -964,6 +964,7 @@ function Base:present()
         x1, y1, x2, y2, x3, y3, x4, y4, 
         self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
     )
+    render.base_incponiter()
 -- }}}
 end
 
@@ -1079,7 +1080,7 @@ local function queryBoundingBox()
             end)
         end
 
-        pworld:queryBoundingBox(
+        physworld:queryBoundingBox(
             tlx * PIX2M, tly * PIX2M, 
             brx * PIX2M, bry * PIX2M, 
             onQueryBoundingBox
@@ -1518,7 +1519,7 @@ end
 
 local function update(dt: number)
     camTimer:update(dt)
-    pworld:update(1 / 60)
+    physworld:update(1 / 60)
     linesbuf:update()
     updateTanks()
     updateBullets()
@@ -2044,13 +2045,13 @@ local function init()
     loadLocales()
 
     local canSleep = true
-    pworld = love.physics.newWorld(0., 0., canSleep)
+    physworld = love.physics.newWorld(0., 0., canSleep)
     if DEBUG_PHYSICS then
         print("physics world canSleep:", canSleep)
     end
     --self.headBody:setAngularDamping(0.1)
     --self.headBody:setLinearDamping(0.1)
-    pworld:setCallbacks(onBeginContact, onEndContact)
+    physworld:setCallbacks(onBeginContact, onEndContact)
 
     logo = Logo.new()
     cam = require 'camera'.new()
@@ -2078,7 +2079,8 @@ local function init()
     --makeArmy()
     --makeArmy()
 
-    for _ = 1, 30 do 
+    --for _ = 1, 30 do 
+    for _ = 1, 3 do 
         spawnTank(vector.new(100, 100))
     end
 

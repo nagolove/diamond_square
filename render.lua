@@ -58,7 +58,7 @@ local function base_present(
     --print("basesMeshVerts", basesMeshVerts)
     --print("baseMeshIndex", baseMeshIndex)
     
-    local vertex
+    --local vertex
 
     -- tri1
     basesMeshVerts[baseMeshIndex + 1][1] = x1
@@ -123,8 +123,6 @@ local function base_present(
         --basesMesh:setDrawRange(1, baseMeshIndex/2)
     end
     --print("self.meshVerts", inspect(self.meshVerts))
-    baseMeshIndex = baseMeshIndex + 6
-    baseMeshCount = baseMeshCount + 1
 end
 
 function base_present2(
@@ -273,8 +271,13 @@ local function base_flush()
     end
     basesMesh:setVertices(imageData)
     --]]
-    printImageData(imageData)
-    os.exit()
+    --basesMesh:setVertices(imageData, 1, 6)
+    --basesMesh:setVertices(basesMeshVerts, 1, 6)
+    
+    basesMesh:setVertices(basesMeshVerts)
+    printMesh2file(basesMesh, "basesMesh.1.txt")
+    --printImageData(imageData)
+    --os.exit()
 
     love.graphics.setColor(colorWhite)
     love.graphics.draw(basesMesh, 0, 0)
@@ -293,14 +296,14 @@ function base_present2(
     -- нормализованные координаты левого верхнего угла выделения
     local x_, y_ = rx / imgw, ry / imgh
 
-    local vertex
+    --local vertex
 
     --vertex = dataptr[baseMeshIndex + 1]
     dataptr[baseMeshIndex + 1].x = x1
     dataptr[baseMeshIndex + 1].y = y1
     dataptr[baseMeshIndex + 1].u = x_ + unitw
     dataptr[baseMeshIndex + 1].v = y_
-    dataptr[baseMeshIndex + 1].r, 
+    dataptr[baseMeshIndex + 1].r = 1
     dataptr[baseMeshIndex + 1].g = 1
     dataptr[baseMeshIndex + 1].b = 1
     dataptr[baseMeshIndex + 1].a = 1
@@ -335,25 +338,25 @@ function base_present2(
     dataptr[baseMeshIndex + 5].b = 1
     dataptr[baseMeshIndex + 5].a = 1
 
-    vertex = dataptr[baseMeshIndex + 6]
-    .x = x3
-    .y = y3
-    .u = x_
-    .v = y_ + unith
-    .r = 1
-    .g = 1
-    .b = 1
-    .a = 1
+    --vertex = dataptr[baseMeshIndex + 6]
+    dataptr[baseMeshIndex + 6].x = x3
+    dataptr[baseMeshIndex + 6].y = y3
+    dataptr[baseMeshIndex + 6].u = x_
+    dataptr[baseMeshIndex + 6].v = y_ + unith
+    dataptr[baseMeshIndex + 6].r = 1
+    dataptr[baseMeshIndex + 6].g = 1
+    dataptr[baseMeshIndex + 6].b = 1
+    dataptr[baseMeshIndex + 6].a = 1
 
-    vertex = dataptr[baseMeshIndex + 4]
-    .x = x4
-    .y = y4
-    .u = x_
-    .v = y_
-    .r = 1
-    .g = 1
-    .b = 1
-    .a = 1
+    --vertex = dataptr[baseMeshIndex + 4]
+    dataptr[baseMeshIndex + 4].x = x4
+    dataptr[baseMeshIndex + 4].y = y4
+    dataptr[baseMeshIndex + 4].u = x_
+    dataptr[baseMeshIndex + 4].v = y_
+    dataptr[baseMeshIndex + 4].r = 1
+    dataptr[baseMeshIndex + 4].g = 1
+    dataptr[baseMeshIndex + 4].b = 1
+    dataptr[baseMeshIndex + 4].a = 1
 
      --DEBUG_TEXCOORDS 
     -- {{{
@@ -368,23 +371,35 @@ function base_present2(
 
     --basesMesh:setVertices(basesMeshVerts)
     --basesMesh:setVertices(imageData, 1, 6)
+    basesMesh:setVertices(imageData)
 
     --basesMesh:setVertices(imageData, 1 + 6 * baseMeshCount, 6)
     --basesMesh:setVertices(basesMeshVerts, 1 + baseMeshIndex, 6)
     
     --print('baseMeshIndex', baseMeshIndex)
     --print('basesMesh:getDrawRange()', basesMesh:getDrawRange())
+
+    print('----------------------------------------------------------')
+    printMesh(basesMesh)
+    print('----------------------------------------------------------')
     
     if baseMeshIndex ~= 0 then
         --basesMesh:setDrawRange(1, baseMeshIndex/2)
     end
     --print("self.meshVerts", inspect(self.meshVerts))
+end
+
+function base_incponiter()
     baseMeshIndex = baseMeshIndex + 6
     baseMeshCount = baseMeshCount + 1
 end
 
+love.filesystem.write("basesMesh.1.txt", "")
+love.filesystem.write("basesMesh.2.txt", "")
+
 return {
     base_present = base_present,
     base_present2 = base_present2,
+    base_incponiter = base_incponiter,
     base_flush = base_flush,
 }
