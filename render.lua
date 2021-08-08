@@ -24,7 +24,7 @@ local function base_present(
     x1, y1, x2, y2, x3, y3, x4, y4,
     rx, ry, rw, rh
 )
-
+    -- {{{
     --[[
        [assert(x1)
        [assert(y1)
@@ -123,12 +123,15 @@ local function base_present(
         --basesMesh:setDrawRange(1, baseMeshIndex/2)
     end
     --print("self.meshVerts", inspect(self.meshVerts))
+    -- }}}
 end
 
 function base_present2(
     x1, y1, x2, y2, x3, y3, x4, y4,
     rx, ry, rw, rh
 )
+    -- {{{
+    
     -- размеры текстуры в пикселях
     local imgw, imgh = baseImage:getDimensions()
     -- нормализованная ширина и высота
@@ -205,8 +208,9 @@ function base_present2(
         --basesMesh:setDrawRange(1, baseMeshIndex/2)
     end
     --print("self.meshVerts", inspect(self.meshVerts))
-    baseMeshIndex = baseMeshIndex + 6
-    baseMeshCount = baseMeshCount + 1
+    --baseMeshIndex = baseMeshIndex + 6
+    --baseMeshCount = baseMeshCount + 1
+    -- }}}
 end
 
 local colorWhite = {1, 1, 1, 1}
@@ -225,6 +229,7 @@ local function printImageData(imageData)
     local dataptr = ffi.cast("fm_vertex*", imageData:getPointer())
     for i = 0, baseMeshCount * 6 do
         local vert = dataptr[i]
+        print("[" .. tostring(i) .. "] x, y, u, v, r, g, b, a", x, y, u, v, r, g, b, a)
         print('i', i)
         print("vert.x", vert.x)
         print("vert.y", vert.y)
@@ -237,7 +242,43 @@ local function printImageData(imageData)
     end
 end
 
+local function printImageData2file(imageData, fname)
+    --local vertex_size = ffi.sizeof('fm_vertex')
+    --print('vertex_size', vertex_size)
+    --local pixel_size = ffi.sizeof('unsigned char[4]')
+    --print('pixel_size', pixel_size)
+    --local num_verts = meshBufferSize * 6
+    --local imageData = love.image.newImageData(num_verts / pixel_size * vertex_size, 1)
+    --local byteData = love.data.newByteData(num_verts * pixel_size)
+    --print("width", num_verts / pixel_size * vertex_size, 1)
+    local dataptr = ffi.cast("fm_vertex*", imageData:getPointer())
+    for i = 0, baseMeshCount * 6 do
+        local vert = dataptr[i]
+        --print("[" .. tostring(i) .. "] x, y, u, v, r, g, b, a", x, y, u, v, r, g, b, a)
+        --print('i', i)
+        --print("vert.x", vert.x)
+        --print("vert.y", vert.y)
+        --print("vert.u", vert.u)
+        --print("vert.v", vert.v)
+        --print("vert.r", vert.r)
+        --print("vert.g", vert.g)
+        --print("vert.b", vert.b)
+        --print("vert.a", vert.a)
+
+        local x, y, u, v, r, g, b, a = vert.x, vert.y, vert.u, vert.v, vert.r, vert.g, vert.b, vert.b, vert.a
+        local s = 
+            "[" .. tostring(i) .. "] " ..  
+            x .. " " .. y .. " " .. 
+            u .. " " .. v .. " " ..  
+            r .. " " .. g .. " " ..  
+            b .. " " .. a .. "\n"
+        love.filesystem.append(fname, s)
+    end
+end
+
+
 local function base_flush()
+    -- {{{
     --[[
     for k, v in pairs(basesMeshVerts) do
         print(k, inspect(v))
@@ -273,22 +314,33 @@ local function base_flush()
     --]]
     --basesMesh:setVertices(imageData, 1, 6)
     --basesMesh:setVertices(basesMeshVerts, 1, 6)
-    
+    printImageData2file(imageData, "imageData.txt")
+
     basesMesh:setVertices(basesMeshVerts)
     printMesh2file(basesMesh, "basesMesh.1.txt")
+
+    basesMesh:setVertices(imageData)
+    printMesh2file(basesMesh, "basesMesh.2.txt")
+
+    basesMesh:setVertices(basesMeshVerts)
+
+
     --printImageData(imageData)
-    --os.exit()
+    os.exit()
 
     love.graphics.setColor(colorWhite)
     love.graphics.draw(basesMesh, 0, 0)
     baseMeshIndex = 0
     baseMeshCount = 0
+    -- }}}
 end
 
 function base_present2(
     x1, y1, x2, y2, x3, y3, x4, y4,
     rx, ry, rw, rh
 )
+    -- {{{
+    
     -- размеры текстуры в пикселях
     local imgw, imgh = baseImage:getDimensions()
     -- нормализованная ширина и высота
@@ -379,14 +431,15 @@ function base_present2(
     --print('baseMeshIndex', baseMeshIndex)
     --print('basesMesh:getDrawRange()', basesMesh:getDrawRange())
 
-    print('----------------------------------------------------------')
-    printMesh(basesMesh)
-    print('----------------------------------------------------------')
+    --print('----------------------------------------------------------')
+    --printMesh(basesMesh)
+    --print('----------------------------------------------------------')
     
     if baseMeshIndex ~= 0 then
         --basesMesh:setDrawRange(1, baseMeshIndex/2)
     end
     --print("self.meshVerts", inspect(self.meshVerts))
+    -- }}}
 end
 
 function base_incponiter()
@@ -396,6 +449,7 @@ end
 
 love.filesystem.write("basesMesh.1.txt", "")
 love.filesystem.write("basesMesh.2.txt", "")
+love.filesystem.write("imageData.txt", "")
 
 return {
     base_present = base_present,
