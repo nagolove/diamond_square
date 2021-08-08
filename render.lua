@@ -126,6 +126,7 @@ local function base_present(
     -- }}}
 end
 
+--[[
 function base_present2(
     x1, y1, x2, y2, x3, y3, x4, y4,
     rx, ry, rw, rh
@@ -188,10 +189,9 @@ function base_present2(
     -- {{{
     if DEBUG_TEXCOORDS then
         --print('Do some printf.')
-        print('help me.')
+        --print('help me.')
     end
     -- }}}
-    --]]
 
     --basesMesh:setVertices(basesMeshVerts, 1 + 6 * baseMeshCount, 6)
 
@@ -212,6 +212,7 @@ function base_present2(
     --baseMeshCount = baseMeshCount + 1
     -- }}}
 end
+--]]
 
 local colorWhite = {1, 1, 1, 1}
 
@@ -280,6 +281,7 @@ end
 local function base_flush()
     -- {{{
     --[[
+    -- {{{ basesMeshVerts -> dataptr copy
     for k, v in pairs(basesMeshVerts) do
         print(k, inspect(v))
         local vert = dataptr[k]
@@ -311,22 +313,37 @@ local function base_flush()
 
     end
     basesMesh:setVertices(imageData)
+    -- }}}
     --]]
     --basesMesh:setVertices(imageData, 1, 6)
     --basesMesh:setVertices(basesMeshVerts, 1, 6)
+
     printImageData2file(imageData, "imageData.txt")
 
-    basesMesh:setVertices(basesMeshVerts)
-    printMesh2file(basesMesh, "basesMesh.1.txt")
+    --[[
+    if not __ONCE__ then
+        __ONCE__ = true
+
+        basesMesh:setVertices(basesMeshVerts)
+        printMesh2file(basesMesh, "basesMesh.basesMeshVerts.1.txt")
+
+        basesMesh:setVertices(imageData)
+        printMesh2file(basesMesh, "basesMesh.imageData.1.txt")
+
+        basesMesh:setVertices(basesMeshVerts)
+        printMesh2file(basesMesh, "basesMesh.basesMeshVerts.2.txt")
+
+        basesMesh:setVertices(imageData)
+        printMesh2file(basesMesh, "basesMesh.imageData.2.txt")
+    else
+        --basesMesh:setVertices(basesMeshVerts)
+        basesMesh:setVertices(imageData)
+    end
+    --]]
 
     basesMesh:setVertices(imageData)
-    printMesh2file(basesMesh, "basesMesh.2.txt")
-
-    basesMesh:setVertices(basesMeshVerts)
-
-
     --printImageData(imageData)
-    os.exit()
+    --os.exit()
 
     love.graphics.setColor(colorWhite)
     love.graphics.draw(basesMesh, 0, 0)
@@ -351,70 +368,70 @@ function base_present2(
     --local vertex
 
     --vertex = dataptr[baseMeshIndex + 1]
-    dataptr[baseMeshIndex + 1].x = x1
-    dataptr[baseMeshIndex + 1].y = y1
-    dataptr[baseMeshIndex + 1].u = x_ + unitw
-    dataptr[baseMeshIndex + 1].v = y_
-    dataptr[baseMeshIndex + 1].r = 1
-    dataptr[baseMeshIndex + 1].g = 1
-    dataptr[baseMeshIndex + 1].b = 1
-    dataptr[baseMeshIndex + 1].a = 1
+    dataptr[baseMeshIndex + 0].x = x1
+    dataptr[baseMeshIndex + 0].y = y1
+    dataptr[baseMeshIndex + 0].u = x_ + unitw
+    dataptr[baseMeshIndex + 0].v = y_
+    dataptr[baseMeshIndex + 0].r = 255
+    dataptr[baseMeshIndex + 0].g = 255
+    dataptr[baseMeshIndex + 0].b = 255
+    dataptr[baseMeshIndex + 0].a = 255
 
     --vertex = dataptr[baseMeshIndex + 2]
-    dataptr[baseMeshIndex + 2].x = x2
-    dataptr[baseMeshIndex + 2].y = y2
-    dataptr[baseMeshIndex + 2].u = x_ + unitw
-    dataptr[baseMeshIndex + 2].v = y_ + unith
-    dataptr[baseMeshIndex + 2].r = 1
-    dataptr[baseMeshIndex + 2].g = 1
-    dataptr[baseMeshIndex + 2].b = 1
-    dataptr[baseMeshIndex + 2].a = 1
+    dataptr[baseMeshIndex + 1].x = x2
+    dataptr[baseMeshIndex + 1].y = y2
+    dataptr[baseMeshIndex + 1].u = x_ + unitw
+    dataptr[baseMeshIndex + 1].v = y_ + unith
+    dataptr[baseMeshIndex + 1].r = 255
+    dataptr[baseMeshIndex + 1].g = 255
+    dataptr[baseMeshIndex + 1].b = 255
+    dataptr[baseMeshIndex + 1].a = 255
 
     --vertex = dataptr[baseMeshIndex + 3]
+    dataptr[baseMeshIndex + 2].x = x4
+    dataptr[baseMeshIndex + 2].y = y4
+    dataptr[baseMeshIndex + 2].u = x_
+    dataptr[baseMeshIndex + 2].v = y_
+    dataptr[baseMeshIndex + 2].r = 255
+    dataptr[baseMeshIndex + 2].g = 255
+    dataptr[baseMeshIndex + 2].b = 255
+    dataptr[baseMeshIndex + 2].a = 255
+
+    --vertex = dataptr[baseMeshIndex + 5]
+    dataptr[baseMeshIndex + 4].x = x2
+    dataptr[baseMeshIndex + 4].y = y2
+    dataptr[baseMeshIndex + 4].u = x_ + unitw
+    dataptr[baseMeshIndex + 4].v = y_ + unith
+    dataptr[baseMeshIndex + 4].r = 255
+    dataptr[baseMeshIndex + 4].g = 255
+    dataptr[baseMeshIndex + 4].b = 255
+    dataptr[baseMeshIndex + 4].a = 255
+
+    --vertex = dataptr[baseMeshIndex + 6]
+    dataptr[baseMeshIndex + 5].x = x3
+    dataptr[baseMeshIndex + 5].y = y3
+    dataptr[baseMeshIndex + 5].u = x_
+    dataptr[baseMeshIndex + 5].v = y_ + unith
+    dataptr[baseMeshIndex + 5].r = 255
+    dataptr[baseMeshIndex + 5].g = 255
+    dataptr[baseMeshIndex + 5].b = 255
+    dataptr[baseMeshIndex + 5].a = 255
+
+    --vertex = dataptr[baseMeshIndex + 4]
     dataptr[baseMeshIndex + 3].x = x4
     dataptr[baseMeshIndex + 3].y = y4
     dataptr[baseMeshIndex + 3].u = x_
     dataptr[baseMeshIndex + 3].v = y_
-    dataptr[baseMeshIndex + 3].r = 1
-    dataptr[baseMeshIndex + 3].g = 1
-    dataptr[baseMeshIndex + 3].b = 1
-    dataptr[baseMeshIndex + 3].a = 1
-
-    --vertex = dataptr[baseMeshIndex + 5]
-    dataptr[baseMeshIndex + 5].x = x2
-    dataptr[baseMeshIndex + 5].y = y2
-    dataptr[baseMeshIndex + 5].u = x_ + unitw
-    dataptr[baseMeshIndex + 5].v = y_ + unith
-    dataptr[baseMeshIndex + 5].r = 1
-    dataptr[baseMeshIndex + 5].g = 1
-    dataptr[baseMeshIndex + 5].b = 1
-    dataptr[baseMeshIndex + 5].a = 1
-
-    --vertex = dataptr[baseMeshIndex + 6]
-    dataptr[baseMeshIndex + 6].x = x3
-    dataptr[baseMeshIndex + 6].y = y3
-    dataptr[baseMeshIndex + 6].u = x_
-    dataptr[baseMeshIndex + 6].v = y_ + unith
-    dataptr[baseMeshIndex + 6].r = 1
-    dataptr[baseMeshIndex + 6].g = 1
-    dataptr[baseMeshIndex + 6].b = 1
-    dataptr[baseMeshIndex + 6].a = 1
-
-    --vertex = dataptr[baseMeshIndex + 4]
-    dataptr[baseMeshIndex + 4].x = x4
-    dataptr[baseMeshIndex + 4].y = y4
-    dataptr[baseMeshIndex + 4].u = x_
-    dataptr[baseMeshIndex + 4].v = y_
-    dataptr[baseMeshIndex + 4].r = 1
-    dataptr[baseMeshIndex + 4].g = 1
-    dataptr[baseMeshIndex + 4].b = 1
-    dataptr[baseMeshIndex + 4].a = 1
+    dataptr[baseMeshIndex + 3].r = 255
+    dataptr[baseMeshIndex + 3].g = 255
+    dataptr[baseMeshIndex + 3].b = 255
+    dataptr[baseMeshIndex + 3].a = 255
 
      --DEBUG_TEXCOORDS 
     -- {{{
     if DEBUG_TEXCOORDS then
         --print('Do some printf.')
-        print('help me.')
+        --print('help me.')
     end
     -- }}}
     --]]
@@ -447,9 +464,9 @@ function base_incponiter()
     baseMeshCount = baseMeshCount + 1
 end
 
-love.filesystem.write("basesMesh.1.txt", "")
-love.filesystem.write("basesMesh.2.txt", "")
-love.filesystem.write("imageData.txt", "")
+--love.filesystem.write("basesMesh.1.txt", "")
+--love.filesystem.write("basesMesh.2.txt", "")
+--love.filesystem.write("imageData.txt", "")
 
 return {
     base_present = base_present,

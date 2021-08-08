@@ -1,7 +1,7 @@
 -- vim: fdm=marker
 -- vim: set colorcolumn=85
 
-global SCENE_PREFIX = "scenes/t80u"
+global SCENE_PREFIX = "scenes/t90"
 
 love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
@@ -1426,9 +1426,9 @@ local function drawCameraCircle()
     gr.setLineWidth(olw)
 end
 
-local function presentBasesMesh()
-    render.base_flush()
-end
+--local function presentBasesMesh()
+    --render.base_flush()
+--end
 
 local function mainPresent()
     baseMeshIndex = 0
@@ -1436,7 +1436,8 @@ local function mainPresent()
     push2drawlist(Background.present, background)
     push2drawlist(queryBoundingBox)
     push2drawlist(drawBullets)
-    push2drawlist(presentBasesMesh)
+    --push2drawlist(presentBasesMesh)
+    push2drawlist(render.base_flush)
 
     cam:attach()
     presentDrawlist()
