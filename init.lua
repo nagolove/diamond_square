@@ -240,7 +240,7 @@ playerTankKeyconfigIds = {}
 angularImpulseScale = 5
 rot = math.pi / 4
 camZoomLower, camZoomHigher = 0.075, 3.5
-meshBufferSize = 32
+meshBufferSize = 1024
 local cameraSettings = {
 
    dx = 2000, dy = 2000,
@@ -651,7 +651,7 @@ function Tank:present()
       colprint('Tank ' .. self.id .. ' is damaged. No base.')
    end
    if self.turret and self.turret.present then
-
+      push2drawlist(self.turret.present, self.turret)
    else
       colprint('Tank ' .. self.id .. ' is damaged. No turret.')
    end
@@ -827,9 +827,9 @@ function Turret:present()
 
 
 
-
-
-
+   for _, f in ipairs(self.physbody:getFixtures()) do
+      drawFixture(f)
+   end
 
 
 
@@ -960,7 +960,7 @@ function Base:present()
 
 
 
-   render.base_present2(
+   render.base_present(
    x1, y1, x2, y2, x3, y3, x4, y4,
    self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2])
 
@@ -1426,18 +1426,13 @@ local function drawCameraCircle()
    gr.setLineWidth(olw)
 end
 
-
-
-
-
 local function mainPresent()
    baseMeshIndex = 0
    baseMeshCount = 0
    push2drawlist(Background.present, background)
    push2drawlist(queryBoundingBox)
-   push2drawlist(drawBullets)
-
    push2drawlist(render.base_flush)
+   push2drawlist(drawBullets)
 
    cam:attach()
    presentDrawlist()
@@ -2072,6 +2067,7 @@ local function init()
 
    background = Background.new()
 
+   makeArmy()
 
 
 
@@ -2081,9 +2077,7 @@ local function init()
 
 
 
-   for _ = 1, 3 do
-      spawnTank(vector.new(100, 100))
-   end
+
 
 
 

@@ -219,14 +219,6 @@ local colorWhite = {1, 1, 1, 1}
 local inspect = require 'inspect'
 
 local function printImageData(imageData)
-    --local vertex_size = ffi.sizeof('fm_vertex')
-    --print('vertex_size', vertex_size)
-    --local pixel_size = ffi.sizeof('unsigned char[4]')
-    --print('pixel_size', pixel_size)
-    --local num_verts = meshBufferSize * 6
-    --local imageData = love.image.newImageData(num_verts / pixel_size * vertex_size, 1)
-    --local byteData = love.data.newByteData(num_verts * pixel_size)
-    --print("width", num_verts / pixel_size * vertex_size, 1)
     local dataptr = ffi.cast("fm_vertex*", imageData:getPointer())
     for i = 0, baseMeshCount * 6 do
         local vert = dataptr[i]
@@ -244,28 +236,9 @@ local function printImageData(imageData)
 end
 
 local function printImageData2file(imageData, fname)
-    --local vertex_size = ffi.sizeof('fm_vertex')
-    --print('vertex_size', vertex_size)
-    --local pixel_size = ffi.sizeof('unsigned char[4]')
-    --print('pixel_size', pixel_size)
-    --local num_verts = meshBufferSize * 6
-    --local imageData = love.image.newImageData(num_verts / pixel_size * vertex_size, 1)
-    --local byteData = love.data.newByteData(num_verts * pixel_size)
-    --print("width", num_verts / pixel_size * vertex_size, 1)
     local dataptr = ffi.cast("fm_vertex*", imageData:getPointer())
     for i = 0, baseMeshCount * 6 do
         local vert = dataptr[i]
-        --print("[" .. tostring(i) .. "] x, y, u, v, r, g, b, a", x, y, u, v, r, g, b, a)
-        --print('i', i)
-        --print("vert.x", vert.x)
-        --print("vert.y", vert.y)
-        --print("vert.u", vert.u)
-        --print("vert.v", vert.v)
-        --print("vert.r", vert.r)
-        --print("vert.g", vert.g)
-        --print("vert.b", vert.b)
-        --print("vert.a", vert.a)
-
         local x, y, u, v, r, g, b, a = vert.x, vert.y, vert.u, vert.v, vert.r, vert.g, vert.b, vert.b, vert.a
         local s = 
             "[" .. tostring(i) .. "] " ..  
@@ -318,7 +291,7 @@ local function base_flush()
     --basesMesh:setVertices(imageData, 1, 6)
     --basesMesh:setVertices(basesMeshVerts, 1, 6)
 
-    printImageData2file(imageData, "imageData.txt")
+    --printImageData2file(imageData, "imageData.txt")
 
     --[[
     if not __ONCE__ then
@@ -342,6 +315,7 @@ local function base_flush()
     --]]
 
     basesMesh:setVertices(imageData)
+    basesMesh:setDrawRange(1, baseMeshIndex)
     --printImageData(imageData)
     --os.exit()
 
@@ -368,14 +342,14 @@ function base_present2(
     --local vertex
 
     --vertex = dataptr[baseMeshIndex + 1]
-    dataptr[baseMeshIndex + 0].x = x1
-    dataptr[baseMeshIndex + 0].y = y1
-    dataptr[baseMeshIndex + 0].u = x_ + unitw
-    dataptr[baseMeshIndex + 0].v = y_
-    dataptr[baseMeshIndex + 0].r = 255
-    dataptr[baseMeshIndex + 0].g = 255
-    dataptr[baseMeshIndex + 0].b = 255
-    dataptr[baseMeshIndex + 0].a = 255
+    dataptr[baseMeshIndex].x = x1
+    dataptr[baseMeshIndex].y = y1
+    dataptr[baseMeshIndex].u = x_ + unitw
+    dataptr[baseMeshIndex].v = y_
+    dataptr[baseMeshIndex].r = 255
+    dataptr[baseMeshIndex].g = 255
+    dataptr[baseMeshIndex].b = 255
+    dataptr[baseMeshIndex].a = 255
 
     --vertex = dataptr[baseMeshIndex + 2]
     dataptr[baseMeshIndex + 1].x = x2
@@ -440,7 +414,7 @@ function base_present2(
 
     --basesMesh:setVertices(basesMeshVerts)
     --basesMesh:setVertices(imageData, 1, 6)
-    basesMesh:setVertices(imageData)
+    --basesMesh:setVertices(imageData)
 
     --basesMesh:setVertices(imageData, 1 + 6 * baseMeshCount, 6)
     --basesMesh:setVertices(basesMeshVerts, 1 + baseMeshIndex, 6)
@@ -469,8 +443,8 @@ end
 --love.filesystem.write("imageData.txt", "")
 
 return {
-    base_present = base_present,
-    base_present2 = base_present2,
+    base_present = base_present2,
+    --base_present2 = base_present2,
     base_incponiter = base_incponiter,
     base_flush = base_flush,
 }
