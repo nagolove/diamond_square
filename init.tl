@@ -14,6 +14,7 @@ require "camera"
 require "vector"
 require "Timer"
 require "imgui"
+require 'render'
 
 local List = require "list"
 global i18n = require "i18n"
@@ -92,6 +93,10 @@ end
 -- }}}
 --]]
 
+local baseBatch: Batch = Batch.new()
+local turretBatch: Batch = Batch.new()
+
+--[[
 global basesMesh: gr.Mesh
 --global basesData: love.data.ByteData
 global basesMeshVerts: {{number}}
@@ -102,6 +107,7 @@ global baseImage: gr.Image
 global baseMeshIndex: integer = 0
 -- Количество моделей в буфере.
 global baseMeshCount: integer = 0
+--]]
 
 -- Ходовая часть с полигоном
 local record Base
@@ -240,7 +246,6 @@ global playerTankKeyconfigIds: {integer} = {}
 global angularImpulseScale = 5
 global rot = math.pi / 4
 global camZoomLower, camZoomHigher = 0.075, 3.5
-global meshBufferSize = 1024
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
     dx = 2000, dy = 2000,
@@ -918,8 +923,6 @@ function Base.new(t: Tank): Base
     -- }}}
 end
 
-local render = require 'render'
-
 -- TODO сделать меньше копирований
 -- TODO Попробовать выставялть матрицы проекции для каждого танка вместо
 -- заполнения сетки.
@@ -960,11 +963,19 @@ function Base:present()
         --x1, y1, x2, y2, x3, y3, x4, y4, 
         --self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
     --)
+
+    --[[
     render.base_present(
         x1, y1, x2, y2, x3, y3, x4, y4, 
         self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
     )
     render.base_incponiter()
+    --]]
+    baseBatch:present(
+        x1, y1, x2, y2, x3, y3, x4, y4, 
+        self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
+    )
+
 -- }}}
 end
 
@@ -1427,15 +1438,22 @@ local function drawCameraCircle()
 end
 
 local function mainPresent()
-    baseMeshIndex = 0
-    baseMeshCount = 0
+    --print('baseBatch\n', tabular.show(baseBatch))
+    baseBatch:prepare()
+    turretBatch:prepare()
+
     push2drawlist(Background.present, background)
     push2drawlist(queryBoundingBox)
-    push2drawlist(render.base_flush)
+    --push2drawlist(render.base_flush)
     push2drawlist(drawBullets)
 
     cam:attach()
+
     presentDrawlist()
+
+    baseBatch:flush()
+    turretBatch:flush()
+
     cam:detach()
 
     drawCameraCircle()
@@ -2005,6 +2023,7 @@ local function makeArmy(x: number, y: number)
     -- }}}
 end
 
+--[[
 local function initBaseMeshVerts()
     print('initBaseMeshVerts')
     basesMeshVerts = {}
@@ -2020,9 +2039,11 @@ local function initBaseMeshVerts()
     --basesData = love.data.newByteData()
     print("basesMesh:getVertexFormat()\n", tabular.show(basesMesh:getVertexFormat()))
 end
+--]]
 
-global baseTextureCoordinatesArr: {number}
+--global baseTextureCoordinatesArr: {number}
 
+--[[
 local function initBasesMesh()
     --basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "static")
     basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "dynamic")
@@ -2032,6 +2053,7 @@ local function initBasesMesh()
     baseImage = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
     basesMesh:setTexture(baseImage as gr.Texture)
 end
+--]]
 
 local function init()
     -- {{{
@@ -2062,7 +2084,8 @@ local function init()
     bindEscape()
     bindKonsole()
 
-    initBasesMesh()
+    --initBasesMesh()
+
     drawCoro = createDrawCoroutine()
 
     background = Background.new()

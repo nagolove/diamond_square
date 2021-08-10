@@ -1,6 +1,9 @@
 -- vim: fdm=marker
 -- vim: set colorcolumn=85
 
+meshBufferSize = 1024
+local gr = love.graphics
+
 local ffi = require('ffi')
 ffi.cdef[[
 typedef struct {
@@ -14,205 +17,11 @@ print('vertex_size', vertex_size)
 local pixel_size = ffi.sizeof('unsigned char[4]')
 print('pixel_size', pixel_size)
 local num_verts = meshBufferSize * 6
-local imageData = love.image.newImageData(num_verts / pixel_size * vertex_size, 1)
+--local imageData = love.image.newImageData(num_verts / pixel_size * vertex_size, 1)
 --local byteData = love.data.newByteData(num_verts * pixel_size)
-print("width", num_verts / pixel_size * vertex_size, 1)
-local dataptr = ffi.cast("fm_vertex*", imageData:getPointer())
+--print("width", num_verts / pixel_size * vertex_size, 1)
+--local dataptr = ffi.cast("fm_vertex*", imageData:getPointer())
 --local dataptr = ffi.cast("fm_vertex*", byteData:getPointer())
-
-local function base_present(
-    x1, y1, x2, y2, x3, y3, x4, y4,
-    rx, ry, rw, rh
-)
-    -- {{{
-    --[[
-       [assert(x1)
-       [assert(y1)
-       [assert(x2)
-       [assert(y2)
-       [assert(x3)
-       [assert(y3)
-       [assert(x4)
-       [assert(y4)
-       [assert(rx)
-       [assert(ry)
-       [assert(rw)
-       [assert(rh)
-       ]]
-
-    -- размеры текстуры в пикселях
-    local imgw, imgh = baseImage:getDimensions()
-    -- нормализованная ширина и высота
-    local unitw, unith = rw / imgw, rh / imgh
-    -- нормализованные координаты левого верхнего угла выделения
-    local x_, y_ = rx / imgw, ry / imgh
-
-    --if basesMeshVerts == nil then
-        --print("ret11")
-        --return
-    --end
-
-    --print(x1, y1, x2, y2, x3, y3, x4, y4, rx, ry, rw, rh)
-    --print('base_present')
-    --print("#basesMeshVerts", #basesMeshVerts)
-    --print("basesMeshVerts", basesMeshVerts)
-    --print("baseMeshIndex", baseMeshIndex)
-    
-    --local vertex
-
-    -- tri1
-    basesMeshVerts[baseMeshIndex + 1][1] = x1
-    basesMeshVerts[baseMeshIndex + 1][2] = y1
-    basesMeshVerts[baseMeshIndex + 1][3] = x_ + unitw
-    basesMeshVerts[baseMeshIndex + 1][4] = y_
-
-    basesMeshVerts[baseMeshIndex + 2][1] = x2
-    basesMeshVerts[baseMeshIndex + 2][2] = y2
-    basesMeshVerts[baseMeshIndex + 2][3] = x_ + unitw
-    basesMeshVerts[baseMeshIndex + 2][4] = y_ + unith
-
-    basesMeshVerts[baseMeshIndex + 3][1] = x4
-    basesMeshVerts[baseMeshIndex + 3][2] = y4
-    basesMeshVerts[baseMeshIndex + 3][3] = x_
-    basesMeshVerts[baseMeshIndex + 3][4] = y_
-
-    -- tri2
-    basesMeshVerts[baseMeshIndex + 5][1] = x2
-    basesMeshVerts[baseMeshIndex + 5][2] = y2
-    basesMeshVerts[baseMeshIndex + 5][3] = x_ + unitw
-    basesMeshVerts[baseMeshIndex + 5][4] = y_ + unith
-
-    basesMeshVerts[baseMeshIndex + 6][1] = x3
-    basesMeshVerts[baseMeshIndex + 6][2] = y3
-    basesMeshVerts[baseMeshIndex + 6][3] = x_
-    basesMeshVerts[baseMeshIndex + 6][4] = y_ + unith
-
-    basesMeshVerts[baseMeshIndex + 4][1] = x4
-    basesMeshVerts[baseMeshIndex + 4][2] = y4
-    basesMeshVerts[baseMeshIndex + 4][3] = x_
-    basesMeshVerts[baseMeshIndex + 4][4] = y_
-
-     --DEBUG_TEXCOORDS 
-    -- {{{
-    if DEBUG_TEXCOORDS then
-        local msg = string.format("(%f, %f), (%f, %f), (%f, %f)",
-            basesMeshVerts[baseMeshIndex + 4][3],
-            basesMeshVerts[baseMeshIndex + 4][4],
-            basesMeshVerts[baseMeshIndex + 5][3],
-            basesMeshVerts[baseMeshIndex + 5][4],
-            basesMeshVerts[baseMeshIndex + 6][3],
-            basesMeshVerts[baseMeshIndex + 6][4]
-        )
-        print(string.format("BaseP.self.meshVerts texture coordinates: " .. msg))
-    end
-    -- }}}
-    --]]
-
-    --basesMesh:setVertices(basesMeshVerts, 1 + 6 * baseMeshCount, 6)
-
-    --basesMesh:setVertices(basesMeshVerts)
-    --basesMesh:setVertices(imageData)
-
-    --basesMesh:setVertices(imageData, 1 + 6 * baseMeshCount, 6)
-    --basesMesh:setVertices(basesMeshVerts, 1 + baseMeshIndex, 6)
-    
-    --print('baseMeshIndex', baseMeshIndex)
-    --print('basesMesh:getDrawRange()', basesMesh:getDrawRange())
-    
-    if baseMeshIndex ~= 0 then
-        --basesMesh:setDrawRange(1, baseMeshIndex/2)
-    end
-    --print("self.meshVerts", inspect(self.meshVerts))
-    -- }}}
-end
-
---[[
-function base_present2(
-    x1, y1, x2, y2, x3, y3, x4, y4,
-    rx, ry, rw, rh
-)
-    -- {{{
-    
-    -- размеры текстуры в пикселях
-    local imgw, imgh = baseImage:getDimensions()
-    -- нормализованная ширина и высота
-    local unitw, unith = rw / imgw, rh / imgh
-    -- нормализованные координаты левого верхнего угла выделения
-    local x_, y_ = rx / imgw, ry / imgh
-
-    local vertex
-
-    vertex = dataptr[baseMeshIndex + 1]
-
-    vertex.x = x1
-    vertex.y = y1
-    vertex.u = x_ + unitw
-    vertex.v = y_
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
-
-    vertex = dataptr[baseMeshIndex + 2]
-    vertex.x = x2
-    vertex.y = y2
-    vertex.u = x_ + unitw
-    vertex.v = y_ + unith
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
-
-    vertex = dataptr[baseMeshIndex + 3]
-    vertex.x = x4
-    vertex.y = y4
-    vertex.u = x_
-    vertex.v = y_
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
-
-    vertex = dataptr[baseMeshIndex + 5]
-    vertex.x = x2
-    vertex.y = y2
-    vertex.u = x_ + unitw
-    vertex.v = y_ + unith
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
-
-    vertex = dataptr[baseMeshIndex + 6]
-    vertex.x = x3
-    vertex.y = y3
-    vertex.u = x_
-    vertex.v = y_ + unith
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
-
-    vertex = dataptr[baseMeshIndex + 4]
-    vertex.x = x4
-    vertex.y = y4
-    vertex.u = x_
-    vertex.v = y_
-    vertex.r, vertex.g, vertex.b, vertex.a = 1, 1, 1, 1
-
-     --DEBUG_TEXCOORDS 
-    -- {{{
-    if DEBUG_TEXCOORDS then
-        --print('Do some printf.')
-        --print('help me.')
-    end
-    -- }}}
-
-    --basesMesh:setVertices(basesMeshVerts, 1 + 6 * baseMeshCount, 6)
-
-    --basesMesh:setVertices(basesMeshVerts)
-    --basesMesh:setVertices(imageData, 1, 6)
-
-    --basesMesh:setVertices(imageData, 1 + 6 * baseMeshCount, 6)
-    --basesMesh:setVertices(basesMeshVerts, 1 + baseMeshIndex, 6)
-    
-    --print('baseMeshIndex', baseMeshIndex)
-    --print('basesMesh:getDrawRange()', basesMesh:getDrawRange())
-    
-    if baseMeshIndex ~= 0 then
-        --basesMesh:setDrawRange(1, baseMeshIndex/2)
-    end
-    --print("self.meshVerts", inspect(self.meshVerts))
-    --baseMeshIndex = baseMeshIndex + 6
-    --baseMeshCount = baseMeshCount + 1
-    -- }}}
-end
---]]
 
 local colorWhite = {1, 1, 1, 1}
 
@@ -250,90 +59,43 @@ local function printImageData2file(imageData, fname)
     end
 end
 
+Batch = {}
 
-local function base_flush()
-    -- {{{
-    --[[
-    -- {{{ basesMeshVerts -> dataptr copy
-    for k, v in pairs(basesMeshVerts) do
-        print(k, inspect(v))
-        local vert = dataptr[k]
+function Batch.new()
+    local self = setmetatable({}, { __index = Batch, })
+    self.imageData = love.image.newImageData(num_verts / pixel_size * vertex_size, 1)
+    self.dataptr = ffi.cast("fm_vertex*", self.imageData:getPointer())
+    
+    self.mesh = gr.newMesh(meshBufferSize * 6, "triangles", "dynamic")
+    self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
+    self.mesh:setTexture(self.image)
 
-        --vert.x = 1
-        --vert.y = 1
-        --vert.u = 1
-        --vert.v = 1
-        --vert.r = 1
-        --vert.g = 1
-        --vert.b = 1
-        --vert.a = 1
+    self.meshIndex = 0
+    self.meshCount = 0
 
-        vert.x = v[1]
-        vert.y = v[2]
+    return self
+end
 
-        vert.u = 0
-        vert.v = 0
-        vert.r = 1
-        vert.g = 1
-        vert.b = 1
-        vert.a = 1
-        --vert.u = v[3]
-        --vert.v = v[4]
-        --vert.r = v[5]
-        --vert.g = v[6]
-        --vert.b = v[7]
-        --vert.a = v[8]
-
-    end
-    basesMesh:setVertices(imageData)
-    -- }}}
-    --]]
-    --basesMesh:setVertices(imageData, 1, 6)
-    --basesMesh:setVertices(basesMeshVerts, 1, 6)
-
-    --printImageData2file(imageData, "imageData.txt")
-
-    --[[
-    if not __ONCE__ then
-        __ONCE__ = true
-
-        basesMesh:setVertices(basesMeshVerts)
-        printMesh2file(basesMesh, "basesMesh.basesMeshVerts.1.txt")
-
-        basesMesh:setVertices(imageData)
-        printMesh2file(basesMesh, "basesMesh.imageData.1.txt")
-
-        basesMesh:setVertices(basesMeshVerts)
-        printMesh2file(basesMesh, "basesMesh.basesMeshVerts.2.txt")
-
-        basesMesh:setVertices(imageData)
-        printMesh2file(basesMesh, "basesMesh.imageData.2.txt")
-    else
-        --basesMesh:setVertices(basesMeshVerts)
-        basesMesh:setVertices(imageData)
-    end
-    --]]
-
-    basesMesh:setVertices(imageData)
-    basesMesh:setDrawRange(1, baseMeshIndex)
+function Batch:flush()
+    self.mesh:setVertices(self.imageData)
+    --basesMesh:setDrawRange(1, baseMeshIndex)
     --printImageData(imageData)
     --os.exit()
 
     love.graphics.setColor(colorWhite)
-    love.graphics.draw(basesMesh, 0, 0)
-    baseMeshIndex = 0
-    baseMeshCount = 0
-    -- }}}
+    love.graphics.draw(self.mesh, 0, 0)
+    self.meshIndex = 0
+    self.meshCount = 0
 end
 
-function base_present2(
+function Batch:present(
     x1, y1, x2, y2, x3, y3, x4, y4,
     rx, ry, rw, rh
 )
     -- {{{
     
     -- размеры текстуры в пикселях
-    local imgw, imgh = baseImage:getDimensions()
+    local imgw, imgh = self.image:getDimensions()
     -- нормализованная ширина и высота
     local unitw, unith = rw / imgw, rh / imgh
     -- нормализованные координаты левого верхнего угла выделения
@@ -341,65 +103,65 @@ function base_present2(
 
     --local vertex
 
-    --vertex = dataptr[baseMeshIndex + 1]
-    dataptr[baseMeshIndex].x = x1
-    dataptr[baseMeshIndex].y = y1
-    dataptr[baseMeshIndex].u = x_ + unitw
-    dataptr[baseMeshIndex].v = y_
-    dataptr[baseMeshIndex].r = 255
-    dataptr[baseMeshIndex].g = 255
-    dataptr[baseMeshIndex].b = 255
-    dataptr[baseMeshIndex].a = 255
+    --vertex = dataptr[self.meshIndex + 1]
+    self.dataptr[self.meshIndex].x = x1
+    self.dataptr[self.meshIndex].y = y1
+    self.dataptr[self.meshIndex].u = x_ + unitw
+    self.dataptr[self.meshIndex].v = y_
+    self.dataptr[self.meshIndex].r = 255
+    self.dataptr[self.meshIndex].g = 255
+    self.dataptr[self.meshIndex].b = 255
+    self.dataptr[self.meshIndex].a = 255
 
-    --vertex = dataptr[baseMeshIndex + 2]
-    dataptr[baseMeshIndex + 1].x = x2
-    dataptr[baseMeshIndex + 1].y = y2
-    dataptr[baseMeshIndex + 1].u = x_ + unitw
-    dataptr[baseMeshIndex + 1].v = y_ + unith
-    dataptr[baseMeshIndex + 1].r = 255
-    dataptr[baseMeshIndex + 1].g = 255
-    dataptr[baseMeshIndex + 1].b = 255
-    dataptr[baseMeshIndex + 1].a = 255
+    --vertex = dataptr[self.meshIndex + 2]
+    self.dataptr[self.meshIndex + 1].x = x2
+    self.dataptr[self.meshIndex + 1].y = y2
+    self.dataptr[self.meshIndex + 1].u = x_ + unitw
+    self.dataptr[self.meshIndex + 1].v = y_ + unith
+    self.dataptr[self.meshIndex + 1].r = 255
+    self.dataptr[self.meshIndex + 1].g = 255
+    self.dataptr[self.meshIndex + 1].b = 255
+    self.dataptr[self.meshIndex + 1].a = 255
 
-    --vertex = dataptr[baseMeshIndex + 3]
-    dataptr[baseMeshIndex + 2].x = x4
-    dataptr[baseMeshIndex + 2].y = y4
-    dataptr[baseMeshIndex + 2].u = x_
-    dataptr[baseMeshIndex + 2].v = y_
-    dataptr[baseMeshIndex + 2].r = 255
-    dataptr[baseMeshIndex + 2].g = 255
-    dataptr[baseMeshIndex + 2].b = 255
-    dataptr[baseMeshIndex + 2].a = 255
+    --vertex = dataptr[self.meshIndex + 3]
+    self.dataptr[self.meshIndex + 2].x = x4
+    self.dataptr[self.meshIndex + 2].y = y4
+    self.dataptr[self.meshIndex + 2].u = x_
+    self.dataptr[self.meshIndex + 2].v = y_
+    self.dataptr[self.meshIndex + 2].r = 255
+    self.dataptr[self.meshIndex + 2].g = 255
+    self.dataptr[self.meshIndex + 2].b = 255
+    self.dataptr[self.meshIndex + 2].a = 255
 
-    --vertex = dataptr[baseMeshIndex + 5]
-    dataptr[baseMeshIndex + 4].x = x2
-    dataptr[baseMeshIndex + 4].y = y2
-    dataptr[baseMeshIndex + 4].u = x_ + unitw
-    dataptr[baseMeshIndex + 4].v = y_ + unith
-    dataptr[baseMeshIndex + 4].r = 255
-    dataptr[baseMeshIndex + 4].g = 255
-    dataptr[baseMeshIndex + 4].b = 255
-    dataptr[baseMeshIndex + 4].a = 255
+    --vertex = dataptr[self.meshIndex + 5]
+    self.dataptr[self.meshIndex + 4].x = x2
+    self.dataptr[self.meshIndex + 4].y = y2
+    self.dataptr[self.meshIndex + 4].u = x_ + unitw
+    self.dataptr[self.meshIndex + 4].v = y_ + unith
+    self.dataptr[self.meshIndex + 4].r = 255
+    self.dataptr[self.meshIndex + 4].g = 255
+    self.dataptr[self.meshIndex + 4].b = 255
+    self.dataptr[self.meshIndex + 4].a = 255
 
-    --vertex = dataptr[baseMeshIndex + 6]
-    dataptr[baseMeshIndex + 5].x = x3
-    dataptr[baseMeshIndex + 5].y = y3
-    dataptr[baseMeshIndex + 5].u = x_
-    dataptr[baseMeshIndex + 5].v = y_ + unith
-    dataptr[baseMeshIndex + 5].r = 255
-    dataptr[baseMeshIndex + 5].g = 255
-    dataptr[baseMeshIndex + 5].b = 255
-    dataptr[baseMeshIndex + 5].a = 255
+    --vertex = dataptr[self.meshIndex + 6]
+    self.dataptr[self.meshIndex + 5].x = x3
+    self.dataptr[self.meshIndex + 5].y = y3
+    self.dataptr[self.meshIndex + 5].u = x_
+    self.dataptr[self.meshIndex + 5].v = y_ + unith
+    self.dataptr[self.meshIndex + 5].r = 255
+    self.dataptr[self.meshIndex + 5].g = 255
+    self.dataptr[self.meshIndex + 5].b = 255
+    self.dataptr[self.meshIndex + 5].a = 255
 
-    --vertex = dataptr[baseMeshIndex + 4]
-    dataptr[baseMeshIndex + 3].x = x4
-    dataptr[baseMeshIndex + 3].y = y4
-    dataptr[baseMeshIndex + 3].u = x_
-    dataptr[baseMeshIndex + 3].v = y_
-    dataptr[baseMeshIndex + 3].r = 255
-    dataptr[baseMeshIndex + 3].g = 255
-    dataptr[baseMeshIndex + 3].b = 255
-    dataptr[baseMeshIndex + 3].a = 255
+    --vertex = dataptr[self.meshIndex + 4]
+    self.dataptr[self.meshIndex + 3].x = x4
+    self.dataptr[self.meshIndex + 3].y = y4
+    self.dataptr[self.meshIndex + 3].u = x_
+    self.dataptr[self.meshIndex + 3].v = y_
+    self.dataptr[self.meshIndex + 3].r = 255
+    self.dataptr[self.meshIndex + 3].g = 255
+    self.dataptr[self.meshIndex + 3].b = 255
+    self.dataptr[self.meshIndex + 3].a = 255
 
      --DEBUG_TEXCOORDS 
     -- {{{
@@ -430,21 +192,20 @@ function base_present2(
         --basesMesh:setDrawRange(1, baseMeshIndex/2)
     end
     --print("self.meshVerts", inspect(self.meshVerts))
+    self.meshIndex = self.meshIndex + 6
+    self.meshCount = self.meshCount + 1
     -- }}}
 end
 
-function base_incponiter()
-    baseMeshIndex = baseMeshIndex + 6
-    baseMeshCount = baseMeshCount + 1
+function Batch:prepare()
+    self.meshIndex = 0
+    self.meshCount = 0
 end
 
---love.filesystem.write("basesMesh.1.txt", "")
---love.filesystem.write("basesMesh.2.txt", "")
---love.filesystem.write("imageData.txt", "")
-
+--[[
 return {
     base_present = base_present2,
-    --base_present2 = base_present2,
     base_incponiter = base_incponiter,
     base_flush = base_flush,
 }
+--]]

@@ -14,6 +14,7 @@ require("camera")
 require("vector")
 require("Timer")
 require("imgui")
+require('render')
 
 local List = require("list")
 i18n = require("i18n")
@@ -92,6 +93,8 @@ local Bullet = {}
 
 
 
+local baseBatch = Batch.new()
+local turretBatch = Batch.new()
 
 
 
@@ -99,9 +102,12 @@ local Bullet = {}
 
 
 
-baseMeshIndex = 0
 
-baseMeshCount = 0
+
+
+
+
+
 
 
 local Base = {}
@@ -240,7 +246,6 @@ playerTankKeyconfigIds = {}
 angularImpulseScale = 5
 rot = math.pi / 4
 camZoomLower, camZoomHigher = 0.075, 3.5
-meshBufferSize = 1024
 local cameraSettings = {
 
    dx = 2000, dy = 2000,
@@ -918,8 +923,6 @@ function Base.new(t)
 
 end
 
-local render = require('render')
-
 
 
 
@@ -960,11 +963,19 @@ function Base:present()
 
 
 
-   render.base_present(
+
+
+
+
+
+
+
+
+   baseBatch:present(
    x1, y1, x2, y2, x3, y3, x4, y4,
    self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2])
 
-   render.base_incponiter()
+
 
 end
 
@@ -1427,15 +1438,22 @@ local function drawCameraCircle()
 end
 
 local function mainPresent()
-   baseMeshIndex = 0
-   baseMeshCount = 0
+
+   baseBatch:prepare()
+   turretBatch:prepare()
+
    push2drawlist(Background.present, background)
    push2drawlist(queryBoundingBox)
-   push2drawlist(render.base_flush)
+
    push2drawlist(drawBullets)
 
    cam:attach()
+
    presentDrawlist()
+
+   baseBatch:flush()
+   turretBatch:flush()
+
    cam:detach()
 
    drawCameraCircle()
@@ -2005,33 +2023,37 @@ local function makeArmy(x, y)
 
 end
 
-local function initBaseMeshVerts()
-   print('initBaseMeshVerts')
-   basesMeshVerts = {}
-
-   for _ = 1, 6 * meshBufferSize do
-
-      table.insert(basesMeshVerts, {
-         0, 0,
-         0, 0,
-         1, 1, 1, 1,
-      })
-   end
-
-   print("basesMesh:getVertexFormat()\n", tabular.show(basesMesh:getVertexFormat()))
-end
 
 
 
-local function initBasesMesh()
 
-   basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "dynamic")
 
-   initBaseMeshVerts()
 
-   baseImage = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
-   basesMesh:setTexture(baseImage)
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function init()
 
@@ -2062,7 +2084,8 @@ local function init()
    bindEscape()
    bindKonsole()
 
-   initBasesMesh()
+
+
    drawCoro = createDrawCoroutine()
 
    background = Background.new()
