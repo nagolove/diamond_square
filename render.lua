@@ -61,13 +61,14 @@ end
 
 Batch = {}
 
-function Batch.new()
+function Batch.new(texfname)
     local self = setmetatable({}, { __index = Batch, })
     self.imageData = love.image.newImageData(num_verts / pixel_size * vertex_size, 1)
     self.dataptr = ffi.cast("fm_vertex*", self.imageData:getPointer())
     
     self.mesh = gr.newMesh(meshBufferSize * 6, "triangles", "dynamic")
-    self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
+    --self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
+    self.image = love.graphics.newImage(SCENE_PREFIX .. "/" .. texfname)
     self.mesh:setTexture(self.image)
 
     self.meshIndex = 0

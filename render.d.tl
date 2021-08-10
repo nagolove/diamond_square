@@ -10,7 +10,7 @@ end
 require "love"
 
 global record Batch
-    new: function(): Batch
+    new: function(texfname: string): Batch
     prepare: function(Batch)
     present: function(Batch,
         x1: number, y1: number, 

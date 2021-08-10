@@ -49,11 +49,30 @@ local record Background
     -- }}}
 end
 
+local record TurretCommon
+    barrelRectXY: {number}
+    barrelRectWH: {number}
+    towerRectXY: {number}
+    towerRectWH: {number}
+end
+
+local turretCommon: TurretCommon = {
+    barrelRectXY = {124, 0},
+    barrelRectWH = {8, 109},
+    towerRectXY = {101, 103},
+    towerRectWH = {54, 58},
+}
+
 -- Пушка вместе с башней
 local record Turret
     -- {{{
+    rectXY: {number}
+    rectWH: {number}
+
     physbody: love.physics.Body
-    fixture: love.physics.Fixture
+    fixtureBarrel: love.physics.Fixture
+    fixtureTower: love.physics.Fixture
+
     image: love.graphics.Image
     angle: number
     tank: Tank
@@ -93,8 +112,8 @@ end
 -- }}}
 --]]
 
-local baseBatch: Batch = Batch.new()
-local turretBatch: Batch = Batch.new()
+local baseBatch: Batch = Batch.new("tank_body_small.png")
+local turretBatch: Batch = Batch.new("tank_tower.png")
 
 --[[
 global basesMesh: gr.Mesh
@@ -694,8 +713,43 @@ function Turret.new(t: Tank): Turret
     local w, _ = (self.image as love.graphics.Texture):getDimensions()
     local r = w / 2
     local px, py = self.tank.physbody:getPosition()
-    local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
-    self.fixture = love.physics.newFixture(self.physbody, shape as love.physics.Shape)
+
+    --local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
+    local barrelShapeVertices = {
+        px - turretCommon.barrelRectWH[1] / 2 * PIX2M, 
+        py - turretCommon.barrelRectWH[2] / 2 * PIX2M,  
+
+        px + turretCommon.barrelRectWH[1] / 2 * PIX2M, 
+        py - turretCommon.barrelRectWH[2] / 2 * PIX2M,  
+
+        px + turretCommon.barrelRectWH[1] / 2 * PIX2M, 
+        py + turretCommon.barrelRectWH[2] / 2 * PIX2M,  
+
+        px - turretCommon.barrelRectWH[1] / 2 * PIX2M,
+        py + turretCommon.barrelRectWH[2] / 2 * PIX2M,
+    }
+    local towerShapeVertices = {
+        px - turretCommon.towerRectWH[1] / 2 * PIX2M, 
+        py - turretCommon.towerRectWH[2] / 2 * PIX2M,  
+
+        px + turretCommon.towerRectWH[1] / 2 * PIX2M, 
+        py - turretCommon.towerRectWH[2] / 2 * PIX2M,  
+
+        px + turretCommon.towerRectWH[1] / 2 * PIX2M, 
+        py + turretCommon.towerRectWH[2] / 2 * PIX2M,  
+
+        px - turretCommon.towerRectWH[1] / 2 * PIX2M,
+        py + turretCommon.towerRectWH[2] / 2 * PIX2M,
+    }
+
+    local barrelShape = love.physics.newPolygonShape(barrelShapeVertices)
+    local towerShape = love.physics.newPolygonShape(towerShapeVertices)
+    --local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
+
+    self.fixtureBarrel = lp.newFixture(self.physbody, barrelShape as lp.Shape)
+    self.fixtureTower = lp.newFixture(self.physbody, towerShape as lp.Shape)
+    --self.fixtureBarrel = lp.newFixture(self.physbody, shape as lp.Shape)
+    --self.fixtureTower = lp.newFixture(self.physbody, shape as lp.Shape)
     --self.f:setGroupIndex(tankCollisionGroup)
 
     if DEBUG_TURRET then
@@ -740,7 +794,7 @@ local function drawFixture(f: love.physics.Fixture, color: {number})
         end
         if not __ONCE__ then
             __ONCE__ = true
-            print("vertices", inspect(points))
+            --print("vertices", inspect(points))
         end
         local lw = 3
         local olw = gr.getLineWidth()
@@ -795,19 +849,25 @@ end
 
 function Turret:present()
     -- {{{
-    if not self.fixture then
+    if not self.fixtureTower or not self.fixtureBarrel then
         error("Turret:present() - fixture is nil")
     end
 
     local imgw, imgh = (self.image as love.graphics.Texture):getDimensions()
     local r, sx, sy, ox, oy: number = 0., 1., 1., 0, 0
     --local kx, ky: number = 1., 1.
-    local shape = self.fixture:getShape()
-    local cshape = self.fixture:getShape() as love.physics.CircleShape
 
-    if shape:getType() ~= "circle" then
-        error("Only circle shape allowed.")
+    --local shape = self.fixture:getShape()
+    --local cshape = self.fixture:getShape() as love.physics.CircleShape
+    local towerShape = self.fixtureTower:getShape()
+    local barrelShape = self.fixtureBarrel:getShape()
+    --local cshape = self.fixtureTower:getShape() as love.physics.CircleShape
+
+    if towerShape:getType() ~= "polygon" or barrelShape:getType() ~= "polygon" then
+        error("Only polygon shape allowed.")
     end
+
+    --[[
     local px, py = cshape:getPoint()
     px, py = self.physbody:getWorldPoints(px, py)
     px, py = px * M2PIX, py * M2PIX
@@ -827,6 +887,8 @@ function Turret:present()
         sx, sy, 
         ox + imgw / 2, oy + imgh / 2
     )
+
+    --]]
 
     --local white = {1, 1, 1, 1}
     --gr.setColor(white)
