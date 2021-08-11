@@ -88,6 +88,9 @@ local Turret = {}
 
 
 
+
+
+
 local Bullet = {}
 
 
@@ -243,7 +246,11 @@ suggestList = List.new()
 attachedVarsList = {}
 
 
-local drawlist = {}
+
+
+local drawlistTop = {}
+local drawlistBottom = {}
+
 
 local camTimer = require("Timer").new()
 local drawCoro = nil
@@ -448,28 +455,44 @@ function Turret:fire()
 
 end
 
-local function presentDrawlist()
-
-   for _, v in ipairs(drawlist) do
+local function presentDrawlistBottom()
+   for _, v in ipairs(drawlistBottom) do
       if v.self then
          v.f(v.self)
       else
          v.f()
       end
    end
-
 end
 
-function push2drawlist(f, self)
+local function presentDrawlistTop()
+   for _, v in ipairs(drawlistTop) do
+      if v.self then
+         v.f(v.self)
+      else
+         v.f()
+      end
+   end
+end
 
+function push2drawlistTop(f, self)
    if not f then
       error("Draw could'not be nil.")
    end
    if type(f) ~= "function" then
       error("Draw function is not a function. It is a .. " .. type(f))
    end
-   table.insert(drawlist, { f = f, self = self })
+   table.insert(drawlistTop, { f = f, self = self })
+end
 
+function push2drawlistBottom(f, self)
+   if not f then
+      error("Draw could'not be nil.")
+   end
+   if type(f) ~= "function" then
+      error("Draw function is not a function. It is a .. " .. type(f))
+   end
+   table.insert(drawlistBottom, { f = f, self = self })
 end
 
 function Tank:fire()
@@ -713,11 +736,12 @@ function Tank:present()
    if cmd_drawBodyStat then
       for _, f in ipairs(self.physbody:getFixtures()) do
 
-         push2drawlist(function()
-            drawFixture(f)
-         end)
+         drawFixture(f)
+
+
+
       end
-      push2drawlist(function()
+      push2drawlistTop(function()
          self:drawDirectionVector()
          drawBodyStat(self.physbody)
       end)
@@ -768,24 +792,44 @@ function Turret.new(t)
       py + turretCommon.barrelRectWH[2] / 2 * PIX2M,
    }
    local towerShapeVertices = {
-      px - turretCommon.towerRectWH[1] / 2 * PIX2M,
-      py - turretCommon.towerRectWH[2] / 2 * PIX2M,
+      px - turretCommon.towerRectWH[1] / 2 * PIX2M -
+      turretCommon.towerRectXY[1] * PIX2M,
 
-      px + turretCommon.towerRectWH[1] / 2 * PIX2M,
-      py - turretCommon.towerRectWH[2] / 2 * PIX2M,
+      py - turretCommon.towerRectWH[2] / 2 * PIX2M -
+      turretCommon.towerRectXY[2] * PIX2M,
 
-      px + turretCommon.towerRectWH[1] / 2 * PIX2M,
-      py + turretCommon.towerRectWH[2] / 2 * PIX2M,
+      px + turretCommon.towerRectWH[1] / 2 * PIX2M +
+      turretCommon.towerRectXY[1] * PIX2M,
 
-      px - turretCommon.towerRectWH[1] / 2 * PIX2M,
-      py + turretCommon.towerRectWH[2] / 2 * PIX2M,
+      py - turretCommon.towerRectWH[2] / 2 * PIX2M -
+      turretCommon.towerRectXY[2] * PIX2M,
+
+      px + turretCommon.towerRectWH[1] / 2 * PIX2M +
+      turretCommon.towerRectXY[1] * PIX2M,
+
+      py + turretCommon.towerRectWH[2] / 2 * PIX2M +
+      turretCommon.towerRectXY[2] * PIX2M,
+
+      px - turretCommon.towerRectWH[1] / 2 * PIX2M -
+      turretCommon.towerRectXY[1] * PIX2M,
+
+      py + turretCommon.towerRectWH[2] / 2 * PIX2M +
+      turretCommon.towerRectXY[2] * PIX2M,
    }
+   print('#towerShapeVertices', #towerShapeVertices)
+
+   self.barrelShape = love.physics.newPolygonShape(barrelShapeVertices)
+   self.towerShape = love.physics.newPolygonShape(towerShapeVertices)
+
+   self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape)
+   self.fixtureTower = lp.newFixture(self.physbody, self.towerShape)
 
 
 
 
-
-
+   self.fixtureTower:setDensity(0.0001)
+   self.fixtureBarrel:setDensity(0.0001)
+   self.physbody:resetMassData()
 
    if DEBUG_TURRET then
       print("circle shape created x, y, r", px, py)
@@ -877,13 +921,30 @@ function Turret:present()
 
 
 
+   local body = self.fixtureTower:getBody()
+
+   local x1, y1, x2, y2, x3, y3, x4, y4 = self.towerShape:getPoints()
+
+   x1, y1 = body:getWorldPoints(x1, y1)
+   x2, y2 = body:getWorldPoints(x2, y2)
+   x3, y3 = body:getWorldPoints(x3, y3)
+   x4, y4 = body:getWorldPoints(x4, y4)
+
+   x1, y1 = M2PIX * x1, M2PIX * y1
+   x2, y2 = M2PIX * x2, M2PIX * y2
+   x3, y3 = M2PIX * x3, M2PIX * y3
+   x4, y4 = M2PIX * x4, M2PIX * y4
 
 
 
 
 
-
-
+   turretBatch:present(
+   x1, y1, x2, y2, x3, y3, x4, y4,
+   turretCommon.towerRectXY[1],
+   turretCommon.towerRectXY[2],
+   turretCommon.towerRectWH[1],
+   turretCommon.towerRectWH[2])
 
 
 
@@ -998,26 +1059,6 @@ function Base:present()
    x3, y3 = M2PIX * x3, M2PIX * y3
    x4, y4 = M2PIX * x4, M2PIX * y4
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    baseBatch:present(
    x1, y1, x2, y2, x3, y3, x4, y4,
    self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2])
@@ -1129,7 +1170,7 @@ local function queryBoundingBox()
 
       if DEBUG_PHYSICS then
 
-         push2drawlist(function()
+         push2drawlistTop(function()
             local oldwidth = gr.getLineWidth()
             local lwidth = 4
             gr.setLineWidth(lwidth)
@@ -1486,20 +1527,22 @@ local function drawCameraCircle()
 end
 
 local function mainPresent()
-
-   push2drawlist(Background.present, background)
-
-
-
-   push2drawlist(drawBullets)
-
-   cam:attach()
-   queryBoundingBox()
-
    baseBatch:prepare()
    turretBatch:prepare()
 
-   presentDrawlist()
+
+
+
+
+   push2drawlistTop(drawBullets)
+
+   cam:attach()
+   background:present()
+   queryBoundingBox()
+
+   presentDrawlistBottom()
+
+   presentDrawlistTop()
 
    baseBatch:flush()
    turretBatch:flush()
@@ -1508,7 +1551,8 @@ local function mainPresent()
 
    drawCameraCircle()
 
-   drawlist = {}
+   drawlistTop = {}
+   drawlistBottom = {}
 
    linesbuf:pushi("tankCounter %d", tankCounter)
 
@@ -1653,9 +1697,16 @@ end
 function attach(varname)
    if type(varname) == "string" then
       attachedVarsList[varname] = function()
-         local s = tabular.show((_G)[varname])
-         if s then
-            linesbuf:pushi(string.format("%s", s))
+         local ok, errmsg = pcall(function()
+            local s = tabular.show((_G)[varname])
+            if s then
+               linesbuf:pushi(string.format("%s", s))
+            end
+         end)
+         if not ok then
+            print("attach callback error:", errmsg)
+            print('attach removed')
+            attachedVarsList[varname] = nil
          end
       end
    end
@@ -1727,31 +1778,31 @@ systemPrint = print
 if not __ATTACH_ONCE__ then
     print('before')
     -- attached variables
-    attach("playerTank")
-    attach("DEFAULT_W")
-    attach("DEFAULT_H")
-    attach("W")
-    attach("H")
-    attach("M2PIX")
-    attach("PIX2M")
-    attach("tankForceScale")
-    attach("cam")
-    attach("showLogo")
-    attach("playerTankKeyconfigIds")
-    attach("angularImpulseScale")
-    attach("rot")
-    attach("camZoomLower")
-    attach("camZoomHigher")
-    attach("pworld")
-    --attach("tanks")
-    attach("playerTank")
-    attach("background")
-    attach("logo")
-    --attach("bullets")
-    attach("bulletLifetime")
-    attach("tankCounter")
-    attach("rng")
-    print('after')
+    --attach("playerTank")
+    --attach("DEFAULT_W")
+    --attach("DEFAULT_H")
+    --attach("W")
+    --attach("H")
+    --attach("M2PIX")
+    --attach("PIX2M")
+    --attach("tankForceScale")
+    --attach("cam")
+    --attach("showLogo")
+    --attach("playerTankKeyconfigIds")
+    --attach("angularImpulseScale")
+    --attach("rot")
+    --attach("camZoomLower")
+    --attach("camZoomHigher")
+    --attach("pworld")
+    ----attach("tanks")
+    --attach("playerTank")
+    --attach("background")
+    --attach("logo")
+    ----attach("bullets")
+    --attach("bulletLifetime")
+    --attach("tankCounter")
+    --attach("rng")
+    --print('after')
     __ATTACH_ONCE__ = true
 end
     ]]
