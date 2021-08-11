@@ -115,19 +115,6 @@ end
 local baseBatch: Batch = Batch.new("tank_body_small.png")
 local turretBatch: Batch = Batch.new("tank_tower.png")
 
---[[
-global basesMesh: gr.Mesh
---global basesData: love.data.ByteData
-global basesMeshVerts: {{number}}
-global baseImage: gr.Image
-
--- Смещение вершин в буфере полигональной сетки basesMesh
--- Индекс начинается с 0. Кратно 6.
-global baseMeshIndex: integer = 0
--- Количество моделей в буфере.
-global baseMeshCount: integer = 0
---]]
-
 -- Ходовая часть с полигоном
 local record Base
     -- {{{
@@ -667,6 +654,48 @@ function Tank:update(): Tank
     -- }}}
 end
 
+local function drawFixture(f: love.physics.Fixture, color: {number})
+    -- {{{
+    local defaultcolor = {1, 0.5, 0, 0.5}
+    if not color then
+        color = defaultcolor
+    end
+    local shape = f:getShape()
+    local shapeType = shape:getType()
+    local body = f:getBody()
+    if shapeType == 'circle' then
+        local cShape: love.physics.CircleShape = shape as love.physics.CircleShape
+        local px, py = cShape:getPoint()
+        local radius = cShape:getRadius()
+        px, py = body:getWorldPoints(px, py)
+        local lw = 3
+        local olw = gr.getLineWidth()
+        gr.setLineWidth(lw)
+        gr.setColor(color)
+        gr.circle("line", px * M2PIX, py * M2PIX, radius * M2PIX)
+        gr.setLineWidth(olw)
+    elseif shapeType == 'polygon' then
+        local pShape: love.physics.PolygonShape = shape as love.physics.PolygonShape
+        local points = {pShape:getPoints()}
+        local i = 1
+        while i < #points do
+            points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+            points[i] = points[i] * M2PIX
+            points[i + 1] = points[i + 1] * M2PIX
+            i = i + 2
+        end
+        local lw = 3
+        local olw = gr.getLineWidth()
+        gr.setLineWidth(lw)
+        gr.setColor(color)
+        gr.polygon("line", points)
+        gr.setLineWidth(olw)
+    else
+        error("Shape type " .. shapeType .. " unsupported.")
+    end
+    -- }}}
+end
+
 function Tank:present()
     -- {{{
     if self.base and self.base.present then
@@ -675,13 +704,23 @@ function Tank:present()
         colprint('Tank ' .. self.id .. ' is damaged. No base.')
     end
     if self.turret and self.turret.present then
-        push2drawlist(self.turret.present, self.turret)
+        self.turret:present()
+        --push2drawlist(self.turret.present, self.turret)
     else
         colprint('Tank ' .. self.id .. ' is damaged. No turret.')
     end
+
     if cmd_drawBodyStat then
-        self:drawDirectionVector()
-        drawBodyStat(self.physbody)
+        for _, f in ipairs(self.physbody:getFixtures()) do
+            --drawFixture(f)
+            push2drawlist(function()
+                drawFixture(f)
+            end)
+        end
+        push2drawlist(function()
+            self:drawDirectionVector()
+            drawBodyStat(self.physbody)
+        end)
     end
     -- }}}
 end
@@ -742,69 +781,17 @@ function Turret.new(t: Tank): Turret
         py + turretCommon.towerRectWH[2] / 2 * PIX2M,
     }
 
-    local barrelShape = love.physics.newPolygonShape(barrelShapeVertices)
-    local towerShape = love.physics.newPolygonShape(towerShapeVertices)
-    --local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
+    --local barrelShape = love.physics.newPolygonShape(barrelShapeVertices)
+    --local towerShape = love.physics.newPolygonShape(towerShapeVertices)
 
-    self.fixtureBarrel = lp.newFixture(self.physbody, barrelShape as lp.Shape)
-    self.fixtureTower = lp.newFixture(self.physbody, towerShape as lp.Shape)
-    --self.fixtureBarrel = lp.newFixture(self.physbody, shape as lp.Shape)
-    --self.fixtureTower = lp.newFixture(self.physbody, shape as lp.Shape)
-    --self.f:setGroupIndex(tankCollisionGroup)
+    --self.fixtureBarrel = lp.newFixture(self.physbody, barrelShape as lp.Shape)
+    --self.fixtureTower = lp.newFixture(self.physbody, towerShape as lp.Shape)
 
     if DEBUG_TURRET then
         print("circle shape created x, y, r", px, py)
     end
 
     return self
-    -- }}}
-end
-
-local __ONCE__ = false
-
-local function drawFixture(f: love.physics.Fixture, color: {number})
-    -- {{{
-    local defaultcolor = {1, 0.5, 0, 0.5}
-    if not color then
-        color = defaultcolor
-    end
-    local shape = f:getShape()
-    local shapeType = shape:getType()
-    local body = f:getBody()
-    if shapeType == 'circle' then
-        local cShape: love.physics.CircleShape = shape as love.physics.CircleShape
-        local px, py = cShape:getPoint()
-        local radius = cShape:getRadius()
-        px, py = body:getWorldPoints(px, py)
-        local lw = 3
-        local olw = gr.getLineWidth()
-        gr.setLineWidth(lw)
-        gr.setColor(color)
-        gr.circle("line", px * M2PIX, py * M2PIX, radius * M2PIX)
-        gr.setLineWidth(olw)
-    elseif shapeType == 'polygon' then
-        local pShape: love.physics.PolygonShape = shape as love.physics.PolygonShape
-        local points = {pShape:getPoints()}
-        local i = 1
-        while i < #points do
-            points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
-            points[i] = points[i] * M2PIX
-            points[i + 1] = points[i + 1] * M2PIX
-            i = i + 2
-        end
-        if not __ONCE__ then
-            __ONCE__ = true
-            --print("vertices", inspect(points))
-        end
-        local lw = 3
-        local olw = gr.getLineWidth()
-        gr.setLineWidth(lw)
-        gr.setColor(color)
-        gr.polygon("line", points)
-        gr.setLineWidth(olw)
-    else
-        error("Shape type " .. shapeType .. " unsupported.")
-    end
     -- }}}
 end
 
@@ -850,7 +837,8 @@ end
 function Turret:present()
     -- {{{
     if not self.fixtureTower or not self.fixtureBarrel then
-        error("Turret:present() - fixture is nil")
+        --error("Turret:present() - fixture is nil")
+        return
     end
 
     local imgw, imgh = (self.image as love.graphics.Texture):getDimensions()
@@ -894,9 +882,6 @@ function Turret:present()
     --gr.setColor(white)
     --love.graphics.rectangle("line", 
 
-    for _, f in ipairs(self.physbody:getFixtures()) do
-        drawFixture(f)
-    end
     --local x, y = self.pbody:getWorldCenter()
     --local text = string.format("%d", self.tank.id)
     --gr.print(text, x, y)
@@ -1143,6 +1128,7 @@ local function queryBoundingBox()
         brx, bry = brx + W, bry + H
 
         if DEBUG_PHYSICS then
+            -- рисовать окно ограничивающего прямоугольника
             push2drawlist(function()
                 local oldwidth = gr.getLineWidth()
                 local lwidth = 4
@@ -1501,15 +1487,17 @@ end
 
 local function mainPresent()
     --print('baseBatch\n', tabular.show(baseBatch))
-    baseBatch:prepare()
-    turretBatch:prepare()
-
     push2drawlist(Background.present, background)
-    push2drawlist(queryBoundingBox)
+    --push2drawlist(queryBoundingBox)
+
     --push2drawlist(render.base_flush)
     push2drawlist(drawBullets)
 
     cam:attach()
+    queryBoundingBox()
+
+    baseBatch:prepare()
+    turretBatch:prepare()
 
     presentDrawlist()
 

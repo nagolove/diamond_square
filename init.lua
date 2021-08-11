@@ -116,19 +116,6 @@ local baseBatch = Batch.new("tank_body_small.png")
 local turretBatch = Batch.new("tank_tower.png")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 local Base = {}
 
 
@@ -667,6 +654,48 @@ function Tank:update()
 
 end
 
+local function drawFixture(f, color)
+
+   local defaultcolor = { 1, 0.5, 0, 0.5 }
+   if not color then
+      color = defaultcolor
+   end
+   local shape = f:getShape()
+   local shapeType = shape:getType()
+   local body = f:getBody()
+   if shapeType == 'circle' then
+      local cShape = shape
+      local px, py = cShape:getPoint()
+      local radius = cShape:getRadius()
+      px, py = body:getWorldPoints(px, py)
+      local lw = 3
+      local olw = gr.getLineWidth()
+      gr.setLineWidth(lw)
+      gr.setColor(color)
+      gr.circle("line", px * M2PIX, py * M2PIX, radius * M2PIX)
+      gr.setLineWidth(olw)
+   elseif shapeType == 'polygon' then
+      local pShape = shape
+      local points = { pShape:getPoints() }
+      local i = 1
+      while i < #points do
+         points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+         points[i] = points[i] * M2PIX
+         points[i + 1] = points[i + 1] * M2PIX
+         i = i + 2
+      end
+      local lw = 3
+      local olw = gr.getLineWidth()
+      gr.setLineWidth(lw)
+      gr.setColor(color)
+      gr.polygon("line", points)
+      gr.setLineWidth(olw)
+   else
+      error("Shape type " .. shapeType .. " unsupported.")
+   end
+
+end
+
 function Tank:present()
 
    if self.base and self.base.present then
@@ -675,13 +704,23 @@ function Tank:present()
       colprint('Tank ' .. self.id .. ' is damaged. No base.')
    end
    if self.turret and self.turret.present then
-      push2drawlist(self.turret.present, self.turret)
+      self.turret:present()
+
    else
       colprint('Tank ' .. self.id .. ' is damaged. No turret.')
    end
+
    if cmd_drawBodyStat then
-      self:drawDirectionVector()
-      drawBodyStat(self.physbody)
+      for _, f in ipairs(self.physbody:getFixtures()) do
+
+         push2drawlist(function()
+            drawFixture(f)
+         end)
+      end
+      push2drawlist(function()
+         self:drawDirectionVector()
+         drawBodyStat(self.physbody)
+      end)
    end
 
 end
@@ -742,12 +781,8 @@ function Turret.new(t)
       py + turretCommon.towerRectWH[2] / 2 * PIX2M,
    }
 
-   local barrelShape = love.physics.newPolygonShape(barrelShapeVertices)
-   local towerShape = love.physics.newPolygonShape(towerShapeVertices)
 
 
-   self.fixtureBarrel = lp.newFixture(self.physbody, barrelShape)
-   self.fixtureTower = lp.newFixture(self.physbody, towerShape)
 
 
 
@@ -757,54 +792,6 @@ function Turret.new(t)
    end
 
    return self
-
-end
-
-local __ONCE__ = false
-
-local function drawFixture(f, color)
-
-   local defaultcolor = { 1, 0.5, 0, 0.5 }
-   if not color then
-      color = defaultcolor
-   end
-   local shape = f:getShape()
-   local shapeType = shape:getType()
-   local body = f:getBody()
-   if shapeType == 'circle' then
-      local cShape = shape
-      local px, py = cShape:getPoint()
-      local radius = cShape:getRadius()
-      px, py = body:getWorldPoints(px, py)
-      local lw = 3
-      local olw = gr.getLineWidth()
-      gr.setLineWidth(lw)
-      gr.setColor(color)
-      gr.circle("line", px * M2PIX, py * M2PIX, radius * M2PIX)
-      gr.setLineWidth(olw)
-   elseif shapeType == 'polygon' then
-      local pShape = shape
-      local points = { pShape:getPoints() }
-      local i = 1
-      while i < #points do
-         points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
-         points[i] = points[i] * M2PIX
-         points[i + 1] = points[i + 1] * M2PIX
-         i = i + 2
-      end
-      if not __ONCE__ then
-         __ONCE__ = true
-
-      end
-      local lw = 3
-      local olw = gr.getLineWidth()
-      gr.setLineWidth(lw)
-      gr.setColor(color)
-      gr.polygon("line", points)
-      gr.setLineWidth(olw)
-   else
-      error("Shape type " .. shapeType .. " unsupported.")
-   end
 
 end
 
@@ -850,7 +837,8 @@ end
 function Turret:present()
 
    if not self.fixtureTower or not self.fixtureBarrel then
-      error("Turret:present() - fixture is nil")
+
+      return
    end
 
    local imgw, imgh = (self.image):getDimensions()
@@ -894,9 +882,6 @@ function Turret:present()
 
 
 
-   for _, f in ipairs(self.physbody:getFixtures()) do
-      drawFixture(f)
-   end
 
 
 
@@ -1143,6 +1128,7 @@ local function queryBoundingBox()
       brx, bry = brx + W, bry + H
 
       if DEBUG_PHYSICS then
+
          push2drawlist(function()
             local oldwidth = gr.getLineWidth()
             local lwidth = 4
@@ -1501,15 +1487,17 @@ end
 
 local function mainPresent()
 
-   baseBatch:prepare()
-   turretBatch:prepare()
-
    push2drawlist(Background.present, background)
-   push2drawlist(queryBoundingBox)
+
+
 
    push2drawlist(drawBullets)
 
    cam:attach()
+   queryBoundingBox()
+
+   baseBatch:prepare()
+   turretBatch:prepare()
 
    presentDrawlist()
 
