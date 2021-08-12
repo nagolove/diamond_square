@@ -758,6 +758,21 @@ function Tank:present()
          end
          drawBodyStat(self.physbody)
       end)
+      if self.turret then
+         push2drawlistTop(function()
+            for _, f in ipairs(self.turret.physbody:getFixtures()) do
+
+               drawFixture(f)
+
+
+
+            end
+            if DEBUG_DIRECTION then
+               self:drawDirectionVector()
+            end
+            drawBodyStat(self.turret.physbody)
+         end)
+      end
    end
 
 end
@@ -791,52 +806,19 @@ function Turret.new(t)
 
    local px, py = t.pos.x, t.pos.y
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    local towerShapeVertices = {
-      px - turretCommon.towerRectWH[1] / 2 * PIX2M -
-      0,
-      py - turretCommon.towerRectWH[2] / 2 * PIX2M -
-      0,
+      px - turretCommon.towerRectWH[1] / 2 * PIX2M - 0,
+      py - turretCommon.towerRectWH[2] / 2 * PIX2M - 0,
 
-      px + turretCommon.towerRectWH[1] / 2 * PIX2M +
-      0,
-      py - turretCommon.towerRectWH[2] / 2 * PIX2M -
-      0,
+      px + turretCommon.towerRectWH[1] / 2 * PIX2M + 0,
+      py - turretCommon.towerRectWH[2] / 2 * PIX2M - 0,
 
-      px + turretCommon.towerRectWH[1] / 2 * PIX2M +
-      0,
-      py + turretCommon.towerRectWH[2] / 2 * PIX2M +
-      0,
+      px + turretCommon.towerRectWH[1] / 2 * PIX2M + 0,
+      py + turretCommon.towerRectWH[2] / 2 * PIX2M + 0,
 
-      px - turretCommon.towerRectWH[1] / 2 * PIX2M -
-      0,
-      py + turretCommon.towerRectWH[2] / 2 * PIX2M +
-      0,
+      px - turretCommon.towerRectWH[1] / 2 * PIX2M - 0,
+      py + turretCommon.towerRectWH[2] / 2 * PIX2M + 0,
    }
-
 
    local magic = 1.45
    local towerSize = turretCommon.towerRectWH[2] * PIX2M * magic
@@ -856,7 +838,8 @@ function Turret.new(t)
       py + turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
    }
 
-   print('#towerShapeVertices', #towerShapeVertices)
+   self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
+   self.physbody:setUserData(self)
 
    self.barrelShape = love.physics.newPolygonShape(barrelShapeVertices)
    self.towerShape = love.physics.newPolygonShape(towerShapeVertices)
@@ -870,6 +853,18 @@ function Turret.new(t)
    self.fixtureTower:setDensity(0.0001)
    self.fixtureBarrel:setDensity(0.0001)
    self.physbody:resetMassData()
+
+
+   local p1x, p1y = self.tank.physbody:getWorldCenter()
+   local p2x, p2y = self.tank.physbody:getWorldCenter()
+   local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
+
+
+
+
+
+
+
 
    if DEBUG_TURRET then
       print("circle shape created x, y, r", px, py)

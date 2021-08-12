@@ -758,6 +758,21 @@ function Tank:present()
             end
             drawBodyStat(self.physbody)
         end)
+        if self.turret then
+            push2drawlistTop(function()
+                for _, f in ipairs(self.turret.physbody:getFixtures()) do
+                    -- Не работает
+                    drawFixture(f)
+                    --push2drawlist(function()
+                    --drawFixture(f)
+                    --end)
+                end
+                if DEBUG_DIRECTION then
+                    self:drawDirectionVector()
+                end
+                drawBodyStat(self.turret.physbody)
+            end)
+        end
     end
     -- }}}
 end
@@ -791,53 +806,20 @@ function Turret.new(t: Tank): Turret
     --local px, py = self.tank.physbody:getPosition()
     local px, py = t.pos.x, t.pos.y
 
-    --[[
     local towerShapeVertices = {
-        px - turretCommon.towerRectWH[1] / 2 * PIX2M - 
-            turretCommon.towerRectXY[1] * PIX2M /2,
-        py - turretCommon.towerRectWH[2] / 2 * PIX2M -
-            turretCommon.towerRectXY[2] * PIX2M /2,
+        px - turretCommon.towerRectWH[1] / 2 * PIX2M - 0,
+        py - turretCommon.towerRectWH[2] / 2 * PIX2M - 0,
 
-        px + turretCommon.towerRectWH[1] / 2 * PIX2M +
-            turretCommon.towerRectXY[1] * PIX2M /2,
-        py - turretCommon.towerRectWH[2] / 2 * PIX2M -
-            turretCommon.towerRectXY[2] * PIX2M /2,
+        px + turretCommon.towerRectWH[1] / 2 * PIX2M + 0,
+        py - turretCommon.towerRectWH[2] / 2 * PIX2M - 0,
 
-        px + turretCommon.towerRectWH[1] / 2 * PIX2M +
-            turretCommon.towerRectXY[1] * PIX2M /2,
-        py + turretCommon.towerRectWH[2] / 2 * PIX2M +
-            turretCommon.towerRectXY[2] * PIX2M /2,
+        px + turretCommon.towerRectWH[1] / 2 * PIX2M + 0,
+        py + turretCommon.towerRectWH[2] / 2 * PIX2M + 0,
 
-        px - turretCommon.towerRectWH[1] / 2 * PIX2M -
-            turretCommon.towerRectXY[1] * PIX2M /2,
-        py + turretCommon.towerRectWH[2] / 2 * PIX2M +
-            turretCommon.towerRectXY[2] * PIX2M /2,
-    }
-    --]]
-
-    local towerShapeVertices = {
-        px - turretCommon.towerRectWH[1] / 2 * PIX2M - 
-        0,
-        py - turretCommon.towerRectWH[2] / 2 * PIX2M -
-        0,
-
-        px + turretCommon.towerRectWH[1] / 2 * PIX2M +
-        0,
-        py - turretCommon.towerRectWH[2] / 2 * PIX2M -
-        0,
-
-        px + turretCommon.towerRectWH[1] / 2 * PIX2M +
-        0,
-        py + turretCommon.towerRectWH[2] / 2 * PIX2M +
-        0,
-
-        px - turretCommon.towerRectWH[1] / 2 * PIX2M -
-        0,
-        py + turretCommon.towerRectWH[2] / 2 * PIX2M +
-        0,
+        px - turretCommon.towerRectWH[1] / 2 * PIX2M - 0,
+        py + turretCommon.towerRectWH[2] / 2 * PIX2M + 0,
     }
 
-    --local towerSize = turretCommon.towerRectWH[2] * PIX2M * 2
     local magic = 1.45
     local towerSize = turretCommon.towerRectWH[2] * PIX2M * magic
     
@@ -856,7 +838,8 @@ function Turret.new(t: Tank): Turret
         py + turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
     }
 
-    print('#towerShapeVertices', #towerShapeVertices)
+    self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
+    self.physbody:setUserData(self)
 
     self.barrelShape = love.physics.newPolygonShape(barrelShapeVertices)
     self.towerShape = love.physics.newPolygonShape(towerShapeVertices)
@@ -870,6 +853,18 @@ function Turret.new(t: Tank): Turret
     self.fixtureTower:setDensity(0.0001)
     self.fixtureBarrel:setDensity(0.0001)
     self.physbody:resetMassData()
+
+    --local magix = -100
+    local p1x, p1y = self.tank.physbody:getWorldCenter()
+    local p2x, p2y = self.tank.physbody:getWorldCenter()
+    local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
+    --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, 0, 0, 0, 0, false)
+    --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, 0, 0, false)
+    --print('joint:getFrequency()', joint:getFrequency())
+    --joint:setFrequency(60)
+    --joint:setFrequency(120)
+    --os.exit()
+    --local joint = love.physics.newDistanceJoint(self.tank.physbody, self.physbody, 0, 0, 0, 0, false)
 
     if DEBUG_TURRET then
         print("circle shape created x, y, r", px, py)
