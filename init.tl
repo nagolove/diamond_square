@@ -775,7 +775,8 @@ function Turret.new(t: Tank): Turret
 
     local w, _ = (self.image as love.graphics.Texture):getDimensions()
     local r = w / 2
-    local px, py = self.tank.physbody:getPosition()
+    --local px, py = self.tank.physbody:getPosition()
+    local px, py = t.pos.x, t.pos.y
 
     --local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
     local barrelShapeVertices = {
@@ -791,31 +792,55 @@ function Turret.new(t: Tank): Turret
         px - turretCommon.barrelRectWH[1] / 2 * PIX2M,
         py + turretCommon.barrelRectWH[2] / 2 * PIX2M,
     }
+
+    --[[
     local towerShapeVertices = {
         px - turretCommon.towerRectWH[1] / 2 * PIX2M - 
-            turretCommon.towerRectXY[1] * PIX2M,
-
+            turretCommon.towerRectXY[1] * PIX2M /2,
         py - turretCommon.towerRectWH[2] / 2 * PIX2M -
-            turretCommon.towerRectXY[2] * PIX2M,
+            turretCommon.towerRectXY[2] * PIX2M /2,
 
         px + turretCommon.towerRectWH[1] / 2 * PIX2M +
-            turretCommon.towerRectXY[1] * PIX2M,
-
+            turretCommon.towerRectXY[1] * PIX2M /2,
         py - turretCommon.towerRectWH[2] / 2 * PIX2M -
-            turretCommon.towerRectXY[2] * PIX2M,
+            turretCommon.towerRectXY[2] * PIX2M /2,
 
         px + turretCommon.towerRectWH[1] / 2 * PIX2M +
-            turretCommon.towerRectXY[1] * PIX2M,
-
+            turretCommon.towerRectXY[1] * PIX2M /2,
         py + turretCommon.towerRectWH[2] / 2 * PIX2M +
-            turretCommon.towerRectXY[2] * PIX2M,
+            turretCommon.towerRectXY[2] * PIX2M /2,
 
         px - turretCommon.towerRectWH[1] / 2 * PIX2M -
-            turretCommon.towerRectXY[1] * PIX2M,
-
+            turretCommon.towerRectXY[1] * PIX2M /2,
         py + turretCommon.towerRectWH[2] / 2 * PIX2M +
-            turretCommon.towerRectXY[2] * PIX2M,
+            turretCommon.towerRectXY[2] * PIX2M /2,
     }
+    --]]
+
+
+    local towerShapeVertices = {
+        px - turretCommon.towerRectWH[1] / 2 * PIX2M - 
+        0,
+        py - turretCommon.towerRectWH[2] / 2 * PIX2M -
+        0,
+
+        px + turretCommon.towerRectWH[1] / 2 * PIX2M +
+        0,
+        py - turretCommon.towerRectWH[2] / 2 * PIX2M -
+        0,
+
+        px + turretCommon.towerRectWH[1] / 2 * PIX2M +
+        0,
+        py + turretCommon.towerRectWH[2] / 2 * PIX2M +
+        0,
+
+        px - turretCommon.towerRectWH[1] / 2 * PIX2M -
+        0,
+        py + turretCommon.towerRectWH[2] / 2 * PIX2M +
+        0,
+    }
+    --]]
+
     print('#towerShapeVertices', #towerShapeVertices)
 
     self.barrelShape = love.physics.newPolygonShape(barrelShapeVertices)
@@ -2112,7 +2137,7 @@ local function makeArmy(x: number, y: number)
     x = x or 0
     y = y or 0
     local len = 10
-    local space = 30
+    local space = 200
     pushDEBUG()
     disableDEBUG()
     for i = 1, len do
@@ -2191,7 +2216,7 @@ local function init()
 
     background = Background.new()
 
-    makeArmy()
+    --makeArmy()
     --makeArmy()
     --makeArmy()
     --makeArmy()
@@ -2199,9 +2224,9 @@ local function init()
     --makeArmy()
 
     --for _ = 1, 30 do 
-    --for _ = 1, 3 do 
-        --spawnTank(vector.new(100, 100))
-    --end
+    for _ = 1, 3 do 
+        spawnTank(vector.new(100, 100))
+    end
 
     --makeArmy()
     --makeArmy(0, 500)
