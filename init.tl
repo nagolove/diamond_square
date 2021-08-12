@@ -202,6 +202,7 @@ global DEBUG_TURRET = true
 global DEBUG_CAMERA = false
 global DEBUG_LOGO = false
 global DEBUG_BULLET = true
+global DEBUG_DIRECTION = false
 
 --global DEBUG_DRAW_THREAD = true
 --global DEBUG_TEXCOORDS = true
@@ -243,22 +244,32 @@ local mode: Mode = "normal"
 local cmdline: string = ""
 local cmdhistory: {string} = {}
 global suggestList: List = List.new()
+-- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
 -- }}}
 
 --local drawlist: {DrawNode} = {}
 
+-- верхний список отрисовки, рисуется после рисования пачки танков
 local drawlistTop: {DrawNode} = {}
+-- нижний список отрисовки, рисуется после подложки, но до пачек танков
 local drawlistBottom: {DrawNode} = {}
 
 global cam: Camera
+-- используется для анимации масштабирования камеры
 local camTimer: Timer = require "Timer".new()
 local drawCoro: thread = nil
 global showLogo = true
+-- идентификаторы клавиш управления танком игрока
 global playerTankKeyconfigIds: {integer} = {}
+-- множитель углового импулься
 global angularImpulseScale = 5
+-- угол на сколько поворачивать тело угловым импульсом
 global rot = math.pi / 4
+-- минимальный и максимальные порог масштаба камеры
 global camZoomLower, camZoomHigher = 0.075, 3.5
+-- скорость изменения масштаба камеры
+local zoomSpeed = 0.01
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
     dx = 2000, dy = 2000,
@@ -734,15 +745,17 @@ function Tank:present()
     end
 
     if cmd_drawBodyStat then
-        for _, f in ipairs(self.physbody:getFixtures()) do
-            -- Не работает
-            drawFixture(f)
-            --push2drawlist(function()
-                --drawFixture(f)
-            --end)
-        end
         push2drawlistTop(function()
-            self:drawDirectionVector()
+            for _, f in ipairs(self.physbody:getFixtures()) do
+                -- Не работает
+                drawFixture(f)
+                --push2drawlist(function()
+                --drawFixture(f)
+                --end)
+            end
+            if DEBUG_DIRECTION then
+                self:drawDirectionVector()
+            end
             drawBodyStat(self.physbody)
         end)
     end
@@ -778,21 +791,6 @@ function Turret.new(t: Tank): Turret
     --local px, py = self.tank.physbody:getPosition()
     local px, py = t.pos.x, t.pos.y
 
-    --local shape = love.physics.newCircleShape(t.pos.x, t.pos.y, r * PIX2M)
-    local barrelShapeVertices = {
-        px - turretCommon.barrelRectWH[1] / 2 * PIX2M, 
-        py - turretCommon.barrelRectWH[2] / 2 * PIX2M,  
-
-        px + turretCommon.barrelRectWH[1] / 2 * PIX2M, 
-        py - turretCommon.barrelRectWH[2] / 2 * PIX2M,  
-
-        px + turretCommon.barrelRectWH[1] / 2 * PIX2M, 
-        py + turretCommon.barrelRectWH[2] / 2 * PIX2M,  
-
-        px - turretCommon.barrelRectWH[1] / 2 * PIX2M,
-        py + turretCommon.barrelRectWH[2] / 2 * PIX2M,
-    }
-
     --[[
     local towerShapeVertices = {
         px - turretCommon.towerRectWH[1] / 2 * PIX2M - 
@@ -817,7 +815,6 @@ function Turret.new(t: Tank): Turret
     }
     --]]
 
-
     local towerShapeVertices = {
         px - turretCommon.towerRectWH[1] / 2 * PIX2M - 
         0,
@@ -839,7 +836,25 @@ function Turret.new(t: Tank): Turret
         py + turretCommon.towerRectWH[2] / 2 * PIX2M +
         0,
     }
-    --]]
+
+    --local towerSize = turretCommon.towerRectWH[2] * PIX2M * 2
+    local magic = 1.45
+    local towerSize = turretCommon.towerRectWH[2] * PIX2M * magic
+    
+    -- Нужно сместить ствол так, что-бы он едва касался башни.
+    local barrelShapeVertices = {
+        px - turretCommon.barrelRectWH[1] / 2 * PIX2M, 
+        py - turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
+
+        px + turretCommon.barrelRectWH[1] / 2 * PIX2M, 
+        py - turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
+
+        px + turretCommon.barrelRectWH[1] / 2 * PIX2M, 
+        py + turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
+
+        px - turretCommon.barrelRectWH[1] / 2 * PIX2M,
+        py + turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
+    }
 
     print('#towerShapeVertices', #towerShapeVertices)
 
@@ -974,30 +989,6 @@ function Turret:present()
 
     -- }}}
 end
-
---[[
-function Base:present()
-    -- {{{
-    local shape = self.fixture:getShape()
-    if shape:getType() ~= "polygon" then
-        error("Tank BaseP shape should be polygon.")
-    end
-
-    if DEBUG_PHYSICS then
-        drawFixture(self.fixture, {0, 0, 0, 1})
-    end
-
-    gr.setColor{1, 1, 1, 1}
-    self:updateMeshVerts()
-    --gr.draw(self.mesh as love.graphics.Drawable, 0, 0)
-
-    --local x, y = self.pbody:getWorldCenter()
-    --x, y = x * M2PIX, y * M2PIX
-    --local text = string.format("%d", self.tank.id)
-    --gr.print(text, x, y)
-    -- }}}
-end
---]]
 
 function Base.new(t: Tank): Base
     -- {{{
@@ -1567,10 +1558,10 @@ local function mainPresent()
 
     presentDrawlistBottom()
 
-    presentDrawlistTop()
-
     baseBatch:flush()
     turretBatch:flush()
+
+    presentDrawlistTop()
 
     cam:detach()
 
@@ -1719,6 +1710,8 @@ function konsolePrint(...: any)
     -- }}}
 end
 
+-- TODO Сделать так, что-бы вывод нескольких переменных не накладывался 
+-- друг на друга.
 function attach(varname: string)
     if type(varname) == "string" then
         attachedVarsList[varname] = function()
@@ -1972,18 +1965,14 @@ global cameraKeyConfigIds: {integer} = {}
 
 local function bindCameraZoomKeys()
     -- {{{
-    local zoomSpeed = 0.01
-
     local ids = {
         KeyConfig.bind(
             "isdown",
             { key = "z" },
             function(sc: Shortcut): boolean, Shortcut
-                print('zoom in')
-                --if mode ~= "normal" then
-                    --return false, sc
-                --end
-                print('zoom in')
+                if mode ~= "normal" then
+                    return false, sc
+                end
                 if cam.scale < camZoomHigher then
                     cam:zoom(1. + zoomSpeed)
                 end
@@ -1996,11 +1985,9 @@ local function bindCameraZoomKeys()
             "isdown",
             { key = "x" },
             function(sc: Shortcut): boolean, Shortcut
-                print('zoom out')
-                --if mode ~= "normal" then
-                    --return false, sc
-                --end
-                print('zoom out')
+                if mode ~= "normal" then
+                    return false, sc
+                end
                 if cam.scale > camZoomLower then
                     cam:zoom(1.0 - zoomSpeed)
                 end

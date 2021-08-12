@@ -202,6 +202,7 @@ DEBUG_TURRET = true
 DEBUG_CAMERA = false
 DEBUG_LOGO = false
 DEBUG_BULLET = true
+DEBUG_DIRECTION = false
 
 
 
@@ -243,22 +244,32 @@ local mode = "normal"
 local cmdline = ""
 local cmdhistory = {}
 suggestList = List.new()
+
 attachedVarsList = {}
 
 
 
 
+
 local drawlistTop = {}
+
 local drawlistBottom = {}
+
 
 
 local camTimer = require("Timer").new()
 local drawCoro = nil
 showLogo = true
+
 playerTankKeyconfigIds = {}
+
 angularImpulseScale = 5
+
 rot = math.pi / 4
+
 camZoomLower, camZoomHigher = 0.075, 3.5
+
+local zoomSpeed = 0.01
 local cameraSettings = {
 
    dx = 2000, dy = 2000,
@@ -734,15 +745,17 @@ function Tank:present()
    end
 
    if cmd_drawBodyStat then
-      for _, f in ipairs(self.physbody:getFixtures()) do
-
-         drawFixture(f)
-
-
-
-      end
       push2drawlistTop(function()
-         self:drawDirectionVector()
+         for _, f in ipairs(self.physbody:getFixtures()) do
+
+            drawFixture(f)
+
+
+
+         end
+         if DEBUG_DIRECTION then
+            self:drawDirectionVector()
+         end
          drawBodyStat(self.physbody)
       end)
    end
@@ -777,22 +790,6 @@ function Turret.new(t)
    local r = w / 2
 
    local px, py = t.pos.x, t.pos.y
-
-
-   local barrelShapeVertices = {
-      px - turretCommon.barrelRectWH[1] / 2 * PIX2M,
-      py - turretCommon.barrelRectWH[2] / 2 * PIX2M,
-
-      px + turretCommon.barrelRectWH[1] / 2 * PIX2M,
-      py - turretCommon.barrelRectWH[2] / 2 * PIX2M,
-
-      px + turretCommon.barrelRectWH[1] / 2 * PIX2M,
-      py + turretCommon.barrelRectWH[2] / 2 * PIX2M,
-
-      px - turretCommon.barrelRectWH[1] / 2 * PIX2M,
-      py + turretCommon.barrelRectWH[2] / 2 * PIX2M,
-   }
-
 
 
 
@@ -840,6 +837,24 @@ function Turret.new(t)
       0,
    }
 
+
+   local magic = 1.45
+   local towerSize = turretCommon.towerRectWH[2] * PIX2M * magic
+
+
+   local barrelShapeVertices = {
+      px - turretCommon.barrelRectWH[1] / 2 * PIX2M,
+      py - turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
+
+      px + turretCommon.barrelRectWH[1] / 2 * PIX2M,
+      py - turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
+
+      px + turretCommon.barrelRectWH[1] / 2 * PIX2M,
+      py + turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
+
+      px - turretCommon.barrelRectWH[1] / 2 * PIX2M,
+      py + turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
+   }
 
    print('#towerShapeVertices', #towerShapeVertices)
 
@@ -974,30 +989,6 @@ function Turret:present()
 
 
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function Base.new(t)
 
@@ -1567,10 +1558,10 @@ local function mainPresent()
 
    presentDrawlistBottom()
 
-   presentDrawlistTop()
-
    baseBatch:flush()
    turretBatch:flush()
+
+   presentDrawlistTop()
 
    cam:detach()
 
@@ -1718,6 +1709,8 @@ function konsolePrint(...)
    end
 
 end
+
+
 
 function attach(varname)
    if type(varname) == "string" then
@@ -1972,18 +1965,14 @@ cameraKeyConfigIds = {}
 
 local function bindCameraZoomKeys()
 
-   local zoomSpeed = 0.01
-
    local ids = {
       KeyConfig.bind(
       "isdown",
       { key = "z" },
       function(sc)
-         print('zoom in')
-
-
-
-         print('zoom in')
+         if mode ~= "normal" then
+            return false, sc
+         end
          if cam.scale < camZoomHigher then
             cam:zoom(1. + zoomSpeed)
          end
@@ -1996,11 +1985,9 @@ local function bindCameraZoomKeys()
       "isdown",
       { key = "x" },
       function(sc)
-         print('zoom out')
-
-
-
-         print('zoom out')
+         if mode ~= "normal" then
+            return false, sc
+         end
          if cam.scale > camZoomLower then
             cam:zoom(1.0 - zoomSpeed)
          end
