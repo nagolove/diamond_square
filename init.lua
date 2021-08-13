@@ -1711,9 +1711,14 @@ function attach(varname)
    if type(varname) == "string" then
       attachedVarsList[varname] = function()
          local ok, errmsg = pcall(function()
-            local s = tabular.show((_G)[varname])
-            if s then
-               linesbuf:pushi(string.format("%s", s))
+            local l = (_G)[varname]
+            local output = tabular.show2(l)
+            if output then
+               linesbuf:pushi(string.format("%s", varname))
+
+               linesbuf:pushi(output)
+            else
+               linesbuf:pushi(string.format("%s = nil", varname))
             end
          end)
          if not ok then
@@ -1736,6 +1741,9 @@ local function evalCommand()
 
 
    local preload = [[
+-- Aliases section
+local pt = playerTank
+
 function ptabular(ref)
     print(tabular(ref, nil, "cyan"))
 end
