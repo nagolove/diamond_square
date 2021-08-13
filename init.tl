@@ -1482,7 +1482,10 @@ local function konsolePresent()
         end
     end
 
+    cam:attach()
     linesbuf:draw()
+    cam:detach()
+
     if suggestList then
         -- XXX если раскоментить следущую строку, то программа падает.
         --suggestList:draw()
