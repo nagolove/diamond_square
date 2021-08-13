@@ -857,7 +857,10 @@ function Turret.new(t: Tank): Turret
     --local magix = -100
     local p1x, p1y = self.tank.physbody:getWorldCenter()
     local p2x, p2y = self.tank.physbody:getWorldCenter()
-    local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
+
+    --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
+    local joint = love.physics.newDistanceJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
+
     --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, 0, 0, 0, 0, false)
     --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, 0, 0, false)
     --print('joint:getFrequency()', joint:getFrequency())
