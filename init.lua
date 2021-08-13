@@ -859,7 +859,8 @@ function Turret.new(t)
    local p2x, p2y = self.tank.physbody:getWorldCenter()
 
 
-   local joint = love.physics.newDistanceJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
+   local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
+
 
 
 
@@ -2217,8 +2218,8 @@ local function init()
 
 
 
-   for _ = 1, 3 do
-      spawnTank(vector.new(100, 100))
+   for i = 1, 3 do
+      spawnTank(vector.new(100, i * 100))
    end
 
 
