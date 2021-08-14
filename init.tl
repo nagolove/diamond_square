@@ -85,7 +85,7 @@ local record Arena
 
     -- internal 
 
-    createEdges: function(Arena)
+    createFixtures: function(Arena)
 end
 
 local record FilterData
@@ -554,7 +554,7 @@ end
 function Arena.new(fname: string): Arena
     local Arena_mt: metatable<Arena> = { __index = Arena }
     local self: Arena = setmetatable({} as Arena, Arena_mt)
-
+    self.physbody = love.physics.newBody(physworld, 0, 0, 'static')
     local edges: {Edge} = {}
     local data = love.filesystem.read(fname)
     if data then
@@ -564,10 +564,11 @@ function Arena.new(fname: string): Arena
         self.edges = edges
         if not ok then
             print("Could'not do serpent.load()")
-            self:createEdges()
+            self:createFixtures()
         end
     else
-        self:createEdges()
+        self.edges = edges
+        self:createFixtures()
     end
 
     return self
@@ -595,7 +596,7 @@ function Arena:save2file(fname: string)
 end
 
 function Arena:createFixtures()
-    assert(self.edges)
+    assert(self.edges )
     for _, edge in ipairs(self.edges) do
         local shape = lp.newEdgeShape(edge.x1, edge.y1, edge.x2, edge.y2)
         lp.newFixture(self.physbody, shape as lp.Shape)
@@ -901,11 +902,11 @@ function Turret.new(t: Tank): Turret
     self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
     self.physbody = t.physbody
 
-    if DEBUG_TURRET then
-        print("self.tank", self.tank)
-        print("self.pbody", self.physbody)
-        print("self.img", self.image)
-    end
+    --if DEBUG_TURRET then
+        --print("self.tank", self.tank)
+        --print("self.pbody", self.physbody)
+        --print("self.img", self.image)
+    --end
 
     local w, _ = (self.image as love.graphics.Texture):getDimensions()
     local r = w / 2
@@ -1120,10 +1121,10 @@ function Base.new(t: Tank): Base
     
     self.physbody = t.physbody
 
-    if DEBUG_BASE then
-        print("self.tank", self.tank)
-        print("self.pbody", self.physbody)
-    end
+    --if DEBUG_BASE then
+        --print("self.tank", self.tank)
+        --print("self.pbody", self.physbody)
+    --end
 
     local px, py = t.pos.x, t.pos.y
 
@@ -1974,8 +1975,7 @@ local cmdhistoryIndex = 0
 
 local function setPreviousCommand()
     -- {{{
-    print('setPreviousCommand')
-    --prevcmdline = cmdline
+    --print('setPreviousCommand')
     if #cmdhistory ~= 0 then
         if cmdhistoryIndex - 1 < 1 then
             cmdhistoryIndex = #cmdhistory
@@ -1983,14 +1983,14 @@ local function setPreviousCommand()
             cmdhistoryIndex = cmdhistoryIndex - 1
         end
         cmdline = cmdhistory[cmdhistoryIndex]
-        print("cmdline", cmdline)
+        --print("cmdline", cmdline)
     end
     -- }}}
 end
 
 local function setNextCommand()
     -- {{{
-    print('setNextCommand')
+    --print('setNextCommand')
     if #cmdhistory ~= 0 then
         if cmdhistoryIndex + 1 > #cmdhistory then
             cmdhistoryIndex = 1
@@ -1998,7 +1998,7 @@ local function setNextCommand()
             cmdhistoryIndex = cmdhistoryIndex + 1
         end
         cmdline = cmdhistory[cmdhistoryIndex]
-        print("cmdline", cmdline)
+        --print("cmdline", cmdline)
     end
     -- }}}
 end
