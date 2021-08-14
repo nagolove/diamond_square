@@ -34,6 +34,7 @@ local Mode = {}
 
 
 
+
 local DrawNode = {}
 
 
@@ -603,7 +604,7 @@ function Arena:createFixtures()
    end
 end
 
-local arena
+
 
 function Tank:fire()
 
@@ -1276,7 +1277,7 @@ end
 local function onQueryBoundingBox(fixture)
 
    local selfPtr = fixture:getBody():getUserData()
-   if selfPtr['present'] then
+   if selfPtr and selfPtr['present'] then
       (selfPtr['present'])(selfPtr, fixture)
    end
    return true
@@ -1857,6 +1858,15 @@ local function evalCommand()
    local preload = [[
 -- Aliases section
 local pt = playerTank
+
+function editor()
+    mode = 'editor'
+end
+
+function exiteditor()
+    arena:save2file('arena.lua')
+    mode = 'normal'
+end
 
 function ptabular(ref)
     print(tabular(ref, nil, "cyan"))

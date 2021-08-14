@@ -32,6 +32,7 @@ local Shortcut = KeyConfig.Shortcut
 local enum Mode
     "normal"
     "command"
+    "editor"
 end
 
 local record DrawNode
@@ -603,7 +604,7 @@ function Arena:createFixtures()
     end
 end
 
-local arena: Arena
+global arena: Arena
 
 function Tank:fire()
     -- {{{
@@ -1276,7 +1277,7 @@ end
 local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
     -- {{{
     local selfPtr: {any:any} = fixture:getBody():getUserData() as {any:any}
-    if selfPtr['present'] then
+    if selfPtr and selfPtr['present'] then
         (selfPtr['present'] as function)(selfPtr, fixture)
     end
     return true
@@ -1756,6 +1757,7 @@ local function update(dt: number)
     linesbuf:update()
     updateTanks()
     updateBullets()
+    arena:update()
     moveCamera()
 end
 
@@ -1856,7 +1858,20 @@ local function evalCommand()
     -- {{{ preload
     local preload = [[
 -- Aliases section
-local pt = playerTank
+if not _G['pt'] then
+    pt = playerTank
+end
+
+function editor()
+    mode = 'editor'
+    print('mode', mode)
+end
+
+function exiteditor()
+    arena:save2file('arena.lua')
+    mode = 'normal'
+    print('mode', mode)
+end
 
 function ptabular(ref)
     print(tabular(ref, nil, "cyan"))
@@ -2321,6 +2336,9 @@ end
 
 local function mousemoved(x: number, y: number, dx: number, dy: number)
     metrics.mousemoved(x, y, dx, dy)
+    if mode == 'editor' then
+        arena:mousemoved(x, y, dx, dy)
+    end
 end
 
 local function wheelmoved(x: number, y: number)
@@ -2330,14 +2348,18 @@ end
 local function mousepressed(x: number, y: number, btn: integer)
     -- {{{
     metrics.mousepressed(x, y, btn)
-    if btn == 1 then
-        if playerTank then
-            playerTank:fire()
+    if mode == 'normal' then
+        if btn == 1 then
+            if playerTank then
+                playerTank:fire()
+            end
+        elseif btn == 2 then
+            x, y = cam:worldCoords(x, y)
+            x, y = x * PIX2M, y * PIX2M
+            spawnTank(vector.new(x, y))
         end
-    elseif btn == 2 then
-        x, y = cam:worldCoords(x, y)
-        x, y = x * PIX2M, y * PIX2M
-        spawnTank(vector.new(x, y))
+    elseif mode == 'editor' then
+        arena:mousepressed(x, y, btn)
     end
     -- }}}
 end
