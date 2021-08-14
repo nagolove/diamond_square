@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pairs = _tl_compat and _tl_compat.pairs or pairs; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pairs = _tl_compat and _tl_compat.pairs or pairs; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 SCENE_PREFIX = "scenes/t90"
@@ -63,8 +63,49 @@ local turretCommon = {
    towerRectWH = { 54, 58 },
 }
 
+local Edge = {}
+
+
+
+
+
+
+local Arena = {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local FilterData = {}
+
+
+
+
+
+local function getBodyFilterData(body)
+   local result = {}
+   for _, fixture in ipairs(body:getFixtures()) do
+      local categoies, mask, group = fixture:getFilterData()
+      table.insert(result, { categoies = categoies, mask = mask, group = group })
+   end
+   return result
+end
+
 
 local Turret = {}
+
 
 
 
@@ -120,6 +161,7 @@ local turretBatch = Batch.new("tank_tower.png")
 
 
 local Base = {}
+
 
 
 
@@ -506,6 +548,62 @@ function push2drawlistBottom(f, self)
    table.insert(drawlistBottom, { f = f, self = self })
 end
 
+function Arena.new(fname)
+   local Arena_mt = { __index = Arena }
+   local self = setmetatable({}, Arena_mt)
+
+   local edges = {}
+   local data = love.filesystem.read(fname)
+   if data then
+      local serpent = require('serpent')
+      local ok = false
+      ok, edges = serpent.load(data)
+      self.edges = edges
+      if not ok then
+         print("Could'not do serpent.load()")
+         self:createEdges()
+      end
+   else
+      self:createEdges()
+   end
+
+   return self
+end
+
+local edgeColor = { 0, 0, 0, 1 }
+local edgeLineWidth = 10
+
+function Arena:present(fixture)
+   local shape = fixture:getShape()
+   local x1, y1, x2, y2 = shape:getPoints()
+   x1, y1 = fixture:getBody():getWorldPoints(x1, y1)
+   x2, y2 = fixture:getBody():getWorldPoints(x2, y2)
+   x1, y1, x2, y2 = x1 * M2PIX, y1 * M2PIX, x2 * M2PIX, y2 * M2PIX
+   local olw = gr.getLineWidth()
+   local ocolor = { gr.getColor() }
+   gr.setColor(edgeColor)
+   gr.setLineWidth(edgeLineWidth)
+   gr.line(x1, y1, x2, y2)
+   gr.setColor(ocolor)
+   gr.setLineWidth(olw)
+end
+
+function Arena:save2file(fname)
+   local serpent = require('serpent')
+   local data = serpent.dump(self.edges)
+   love.filesystem.write(fname, data)
+end
+
+function Arena:createFixtures()
+   assert(self.edges)
+   for _, edge in ipairs(self.edges) do
+      local shape = lp.newEdgeShape(edge.x1, edge.y1, edge.x2, edge.y2)
+      lp.newFixture(self.physbody, shape)
+   end
+end
+
+local arena
+
 function Tank:fire()
 
    if self.turret then
@@ -682,6 +780,14 @@ function Tank:update()
 
    if self.turret then
       self.turret:update()
+      if not self.turret.filterdata then
+         self.turret.filterdata = getBodyFilterData(self.turret.physbody)
+      end
+   end
+   if self.base then
+      if not self.base.filterdata then
+         self.base.filterdata = getBodyFilterData(self.base.physbody)
+      end
    end
 
    return self
@@ -845,13 +951,15 @@ function Turret.new(t)
    self.towerShape = love.physics.newPolygonShape(towerShapeVertices)
 
    self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape)
+   self.fixtureBarrel:setFilterData(1, 1, 1)
    self.fixtureTower = lp.newFixture(self.physbody, self.towerShape)
+   self.fixtureTower:setFilterData(1, 1, 1)
 
 
 
 
-   self.fixtureTower:setDensity(0.0001)
-   self.fixtureBarrel:setDensity(0.0001)
+
+
    self.physbody:resetMassData()
 
 
@@ -1166,11 +1274,9 @@ end
 
 local function onQueryBoundingBox(fixture)
 
-   local body = fixture:getBody()
-   local selfPtr = body:getUserData()
-
-   if selfPtr and selfPtr.present then
-      selfPtr:present()
+   local selfPtr = fixture:getBody():getUserData()
+   if selfPtr['present'] then
+      (selfPtr['present'])(selfPtr, fixture)
    end
    return true
 
@@ -2146,38 +2252,6 @@ local function makeArmy(x, y)
 
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local function init()
 
    metrics.init()
@@ -2212,6 +2286,7 @@ local function init()
    drawCoro = createDrawCoroutine()
 
    background = Background.new()
+   arena = Arena.new("arena.lua")
 
 
 

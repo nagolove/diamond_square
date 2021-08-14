@@ -63,12 +63,53 @@ local turretCommon: TurretCommon = {
     towerRectWH = {54, 58},
 }
 
+local record Edge
+    x1: number
+    y1: number
+    x2: number
+    y2: number
+end
+
+local record Arena
+    edges: {Edge}
+    physbody: lp.Body
+
+    -- interface
+
+    new: function(fname: string): Arena
+    present: function(Arena)
+    update: function(Arena)
+    mousemoved: function(Arena, x: number, y: number, dx: number, dy: number)
+    mousepressed: function(Arena, x: number, y: number, btn: integer)
+    save2file: function(Arena, fname: string)
+
+    -- internal 
+
+    createEdges: function(Arena)
+end
+
+local record FilterData
+    categoies: integer
+    mask: integer
+    group: integer
+end
+
+local function getBodyFilterData(body: lp.Body): {FilterData}
+    local result: {FilterData} = {}
+    for _, fixture in ipairs(body:getFixtures()) do
+        local categoies, mask, group = fixture:getFilterData()
+        table.insert(result, { categoies = categoies, mask = mask, group = group })
+    end
+    return result
+end
+
 -- Пушка вместе с башней
 local record Turret
     -- {{{
     rectXY: {number}
     rectWH: {number}
 
+    filterdata: {FilterData}
     physbody: love.physics.Body
     fixtureBarrel: love.physics.Fixture
     fixtureTower: love.physics.Fixture
@@ -124,6 +165,7 @@ local record Base
     rectXY: {number}
     rectWH: {number}
     physbody: love.physics.Body
+    filterdata: {FilterData}
     fixture: love.physics.Fixture
     --pos: vector -- центр поворота корпуса
     tank: Tank
@@ -296,6 +338,9 @@ global rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
 -- значение в пикселях
 local cameraZoneR: number
+
+local edgeColor = {0, 0, 0, 1}
+local edgeLineWidth = 10
 -- }}}
 
 function disableDEBUG()
@@ -506,6 +551,59 @@ function push2drawlistBottom(f: function, self: any)
     table.insert(drawlistBottom, { f = f, self = self})
 end
 
+function Arena.new(fname: string): Arena
+    local Arena_mt: metatable<Arena> = { __index = Arena }
+    local self: Arena = setmetatable({} as Arena, Arena_mt)
+
+    local edges: {Edge} = {}
+    local data = love.filesystem.read(fname)
+    if data then
+        local serpent = require 'serpent'
+        local ok = false
+        ok, edges = serpent.load(data) as (boolean, {Edge})
+        self.edges = edges
+        if not ok then
+            print("Could'not do serpent.load()")
+            self:createEdges()
+        end
+    else
+        self:createEdges()
+    end
+
+    return self
+end
+
+function Arena:present(fixture: lp.Fixture)
+    local shape = fixture:getShape() as lp.EdgeShape
+    local x1, y1, x2, y2 = shape:getPoints()
+    x1, y1 = fixture:getBody():getWorldPoints(x1, y1)
+    x2, y2 = fixture:getBody():getWorldPoints(x2, y2)
+    x1, y1, x2, y2 = x1 * M2PIX, y1 * M2PIX, x2 * M2PIX, y2 * M2PIX
+    local olw = gr.getLineWidth()
+    local ocolor = {gr.getColor()}
+    gr.setColor(edgeColor)
+    gr.setLineWidth(edgeLineWidth)
+    gr.line(x1, y1, x2, y2)
+    gr.setColor(ocolor)
+    gr.setLineWidth(olw)
+end
+
+function Arena:save2file(fname: string)
+    local serpent = require 'serpent'
+    local data = serpent.dump(self.edges)
+    love.filesystem.write(fname, data)
+end
+
+function Arena:createFixtures()
+    assert(self.edges)
+    for _, edge in ipairs(self.edges) do
+        local shape = lp.newEdgeShape(edge.x1, edge.y1, edge.x2, edge.y2)
+        lp.newFixture(self.physbody, shape as lp.Shape)
+    end
+end
+
+local arena: Arena
+
 function Tank:fire()
     -- {{{
     if self.turret then
@@ -682,6 +780,14 @@ function Tank:update(): Tank
 
     if self.turret then
         self.turret:update()
+        if not self.turret.filterdata then
+            self.turret.filterdata = getBodyFilterData(self.turret.physbody)
+        end
+    end
+    if self.base then
+        if not self.base.filterdata then
+            self.base.filterdata = getBodyFilterData(self.base.physbody)
+        end
     end
 
     return self
@@ -845,13 +951,15 @@ function Turret.new(t: Tank): Turret
     self.towerShape = love.physics.newPolygonShape(towerShapeVertices)
 
     self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape as lp.Shape)
+    self.fixtureBarrel:setFilterData(1, 1, 1)
     self.fixtureTower = lp.newFixture(self.physbody, self.towerShape as lp.Shape)
+    self.fixtureTower:setFilterData(1, 1, 1)
 
     --print("self.fixtureBarrel", self.fixtureBarrel:getDensity())
     --print("self.fixtureTower", self.fixtureTower:getDensity())
 
-    self.fixtureTower:setDensity(0.0001)
-    self.fixtureBarrel:setDensity(0.0001)
+    --self.fixtureTower:setDensity(0.0001)
+    --self.fixtureBarrel:setDensity(0.0001)
     self.physbody:resetMassData()
 
     --local magix = -100
@@ -1166,11 +1274,9 @@ end
 
 local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
     -- {{{
-    local body = fixture:getBody()
-    local selfPtr: Tank = body:getUserData() as Tank
-    --проверка на существование связанного объекта, проверка на наличие метода отрисовки через запрос, отрисовка.
-    if selfPtr and selfPtr.present then
-        selfPtr:present()
+    local selfPtr: {any:any} = fixture:getBody():getUserData() as {any:any}
+    if selfPtr['present'] then
+        (selfPtr['present'] as function)(selfPtr, fixture)
     end
     return true
     -- }}}
@@ -2146,38 +2252,6 @@ local function makeArmy(x: number, y: number)
     -- }}}
 end
 
---[[
-local function initBaseMeshVerts()
-    print('initBaseMeshVerts')
-    basesMeshVerts = {}
-    --for _ = 1, 6 * meshBufferSize do
-    for _ = 1, 6 * meshBufferSize do
-    --for _ = 1, 6 * 1 do
-        table.insert(basesMeshVerts, {
-            0, 0,           -- 1, 2         - x, y
-            0, 0,           -- 3, 4         - u, v
-            1, 1, 1, 1,     -- 5, 6, 7, 8   - r, g, b, a
-        })
-    end
-    --basesData = love.data.newByteData()
-    print("basesMesh:getVertexFormat()\n", tabular.show(basesMesh:getVertexFormat()))
-end
---]]
-
---global baseTextureCoordinatesArr: {number}
-
---[[
-local function initBasesMesh()
-    --basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "static")
-    basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "dynamic")
-    --basesMesh = gr.newMesh(meshBufferSize * 6, "triangles", "stream")
-    initBaseMeshVerts()
-    --basesMesh:setVertices(basesMeshVerts)
-    baseImage = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
-    basesMesh:setTexture(baseImage as gr.Texture)
-end
---]]
-
 local function init()
     -- {{{
     metrics.init()
@@ -2212,6 +2286,7 @@ local function init()
     drawCoro = createDrawCoroutine()
 
     background = Background.new()
+    arena = Arena.new("arena.lua")
 
     --makeArmy()
     --makeArmy()
