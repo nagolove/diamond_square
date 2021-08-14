@@ -89,6 +89,13 @@ local Arena = {}
 
 
 
+
+
+
+
+
+
+
 local FilterData = {}
 
 
@@ -283,7 +290,7 @@ tankForceScale = 1
 
 local historyfname = "cmdhistory.txt"
 local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
-local mode = "normal"
+mode = "normal"
 local cmdline = ""
 local cmdhistory = {}
 suggestList = List.new()
@@ -555,7 +562,6 @@ end
 function Arena.new(fname)
    local Arena_mt = { __index = Arena }
    local self = setmetatable({}, Arena_mt)
-   self.physbody = love.physics.newBody(physworld, 0, 0, 'static')
    local edges = {}
    local data = love.filesystem.read(fname)
    if data then
@@ -573,6 +579,49 @@ function Arena.new(fname)
    end
 
    return self
+end
+
+function Arena:mousemoved(_, _, _, _)
+   push2drawlistTop(function()
+      local linew = 3
+      if self.mode then
+         if self.mode == 'second' then
+            gr.setColor({ 0, 0, 0.9, 1 })
+            local ow = gr.getLineWidth()
+            gr.setLineWidth(linew)
+            gr.line(
+            self.edges[#self.edges].x1,
+            self.edges[#self.edges].y1,
+            self.edges[#self.edges].x2,
+            self.edges[#self.edges].y2)
+
+            gr.setLineWidth(ow)
+         end
+      end
+   end)
+end
+
+function Arena:update()
+end
+
+function Arena:mousepressed(x, y, _)
+   push2drawlistTop(function()
+      gr.circle('fill', x, y, 10)
+   end)
+   x, y = cam:worldCoords(x, y)
+   x, y = x * PIX2M, y * PIX2M
+   if self.mode then
+      if self.mode == 'first' then
+         self.edges[#self.edges].x2 = x
+         self.edges[#self.edges].y2 = y
+         self.mode = 'second'
+      elseif self.mode == 'second' then
+         self.mode = nil
+      end
+   else
+      self.mode = 'first'
+      table.insert(self.edges, { x1 = x, y1 = y })
+   end
 end
 
 function Arena:present(fixture)
@@ -598,6 +647,13 @@ end
 
 function Arena:createFixtures()
    assert(self.edges)
+   if self.physbody then
+      self.physbody:destroy()
+      self.physbody = nil
+   end
+   if not self.physbody then
+      self.physbody = love.physics.newBody(physworld, 0, 0, 'static')
+   end
    for _, edge in ipairs(self.edges) do
       local shape = lp.newEdgeShape(edge.x1, edge.y1, edge.x2, edge.y2)
       lp.newFixture(self.physbody, shape)
@@ -1680,8 +1736,6 @@ local function mainPresent()
    drawlistTop = {}
    drawlistBottom = {}
 
-   linesbuf:pushi("tankCounter %d", tankCounter)
-
    changeKeyConfigListbackground()
 
    coroutine.yield()
@@ -1757,6 +1811,7 @@ local function update(dt)
    linesbuf:update()
    updateTanks()
    updateBullets()
+   arena:update()
    moveCamera()
 end
 
@@ -1829,9 +1884,13 @@ function attach(varname)
             local l = (_G)[varname]
             local output = tabular.show2(l)
             if output then
-               linesbuf:pushi(string.format("%s", varname))
+
 
                linesbuf:pushi(output)
+               linesbuf:pushi(string.format("%s", varname))
+
+
+
             else
                linesbuf:pushi(string.format("%s = nil", varname))
             end
@@ -1857,15 +1916,19 @@ local function evalCommand()
 
    local preload = [[
 -- Aliases section
-local pt = playerTank
+if not _G['pt'] then
+    pt = playerTank
+end
 
 function editor()
     mode = 'editor'
+    print('mode', mode)
 end
 
 function exiteditor()
     arena:save2file('arena.lua')
     mode = 'normal'
+    print('mode', mode)
 end
 
 function ptabular(ref)
@@ -1949,6 +2012,8 @@ if not __ATTACH_ONCE__ then
     --attach("rng")
     --print('after')
     __ATTACH_ONCE__ = true
+    attach('mode')
+    attach("tankCounter")
 end
     ]]
 
@@ -2331,6 +2396,9 @@ end
 
 local function mousemoved(x, y, dx, dy)
    metrics.mousemoved(x, y, dx, dy)
+   if mode == 'editor' then
+      arena:mousemoved(x, y, dx, dy)
+   end
 end
 
 local function wheelmoved(x, y)
@@ -2340,14 +2408,18 @@ end
 local function mousepressed(x, y, btn)
 
    metrics.mousepressed(x, y, btn)
-   if btn == 1 then
-      if playerTank then
-         playerTank:fire()
+   if mode == 'normal' then
+      if btn == 1 then
+         if playerTank then
+            playerTank:fire()
+         end
+      elseif btn == 2 then
+         x, y = cam:worldCoords(x, y)
+         x, y = x * PIX2M, y * PIX2M
+         spawnTank(vector.new(x, y))
       end
-   elseif btn == 2 then
-      x, y = cam:worldCoords(x, y)
-      x, y = x * PIX2M, y * PIX2M
-      spawnTank(vector.new(x, y))
+   elseif mode == 'editor' then
+      arena:mousepressed(x, y, btn)
    end
 
 end

@@ -13,7 +13,7 @@ require "keyconfig"
 require "camera"
 require "vector"
 require "Timer"
-require "imgui"
+--require "imgui"
 require 'render'
 
 local List = require "list"
@@ -72,6 +72,13 @@ local record Edge
 end
 
 local record Arena
+    -- какая точка рисуется, первая или вторая
+    enum Mode
+        'first'
+        'second'
+    end
+
+    mode: Mode
     edges: {Edge}
     physbody: lp.Body
 
@@ -283,7 +290,7 @@ global tankForceScale = 1
 -- {{{ Konsole editing
 local historyfname = "cmdhistory.txt"
 local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
-local mode: Mode = "normal"
+global mode: Mode = "normal"
 local cmdline: string = ""
 local cmdhistory: {string} = {}
 global suggestList: List = List.new()
@@ -555,7 +562,6 @@ end
 function Arena.new(fname: string): Arena
     local Arena_mt: metatable<Arena> = { __index = Arena }
     local self: Arena = setmetatable({} as Arena, Arena_mt)
-    self.physbody = love.physics.newBody(physworld, 0, 0, 'static')
     local edges: {Edge} = {}
     local data = love.filesystem.read(fname)
     if data then
@@ -573,6 +579,49 @@ function Arena.new(fname: string): Arena
     end
 
     return self
+end
+
+function Arena:mousemoved(_: number, _: number, _: number, _: number)
+    push2drawlistTop(function()
+        local linew = 3
+        if self.mode then
+            if self.mode == 'second' then
+                gr.setColor {0, 0, 0.9, 1}
+                local ow = gr.getLineWidth()
+                gr.setLineWidth(linew)
+                gr.line(
+                    self.edges[#self.edges].x1,
+                    self.edges[#self.edges].y1,
+                    self.edges[#self.edges].x2,
+                    self.edges[#self.edges].y2
+                )
+                gr.setLineWidth(ow)
+            end
+        end
+    end)
+end
+
+function Arena:update()
+end
+
+function Arena:mousepressed(x: number, y: number, _: integer)
+    push2drawlistTop(function()
+        gr.circle('fill', x, y, 10)
+    end)
+    x, y = cam:worldCoords(x, y)
+    x, y = x * PIX2M, y * PIX2M
+    if self.mode then
+        if self.mode == 'first' then
+            self.edges[#self.edges].x2 = x
+            self.edges[#self.edges].y2 = y
+            self.mode = 'second'
+        elseif self.mode == 'second' then
+            self.mode = nil
+        end
+    else
+        self.mode = 'first'
+        table.insert(self.edges, { x1 = x, y1 = y })
+    end
 end
 
 function Arena:present(fixture: lp.Fixture)
@@ -598,6 +647,13 @@ end
 
 function Arena:createFixtures()
     assert(self.edges )
+    if self.physbody then
+        self.physbody:destroy()
+        self.physbody = nil
+    end
+    if not self.physbody then
+        self.physbody = love.physics.newBody(physworld, 0, 0, 'static')
+    end
     for _, edge in ipairs(self.edges) do
         local shape = lp.newEdgeShape(edge.x1, edge.y1, edge.x2, edge.y2)
         lp.newFixture(self.physbody, shape as lp.Shape)
@@ -1438,9 +1494,9 @@ end
 
 local function drawui()
     -- {{{
-    imgui.StyleColorsLight()
-    imgui.ShowDemoWindow()
-    imgui.ShowUserGuide()
+    --imgui.StyleColorsLight()
+    --imgui.ShowDemoWindow()
+    --imgui.ShowUserGuide()
     -- }}}
 end
 
@@ -1680,8 +1736,6 @@ local function mainPresent()
     drawlistTop = {}
     drawlistBottom = {}
 
-    linesbuf:pushi("tankCounter %d", tankCounter)
-
     changeKeyConfigListbackground()
 
     coroutine.yield()
@@ -1830,9 +1884,13 @@ function attach(varname: string)
                 local l = (_G as {any:any})[varname]
                 local output = tabular.show2(l)
                 if output then 
-                    linesbuf:pushi(string.format("%s", varname))
                     --linesbuf:pushi(string.format("%s", output))
+                    --if type(l) == 'table' then
                     linesbuf:pushi(output)
+                    linesbuf:pushi(string.format("%s", varname))
+                    --else
+                        --linesbuf:pushi(string.format('%s = %s', varname, tostring(l)))
+                    --end
                 else
                     linesbuf:pushi(string.format("%s = nil", varname))
                 end
@@ -1954,6 +2012,8 @@ if not __ATTACH_ONCE__ then
     --attach("rng")
     --print('after')
     __ATTACH_ONCE__ = true
+    attach('mode')
+    attach("tankCounter")
 end
     ]]
     -- }}}
