@@ -157,6 +157,8 @@ local record Bullet
     velx: number
     vely: number
     mass: number
+    px: number
+    py: number
     -- END OF DEBUG STUFF
     -- }}}
 
@@ -355,7 +357,7 @@ global bullets: {Bullet} = {}
 local bulletRadius = 4
 local bulletColor = {0.1, 0.1, 0.1, 1}
 -- Продолжительность жизни снаряда в секундах.
-global bulletLifetime = 5
+global bulletLifetime = 35
 global tankCounter = 0
 global rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
@@ -493,8 +495,10 @@ local function updateBullets()
     for _, bullet in ipairs(bullets) do
         bullet.velx, bullet.vely = bullet.body:getLinearVelocity()
         bullet.mass = bullet.body:getMass()
+        bullet.px, bullet.py = bullet.body:getWorldCenter()
+        bullet.px, bullet.py = bullet.px * M2PIX, bullet.py * M2PIX
         local diff = now - bullet.timestamp
-        print('diff', diff)
+        --print('diff', diff)
         if diff < bulletLifetime then
             table.insert(alive, bullet)
         end
@@ -508,7 +512,9 @@ local function spawnBullet(px: number, py: number, dirx: number, diry: number)
     -- {{{
     print("spawnBullet")
     local bullet: Bullet = {}
-    bullet.body = love.physics.newBody(physworld, px, py, "kinematic")
+    --bullet.body = love.physics.newBody(physworld, px, py, "kinematic")
+    bullet.body = love.physics.newBody(physworld, px, py, "dynamic")
+    bullet.body:setBullet(true)
     --bullet.body = love.physics.newBody(physworld, px, py, "static")
     bullet.timestamp = love.timer.getTime()
     --local shape = love.physics.newCircleShape(px, py, bulletRadius)
@@ -516,12 +522,15 @@ local function spawnBullet(px: number, py: number, dirx: number, diry: number)
     local fixture = love.physics.newFixture(bullet.body, shape as lp.Shape)
     --fixture:setGroupIndex(bulletCollisionGroup)
     fixture:setMask(bulletMask)
+    --bullet.body:setMass(10)
+    bullet.body:setMass(1)
+    local impulseFactor = 100
     if dirx and diry then
-        print("bullet.body:applyLinearImpulse", dirx, diry)
-        bullet.body:applyLinearImpulse(dirx * 10, diry * 100)
+        --print("bullet.body:applyLinearImpulse", dirx, diry)
+        bullet.body:applyLinearImpulse(dirx * impulseFactor, diry * impulseFactor)
+        --bullet.body:applyForce(dirx * 1, diry * 1)
     end
     --bullet.body:resetMassData()
-    bullet.body:setMass(1)
     table.insert(bullets, bullet)
     -- }}}
 end
@@ -534,16 +543,12 @@ function Turret:fire()
 
     local px, py = self.tank.physbody:getWorldCenter()
 
-    -- зачем нужен этот множитель?
-    local scale = 3
-
     -- снаряд появляется за крайней точкой ствола пушки
     local magic = 14
     spawnBullet(
         px - self.dir.x * magic, 
         py - self.dir.y * magic, 
-        self.dir.x * scale, 
-        self.dir.y * scale
+        -self.dir.x, -self.dir.y
     )
     -- }}}
 end
@@ -717,7 +722,6 @@ function Tank:forward()
         print("Tank " .. self.id .. " applyForce x, y", x, y)
     end
     self.physbody:applyForce(x, y)
-    --self.pbody:applyLinearImpulse(x, y)
     -- }}}
 end
 
@@ -732,7 +736,6 @@ function Tank:backward()
     local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
     print('applied', x, y)
     self.physbody:applyForce(-x, -y)
-    --self.pbody:applyLinearImpulse(-x, -y)
     -- }}}
 end
 
@@ -1818,7 +1821,7 @@ local function mainPresent()
 
     cam:detach()
 
-    drawCameraCircle()
+    --drawCameraCircle()
 
     drawlistTop = {}
     drawlistBottom = {}
@@ -2470,7 +2473,8 @@ local function init()
     --makeArmy(500, 0)
     --makeArmy(500, 500)
 
-    enableDEBUG()
+    --enableDEBUG()
+    disableDEBUG()
 
     cameraZoneR = H / 2
     -- }}}

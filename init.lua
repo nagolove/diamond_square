@@ -180,6 +180,8 @@ local Bullet = {}
 
 
 
+
+
 local baseBatch = Batch.new("tank_body_small.png")
 local turretBatch = Batch.new("tank_tower.png")
 
@@ -355,7 +357,7 @@ bullets = {}
 local bulletRadius = 4
 local bulletColor = { 0.1, 0.1, 0.1, 1 }
 
-bulletLifetime = 5
+bulletLifetime = 35
 tankCounter = 0
 rng = love.math.newRandomGenerator()
 
@@ -493,8 +495,10 @@ local function updateBullets()
    for _, bullet in ipairs(bullets) do
       bullet.velx, bullet.vely = bullet.body:getLinearVelocity()
       bullet.mass = bullet.body:getMass()
+      bullet.px, bullet.py = bullet.body:getWorldCenter()
+      bullet.px, bullet.py = bullet.px * M2PIX, bullet.py * M2PIX
       local diff = now - bullet.timestamp
-      print('diff', diff)
+
       if diff < bulletLifetime then
          table.insert(alive, bullet)
       end
@@ -508,7 +512,9 @@ local function spawnBullet(px, py, dirx, diry)
 
    print("spawnBullet")
    local bullet = {}
-   bullet.body = love.physics.newBody(physworld, px, py, "kinematic")
+
+   bullet.body = love.physics.newBody(physworld, px, py, "dynamic")
+   bullet.body:setBullet(true)
 
    bullet.timestamp = love.timer.getTime()
 
@@ -516,12 +522,15 @@ local function spawnBullet(px, py, dirx, diry)
    local fixture = love.physics.newFixture(bullet.body, shape)
 
    fixture:setMask(bulletMask)
-   if dirx and diry then
-      print("bullet.body:applyLinearImpulse", dirx, diry)
-      bullet.body:applyLinearImpulse(dirx * 10, diry * 100)
-   end
 
    bullet.body:setMass(1)
+   local impulseFactor = 100
+   if dirx and diry then
+
+      bullet.body:applyLinearImpulse(dirx * impulseFactor, diry * impulseFactor)
+
+   end
+
    table.insert(bullets, bullet)
 
 end
@@ -535,15 +544,11 @@ function Turret:fire()
    local px, py = self.tank.physbody:getWorldCenter()
 
 
-   local scale = 3
-
-
    local magic = 14
    spawnBullet(
    px - self.dir.x * magic,
    py - self.dir.y * magic,
-   self.dir.x * scale,
-   self.dir.y * scale)
+   -self.dir.x, -self.dir.y)
 
 
 end
@@ -718,7 +723,6 @@ function Tank:forward()
    end
    self.physbody:applyForce(x, y)
 
-
 end
 
 function Tank:backward()
@@ -732,7 +736,6 @@ function Tank:backward()
    local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
    print('applied', x, y)
    self.physbody:applyForce(-x, -y)
-
 
 end
 
@@ -1818,7 +1821,7 @@ local function mainPresent()
 
    cam:detach()
 
-   drawCameraCircle()
+
 
    drawlistTop = {}
    drawlistBottom = {}
@@ -2470,7 +2473,8 @@ local function init()
 
 
 
-   enableDEBUG()
+
+   disableDEBUG()
 
    cameraZoneR = H / 2
 
