@@ -152,7 +152,15 @@ local record Bullet
     -- {{{
     body: love.physics.Body
     timestamp: number
+
+    -- START OF DEBUG STUFF
+    velx: number
+    vely: number
+    mass: number
+    -- END OF DEBUG STUFF
     -- }}}
+
+    update: function()
 end
 
 --[[
@@ -345,9 +353,9 @@ global logo: Logo
 global bullets: {Bullet} = {}
 -- Радиус снаряда пушки в пикселях
 local bulletRadius = 4
-local bulletColor = {1, 1, 1, 1}
+local bulletColor = {0.1, 0.1, 0.1, 1}
 -- Продолжительность жизни снаряда в секундах.
-global bulletLifetime = 1
+global bulletLifetime = 5
 global tankCounter = 0
 global rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
@@ -482,12 +490,14 @@ local function updateBullets()
     -- {{{
     local alive: {Bullet} = {}
     local now = love.timer.getTime()
-    for _, v in ipairs(bullets) do
-        local diff = now - v.timestamp
-        if diff > bulletLifetime then
-            -- умер снаряд
+    for _, bullet in ipairs(bullets) do
+        bullet.velx, bullet.vely = bullet.body:getLinearVelocity()
+        bullet.mass = bullet.body:getMass()
+        local diff = now - bullet.timestamp
+        print('diff', diff)
+        if diff < bulletLifetime then
+            table.insert(alive, bullet)
         end
-        table.insert(alive, v)
     end
     bullets = alive
     -- }}}
@@ -508,21 +518,33 @@ local function spawnBullet(px: number, py: number, dirx: number, diry: number)
     fixture:setMask(bulletMask)
     if dirx and diry then
         print("bullet.body:applyLinearImpulse", dirx, diry)
-        bullet.body:applyLinearImpulse(dirx, diry)
+        bullet.body:applyLinearImpulse(dirx * 10, diry * 100)
     end
+    --bullet.body:resetMassData()
+    bullet.body:setMass(1)
     table.insert(bullets, bullet)
     -- }}}
 end
 
 function Turret:fire()
     -- {{{
-    if DEBUG_TURRET then
-        print("Turret:fire()")
-    end
+    --if DEBUG_TURRET then
+        --print("Turret:fire()")
+    --end
+
     local px, py = self.tank.physbody:getWorldCenter()
+
+    -- зачем нужен этот множитель?
     local scale = 3
-    print("pbody", px, py)
-    spawnBullet(px, py, self.dir.x * scale, self.dir.y * scale)
+
+    -- снаряд появляется за крайней точкой ствола пушки
+    local magic = 14
+    spawnBullet(
+        px - self.dir.x * magic, 
+        py - self.dir.y * magic, 
+        self.dir.x * scale, 
+        self.dir.y * scale
+    )
     -- }}}
 end
 
@@ -709,7 +731,7 @@ function Tank:backward()
     --end
     local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
     print('applied', x, y)
-    self.physbody:applyForce(x, y)
+    self.physbody:applyForce(-x, -y)
     --self.pbody:applyLinearImpulse(-x, -y)
     -- }}}
 end
@@ -1069,6 +1091,7 @@ function Turret:rotateToMouse()
     --]]
 
     self.angle = -a
+    self.physbody:setAngle(self.angle + math.pi)
     -- }}}
 end
 
@@ -1077,7 +1100,6 @@ function Turret:update()
     -- поворачивать башню только у танка игрока
     if playerTank and self.tank == playerTank then
         self:rotateToMouse()
-        self.physbody:setAngle(self.angle + math.pi)
     end
     -- }}}
 end
@@ -1126,30 +1148,96 @@ function Turret:present()
 
     --]]
     local body = self.fixtureTower:getBody()
+
+    ----    1   2   3   4   5   6   7   8
+    --local x1, y1, x2, y2, x3, y3, x4, y4 = self.towerShape:getPoints()
+
+    --x1, y1 = body:getWorldPoints(x1, y1)
+    --x2, y2 = body:getWorldPoints(x2, y2)
+    --x3, y3 = body:getWorldPoints(x3, y3)
+    --x4, y4 = body:getWorldPoints(x4, y4)
+
+    --x1, y1 = M2PIX * x1, M2PIX * y1
+    --x2, y2 = M2PIX * x2, M2PIX * y2
+    --x3, y3 = M2PIX * x3, M2PIX * y3
+    --x4, y4 = M2PIX * x4, M2PIX * y4
+
     --    1   2   3   4   5   6   7   8
-    local x1, y1, x2, y2, x3, y3, x4, y4 = self.towerShape:getPoints()
+    local tx1, ty1, tx2, ty2, tx3, ty3, tx4, ty4 = self.towerShape:getPoints()
 
-    x1, y1 = body:getWorldPoints(x1, y1)
-    x2, y2 = body:getWorldPoints(x2, y2)
-    x3, y3 = body:getWorldPoints(x3, y3)
-    x4, y4 = body:getWorldPoints(x4, y4)
+    tx1, ty1 = body:getWorldPoints(tx1, ty1)
+    tx2, ty2 = body:getWorldPoints(tx2, ty2)
+    tx3, ty3 = body:getWorldPoints(tx3, ty3)
+    tx4, ty4 = body:getWorldPoints(tx4, ty4)
 
-    x1, y1 = M2PIX * x1, M2PIX * y1
-    x2, y2 = M2PIX * x2, M2PIX * y2
-    x3, y3 = M2PIX * x3, M2PIX * y3
-    x4, y4 = M2PIX * x4, M2PIX * y4
+    tx1, ty1 = M2PIX * tx1, M2PIX * ty1
+    tx2, ty2 = M2PIX * tx2, M2PIX * ty2
+    tx3, ty3 = M2PIX * tx3, M2PIX * ty3
+    tx4, ty4 = M2PIX * tx4, M2PIX * ty4
+
+    --
+    --local body = self.fixtureTower:getBody()
+    --    1   2   3   4   5   6   7   8
+    local bx1, by1, bx2, by2, bx3, by3, bx4, by4 = self.barrelShape:getPoints()
+
+    bx1, by1 = body:getWorldPoints(bx1, by1)
+    bx2, by2 = body:getWorldPoints(bx2, by2)
+    bx3, by3 = body:getWorldPoints(bx3, by3)
+    bx4, by4 = body:getWorldPoints(bx4, by4)
+
+    bx1, by1 = M2PIX * bx1, M2PIX * by1
+    bx2, by2 = M2PIX * bx2, M2PIX * by2
+    bx3, by3 = M2PIX * bx3, M2PIX * by3
+    bx4, by4 = M2PIX * bx4, M2PIX * by4
+    --
 
     --turretBatch:present(
         --x1, y1, x2, y2, x3, y3, x4, y4, 
         --self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
     --)
+
+    --turretBatch:present(
+        --x1, y1, x2, y2, x3, y3, x4, y4, 
+        --turretCommon.towerRectXY[1], 
+        --turretCommon.towerRectXY[2], 
+        --turretCommon.towerRectWH[1], 
+        --turretCommon.towerRectWH[2]
+    --)
+
     turretBatch:present(
-        x1, y1, x2, y2, x3, y3, x4, y4, 
+        tx1, ty1, tx2, ty2, tx3, ty3, tx4, ty4, 
         turretCommon.towerRectXY[1], 
         turretCommon.towerRectXY[2], 
+        --turretCommon.towerRectWH[1], 
+        --turretCommon.towerRectWH[2]
         turretCommon.towerRectWH[1], 
         turretCommon.towerRectWH[2]
     )
+    turretBatch:present(
+        bx1, by1, bx2, by2, bx3, by3, bx4, by4, 
+        turretCommon.barrelRectXY[1], 
+        turretCommon.barrelRectXY[2], 
+        turretCommon.barrelRectWH[1], 
+        turretCommon.barrelRectWH[2]
+    )
+
+    --[[
+    push2drawlistTop(function()
+        gr.setColor{0.5, 0.5, 0.5}
+
+        gr.print(string.format("1 %d %d", tx1, ty1), tx1, ty1)
+        gr.print(string.format("2 %d %d", tx2, ty2), tx2, ty2)
+        gr.print(string.format("3 %d %d", tx3, ty3), tx3, ty3)
+        gr.print(string.format("4 %d %d", tx4, ty4), tx4, ty4)
+
+        gr.setColor{0.85, 0.1, 0.1}
+
+        gr.print(string.format("1 %d %d", bx1, by1), bx1, by1)
+        gr.print(string.format("2 %d %d", bx2, by2), bx2, by2)
+        gr.print(string.format("3 %d %d", bx3, by3), bx3, by3)
+        gr.print(string.format("4 %d %d", bx4, by4), bx4, by4)
+    end)
+    --]]
 
     -- }}}
 end
