@@ -126,6 +126,7 @@ local record Turret
 
     filterdata: {FilterData}
     physbody: love.physics.Body
+    tankphysbody: lp.Body
     fixtureBarrel: love.physics.Fixture
     fixtureTower: love.physics.Fixture
 
@@ -942,8 +943,9 @@ function Turret.new(t: Tank): Turret
 
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.tank = t
-    self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
-    self.physbody = t.physbody
+    --self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
+    self.image = turretBatch.image
+    self.tankphysbody = t.physbody
 
     --if DEBUG_TURRET then
         --print("self.tank", self.tank)
@@ -997,27 +999,29 @@ function Turret.new(t: Tank): Turret
     self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape as lp.Shape)
     self.barrelCategories, self.barrelMask, self.barrelGroup = self.fixtureBarrel:getFilterData() as (integer, integer, integer)
     print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
-    self.fixtureBarrel:setFilterData(-1, 0, 0)
+    --self.fixtureBarrel:setFilterData(-1, 0, 0)
     print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
 
     self.fixtureTower = lp.newFixture(self.physbody, self.towerShape as lp.Shape)
     self.towerCategories, self.towerMask, self.towerGroup = self.fixtureTower:getFilterData() as (integer, integer, integer)
     print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
-    self.fixtureTower:setFilterData(-2, 1, 1)
+    --self.fixtureTower:setFilterData(-2, 1, 1)
     print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
 
     --print("self.fixtureBarrel", self.fixtureBarrel:getDensity())
     --print("self.fixtureTower", self.fixtureTower:getDensity())
 
-    --self.fixtureTower:setDensity(0.0001)
-    --self.fixtureBarrel:setDensity(0.0001)
+    self.fixtureTower:setDensity(0.0001)
+    self.fixtureBarrel:setDensity(0.0001)
     self.physbody:resetMassData()
 
     --local magix = -100
     local p1x, p1y = self.tank.physbody:getWorldCenter()
     local p2x, p2y = self.tank.physbody:getWorldCenter()
 
-    --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
+    --p2x = p2x + 50
+
+    local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
     --local joint = love.physics.newDistanceJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
 
     --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
@@ -1073,6 +1077,7 @@ function Turret:update()
     -- поворачивать башню только у танка игрока
     if playerTank and self.tank == playerTank then
         self:rotateToMouse()
+        self.physbody:setAngle(self.angle + math.pi)
     end
     -- }}}
 end

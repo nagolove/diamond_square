@@ -22,6 +22,7 @@ global record Batch
     )
     flush: function(Batch)
 
+    image: love.graphics.Image
     imageData: love.image.ImageData
     dataptr: any
     meshIndex: integer

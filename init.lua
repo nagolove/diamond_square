@@ -147,6 +147,7 @@ local Turret = {}
 
 
 
+
 local Bullet = {}
 
 
@@ -321,9 +322,7 @@ showLogo = true
 
 playerTankKeyconfigIds = {}
 
-angularImpulseScale = 5
-
-rot = math.pi / 4
+angularImpulseScale = 5 * math.pi / 4
 
 camZoomLower, camZoomHigher = 0.075, 3.5
 
@@ -679,31 +678,11 @@ function Tank:fire()
 end
 
 function Tank:left()
-
-   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-      print("Tank:left")
-   end
-   local imp = -angularImpulseScale * rot
-   print("mass", self.physbody:getMass())
-   if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. " applyTorque", imp)
-   end
-   self.physbody:applyTorque(imp)
-
+   self.physbody:applyTorque(-angularImpulseScale)
 end
 
 function Tank:right()
-
-   if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-      print("Tank:right")
-   end
-   local imp = angularImpulseScale * rot
-   print("mass", self.physbody:getMass())
-   if DEBUG_PHYSICS then
-      print("Tank " .. self.id .. " applyTorque", imp)
-   end
-   self.physbody:applyTorque(imp)
-
+   self.physbody:applyTorque(angularImpulseScale)
 end
 
 function Tank:forward()
@@ -964,8 +943,9 @@ function Turret.new(t)
 
    local self = setmetatable({}, Turret_mt)
    self.tank = t
-   self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
-   self.physbody = t.physbody
+
+   self.image = turretBatch.image
+   self.tankphysbody = t.physbody
 
 
 
@@ -1019,20 +999,20 @@ function Turret.new(t)
    self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape)
    self.barrelCategories, self.barrelMask, self.barrelGroup = self.fixtureBarrel:getFilterData()
    print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
-   self.fixtureBarrel:setFilterData(-1, 0, 0)
+
    print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
 
    self.fixtureTower = lp.newFixture(self.physbody, self.towerShape)
    self.towerCategories, self.towerMask, self.towerGroup = self.fixtureTower:getFilterData()
    print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
-   self.fixtureTower:setFilterData(-2, 1, 1)
+
    print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
 
 
 
 
-
-
+   self.fixtureTower:setDensity(0.0001)
+   self.fixtureBarrel:setDensity(0.0001)
    self.physbody:resetMassData()
 
 
@@ -1040,6 +1020,8 @@ function Turret.new(t)
    local p2x, p2y = self.tank.physbody:getWorldCenter()
 
 
+
+   local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
 
 
 
@@ -1095,6 +1077,7 @@ function Turret:update()
 
    if playerTank and self.tank == playerTank then
       self:rotateToMouse()
+      self.physbody:setAngle(self.angle + math.pi)
    end
 
 end
