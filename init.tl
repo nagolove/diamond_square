@@ -117,6 +117,13 @@ local record Turret
     rectXY: {number}
     rectWH: {number}
 
+    barrelCategories: integer
+    barrelMask: integer
+    barrelGroup: integer
+    towerCategories: integer
+    towerMask: integer
+    towerGroup: integer
+
     filterdata: {FilterData}
     physbody: love.physics.Body
     fixtureBarrel: love.physics.Fixture
@@ -306,6 +313,7 @@ local drawlistTop: {DrawNode} = {}
 local drawlistBottom: {DrawNode} = {}
 
 global cam: Camera
+
 -- используется для анимации масштабирования камеры
 local camTimer: Timer = require "Timer".new()
 local drawCoro: thread = nil
@@ -313,9 +321,7 @@ global showLogo = true
 -- идентификаторы клавиш управления танком игрока
 global playerTankKeyconfigIds: {integer} = {}
 -- множитель углового импулься
-global angularImpulseScale = 5
--- угол на сколько поворачивать тело угловым импульсом
-global rot = math.pi / 4
+global angularImpulseScale = 5 * math.pi / 4
 -- минимальный и максимальные порог масштаба камеры
 global camZoomLower, camZoomHigher = 0.075, 3.5
 -- скорость изменения масштаба камеры
@@ -671,31 +677,11 @@ function Tank:fire()
 end
 
 function Tank:left()
-    -- {{{
-    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-        print("Tank:left")
-    end
-    local imp = -angularImpulseScale * rot
-    print("mass", self.physbody:getMass())
-    if DEBUG_PHYSICS then
-        print("Tank " .. self.id .. " applyTorque", imp)
-    end
-    self.physbody:applyTorque(imp)
-    -- }}}
+    self.physbody:applyTorque(-angularImpulseScale)
 end
 
 function Tank:right()
-    -- {{{
-    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-        print("Tank:right")
-    end
-    local imp = angularImpulseScale * rot
-    print("mass", self.physbody:getMass())
-    if DEBUG_PHYSICS then
-        print("Tank " .. self.id .. " applyTorque", imp)
-    end
-    self.physbody:applyTorque(imp)
-    -- }}}
+    self.physbody:applyTorque(angularImpulseScale)
 end
 
 function Tank:forward()
@@ -1009,9 +995,16 @@ function Turret.new(t: Tank): Turret
     self.towerShape = love.physics.newPolygonShape(towerShapeVertices)
 
     self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape as lp.Shape)
-    self.fixtureBarrel:setFilterData(1, 1, 1)
+    self.barrelCategories, self.barrelMask, self.barrelGroup = self.fixtureBarrel:getFilterData() as (integer, integer, integer)
+    print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
+    self.fixtureBarrel:setFilterData(-1, 0, 0)
+    print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
+
     self.fixtureTower = lp.newFixture(self.physbody, self.towerShape as lp.Shape)
-    self.fixtureTower:setFilterData(1, 1, 1)
+    self.towerCategories, self.towerMask, self.towerGroup = self.fixtureTower:getFilterData() as (integer, integer, integer)
+    print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
+    self.fixtureTower:setFilterData(-2, 1, 1)
+    print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
 
     --print("self.fixtureBarrel", self.fixtureBarrel:getDensity())
     --print("self.fixtureTower", self.fixtureTower:getDensity())
@@ -1025,8 +1018,9 @@ function Turret.new(t: Tank): Turret
     local p2x, p2y = self.tank.physbody:getWorldCenter()
 
     --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
-    local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
     --local joint = love.physics.newDistanceJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
+
+    --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
 
     --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, 0, 0, 0, 0, false)
     --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, 0, 0, false)
@@ -2133,17 +2127,17 @@ local function spawnTank(pos: vector, dir: vector): Tank
     local ok, errmsg: boolean, string = pcall(function()
         if #tanks >= 1 then
             -- XXX next line not work
-            -- unbindPlayerTankKeys()
+             --unbindPlayerTankKeys()
         end
         local t = Tank.new(pos, dir)
         table.insert(tanks, t)
         -- игрок управляет последний созданным танком
-        playerTank = t
+        --playerTank = t
         res = t
         if DEBUG_TANK then
             print("Tank spawn at", pos.x, pos.y)
         end
-        bindPlayerTankKeys()
+        --bindPlayerTankKeys()
     end)
     if not ok then
         error("Could'not load. Please implement stub-tank. " .. errmsg)
@@ -2375,6 +2369,9 @@ local function init()
         spawnTank(vector.new(100, i * 100))
     end
 
+    playerTank = spawnTank(vector.new(0, 0))
+    bindPlayerTankKeys()
+
     --makeArmy()
     --makeArmy(0, 500)
     --makeArmy(500, 0)
@@ -2384,6 +2381,29 @@ local function init()
 
     cameraZoneR = H / 2
     -- }}}
+end
+
+-- работает плохо, сбрасывается отладочное рисование
+function reset()
+    print('reset')
+    -- обрати внимание, происходит глобольная очистка клавиш
+    KeyConfig.clear()
+    if physworld then
+        physworld:destroy()
+        print('physworld destroyed.')
+        local object: love.Object = physworld as love.Object
+        object:release()
+        print('physworld object released.')
+        physworld = nil
+    end
+    tanks = {}
+    playerTank = {}
+    baseBatch = Batch.new("tank_body_small.png")
+    turretBatch = Batch.new("tank_tower.png")
+
+    --pushDEBUG()
+    init()
+    --popDEBUG()
 end
 
 local function quit()

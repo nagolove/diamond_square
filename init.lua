@@ -13,7 +13,7 @@ require("keyconfig")
 require("camera")
 require("vector")
 require("Timer")
-require("imgui")
+
 require('render')
 
 local List = require("list")
@@ -113,6 +113,13 @@ end
 
 
 local Turret = {}
+
+
+
+
+
+
+
 
 
 
@@ -304,6 +311,7 @@ attachedVarsList = {}
 local drawlistTop = {}
 
 local drawlistBottom = {}
+
 
 
 
@@ -1009,9 +1017,16 @@ function Turret.new(t)
    self.towerShape = love.physics.newPolygonShape(towerShapeVertices)
 
    self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape)
-   self.fixtureBarrel:setFilterData(1, 1, 1)
+   self.barrelCategories, self.barrelMask, self.barrelGroup = self.fixtureBarrel:getFilterData()
+   print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
+   self.fixtureBarrel:setFilterData(-1, 0, 0)
+   print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
+
    self.fixtureTower = lp.newFixture(self.physbody, self.towerShape)
-   self.fixtureTower:setFilterData(1, 1, 1)
+   self.towerCategories, self.towerMask, self.towerGroup = self.fixtureTower:getFilterData()
+   print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
+   self.fixtureTower:setFilterData(-2, 1, 1)
+   print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
 
 
 
@@ -1025,7 +1040,8 @@ function Turret.new(t)
    local p2x, p2y = self.tank.physbody:getWorldCenter()
 
 
-   local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
+
+
 
 
 
@@ -1494,9 +1510,9 @@ end
 
 local function drawui()
 
-   imgui.StyleColorsLight()
-   imgui.ShowDemoWindow()
-   imgui.ShowUserGuide()
+
+
+
 
 end
 
@@ -2138,12 +2154,12 @@ local function spawnTank(pos, dir)
       local t = Tank.new(pos, dir)
       table.insert(tanks, t)
 
-      playerTank = t
+
       res = t
       if DEBUG_TANK then
          print("Tank spawn at", pos.x, pos.y)
       end
-      bindPlayerTankKeys()
+
    end)
    if not ok then
       error("Could'not load. Please implement stub-tank. " .. errmsg)
@@ -2375,6 +2391,9 @@ local function init()
       spawnTank(vector.new(100, i * 100))
    end
 
+   playerTank = spawnTank(vector.new(0, 0))
+   bindPlayerTankKeys()
+
 
 
 
@@ -2383,6 +2402,29 @@ local function init()
    enableDEBUG()
 
    cameraZoneR = H / 2
+
+end
+
+
+function reset()
+   print('reset')
+
+   KeyConfig.clear()
+   if physworld then
+      physworld:destroy()
+      print('physworld destroyed.')
+      local object = physworld
+      object:release()
+      print('physworld object released.')
+      physworld = nil
+   end
+   tanks = {}
+   playerTank = {}
+   baseBatch = Batch.new("tank_body_small.png")
+   turretBatch = Batch.new("tank_tower.png")
+
+
+   init()
 
 end
 
