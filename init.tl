@@ -190,6 +190,7 @@ local record Base
     -- {{{
     rectXY: {number}
     rectWH: {number}
+    -- тоже, что и в Tank.physbody
     physbody: love.physics.Body
     filterdata: {FilterData}
     fixture: love.physics.Fixture
@@ -521,7 +522,7 @@ local function spawnBullet(px: number, py: number, dirx: number, diry: number)
     local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
     local fixture = love.physics.newFixture(bullet.body, shape as lp.Shape)
     --fixture:setGroupIndex(bulletCollisionGroup)
-    fixture:setMask(bulletMask)
+    --fixture:setMask(bulletMask)
     --bullet.body:setMass(10)
     bullet.body:setMass(1)
     local impulseFactor = 100
@@ -754,9 +755,6 @@ function Tank.new(pos: vector, dir: vector): Tank
 
     tankCounter = tankCounter + 1
 
-    self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
-    self.physbody:setUserData(self)
-
     if not dir then
         dir = vector.new(0, -1)
     end
@@ -765,8 +763,8 @@ function Tank.new(pos: vector, dir: vector): Tank
     self.id = tankCounter
     self.dir = dir:clone()
     self.pos = pos:clone()
-    self.turret = Turret.new(self)
     self.base = Base.new(self)
+    self.turret = Turret.new(self)
 
     if DEBUG_PHYSICS then
         print("angular damping", self.physbody:getAngularDamping())
@@ -1265,8 +1263,11 @@ function Base.new(t: Tank): Base
     -- цифры получены из картинки tank_body_small.png
     self.rectXY = {86, 72}
     self.rectWH = {84, 111}
-    
-    self.physbody = t.physbody
+
+    self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
+    self.physbody:setUserData(self)
+    -- установить физическое тело танка
+    t.physbody = self.physbody
 
     --if DEBUG_BASE then
         --print("self.tank", self.tank)
@@ -1339,13 +1340,12 @@ function Base:present()
 end
 
 local function onBeginContact(
-    _: love.physics.Fixture, 
-    _: love.physics.Fixture, 
-    _: love.physics.Contact
+    fixture1: love.physics.Fixture, 
+    fixture2: love.physics.Fixture, 
+    contact: love.physics.Contact
 )
     -- {{{
     --[[
-  
   --Добавить здесь преобразование координат из локальных в глобальные. Заполнять списки на отрисовку контактов. Сделать несколько списков отрисовки. Рисуется только
   --то, что попадает в экран камеры. Посмотри+++ на встроенные функции отсечения в движке. Те списки постоянно сбрасывать в nil? Почему-бы и нет, хотя течет динамическая
   --память. Зато структуры динамично работают, видно дейсвие, экшен.
@@ -1381,9 +1381,26 @@ local function onBeginContact(
         --end)
     --end
   --end
-
   --]]
-  -- }}}
+
+    local p1x, p1y, p2x, p2y = contact:getPositions()
+
+    local body1 = fixture1:getBody()
+    local body2 = fixture2:getBody()
+
+    push2drawlistTop(function()
+        local contactRadius = 3
+        gr.setColor{1, 0, 0, 1}
+        if p1x and p1y then
+            p1x, p1y = p1x * M2PIX, p1y * M2PIX
+            gr.circle('fill', p1x, p1y, contactRadius)
+        end
+        if p2x and p2y then
+            p2x, p2y = p2x * M2PIX, p2y * M2PIX
+            gr.circle('fill', p2x, p2y, contactRadius)
+        end
+    end)
+      -- }}}
 end
 
 local function onEndContact(
@@ -2461,8 +2478,10 @@ local function init()
     --makeArmy()
 
     --for _ = 1, 30 do 
-    for i = 1, 3 do 
-        spawnTank(vector.new(100, i * 100))
+    for i = 1, 13 do 
+        for j = 1, 3 do
+            spawnTank(vector.new(j * 45, i * 30))
+        end
     end
 
     playerTank = spawnTank(vector.new(0, 0))
