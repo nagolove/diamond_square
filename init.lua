@@ -35,6 +35,13 @@ local Mode = {}
 
 
 
+local ObjectType = {}
+
+
+
+
+
+
 local DrawNode = {}
 
 
@@ -72,6 +79,11 @@ local Edge = {}
 
 
 local Arena = {}
+
+
+
+
+
 
 
 
@@ -148,7 +160,9 @@ local Turret = {}
 
 
 
+
 local Bullet = {}
+
 
 
 
@@ -187,6 +201,7 @@ local turretBatch = Batch.new("tank_tower.png")
 
 
 local Base = {}
+
 
 
 
@@ -613,6 +628,8 @@ function Arena.new(fname)
       self:createFixtures()
    end
 
+   self.objectType = "Arena"
+
    return self
 end
 
@@ -764,8 +781,6 @@ function Tank.new(pos, dir)
    self.dir = dir:clone()
    self.pos = pos:clone()
    self.base = Base.new(self)
-
-
    self.turret = Turret.new(self)
 
    if DEBUG_PHYSICS then
@@ -968,6 +983,7 @@ function Turret.new(t)
 
    local self = setmetatable({}, Turret_mt)
    self.tank = t
+   self.objectType = "Turret"
 
    self.image = turretBatch.image
    self.tankphysbody = t.physbody
@@ -1259,6 +1275,7 @@ function Base.new(t)
    end
 
    local self = setmetatable({}, Base_mt)
+   self.objectType = "Base"
    self.tank = t
 
 
@@ -1388,7 +1405,31 @@ local function onBeginContact(
    local p1x, p1y, p2x, p2y = contact:getPositions()
 
    local body1 = fixture1:getBody()
+   local userdata1 = body1:getUserData()
    local body2 = fixture2:getBody()
+   local userdata2 = body2:getUserData()
+
+   if userdata1 and userdata1.objectType and userdata1.objectType == "Bullet" then
+      print('1111111')
+      if userdata2.objectType then
+         if userdata2.objectType == "Turret" then
+            print('Bullet with Turret')
+         elseif userdata2.objectType == "Base" then
+            print('Bullet with Base')
+         end
+      end
+   end
+
+   if userdata2 and userdata2.objectType and userdata2.objectType == "Bullet" then
+      print('2222222')
+      if userdata1.objectType then
+         if userdata1.objectType == "Turret" then
+            print('Turret with Bullet')
+         elseif userdata1.objectType == "Base" then
+            print('Base with Base')
+         end
+      end
+   end
 
    push2drawlistTop(function()
       local contactRadius = 3

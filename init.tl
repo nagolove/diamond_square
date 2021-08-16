@@ -35,6 +35,13 @@ local enum Mode
     "editor"
 end
 
+local enum ObjectType
+    "Base"
+    "Turret"
+    "Bullet"
+    "Arena"
+end
+
 local record DrawNode
     f: function
     self: any
@@ -72,6 +79,8 @@ local record Edge
 end
 
 local record Arena
+    -- {{{
+
     -- какая точка рисуется, первая или вторая
     enum Mode
         'first'
@@ -81,6 +90,7 @@ local record Arena
     mode: Mode
     edges: {Edge}
     physbody: lp.Body
+    objectType: ObjectType
 
     -- interface
 
@@ -94,6 +104,8 @@ local record Arena
     -- internal 
 
     createFixtures: function(Arena)
+
+    -- }}}
 end
 
 local record FilterData
@@ -133,6 +145,7 @@ local record Turret
     barrelShape: lp.PolygonShape
     towerShape: lp.PolygonShape
 
+    objectType: ObjectType
     image: love.graphics.Image
     angle: number
     tank: Tank
@@ -152,6 +165,7 @@ local record Bullet
     -- {{{
     body: love.physics.Body
     timestamp: number
+    objectType: ObjectType
 
     -- START OF DEBUG STUFF
     velx: number
@@ -188,6 +202,7 @@ local turretBatch: Batch = Batch.new("tank_tower.png")
 -- Ходовая часть с полигоном
 local record Base
     -- {{{
+    objectType: ObjectType
     rectXY: {number}
     rectWH: {number}
     -- тоже, что и в Tank.physbody
@@ -613,6 +628,8 @@ function Arena.new(fname: string): Arena
         self:createFixtures()
     end
 
+    self.objectType = "Arena"
+
     return self
 end
 
@@ -966,6 +983,7 @@ function Turret.new(t: Tank): Turret
 
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.tank = t
+    self.objectType = "Turret"
     --self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_tower.png")
     self.image = turretBatch.image
     self.tankphysbody = t.physbody
@@ -1257,6 +1275,7 @@ function Base.new(t: Tank): Base
     end
 
     local self: Base = setmetatable({} as Base, Base_mt)
+    self.objectType = "Base"
     self.tank = t
     --self.image = love.graphics.newImage(SCENE_PREFIX .. "/tank_body_small.png")
 
@@ -1386,7 +1405,31 @@ local function onBeginContact(
     local p1x, p1y, p2x, p2y = contact:getPositions()
 
     local body1 = fixture1:getBody()
+    local userdata1: {any:any} = body1:getUserData() as {any:any}
     local body2 = fixture2:getBody()
+    local userdata2: {any:any} = body2:getUserData() as {any:any}
+
+    if userdata1 and userdata1.objectType and userdata1.objectType == "Bullet" then
+        print('1111111')
+        if userdata2.objectType then
+            if userdata2.objectType == "Turret" then
+                print('Bullet with Turret')
+            elseif userdata2.objectType == "Base" then
+                print('Bullet with Base')
+            end
+        end
+    end
+
+    if userdata2 and userdata2.objectType and userdata2.objectType == "Bullet" then
+        print('2222222')
+        if userdata1.objectType then
+            if userdata1.objectType == "Turret" then
+                print('Turret with Bullet')
+            elseif userdata1.objectType == "Base" then
+                print('Base with Base')
+            end
+        end
+    end
 
     push2drawlistTop(function()
         local contactRadius = 3
