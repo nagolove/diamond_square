@@ -1677,7 +1677,7 @@ local function konsolePresent()
         cmdline = removeFirstColon(cmdline)
         if cmdline then
             --linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
-            local prompt = ">: "
+            local prompt = "%{black}>: "
             -- вывод цветного текста для консоли
             linesbuf:pushi(prompt .. cmdline)
         end
@@ -1864,6 +1864,7 @@ local function enterCommandMode()
         print("command mode enabled.")
         mode = "command"
         cmdline = ""
+        cursorpos = 1
         love.keyboard.setKeyRepeat(true)
         love.keyboard.setTextInput(true)
 
@@ -2129,6 +2130,22 @@ local function processCommandModeKeys(key: string)
         setPreviousCommand()
     elseif key == "down" then
         setNextCommand()
+    elseif key == "left" then
+        if cursorpos - 1 >= 1 then
+            cursorpos = cursorpos - 1
+        end
+        print('left')
+    elseif key == "right" then
+        if cursorpos <= #cmdline then
+            cursorpos = cursorpos + 1
+        end
+        print('right')
+    elseif key == "home" then
+        cursorpos = 1
+        print('home')
+    elseif key == "end" then
+        cursorpos = #cmdline
+        print('end')
     end
     -- }}}
 end
@@ -2467,7 +2484,10 @@ local function textinput(text: string)
     metrics.textinput(text)
     if mode == "command" then
         -- Здесь добавить курсор.
-        cmdline = cmdline .. text
+        --cmdline = cmdline .. text
+        local sub = string.sub
+        cmdline = sub(cmdline, 1, cursorpos - 1) .. text .. sub(cmdline, cursorpos, #cmdline)
+        cursorpos = cursorpos + 1
     end
     -- }}}
 end
