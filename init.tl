@@ -15,8 +15,10 @@ require "vector"
 require "Timer"
 --require "imgui"
 require 'render'
+--require 'moonshine'
 
 local List = require "list"
+--local moonshine = require 'moonshine'
 global i18n = require "i18n"
 local metrics = require "metrics"
 global vec2 = require "vector"
@@ -319,6 +321,7 @@ local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 global mode: Mode = "normal"
 local cmdline: string = ""
 local cmdhistory: {string} = {}
+local cursorpos: integer = 1
 global suggestList: List = List.new()
 -- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
@@ -375,6 +378,22 @@ local cameraZoneR: number
 local edgeColor = {0, 0, 0, 1}
 local edgeLineWidth = 10
 -- }}}
+
+local function contactFilter(fixture1: lp.Fixture, fixture2: lp.Fixture): boolean
+    if fixture1 then
+        local userdata1: {string:any} = fixture1:getBody():getUserData() as {string:any}
+        if userdata1 then
+            print("fixture1 userdata", userdata1['objectType'])
+        end
+    end
+    if fixture2 then
+        local userdata2: {string:any} = fixture2:getBody():getUserData() as {string:any}
+        if userdata2 then
+            print("fixture1 userdata", userdata2['objectType'])
+        end
+    end
+    return true
+end
 
 function disableDEBUG()
     -- {{{
@@ -734,27 +753,14 @@ end
 
 function Tank:forward()
     -- {{{
-    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-        print("Tank:forward")
-    end
     local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
-    if DEBUG_PHYSICS then
-        print("Tank " .. self.id .. " applyForce x, y", x, y)
-    end
     self.physbody:applyForce(x, y)
     -- }}}
 end
 
 function Tank:backward()
     -- {{{
-    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-        print("Tank:backward")
-    end
-    --if DEBUG_PHYSICS then
-        --print("Tank " .. self.id .. "applyForce x, y", x, y)
-    --end
     local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
-    print('applied', x, y)
     self.physbody:applyForce(-x, -y)
     -- }}}
 end
@@ -1672,6 +1678,7 @@ local function konsolePresent()
         if cmdline then
             --linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
             local prompt = ">: "
+            -- вывод цветного текста для консоли
             linesbuf:pushi(prompt .. cmdline)
         end
     end
@@ -2309,19 +2316,29 @@ local function makeArmy(x: number, y: number)
     -- }}}
 end
 
-local function init()
-    -- {{{
-    metrics.init()
-    setWindowMode()
-
-    loadLocales()
-
+local function phsyInit()
     local canSleep = true
     physworld = love.physics.newWorld(0., 0., canSleep)
     if DEBUG_PHYSICS then
         print("physics world canSleep:", canSleep)
     end
     physworld:setCallbacks(onBeginContact, onEndContact)
+    physworld:setContactFilter(contactFilter)
+end
+
+--local effect: moonshine.Effect
+local effect: any
+
+local function init()
+    -- {{{
+    metrics.init()
+    setWindowMode()
+
+    --effect = moonshine.chain(moonshine.effects.filmgrain).
+        --chain(moonshine.effects.vignette)
+
+    loadLocales()
+    phsyInit()
 
     logo = Logo.new()
     cam = require 'camera'.new()
@@ -2385,6 +2402,7 @@ function reset()
     end
     tanks = {}
     playerTank = {}
+    bullets = {}
     baseBatch = Batch.new("tank_body_small.png")
     turretBatch = Batch.new("tank_tower.png")
 
