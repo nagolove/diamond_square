@@ -155,6 +155,7 @@ local Turret = {}
 
 
 
+
 local Bullet = {}
 
 
@@ -195,6 +196,7 @@ local turretBatch = Batch.new("tank_tower.png")
 
 
 local Base = {}
+
 
 
 
@@ -380,6 +382,7 @@ local edgeLineWidth = 10
 
 
 local function contactFilter(fixture1, fixture2)
+   print('contactFilter', fixture1, fixture2)
    if fixture1 then
       local userdata1 = fixture1:getBody():getUserData()
       if userdata1 then
@@ -389,7 +392,7 @@ local function contactFilter(fixture1, fixture2)
    if fixture2 then
       local userdata2 = fixture2:getBody():getUserData()
       if userdata2 then
-         print("fixture1 userdata", userdata2['objectType'])
+         print("fixture2 userdata", userdata2['objectType'])
       end
    end
    return true
@@ -790,6 +793,10 @@ function Tank.new(pos, dir)
    self.pos = pos:clone()
    self.base = Base.new(self)
    self.turret = Turret.new(self)
+
+
+   self.base.id = self.id
+   self.turret.id = self.id
 
    if DEBUG_PHYSICS then
       print("angular damping", self.physbody:getAngularDamping())
@@ -1677,7 +1684,8 @@ local function konsolePresent()
       cmdline = removeFirstColon(cmdline)
       if cmdline then
 
-         local prompt = "%{black}>: "
+
+         local prompt = "leading %{black}>: %{white} ww %{black}"
 
          linesbuf:pushi(prompt .. cmdline)
       end
@@ -2333,7 +2341,7 @@ local function makeArmy(x, y)
 
 end
 
-local function phsyInit()
+local function physInit()
    local canSleep = true
    physworld = love.physics.newWorld(0., 0., canSleep)
    if DEBUG_PHYSICS then
@@ -2355,7 +2363,7 @@ local function init()
 
 
    loadLocales()
-   phsyInit()
+   physInit()
 
    logo = Logo.new()
    cam = require('camera').new()
@@ -2389,7 +2397,11 @@ local function init()
    end
 
 
-   playerTank = spawnTank(vector.new(0, 0))
+   local startpos = vector.new(-500, 500)
+
+
+
+   playerTank = spawnTank(startpos)
    bindPlayerTankKeys()
 
 

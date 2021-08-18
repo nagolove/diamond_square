@@ -122,6 +122,7 @@ local record Turret
     rectXY: {number}
     rectWH: {number}
 
+    id: integer
     joint: lp.WeldJoint
 
     barrelCategories: integer
@@ -196,6 +197,7 @@ local turretBatch: Batch = Batch.new("tank_tower.png")
 -- Ходовая часть с полигоном
 local record Base
     -- {{{
+    id: integer
     objectType: ObjectType
     rectXY: {number}
     rectWH: {number}
@@ -380,6 +382,7 @@ local edgeLineWidth = 10
 -- }}}
 
 local function contactFilter(fixture1: lp.Fixture, fixture2: lp.Fixture): boolean
+    print('contactFilter', fixture1, fixture2)
     if fixture1 then
         local userdata1: {string:any} = fixture1:getBody():getUserData() as {string:any}
         if userdata1 then
@@ -389,7 +392,7 @@ local function contactFilter(fixture1: lp.Fixture, fixture2: lp.Fixture): boolea
     if fixture2 then
         local userdata2: {string:any} = fixture2:getBody():getUserData() as {string:any}
         if userdata2 then
-            print("fixture1 userdata", userdata2['objectType'])
+            print("fixture2 userdata", userdata2['objectType'])
         end
     end
     return true
@@ -782,6 +785,7 @@ function Tank.new(pos: vector, dir: vector): Tank
 
     if not dir then
         dir = vector.new(0, -1)
+        print('dir is nil, using default value', inspect(dir))
     end
     --self.pbody:setAngle(math.pi / 3)
 
@@ -790,6 +794,10 @@ function Tank.new(pos: vector, dir: vector): Tank
     self.pos = pos:clone()
     self.base = Base.new(self)
     self.turret = Turret.new(self)
+
+    -- Связать части танка одинаковыми идентификаторами. Используется в contactFilter()
+    self.base.id = self.id
+    self.turret.id = self.id
 
     if DEBUG_PHYSICS then
         print("angular damping", self.physbody:getAngularDamping())
@@ -1677,7 +1685,8 @@ local function konsolePresent()
         cmdline = removeFirstColon(cmdline)
         if cmdline then
             --linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
-            local prompt = "%{black}>: "
+            --local prompt = "leading %{black}>: %{white}"
+            local prompt = "leading %{black}>: %{white} ww %{black}"
             -- вывод цветного текста для консоли
             linesbuf:pushi(prompt .. cmdline)
         end
@@ -2333,7 +2342,7 @@ local function makeArmy(x: number, y: number)
     -- }}}
 end
 
-local function phsyInit()
+local function physInit()
     local canSleep = true
     physworld = love.physics.newWorld(0., 0., canSleep)
     if DEBUG_PHYSICS then
@@ -2355,7 +2364,7 @@ local function init()
         --chain(moonshine.effects.vignette)
 
     loadLocales()
-    phsyInit()
+    physInit()
 
     logo = Logo.new()
     cam = require 'camera'.new()
@@ -2388,8 +2397,12 @@ local function init()
         end
     end
 
-    -- прикрепить камеру к игроку
-    playerTank = spawnTank(vector.new(0, 0))
+    --local startpos = vector.new(500, 500)
+    local startpos = vector.new(-500, 500)
+    --local startpos = vector.new(0, 0)
+
+    -- TODO прикрепить камеру к игроку
+    playerTank = spawnTank(startpos)
     bindPlayerTankKeys()
 
     --makeArmy()
