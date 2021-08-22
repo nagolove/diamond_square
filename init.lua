@@ -785,6 +785,7 @@ function Tank.new(pos, dir)
 
    if not dir then
       dir = vector.new(0, -1)
+      print('dir is nil, using default value', inspect(dir))
    end
 
 
@@ -2397,8 +2398,8 @@ local function init()
    end
 
 
-   local startpos = vector.new(-500, 500)
 
+   local startpos = vector.new(0, 0)
 
 
    playerTank = spawnTank(startpos)

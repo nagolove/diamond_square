@@ -2398,8 +2398,8 @@ local function init()
     end
 
     --local startpos = vector.new(500, 500)
-    local startpos = vector.new(-500, 500)
-    --local startpos = vector.new(0, 0)
+    --local startpos = vector.new(-500, 500)
+    local startpos = vector.new(0, 0)
 
     -- TODO прикрепить камеру к игроку
     playerTank = spawnTank(startpos)
