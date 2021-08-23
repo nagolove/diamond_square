@@ -114,17 +114,9 @@ local FilterData = {}
 
 
 
-local function getBodyFilterData(body)
-   local result = {}
-   for _, fixture in ipairs(body:getFixtures()) do
-      local categoies, mask, group = fixture:getFilterData()
-      table.insert(result, { categoies = categoies, mask = mask, group = group })
-   end
-   return result
-end
-
 
 local Turret = {}
+
 
 
 
@@ -457,6 +449,23 @@ function popDEBUG()
 
 end
 
+local function bugInit()
+   print('SCENE_PREFIX', SCENE_PREFIX)
+   local files = love.filesystem.getDirectoryItems(SCENE_PREFIX)
+   for k, v in ipairs(files) do
+      print(k, inspect(v))
+   end
+end
+
+local function getBodyFilterData(body)
+   local result = {}
+   for _, fixture in ipairs(body:getFixtures()) do
+      local categoies, mask, group = fixture:getFilterData()
+      table.insert(result, { categoies = categoies, mask = mask, group = group })
+   end
+   return result
+end
+
 local function drawArrow(
    fromx, fromy, tox, toy,
    color)
@@ -535,7 +544,8 @@ local function spawnBullet(px, py, dirx, diry)
    bullet.timestamp = love.timer.getTime()
 
    local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
-   local fixture = love.physics.newFixture(bullet.body, shape)
+
+   love.physics.newFixture(bullet.body, shape)
 
 
 
@@ -995,7 +1005,7 @@ function Turret.new(t)
 
 
    local w, _ = (self.image):getDimensions()
-   local r = w / 2
+
 
    local px, py = t.pos.x, t.pos.y
 
@@ -1062,7 +1072,7 @@ function Turret.new(t)
 
 
 
-   local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
+   self.joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
 
 
 
@@ -1126,60 +1136,17 @@ end
 function Turret:present()
 
    if not self.fixtureTower or not self.fixtureBarrel then
-
       return
    end
-
-   local imgw, imgh = (self.image):getDimensions()
-   local r, sx, sy, ox, oy = 0., 1., 1., 0, 0
-
-
-
 
    local towerShape = self.fixtureTower:getShape()
    local barrelShape = self.fixtureBarrel:getShape()
 
-
    if towerShape:getType() ~= "polygon" or barrelShape:getType() ~= "polygon" then
-      error("Only polygon shape allowed.")
+      error("Only polygon shapes are allowed.")
    end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    local body = self.fixtureTower:getBody()
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
    local tx1, ty1, tx2, ty2, tx3, ty3, tx4, ty4 = self.towerShape:getPoints()
@@ -1195,8 +1162,6 @@ function Turret:present()
    tx4, ty4 = M2PIX * tx4, M2PIX * ty4
 
 
-
-
    local bx1, by1, bx2, by2, bx3, by3, bx4, by4 = self.barrelShape:getPoints()
 
    bx1, by1 = body:getWorldPoints(bx1, by1)
@@ -1208,20 +1173,6 @@ function Turret:present()
    bx2, by2 = M2PIX * bx2, M2PIX * by2
    bx3, by3 = M2PIX * bx3, M2PIX * by3
    bx4, by4 = M2PIX * bx4, M2PIX * by4
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
    turretBatch:present(
    tx1, ty1, tx2, ty2, tx3, ty3, tx4, ty4,
@@ -1238,24 +1189,6 @@ function Turret:present()
    turretCommon.barrelRectXY[2],
    turretCommon.barrelRectWH[1],
    turretCommon.barrelRectWH[2])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1279,7 +1212,6 @@ function Base.new(t)
    self.tank = t
 
 
-
    self.rectXY = { 86, 72 }
    self.rectWH = { 84, 111 }
 
@@ -1287,11 +1219,6 @@ function Base.new(t)
    self.physbody:setUserData(self)
 
    t.physbody = self.physbody
-
-
-
-
-
 
    local px, py = t.pos.x, t.pos.y
 
@@ -1388,20 +1315,6 @@ local function onBeginContact(
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    local p1x, p1y, p2x, p2y = contact:getPositions()
 
    local body1 = fixture1:getBody()
@@ -1450,31 +1363,6 @@ local function onEndContact(
    _,
    _,
    _)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1825,7 +1713,6 @@ function Background:present()
 
    local len = 50
    local imgw, imgh = (self.img):getDimensions()
-
    local sx, sy = 1, 1
    gr.setColor(1, 1, 1, 1)
    for i = 0, len - 1 do
@@ -1833,7 +1720,6 @@ function Background:present()
          gr.draw(self.img, i * imgw * sx, j * imgh * sy, 0, sx, sy)
       end
    end
-
 
 end
 
@@ -1861,10 +1747,6 @@ end
 local function mainPresent()
    baseBatch:prepare()
    turretBatch:prepare()
-
-
-
-
 
    push2drawlistTop(drawBullets)
 
@@ -1939,11 +1821,10 @@ local function updateTanks()
 
 end
 
+
+
+
 local function moveCamera()
-
-
-
-
    if playerTank then
       local w, h = gr.getDimensions()
       local centerx, centery = w / 2, h / 2
@@ -2024,8 +1905,6 @@ function konsolePrint(...)
    end
 
 end
-
-
 
 function attach(varname)
    if type(varname) == "string" then
@@ -2200,7 +2079,6 @@ local cmdhistoryIndex = 0
 
 local function setPreviousCommand()
 
-
    if #cmdhistory ~= 0 then
       if cmdhistoryIndex - 1 < 1 then
          cmdhistoryIndex = #cmdhistory
@@ -2208,13 +2086,11 @@ local function setPreviousCommand()
          cmdhistoryIndex = cmdhistoryIndex - 1
       end
       cmdline = cmdhistory[cmdhistoryIndex]
-
    end
 
 end
 
 local function setNextCommand()
-
 
    if #cmdhistory ~= 0 then
       if cmdhistoryIndex + 1 > #cmdhistory then
@@ -2223,7 +2099,6 @@ local function setNextCommand()
          cmdhistoryIndex = cmdhistoryIndex + 1
       end
       cmdline = cmdhistory[cmdhistoryIndex]
-
    end
 
 end
@@ -2279,26 +2154,20 @@ end
 
 local function spawnTank(pos, dir)
 
-   local res
    local ok, errmsg = pcall(function()
       if #tanks >= 1 then
 
 
       end
-      local t = Tank.new(pos, dir)
-      table.insert(tanks, t)
-
-
-      res = t
+      table.insert(tanks, Tank.new(pos, dir))
       if DEBUG_TANK then
          print("Tank spawn at", pos.x, pos.y)
       end
-
    end)
    if not ok then
       error("Could'not load. Please implement stub-tank. " .. errmsg)
    end
-   return res
+   return tanks[#tanks]
 
 end
 
@@ -2431,35 +2300,6 @@ local function createDrawCoroutine()
 end
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local function makeArmy(x, y)
 
    x = x or 0
@@ -2477,6 +2317,20 @@ local function makeArmy(x, y)
 
 end
 
+local path = SCENE_PREFIX .. "/load.wav"
+print('path', path)
+local loadCannonSound = love.audio.newSource(path, 'static')
+
+local fireCoro
+
+local function createFireCoro()
+   return coroutine.create(function()
+      loadCannonSound:play()
+
+
+   end)
+end
+
 local function init()
 
    metrics.init()
@@ -2489,8 +2343,6 @@ local function init()
    if DEBUG_PHYSICS then
       print("physics world canSleep:", canSleep)
    end
-
-
    physworld:setCallbacks(onBeginContact, onEndContact)
 
    logo = Logo.new()
@@ -2502,11 +2354,8 @@ local function init()
    bindCameraZoomKeys()
    bindCameraControl()
    bindFullscreenSwitcher()
-
    bindEscape()
    bindKonsole()
-
-
 
    drawCoro = createDrawCoroutine()
 
@@ -2527,6 +2376,7 @@ local function init()
       end
    end
 
+
    playerTank = spawnTank(vector.new(0, 0))
    bindPlayerTankKeys()
 
@@ -2537,6 +2387,8 @@ local function init()
 
 
    disableDEBUG()
+
+   bugInit()
 
    cameraZoneR = H / 2
 

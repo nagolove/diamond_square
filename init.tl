@@ -121,6 +121,7 @@ local record Turret
     rectWH: {number}
 
     joint: lp.WeldJoint
+    fireCoro: thread
 
     barrelCategories: integer
     barrelMask: integer
@@ -150,6 +151,7 @@ local record Turret
     update: function(Turret)
     fire: function(Turret)
     rotateToMouse: function(Turret)
+    createFireCoro: function(): thread
     -- }}}
 end
 
@@ -374,6 +376,7 @@ local cameraZoneR: number
 
 local edgeColor = {0, 0, 0, 1}
 local edgeLineWidth = 10
+local loadCannonSound = love.audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 -- }}}
 
 function disableDEBUG()
@@ -447,6 +450,14 @@ function popDEBUG()
         cmd_drawCameraAxixes = entry["cmd_drawCameraAxixes"]
     end
     -- }}}
+end
+
+local function bugInit()
+    print('SCENE_PREFIX', SCENE_PREFIX)
+    local files = love.filesystem.getDirectoryItems(SCENE_PREFIX)
+    for k, v in ipairs(files) do
+        print(k, inspect(v))
+    end
 end
 
 local function getBodyFilterData(body: lp.Body): {FilterData}
@@ -553,21 +564,49 @@ local function spawnBullet(px: number, py: number, dirx: number, diry: number)
     -- }}}
 end
 
+function Turret:createFireCoro(): thread
+    return coroutine.create(function()
+        loadCannonSound:play()
+        -- wait loadCannonSound file length seconds
+        -- and call fire() to create new bullets.
+        -- {{{
+        --if DEBUG_TURRET then
+            --print("Turret:fire()")
+        --end
+        local duration = loadCannonSound:getDuration('seconds')
+        local time = love.timer.getTime()
+        local stop = false
+
+        print('duration', duration)
+        repeat
+            local now = love.timer.getTime()
+            print('time', time)
+            print('now', now)
+            local diff = now - time 
+            print('diff', diff)
+            if diff > duration then
+                stop = true
+            end
+            love.timer.sleep(0.001)
+            coroutine.yield()
+        until stop
+
+        local px, py = self.tank.physbody:getWorldCenter()
+
+        -- снаряд появляется за крайней точкой ствола пушки
+        local magic = 14
+        spawnBullet(
+            px - self.dir.x * magic, 
+            py - self.dir.y * magic, 
+            -self.dir.x, -self.dir.y
+        )
+    end)
+end
+
 function Turret:fire()
-    -- {{{
-    --if DEBUG_TURRET then
-        --print("Turret:fire()")
-    --end
-
-    local px, py = self.tank.physbody:getWorldCenter()
-
-    -- снаряд появляется за крайней точкой ствола пушки
-    local magic = 14
-    spawnBullet(
-        px - self.dir.x * magic, 
-        py - self.dir.y * magic, 
-        -self.dir.x, -self.dir.y
-    )
+    if not self.fireCoro then
+        self.fireCoro = self:createFireCoro()
+    end
     -- }}}
 end
 
@@ -1121,6 +1160,13 @@ function Turret:update()
     -- поворачивать башню только у танка игрока
     if playerTank and self.tank == playerTank then
         self:rotateToMouse()
+    end
+    if self.fireCoro then
+        local ok, errmsg: boolean, string = coroutine.resume(self.fireCoro) as (boolean, string)
+        if not ok then
+            print("local ok: boolean = coroutine.resume(self.fireCoro)", errmsg)
+        end
+        self.fireCoro = nil
     end
     -- }}}
 end
@@ -2365,6 +2411,8 @@ local function init()
 
     --enableDEBUG()
     disableDEBUG()
+
+    bugInit()
 
     cameraZoneR = H / 2
     -- }}}
