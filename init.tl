@@ -1100,6 +1100,7 @@ function Turret.new(t: Tank): Turret
 end
 
 -- Как сделать медленный поворот башни?
+-- скорость поворота башни танка т-80 - 40 градусов в секунду.
 function Turret:rotateToMouse()
     -- {{{
     local mx, my = love.mouse.getPosition()
