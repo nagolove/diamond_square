@@ -15,8 +15,10 @@ require "vector"
 require "Timer"
 --require "imgui"
 require 'render'
+--require 'moonshine'
 
 local List = require "list"
+--local moonshine = require 'moonshine'
 global i18n = require "i18n"
 local metrics = require "metrics"
 global vec2 = require "vector"
@@ -120,6 +122,7 @@ local record Turret
     rectXY: {number}
     rectWH: {number}
 
+    id: integer
     joint: lp.WeldJoint
     fireCoro: thread
 
@@ -196,6 +199,7 @@ local turretBatch: Batch = Batch.new("tank_tower.png")
 -- Ходовая часть с полигоном
 local record Base
     -- {{{
+    id: integer
     objectType: ObjectType
     rectXY: {number}
     rectWH: {number}
@@ -321,6 +325,7 @@ local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 global mode: Mode = "normal"
 local cmdline: string = ""
 local cmdhistory: {string} = {}
+local cursorpos: integer = 1
 global suggestList: List = List.new()
 -- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
@@ -378,6 +383,23 @@ local edgeColor = {0, 0, 0, 1}
 local edgeLineWidth = 10
 local loadCannonSound = love.audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 -- }}}
+
+local function contactFilter(fixture1: lp.Fixture, fixture2: lp.Fixture): boolean
+    print('contactFilter', fixture1, fixture2)
+    if fixture1 then
+        local userdata1: {string:any} = fixture1:getBody():getUserData() as {string:any}
+        if userdata1 then
+            print("fixture1 userdata", userdata1['objectType'])
+        end
+    end
+    if fixture2 then
+        local userdata2: {string:any} = fixture2:getBody():getUserData() as {string:any}
+        if userdata2 then
+            print("fixture2 userdata", userdata2['objectType'])
+        end
+    end
+    return true
+end
 
 function disableDEBUG()
     -- {{{
@@ -453,11 +475,40 @@ function popDEBUG()
 end
 
 local function bugInit()
+    local bugDir = 'bug'
     print('SCENE_PREFIX', SCENE_PREFIX)
-    local files = love.filesystem.getDirectoryItems(SCENE_PREFIX)
+    local files = love.filesystem.getDirectoryItems(SCENE_PREFIX .. "/" .. bugDir)
+    local path = SCENE_PREFIX .. "/" .. bugDir .. "/"
+    print('path', path)
+    local images: {love.graphics.Texture} = {}
     for k, v in ipairs(files) do
+
+        -- XXX Invalid token
+        --if string.match(v, ".*%d*\.png") then
+
+        if string.match(v, ".*%d*png") then
+            print(v)
+            table.insert(images, love.graphics.newImage(path .. v) as love.graphics.Texture)
+        end
+
         print(k, inspect(v))
     end
+    local imgw, imgh = images[1]:getDimensions()
+    --local imgw, imgh = 
+    --images[1]:getDimensions()
+    print('imgw, imgh', imgw, imgh)
+    local canvas = love.graphics.newCanvas(imgw * #files)
+
+    love.graphics.setCanvas(canvas)
+        for _, image in ipairs(images) do
+            local x, y = 0, 0
+            love.graphics.draw(image as love.graphics.Drawable, x, y)
+        end
+    love.graphics.setCanvas()
+
+    local imageData = canvas:newImageData()
+    imageData:encode('png', "bug_timeline.png")
+    print('encoded')
 end
 
 local function getBodyFilterData(body: lp.Body): {FilterData}
@@ -773,27 +824,14 @@ end
 
 function Tank:forward()
     -- {{{
-    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-        print("Tank:forward")
-    end
     local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
-    if DEBUG_PHYSICS then
-        print("Tank " .. self.id .. " applyForce x, y", x, y)
-    end
     self.physbody:applyForce(x, y)
     -- }}}
 end
 
 function Tank:backward()
     -- {{{
-    if DEBUG_TANK and DEBUG_TANK_MOVEMENT then
-        print("Tank:backward")
-    end
-    --if DEBUG_PHYSICS then
-        --print("Tank " .. self.id .. "applyForce x, y", x, y)
-    --end
     local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
-    print('applied', x, y)
     self.physbody:applyForce(-x, -y)
     -- }}}
 end
@@ -815,6 +853,7 @@ function Tank.new(pos: vector, dir: vector): Tank
 
     if not dir then
         dir = vector.new(0, -1)
+        print('dir is nil, using default value', inspect(dir))
     end
     --self.pbody:setAngle(math.pi / 3)
 
@@ -823,6 +862,10 @@ function Tank.new(pos: vector, dir: vector): Tank
     self.pos = pos:clone()
     self.base = Base.new(self)
     self.turret = Turret.new(self)
+
+    -- Связать части танка одинаковыми идентификаторами. Используется в contactFilter()
+    self.base.id = self.id
+    self.turret.id = self.id
 
     if DEBUG_PHYSICS then
         print("angular damping", self.physbody:getAngularDamping())
@@ -1125,6 +1168,7 @@ function Turret.new(t: Tank): Turret
 end
 
 -- Как сделать медленный поворот башни?
+-- скорость поворота башни танка т-80 - 40 градусов в секунду.
 function Turret:rotateToMouse()
     -- {{{
     local mx, my = love.mouse.getPosition()
@@ -1717,7 +1761,9 @@ local function konsolePresent()
         cmdline = removeFirstColon(cmdline)
         if cmdline then
             --linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
-            local prompt = ">: "
+            --local prompt = "leading %{black}>: %{white}"
+            local prompt = "leading %{black}>: %{white} ww %{black}"
+            -- вывод цветного текста для консоли
             linesbuf:pushi(prompt .. cmdline)
         end
     end
@@ -1903,6 +1949,7 @@ local function enterCommandMode()
         print("command mode enabled.")
         mode = "command"
         cmdline = ""
+        cursorpos = 1
         love.keyboard.setKeyRepeat(true)
         love.keyboard.setTextInput(true)
 
@@ -2168,6 +2215,22 @@ local function processCommandModeKeys(key: string)
         setPreviousCommand()
     elseif key == "down" then
         setNextCommand()
+    elseif key == "left" then
+        if cursorpos - 1 >= 1 then
+            cursorpos = cursorpos - 1
+        end
+        print('left')
+    elseif key == "right" then
+        if cursorpos <= #cmdline then
+            cursorpos = cursorpos + 1
+        end
+        print('right')
+    elseif key == "home" then
+        cursorpos = 1
+        print('home')
+    elseif key == "end" then
+        cursorpos = #cmdline
+        print('end')
     end
     -- }}}
 end
@@ -2355,19 +2418,29 @@ local function makeArmy(x: number, y: number)
     -- }}}
 end
 
-local function init()
-    -- {{{
-    metrics.init()
-    setWindowMode()
-
-    loadLocales()
-
+local function physInit()
     local canSleep = true
     physworld = love.physics.newWorld(0., 0., canSleep)
     if DEBUG_PHYSICS then
         print("physics world canSleep:", canSleep)
     end
     physworld:setCallbacks(onBeginContact, onEndContact)
+    physworld:setContactFilter(contactFilter)
+end
+
+--local effect: moonshine.Effect
+local effect: any
+
+local function init()
+    -- {{{
+    metrics.init()
+    setWindowMode()
+
+    --effect = moonshine.chain(moonshine.effects.filmgrain).
+        --chain(moonshine.effects.vignette)
+
+    loadLocales()
+    physInit()
 
     logo = Logo.new()
     cam = require 'camera'.new()
@@ -2400,8 +2473,12 @@ local function init()
         end
     end
 
-    -- прикрепить камеру к игроку
-    playerTank = spawnTank(vector.new(0, 0))
+    --local startpos = vector.new(500, 500)
+    --local startpos = vector.new(-500, 500)
+    local startpos = vector.new(0, 0)
+
+    -- TODO прикрепить камеру к игроку
+    playerTank = spawnTank(startpos)
     bindPlayerTankKeys()
 
     --makeArmy()
@@ -2433,6 +2510,7 @@ function reset()
     end
     tanks = {}
     playerTank = {}
+    bullets = {}
     baseBatch = Batch.new("tank_body_small.png")
     turretBatch = Batch.new("tank_tower.png")
 
@@ -2497,7 +2575,10 @@ local function textinput(text: string)
     metrics.textinput(text)
     if mode == "command" then
         -- Здесь добавить курсор.
-        cmdline = cmdline .. text
+        --cmdline = cmdline .. text
+        local sub = string.sub
+        cmdline = sub(cmdline, 1, cursorpos - 1) .. text .. sub(cmdline, cursorpos, #cmdline)
+        cursorpos = cursorpos + 1
     end
     -- }}}
 end
