@@ -375,7 +375,7 @@ local bulletColor = {0.1, 0.1, 0.1, 1}
 global bulletLifetime = 35
 global tankCounter = 0
 global rng: love.math.RandomGenerator = love.math.newRandomGenerator()
-
+global diamondSquare = require 'diamondsquare'.new()
 -- значение в пикселях
 local cameraZoneR: number
 
@@ -624,10 +624,12 @@ function Turret:createFireCoro(): thread
         --if DEBUG_TURRET then
             --print("Turret:fire()")
         --end
+
         local duration = loadCannonSound:getDuration('seconds')
         local time = love.timer.getTime()
         local stop = false
 
+        --[[
         print('duration', duration)
         repeat
             local now = love.timer.getTime()
@@ -641,6 +643,7 @@ function Turret:createFireCoro(): thread
             love.timer.sleep(0.001)
             coroutine.yield()
         until stop
+        --]]
 
         local px, py = self.tank.physbody:getWorldCenter()
 
@@ -1835,7 +1838,8 @@ local function mainPresent()
     push2drawlistTop(drawBullets)
 
     cam:attach()
-    background:present()
+    --background:present()
+    diamondSquare:draw()
     queryBoundingBox()
 
     presentDrawlistBottom()
@@ -2490,6 +2494,7 @@ local function init()
     disableDEBUG()
 
     bugInit()
+    diamondSquare:eval()
 
     cameraZoneR = H / 2
     -- }}}
