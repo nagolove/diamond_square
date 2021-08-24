@@ -323,9 +323,9 @@ global tankForceScale = 1
 local historyfname = "cmdhistory.txt"
 local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
 global mode: Mode = "normal"
-local cmdline: string = ""
+global cmdline: string = ""
 local cmdhistory: {string} = {}
-local cursorpos: integer = 1
+global cursorpos: integer = 1
 global suggestList: List = List.new()
 -- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
@@ -375,7 +375,7 @@ local bulletColor = {0.1, 0.1, 0.1, 1}
 global bulletLifetime = 35
 global tankCounter = 0
 global rng: love.math.RandomGenerator = love.math.newRandomGenerator()
-global diamondSquare = require 'diamondsquare'.new()
+global diamondSquare = require 'diamondsquare'.new(8)
 -- значение в пикселях
 local cameraZoneR: number
 
@@ -1765,7 +1765,8 @@ local function konsolePresent()
         if cmdline then
             --linesbuf:pushiColored("%{red}>: %{black}" .. cmdline)
             --local prompt = "leading %{black}>: %{white}"
-            local prompt = "leading %{black}>: %{white} ww %{black}"
+            --local prompt = "leading %{black}>: %{white} ww %{black}"
+            local prompt = ">: "
             -- вывод цветного текста для консоли
             linesbuf:pushi(prompt .. cmdline)
         end
@@ -1943,6 +1944,9 @@ local function backspaceCmdLine()
         -- remove the last UTF-8 character.
         -- string.sub operates on bytes rather than UTF-8 characters, so we couldn't do string.sub(text, 1, -2).
         cmdline = string.sub(cmdline, 1, byteoffset - 1)
+        if cursorpos - 1 >= 1 then
+            cursorpos = cursorpos - 1
+        end
     end
     -- }}}
 end
@@ -2175,6 +2179,7 @@ local function setPreviousCommand()
             cmdhistoryIndex = cmdhistoryIndex - 1
         end
         cmdline = cmdhistory[cmdhistoryIndex]
+        cursorpos = #cmdline + 1
     end
     -- }}}
 end
@@ -2188,6 +2193,7 @@ local function setNextCommand()
             cmdhistoryIndex = cmdhistoryIndex + 1
         end
         cmdline = cmdhistory[cmdhistoryIndex]
+        cursorpos = #cmdline + 1
     end
     -- }}}
 end
