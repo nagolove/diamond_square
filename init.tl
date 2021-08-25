@@ -312,6 +312,7 @@ local debugStack: {{string:boolean}} = {}
 
 -- {{{ Global and local variables.
 
+global notificationDelay = 2.5
 -- Размеры экрана по-умолчанию(начальное положение)
 global DEFAULT_W, DEFAULT_H = 1024, 768
 -- Размеры экрана
@@ -391,6 +392,7 @@ local cameraZoneR: number
 local edgeColor = {0, 0, 0, 1}
 local edgeLineWidth = 10
 local loadCannonSound = love.audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
+local drawTerrain = true
 -- }}}
 
 function Bullet.new(px: number, py: number, dirx: number, diry: number, tankId: integer): Bullet
@@ -410,6 +412,8 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number, tankId: 
     end
     --bullet.body:resetMassData()
     self.dir = vec2.new(dirx, diry)
+    self.id = tankId or 0
+    self.objectType = 'Bullet'
 
     return self
 end
@@ -1546,6 +1550,35 @@ local function loadLocales()
     -- }}}
 end
 
+local function bindTerrainControlKeys()
+    local kc = KeyConfig
+    kc.bind(
+        'keypressed', { key = "c" },
+        function(sc: Shortcut): boolean, Shortcut
+            if mode ~= "normal" then
+                return false, sc
+            end
+            print('drawTerrain', drawTerrain)
+            drawTerrain = not drawTerrain
+            return false, sc
+        end,
+        --i18n("mt" .. "right"))
+        'none')
+        --[[
+    kc.bind(
+        'keypressed', { key = "v" },
+        function(sc: Shortcut): boolean, Shortcut
+            if mode ~= "normal" then
+                return false, sc
+            end
+            playerTank["right"](playerTank)
+            return false, sc
+        end,
+        --i18n("mt" .. "right"))
+        'none')
+        --]]
+end
+
 local function bindPlayerTankKeys()
     -- {{{
     if playerTank then
@@ -1865,10 +1898,15 @@ local function mainPresent()
 
     cam:attach()
     --background:present()
-    if diamondSquare then
-        diamondSquare:draw()
-        local dx, dy = - diamondSquare.width / 2, - diamondSquare.height / 2
-        --love.graphics.draw(diamondSquare.canvas as love.graphics.Drawable, dx, dy)
+    if drawTerrain and diamondSquare then
+            --diamondSquare:draw()
+            love.graphics.setColor{1, 1, 1, 1}
+            local dx, dy = - diamondSquare.width / 2, - diamondSquare.height / 2
+            local Canvas = love.graphics.Drawable 
+            love.graphics.draw(
+                diamondSquare.canvas as Canvas,
+                dx, dy
+            )
     end
     queryBoundingBox()
 
@@ -2476,15 +2514,17 @@ end
 
 function terrain(mapn: integer, rez: integer)
     if not mapn then
-        mapn = 8
+        mapn = 10
     end
     if not rez then
-        rez = 128
+        rez = 32
     end
-    diamondSquare = DiamonAndSquare.new(8, 128)
+    print('terrain', mapn, rez)
+    linesbuf:push(notificationDelay, 'terrain mapn = %d, rez = %d', mapn, rez)
+    diamondSquare = DiamonAndSquare.new(mapn, rez)
     diamondSquare:eval()
-    --diamondSquare:present()
-    --diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
+    diamondSquare:present()
+    diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
 end
 
 local function init()
@@ -2509,6 +2549,7 @@ local function init()
     bindFullscreenSwitcher()
     bindEscape()
     bindKonsole()
+    bindTerrainControlKeys()
 
     drawCoro = createDrawCoroutine()
 
