@@ -15,6 +15,7 @@ require "vector"
 require "Timer"
 --require "imgui"
 require 'render'
+require 'diamondsquare'
 --require 'moonshine'
 
 local List = require "list"
@@ -163,6 +164,8 @@ local record Bullet
     body: love.physics.Body
     timestamp: number
     objectType: ObjectType
+    id: integer
+    dir: vector
 
     -- START OF DEBUG STUFF
     velx: number
@@ -173,8 +176,13 @@ local record Bullet
     -- END OF DEBUG STUFF
     -- }}}
 
+    new: function(px: number, py: number, dirx: number, diry: number, tankId: integer): Bullet
     update: function()
 end
+
+local Bullet_mt: metatable<Bullet> = {
+    __index = Bullet,
+}
 
 --[[
 -- {{{ BulletPool prototype
@@ -209,16 +217,17 @@ local record Base
     fixture: love.physics.Fixture
     --pos: vector -- центр поворота корпуса
     tank: Tank
-    --mesh: love.graphics.Mesh
     polyshape: lp.PolygonShape
 
-    --meshVerts: {Vertex}
-    meshVerts: {{number}}
+    -- от 0 - пустой бак, до 1 - полный бак
+    fuel: number
+    -- потребление топлива, едениц в секунду
+    fuelConsumption: number
+    -- насколько нажат газ - от 0 до 1
+    engineAcceleration: number
 
     new: function(t: Tank): Base
     present: function(Base)
-    --updateMeshVerts: function(Base)
-    --updateMeshTexCoords: function(Base, x: number, y: number, w: number, h: number)
     -- }}}
 end
 
@@ -317,7 +326,7 @@ global PIX2M = 1 / 10
 -- Пули не сталкиваются с танками
 local bulletMask = 1
 -- Множитель передачи импульса на шасси танка.
-global tankForceScale = 1
+global tankForceScale = 8
 
 -- {{{ Konsole editing
 local historyfname = "cmdhistory.txt"
@@ -375,7 +384,7 @@ local bulletColor = {0.1, 0.1, 0.1, 1}
 global bulletLifetime = 35
 global tankCounter = 0
 global rng: love.math.RandomGenerator = love.math.newRandomGenerator()
-global diamondSquare = require 'diamondsquare'.new(8)
+global diamondSquare: DiamonAndSquare
 -- значение в пикселях
 local cameraZoneR: number
 
@@ -384,21 +393,60 @@ local edgeLineWidth = 10
 local loadCannonSound = love.audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 -- }}}
 
+function Bullet.new(px: number, py: number, dirx: number, diry: number, tankId: integer): Bullet
+    local self: Bullet = setmetatable({} as Bullet, Bullet_mt)
+
+    self.body = love.physics.newBody(physworld, px, py, "dynamic")
+    self.body:setBullet(true)
+    self.timestamp = love.timer.getTime()
+    local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
+    love.physics.newFixture(self.body, shape as lp.Shape)
+    --fixture:setGroupIndex(bulletCollisionGroup)
+    --fixture:setMask(bulletMask)
+    self.body:setMass(1)
+    local impulse = 100
+    if dirx and diry then
+        self.body:applyLinearImpulse(dirx * impulse, diry * impulse)
+    end
+    --bullet.body:resetMassData()
+    self.dir = vec2.new(dirx, diry)
+
+    return self
+end
+
 local function contactFilter(fixture1: lp.Fixture, fixture2: lp.Fixture): boolean
-    print('contactFilter', fixture1, fixture2)
+    --print('contactFilter', fixture1, fixture2)
+    local collide = true
+    local objectType1: ObjectType
+    local objectType2: ObjectType
+    local userdata1, userdata2: {string: any}, {string: any}
+
     if fixture1 then
-        local userdata1: {string:any} = fixture1:getBody():getUserData() as {string:any}
+        userdata1 = fixture1:getBody():getUserData() as {string:any}
         if userdata1 then
-            print("fixture1 userdata", userdata1['objectType'])
+            objectType1 = userdata1['objectType'] as ObjectType
+            --print("fixture1 userdata", userdata1['objectType'])
         end
     end
     if fixture2 then
-        local userdata2: {string:any} = fixture2:getBody():getUserData() as {string:any}
+        userdata2 = fixture2:getBody():getUserData() as {string:any}
         if userdata2 then
-            print("fixture2 userdata", userdata2['objectType'])
+            objectType2 = userdata2['objectType'] as ObjectType
+            --print("fixture2 userdata", userdata2['objectType'])
         end
     end
-    return true
+    print('objects are here', inspect(objectType1), inspect(objectType2))
+    if objectType1 and objectType2 then
+        if objectType1 == 'Base' and objectType2 == 'Turret' then
+            local id1 = userdata1['id'] as integer
+            local id2 = userdata2['id'] as integer
+            if id1 == id2 then
+                print('collide', collide)
+                collide = true
+            end
+        end
+    end
+    return collide
 end
 
 function disableDEBUG()
@@ -586,38 +634,10 @@ local function updateBullets()
     -- }}}
 end
 
--- размеры в метрах
-local function spawnBullet(px: number, py: number, dirx: number, diry: number)
-    -- {{{
-    print("spawnBullet")
-    local bullet: Bullet = {}
-    --bullet.body = love.physics.newBody(physworld, px, py, "kinematic")
-    bullet.body = love.physics.newBody(physworld, px, py, "dynamic")
-    bullet.body:setBullet(true)
-    --bullet.body = love.physics.newBody(physworld, px, py, "static")
-    bullet.timestamp = love.timer.getTime()
-    --local shape = love.physics.newCircleShape(px, py, bulletRadius)
-    local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
-    --local fixture = love.physics.newFixture(bullet.body, shape as lp.Shape)
-    love.physics.newFixture(bullet.body, shape as lp.Shape)
-    --fixture:setGroupIndex(bulletCollisionGroup)
-    --fixture:setMask(bulletMask)
-    --bullet.body:setMass(10)
-    bullet.body:setMass(1)
-    local impulseFactor = 100
-    if dirx and diry then
-        --print("bullet.body:applyLinearImpulse", dirx, diry)
-        bullet.body:applyLinearImpulse(dirx * impulseFactor, diry * impulseFactor)
-        --bullet.body:applyForce(dirx * 1, diry * 1)
-    end
-    --bullet.body:resetMassData()
-    table.insert(bullets, bullet)
-    -- }}}
-end
-
 function Turret:createFireCoro(): thread
     return coroutine.create(function()
-        loadCannonSound:play()
+        --loadCannonSound:play()
+
         -- wait loadCannonSound file length seconds
         -- and call fire() to create new bullets.
         -- {{{
@@ -649,11 +669,16 @@ function Turret:createFireCoro(): thread
 
         -- снаряд появляется за крайней точкой ствола пушки
         local magic = 14
-        spawnBullet(
+
+        print(self.id)
+
+        -- размеры в метрах
+        table.insert(bullets, Bullet.new(
             px - self.dir.x * magic, 
             py - self.dir.y * magic, 
-            -self.dir.x, -self.dir.y
-        )
+            -self.dir.x, -self.dir.y,
+            self.id
+        ))
     end)
 end
 
@@ -1840,7 +1865,11 @@ local function mainPresent()
 
     cam:attach()
     --background:present()
-    diamondSquare:draw()
+    if diamondSquare then
+        diamondSquare:draw()
+        local dx, dy = - diamondSquare.width / 2, - diamondSquare.height / 2
+        --love.graphics.draw(diamondSquare.canvas as love.graphics.Drawable, dx, dy)
+    end
     queryBoundingBox()
 
     presentDrawlistBottom()
@@ -2439,7 +2468,24 @@ local function physInit()
 end
 
 --local effect: moonshine.Effect
-local effect: any
+--local effect: any
+
+function drawMiniMap()
+
+end
+
+function terrain(mapn: integer, rez: integer)
+    if not mapn then
+        mapn = 8
+    end
+    if not rez then
+        rez = 128
+    end
+    diamondSquare = DiamonAndSquare.new(8, 128)
+    diamondSquare:eval()
+    --diamondSquare:present()
+    --diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
+end
 
 local function init()
     -- {{{
@@ -2500,7 +2546,7 @@ local function init()
     disableDEBUG()
 
     bugInit()
-    diamondSquare:eval()
+    terrain()
 
     cameraZoneR = H / 2
     -- }}}
