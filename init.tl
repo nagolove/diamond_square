@@ -242,17 +242,6 @@ local record Hit
     new: function(x: number, y: number): Hit
 end
 
-function Hit.new(): Hit
-    local Hit_mt: metatable<Hit> = {
-        __index = Hit,
-    }
-    local self: Hit = setmetatable({} as Hit, Hit_mt)
-
-
-
-    return self
-end
-
 -- Класс основного боевого танка.
 local record Tank
     -- {{{
@@ -361,6 +350,7 @@ global cursorpos: integer = 1
 global suggestList: List = List.new()
 -- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
+local hitImage = love.graphics.newImage(SCENE_PREFIX .. '/flame.png')
 -- }}}
 
 -- верхний список отрисовки, рисуется после рисования пачки танков
@@ -690,6 +680,28 @@ local function updateBullets()
     -- }}}
 end
 
+function Hit.new(x: number, y: number): Hit
+    local Hit_mt: metatable<Hit> = {
+        __index = Hit,
+    }
+    local self: Hit = setmetatable({} as Hit, Hit_mt)
+
+    local maxParticlesNumber = 128
+    self.ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
+    self.ps:setParticleLifetime(2, 5) -- Particles live at least 2s and at most 5s.
+    self.ps:setEmissionRate(5)
+    self.ps:setSizeVariation(1)
+    self.ps:setLinearAcceleration(-20, -20, 20, 20) -- Random movement in all directions.
+    self.ps:setColors(1, 1, 1, 1, 1, 1, 1, 0) -- Fade to transparency.
+
+    x, y = x * M2PIX, y * M2PIX
+
+    self.x = x
+    self.y = y
+
+    return self
+end
+
 function Turret:createFireCoro(): thread
     return coroutine.create(function()
         --loadCannonSound:play()
@@ -924,13 +936,10 @@ end
 
 function Tank:left()
     self.base:left()
-    --self.physbody:applyTorque(-angularImpulseScale)
 end
 
 function Tank:right()
     self.base:right()
-    --self.physbody:applyTorque(angularImpulseScale)
-end
 
 function Tank:forward()
     self.base:forward()
@@ -1286,6 +1295,7 @@ function Turret:rotateToMouse()
     --]]
 
     self.angle = -a
+    -- Вместо установки угла поробовать поворачитать тело через applyTorque()
     self.physbody:setAngle(self.angle + math.pi)
     -- }}}
 end
@@ -1672,22 +1682,25 @@ local function drawHits()
     local Drawable = love.graphics.Drawable
     for _, v in ipairs(hits) do
         love.graphics.draw(v.ps as Drawable, v.x, v.y)
+        love.graphics.draw(v.ps as Drawable, 0, 0)
     end
 end
 
 local function bindDeveloperKeys()
     local kc = KeyConfig
     kc.bind(
-        'keypressed', { key = "p" },
+        --'keypressed', { key = "p" },
+        'isdown', { key = "p" },
         function(sc: Shortcut): boolean, Shortcut
             if mode ~= "normal" then
                 return false, sc
             end
 
+            print('works')
             if playerTank then
                 local x, y = playerTank.base.physbody:getWorldCenter()
-                --x, y = x * M2PIX, y * M2PIX
                 newHit(x, y)
+                print('new Hit created at', x, y)
             end
 
             return false, sc

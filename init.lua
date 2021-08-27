@@ -231,6 +231,17 @@ local Base = {}
 
 
 
+local Hit = {}
+
+
+
+
+
+
+
+
+
+
 
 local Tank = {}
 
@@ -339,6 +350,7 @@ cursorpos = 1
 suggestList = List.new()
 
 attachedVarsList = {}
+local hitImage = love.graphics.newImage(SCENE_PREFIX .. '/flame.png')
 
 
 
@@ -397,7 +409,7 @@ local baseBatch = Batch.new("tank_body_small.png")
 local turretBatch = Batch.new("tank_tower.png")
 
 maxTrackCount = 128
-
+hits = {}
 local coroutines = {}
 
 
@@ -666,6 +678,28 @@ local function updateBullets()
    end
    bullets = alive
 
+end
+
+function Hit.new(x, y)
+   local Hit_mt = {
+      __index = Hit,
+   }
+   local self = setmetatable({}, Hit_mt)
+
+   local maxParticlesNumber = 128
+   self.ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
+   self.ps:setParticleLifetime(2, 5)
+   self.ps:setEmissionRate(5)
+   self.ps:setSizeVariation(1)
+   self.ps:setLinearAcceleration(-20, -20, 20, 20)
+   self.ps:setColors(1, 1, 1, 1, 1, 1, 1, 0)
+
+   x, y = x * M2PIX, y * M2PIX
+
+   self.x = x
+   self.y = y
+
+   return self
 end
 
 function Turret:createFireCoro()
@@ -1641,10 +1675,46 @@ local function loadLocales()
 
 end
 
+
+local function newHit(x, y)
+   table.insert(hits, Hit.new(x, y))
+end
+
+local function drawHits()
+   local Drawable = love.graphics.Drawable
+   for _, v in ipairs(hits) do
+      love.graphics.draw(v.ps, v.x, v.y)
+      love.graphics.draw(v.ps, 0, 0)
+   end
+end
+
+local function bindDeveloperKeys()
+   local kc = KeyConfig
+   kc.bind(
+
+   'isdown', { key = "p" },
+   function(sc)
+      if mode ~= "normal" then
+         return false, sc
+      end
+
+      print('works')
+      if playerTank then
+         local x, y = playerTank.base.physbody:getWorldCenter()
+         newHit(x, y)
+         print('new Hit created at', x, y)
+      end
+
+      return false, sc
+   end,
+
+   'spawn Hit')
+end
+
 local function bindTerrainControlKeys()
    local kc = KeyConfig
    kc.bind(
-   'keypressed', { key = "c" },
+   'keypressed', { key = "t" },
    function(sc)
       if mode ~= "normal" then
          return false, sc
@@ -1654,7 +1724,7 @@ local function bindTerrainControlKeys()
       return false, sc
    end,
 
-   'none')
+   'draw terrain or not')
 
 
 
@@ -2015,6 +2085,8 @@ local function mainPresent()
 
    baseBatch:flush()
    turretBatch:flush()
+
+   drawHits()
 
    presentDrawlistTop()
 
@@ -2652,6 +2724,7 @@ local function init()
    bindEscape()
    bindKonsole()
    bindTerrainControlKeys()
+   bindDeveloperKeys()
 
    drawCoro = createDrawCoroutine()
 
