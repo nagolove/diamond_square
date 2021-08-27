@@ -13,7 +13,7 @@ require("keyconfig")
 require("camera")
 require("vector")
 require("Timer")
-
+require("imgui")
 require('render')
 require('diamondsquare')
 
@@ -67,12 +67,14 @@ local TurretCommon = {}
 
 
 
+
 local turretCommon = {
    barrelRectXY = { 124, 0 },
    barrelRectWH = { 8, 109 },
    towerRectXY = { 101, 103 },
    towerRectWH = { 54, 58 },
 }
+
 
 local Edge = {}
 
@@ -112,6 +114,27 @@ local Arena = {}
 
 
 local FilterData = {}
+
+
+
+
+
+local Bullet = {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -159,51 +182,6 @@ local Turret = {}
 
 
 
-local Bullet = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local Bullet_mt = {
-   __index = Bullet,
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local baseBatch = Batch.new("tank_body_small.png")
-local turretBatch = Batch.new("tank_tower.png")
-
 
 local Base = {}
 
@@ -232,9 +210,29 @@ local Base = {}
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 local Tank = {}
-
-
 
 
 
@@ -325,7 +323,9 @@ PIX2M = 1 / 10
 
 
 
+
 local bulletMask = 1
+
 
 tankForceScale = 8
 
@@ -339,8 +339,6 @@ cursorpos = 1
 suggestList = List.new()
 
 attachedVarsList = {}
-
-
 
 
 
@@ -383,6 +381,7 @@ local bulletRadius = 4
 local bulletColor = { 0.1, 0.1, 0.1, 1 }
 
 bulletLifetime = 35
+
 tankCounter = 0
 rng = love.math.newRandomGenerator()
 
@@ -394,8 +393,34 @@ local edgeLineWidth = 10
 local loadCannonSound = love.audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 local drawTerrain = true
 
+local baseBatch = Batch.new("tank_body_small.png")
+local turretBatch = Batch.new("tank_tower.png")
+
+maxTrackCount = 128
+
+local coroutines = {}
+
+
+local function coroutinesUpdate()
+   local alive = {}
+   for _, coro in ipairs(coroutines) do
+      if coroutine.status(coro) ~= 'dead' then
+         local ok, errmsg = coroutine.resume(coro), string
+         if ok then
+            table.insert(alive, coro)
+         else
+            print('coro error:', errmsg)
+         end
+      end
+   end
+   coroutines = alive
+end
 
 function Bullet.new(px, py, dirx, diry, tankId)
+
+   local Bullet_mt = {
+      __index = Bullet,
+   }
    local self = setmetatable({}, Bullet_mt)
 
    self.body = love.physics.newBody(physworld, px, py, "dynamic")
@@ -416,9 +441,11 @@ function Bullet.new(px, py, dirx, diry, tankId)
    self.objectType = 'Bullet'
 
    return self
+
 end
 
 local function contactFilter(fixture1, fixture2)
+
 
    local collide = true
    local objectType1
@@ -451,6 +478,7 @@ local function contactFilter(fixture1, fixture2)
       end
    end
    return collide
+
 end
 
 function disableDEBUG()
@@ -527,6 +555,7 @@ function popDEBUG()
 end
 
 local function bugInit()
+
    local bugDir = 'bug'
    print('SCENE_PREFIX', SCENE_PREFIX)
    local files = love.filesystem.getDirectoryItems(SCENE_PREFIX .. "/" .. bugDir)
@@ -561,6 +590,7 @@ local function bugInit()
    local imageData = canvas:newImageData()
    imageData:encode('png', "bug_timeline.png")
    print('encoded')
+
 end
 
 local function getBodyFilterData(body)
@@ -669,7 +699,8 @@ function Turret:createFireCoro()
 
 
 
-      local px, py = self.tank.physbody:getWorldCenter()
+
+      local px, py = self.tank.base.physbody:getWorldCenter()
 
 
       local magic = 14
@@ -846,26 +877,45 @@ function Tank:fire()
 
 end
 
-function Tank:left()
+function Base:left()
    self.physbody:applyTorque(-angularImpulseScale)
 end
 
-function Tank:right()
+function Base:right()
    self.physbody:applyTorque(angularImpulseScale)
 end
 
-function Tank:forward()
+function Base:forward()
 
    local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
    self.physbody:applyForce(x, y)
 
 end
 
-function Tank:backward()
+function Base:backward()
 
    local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
    self.physbody:applyForce(-x, -y)
 
+end
+
+
+function Tank:left()
+   self.base:left()
+
+end
+
+function Tank:right()
+   self.base:right()
+
+end
+
+function Tank:forward()
+   self.base:forward()
+end
+
+function Tank:backward()
+   self.base:backward()
 end
 
 
@@ -899,19 +949,6 @@ function Tank.new(pos, dir)
    self.base.id = self.id
    self.turret.id = self.id
 
-   if DEBUG_PHYSICS then
-      print("angular damping", self.physbody:getAngularDamping())
-      print("linear damping", self.physbody:getLinearDamping())
-   end
-
-   self.physbody:setAngularDamping(3.99)
-   self.physbody:setLinearDamping(2)
-
-   if DEBUG_PHYSICS then
-      print("angular damping", self.physbody:getAngularDamping())
-      print("linear damping", self.physbody:getLinearDamping())
-   end
-
    if DEBUG_TANK then
       print('self.turret', self.turret)
       print('self.base', self.base)
@@ -943,7 +980,7 @@ local function drawBodyStat(body)
 
 end
 
-function Tank:drawDirectionVector()
+function Base:drawDirectionVector()
 
    if self.dir then
       local x, y = self.physbody:getWorldCenter()
@@ -955,7 +992,7 @@ function Tank:drawDirectionVector()
 
 end
 
-function Tank:resetVelocities()
+function Base:resetVelocities()
 
    if self.physbody then
       self.physbody:setAngularVelocity(0)
@@ -964,11 +1001,27 @@ function Tank:resetVelocities()
 
 end
 
-function Tank:updateDir()
+function Base:updateDir()
 
    local unit = 1
 
    self.dir = vec2.fromPolar(self.physbody:getAngle() + math.pi / 2, unit)
+
+end
+
+function Base:update()
+   self:updateDir()
+   if not self.filterdata then
+      self.filterdata = getBodyFilterData(self.physbody)
+   end
+
+   local vx, vy = self.physbody:getLinearVelocity()
+   local len = vecl.len(vx, vy)
+   local threshold = 1
+   local w = self.physbody:getAngularVelocity()
+   if len > threshold or w > 0.1 then
+      self:pushTrack()
+   end
 
 end
 
@@ -977,8 +1030,6 @@ function Tank:update()
 
 
 
-   self:updateDir()
-
    if self.turret then
       self.turret:update()
       if not self.turret.filterdata then
@@ -986,9 +1037,7 @@ function Tank:update()
       end
    end
    if self.base then
-      if not self.base.filterdata then
-         self.base.filterdata = getBodyFilterData(self.base.physbody)
-      end
+      self.base:update()
    end
 
    return self
@@ -1053,7 +1102,8 @@ function Tank:present()
 
    if cmd_drawBodyStat then
       push2drawlistTop(function()
-         for _, f in ipairs(self.physbody:getFixtures()) do
+         local baseBody = self.base.physbody
+         for _, f in ipairs(baseBody:getFixtures()) do
 
             drawFixture(f)
 
@@ -1061,9 +1111,9 @@ function Tank:present()
 
          end
          if DEBUG_DIRECTION then
-            self:drawDirectionVector()
+            self.base:drawDirectionVector()
          end
-         drawBodyStat(self.physbody)
+         drawBodyStat(self.base.physbody)
       end)
       if self.turret then
          push2drawlistTop(function()
@@ -1073,9 +1123,6 @@ function Tank:present()
 
 
 
-            end
-            if DEBUG_DIRECTION then
-               self:drawDirectionVector()
             end
             drawBodyStat(self.turret.physbody)
          end)
@@ -1101,17 +1148,7 @@ function Turret.new(t)
    self.tank = t
    self.objectType = "Turret"
 
-   self.image = turretBatch.image
-   self.tankphysbody = t.physbody
-
-
-
-
-
-
-
-   local w, _ = (self.image):getDimensions()
-
+   self.tankphysbody = t.base.physbody
 
    local px, py = t.pos.x, t.pos.y
 
@@ -1173,12 +1210,12 @@ function Turret.new(t)
    self.physbody:resetMassData()
 
 
-   local p1x, p1y = self.tank.physbody:getWorldCenter()
-   local p2x, p2y = self.tank.physbody:getWorldCenter()
+   local p1x, p1y = self.tank.base.physbody:getWorldCenter()
+   local p2x, p2y = self.tank.base.physbody:getWorldCenter()
 
 
 
-   self.joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
+   self.joint = lp.newWeldJoint(self.tank.base.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
 
 
 
@@ -1324,15 +1361,21 @@ function Base.new(t)
    local self = setmetatable({}, Base_mt)
    self.objectType = "Base"
    self.tank = t
+   self.track = {}
 
 
    self.rectXY = { 86, 72 }
    self.rectWH = { 84, 111 }
 
    self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
+   self.physbody:setAngularDamping(3.99)
+   self.physbody:setLinearDamping(2)
    self.physbody:setUserData(self)
 
-   t.physbody = self.physbody
+   if DEBUG_PHYSICS then
+      print("angular damping", self.physbody:getAngularDamping())
+      print("linear damping", self.physbody:getLinearDamping())
+   end
 
    local px, py = t.pos.x, t.pos.y
 
@@ -1396,7 +1439,55 @@ function Base:present()
    self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2])
 
 
+   self.x4 = x4
+   self.y4 = y4
+   self.x1 = x1
+   self.y1 = y1
+   self:drawTrack()
 
+end
+
+function Base:pushTrack()
+   if self.x4 and self.y4 and self.x1 and self.y1 then
+      local trackNode = {}
+      local len = 15
+      local deltalen = 3
+      local dx1, dx2 = vecl.normalize(self.x4 - self.x1, self.y4 - self.y1)
+      local deltax, deltay = dx1 * deltalen, dx2 * deltalen
+      local x1, y1, x4, y4
+      dx1, dx2 = dx1 * len, dx2 * len
+      x4, y4 = self.x4 - deltax, self.y4 - deltay
+
+      table.insert(trackNode, x4)
+      table.insert(trackNode, y4)
+      table.insert(trackNode, x4 - dx1)
+      table.insert(trackNode, y4 - dx2)
+
+      x1, y1 = self.x1 + deltax, self.y1 + deltay
+
+      table.insert(trackNode, x1)
+      table.insert(trackNode, y1)
+      table.insert(trackNode, x1 + dx1)
+      table.insert(trackNode, y1 + dx2)
+
+      table.insert(self.track, trackNode)
+
+      if #self.track > maxTrackCount then
+         table.remove(self.track, 1)
+      end
+   end
+end
+
+function Base:drawTrack()
+   local linew = 2
+   local olw = gr.getLineWidth()
+   gr.setLineWidth(linew)
+   gr.setColor({ 0, 0, 0, 1 })
+   for _, v in ipairs(self.track) do
+      gr.line(v[1], v[2], v[3], v[4])
+      gr.line(v[5], v[6], v[7], v[8])
+   end
+   gr.setLineWidth(olw)
 end
 
 local function onBeginContact(
@@ -1673,10 +1764,16 @@ local function changeKeyConfigListbackground()
 
 end
 
+local function drawParticlesEditor()
+end
+
 local function drawui()
 
+   imgui.StyleColorsLight()
+   imgui.ShowDemoWindow()
+   imgui.ShowUserGuide()
 
-
+   drawParticlesEditor()
 
 
 end
@@ -1684,7 +1781,7 @@ end
 local function moveCameraToPlayer()
 
    if playerTank then
-      local x, y = playerTank.physbody:getWorldCenter()
+      local x, y = playerTank.base.physbody:getWorldCenter()
       x, y = x * M2PIX, y * M2PIX
       cam:lookAt(x, y)
    end
@@ -1812,6 +1909,14 @@ local function processAttachedVariables()
    end
 end
 
+local function stats()
+   linesbuf:pushi('Lua used %d Mb', (collectgarbage('count')) / 1024)
+   local stat = love.graphics.getStats()
+   linesbuf:pushi('drawcalls %d', stat.drawcalls)
+   linesbuf:pushi('canvasswitches %d', stat.canvasswitches)
+
+end
+
 local function konsolePresent()
 
    gr.setColor({ 1, 1, 1, 1 })
@@ -1829,6 +1934,8 @@ local function konsolePresent()
          linesbuf:pushi(prompt .. cmdline)
       end
    end
+
+   stats()
 
    cam:attach()
    linesbuf:draw()
@@ -1900,13 +2007,7 @@ local function mainPresent()
 
    if drawTerrain and diamondSquare then
 
-      love.graphics.setColor({ 1, 1, 1, 1 })
-      local dx, dy = -diamondSquare.width / 2, -diamondSquare.height / 2
-      local Canvas = love.graphics.Drawable
-      love.graphics.draw(
-      diamondSquare.canvas,
-      dx, dy)
-
+      diamondSquare:present()
    end
    queryBoundingBox()
 
@@ -1919,7 +2020,7 @@ local function mainPresent()
 
    cam:detach()
 
-
+   drawCameraCircle()
 
    drawlistTop = {}
    drawlistBottom = {}
@@ -1985,7 +2086,7 @@ local function moveCamera()
       local w, h = gr.getDimensions()
       local centerx, centery = w / 2, h / 2
 
-      local tankx, tanky = playerTank.physbody:getWorldCenter()
+      local tankx, tanky = playerTank.base.physbody:getWorldCenter()
 
       local diff = vecl.dist(centerx, centery, tankx, tanky)
 
@@ -1999,6 +2100,7 @@ local function update(dt)
    updateTanks()
    updateBullets()
    arena:update()
+   coroutinesUpdate()
    moveCamera()
 end
 
@@ -2514,16 +2616,16 @@ end
 
 function terrain(mapn, rez)
    if not mapn then
-      mapn = 10
+      mapn = 8
    end
    if not rez then
       rez = 32
    end
    print('terrain', mapn, rez)
    linesbuf:push(notificationDelay, 'terrain mapn = %d, rez = %d', mapn, rez)
-   diamondSquare = DiamonAndSquare.new(mapn, rez)
+   diamondSquare = DiamonAndSquare.new(mapn, rez, rng)
    diamondSquare:eval()
-   diamondSquare:present()
+   diamondSquare:draw2canvas()
    diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
 end
 
