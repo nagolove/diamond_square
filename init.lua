@@ -350,7 +350,7 @@ cursorpos = 1
 suggestList = List.new()
 
 attachedVarsList = {}
-local hitImage = love.graphics.newImage(SCENE_PREFIX .. '/flame.png')
+local hitImage = love.graphics.newImage(SCENE_PREFIX .. '/flame2.png')
 
 
 
@@ -436,6 +436,7 @@ function Bullet.new(px, py, dirx, diry, tankId)
    local self = setmetatable({}, Bullet_mt)
 
    self.body = love.physics.newBody(physworld, px, py, "dynamic")
+   self.body:setUserData(self)
    self.body:setBullet(true)
    self.timestamp = love.timer.getTime()
    local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
@@ -474,11 +475,14 @@ local function contactFilter(fixture1, fixture2)
    if fixture2 then
       userdata2 = fixture2:getBody():getUserData()
       if userdata2 then
+
          objectType2 = userdata2['objectType']
 
       end
    end
+
    print('objects are here', inspect(objectType1), inspect(objectType2))
+
    if objectType1 and objectType2 then
       if objectType1 == 'Base' and objectType2 == 'Turret' then
          local id1 = userdata1['id']
@@ -489,6 +493,18 @@ local function contactFilter(fixture1, fixture2)
          end
       end
    end
+
+
+
+
+
+
+
+
+
+
+
+
    return collide
 
 end
@@ -687,12 +703,32 @@ function Hit.new(x, y)
    local self = setmetatable({}, Hit_mt)
 
    local maxParticlesNumber = 128
+
    self.ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
-   self.ps:setParticleLifetime(2, 5)
+   self.ps:setParticleLifetime(0.2, 1)
    self.ps:setEmissionRate(5)
    self.ps:setSizeVariation(1)
    self.ps:setLinearAcceleration(-20, -20, 20, 20)
-   self.ps:setColors(1, 1, 1, 1, 1, 1, 1, 0)
+   self.ps:setColors(
+   1, 1, 1, 1,
+   1, 1, 1, 0)
+
+
+   local lifetime = 0.1 + (rng:random() + 0.01) / 2
+   self.ps:setEmitterLifetime(lifetime)
+
+   print('lifetime', lifetime)
+   print('self.ps:hasRelativeRotation', self.ps:hasRelativeRotation())
+   print('self.ps:getEmitterLifetime()', self.ps:getEmitterLifetime())
+   print('getRotation()', self.ps:getRotation())
+
+
+
+   self.ps:setRotation(0, math.pi / 3)
+
+   print('self.ps:getSizeVariation()', self.ps:getSizeVariation())
+
+
 
    x, y = x * M2PIX, y * M2PIX
 
@@ -936,12 +972,10 @@ end
 
 function Tank:left()
    self.base:left()
-
 end
 
 function Tank:right()
    self.base:right()
-
 end
 
 function Tank:forward()
@@ -1298,6 +1332,7 @@ function Turret:rotateToMouse()
 
 
    self.angle = -a
+
    self.physbody:setAngle(self.angle + math.pi)
 
 end
@@ -1524,6 +1559,11 @@ function Base:drawTrack()
    gr.setLineWidth(olw)
 end
 
+
+local function newHit(x, y)
+   table.insert(hits, Hit.new(x, y))
+end
+
 local function onBeginContact(
    fixture1,
    fixture2,
@@ -1560,25 +1600,61 @@ local function onBeginContact(
    local userdata1 = body1:getUserData()
    local body2 = fixture2:getBody()
    local userdata2 = body2:getUserData()
+   local objectType1
+   local objectType2
 
-   if userdata1 and userdata1.objectType and userdata1.objectType == "Bullet" then
-      print('1111111')
-      if userdata2.objectType then
-         if userdata2.objectType == "Turret" then
-            print('Bullet with Turret')
-         elseif userdata2.objectType == "Base" then
-            print('Bullet with Base')
-         end
+   if fixture1 then
+      userdata1 = fixture1:getBody():getUserData()
+      if userdata1 then
+         objectType1 = userdata1['objectType']
+
+      end
+   end
+   if fixture2 then
+      userdata2 = fixture2:getBody():getUserData()
+      if userdata2 then
+
+         objectType2 = userdata2['objectType']
+
       end
    end
 
-   if userdata2 and userdata2.objectType and userdata2.objectType == "Bullet" then
-      print('2222222')
-      if userdata1.objectType then
-         if userdata1.objectType == "Turret" then
-            print('Turret with Bullet')
-         elseif userdata1.objectType == "Base" then
-            print('Base with Base')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   if objectType1 and objectType2 then
+      if (objectType1 == 'Bullet' and objectType2 == 'Base') or
+         (objectType1 == 'Base' and objectType2 == 'Bullet') or
+         (objectType1 == 'Turret' and objectType2 == 'Bullet') or
+         (objectType1 == 'Base' and objectType2 == 'Turret') then
+         local id1 = userdata1.id
+         local id2 = userdata2.id
+         if id1 ~= id2 then
+            newHit(p1x, p1y)
+
          end
       end
    end
@@ -1675,16 +1751,17 @@ local function loadLocales()
 
 end
 
-
-local function newHit(x, y)
-   table.insert(hits, Hit.new(x, y))
-end
-
 local function drawHits()
    local Drawable = love.graphics.Drawable
    for _, v in ipairs(hits) do
+      gr.setColor({ 1, 1, 1, 1 })
       love.graphics.draw(v.ps, v.x, v.y)
-      love.graphics.draw(v.ps, 0, 0)
+   end
+end
+
+local function updateHits(dt)
+   for _, v in ipairs(hits) do
+      v.ps:update(dt)
    end
 end
 
@@ -2161,6 +2238,7 @@ local function moveCamera()
       local tankx, tanky = playerTank.base.physbody:getWorldCenter()
 
       local diff = vecl.dist(centerx, centery, tankx, tanky)
+      diff = nil
 
    end
 end
@@ -2172,6 +2250,7 @@ local function update(dt)
    updateTanks()
    updateBullets()
    arena:update()
+   updateHits(dt)
    coroutinesUpdate()
    moveCamera()
 end

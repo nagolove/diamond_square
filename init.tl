@@ -350,7 +350,7 @@ global cursorpos: integer = 1
 global suggestList: List = List.new()
 -- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
-local hitImage = love.graphics.newImage(SCENE_PREFIX .. '/flame.png')
+local hitImage = love.graphics.newImage(SCENE_PREFIX .. '/flame2.png')
 -- }}}
 
 -- верхний список отрисовки, рисуется после рисования пачки танков
@@ -436,6 +436,7 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number, tankId: 
     local self: Bullet = setmetatable({} as Bullet, Bullet_mt)
 
     self.body = love.physics.newBody(physworld, px, py, "dynamic")
+    self.body:setUserData(self)
     self.body:setBullet(true)
     self.timestamp = love.timer.getTime()
     local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
@@ -474,11 +475,14 @@ local function contactFilter(fixture1: lp.Fixture, fixture2: lp.Fixture): boolea
     if fixture2 then
         userdata2 = fixture2:getBody():getUserData() as {string:any}
         if userdata2 then
+            --print(inspect(userdata2))
             objectType2 = userdata2['objectType'] as ObjectType
             --print("fixture2 userdata", userdata2['objectType'])
         end
     end
+
     print('objects are here', inspect(objectType1), inspect(objectType2))
+
     if objectType1 and objectType2 then
         if objectType1 == 'Base' and objectType2 == 'Turret' then
             local id1 = userdata1['id'] as integer
@@ -489,6 +493,18 @@ local function contactFilter(fixture1: lp.Fixture, fixture2: lp.Fixture): boolea
             end
         end
     end
+
+    --[[
+    if objectType1 and objectType2 then
+        if (objectType1 == 'Bullet' and objectType2 == 'Base') or 
+           (objectType1 == 'Base' and objectType2 == 'Bullet') or
+           (objectType1 == 'Turret' and objectType2 == 'Bullet') or
+           (objectType1 == 'Base' and objectType2 == 'Turret') then
+
+       end
+    end
+    --]]
+
     return collide
     -- }}}
 end
@@ -687,12 +703,32 @@ function Hit.new(x: number, y: number): Hit
     local self: Hit = setmetatable({} as Hit, Hit_mt)
 
     local maxParticlesNumber = 128
+
     self.ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
-    self.ps:setParticleLifetime(2, 5) -- Particles live at least 2s and at most 5s.
+    self.ps:setParticleLifetime(0.2, 1) -- Particles live at least 2s and at most 5s.
     self.ps:setEmissionRate(5)
     self.ps:setSizeVariation(1)
     self.ps:setLinearAcceleration(-20, -20, 20, 20) -- Random movement in all directions.
-    self.ps:setColors(1, 1, 1, 1, 1, 1, 1, 0) -- Fade to transparency.
+    self.ps:setColors(
+        1, 1, 1, 1, 
+        1, 1, 1, 0
+    ) -- Fade to transparency.
+
+    local lifetime = 0.1 + (rng:random() + 0.01) / 2
+    self.ps:setEmitterLifetime(lifetime)
+
+    print('lifetime', lifetime)
+    print('self.ps:hasRelativeRotation', self.ps:hasRelativeRotation())
+    print('self.ps:getEmitterLifetime()', self.ps:getEmitterLifetime())
+    print('getRotation()', self.ps:getRotation())
+
+    --self.ps:setRotation(-2*math.pi, 2*math.pi)
+    --self.ps:setRotation(-math.pi, math.pi)
+    self.ps:setRotation(0, math.pi / 3)
+
+    print('self.ps:getSizeVariation()', self.ps:getSizeVariation())
+
+    --self.ps:setSizes(1, 0.1)
 
     x, y = x * M2PIX, y * M2PIX
 
@@ -940,6 +976,7 @@ end
 
 function Tank:right()
     self.base:right()
+end
 
 function Tank:forward()
     self.base:forward()
@@ -1522,6 +1559,11 @@ function Base:drawTrack()
     gr.setLineWidth(olw)
 end
 
+-- координаты в метрах
+local function newHit(x: number, y: number)
+    table.insert(hits, Hit.new(x, y))
+end
+
 local function onBeginContact(
     fixture1: love.physics.Fixture, 
     fixture2: love.physics.Fixture, 
@@ -1558,7 +1600,27 @@ local function onBeginContact(
     local userdata1: {any:any} = body1:getUserData() as {any:any}
     local body2 = fixture2:getBody()
     local userdata2: {any:any} = body2:getUserData() as {any:any}
+    local objectType1: ObjectType
+    local objectType2: ObjectType
 
+    if fixture1 then
+        userdata1 = fixture1:getBody():getUserData() as {string:any}
+        if userdata1 then
+            objectType1 = userdata1['objectType'] as ObjectType
+            --print("fixture1 userdata", userdata1['objectType'])
+        end
+    end
+    if fixture2 then
+        userdata2 = fixture2:getBody():getUserData() as {string:any}
+        if userdata2 then
+            --print(inspect(userdata2))
+            objectType2 = userdata2['objectType'] as ObjectType
+            --print("fixture2 userdata", userdata2['objectType'])
+        end
+    end
+
+    --[[
+    -- {{{
     if userdata1 and userdata1.objectType and userdata1.objectType == "Bullet" then
         print('1111111')
         if userdata2.objectType then
@@ -1579,6 +1641,22 @@ local function onBeginContact(
                 print('Base with Base')
             end
         end
+    end
+    -- }}}
+    --]]
+
+    if objectType1 and objectType2 then
+        if (objectType1 == 'Bullet' and objectType2 == 'Base') or 
+           (objectType1 == 'Base' and objectType2 == 'Bullet') or
+           (objectType1 == 'Turret' and objectType2 == 'Bullet') or
+           (objectType1 == 'Base' and objectType2 == 'Turret') then
+               local id1 = userdata1.id 
+               local id2 = userdata2.id
+               if id1 ~= id2 then
+                   newHit(p1x, p1y)
+                   --newHit(p2x, p2y)
+               end
+       end
     end
 
     push2drawlistTop(function()
@@ -1673,16 +1751,17 @@ local function loadLocales()
     -- }}}
 end
 
--- координаты в метрах
-local function newHit(x: number, y: number)
-    table.insert(hits, Hit.new(x, y))
-end
-
 local function drawHits()
     local Drawable = love.graphics.Drawable
     for _, v in ipairs(hits) do
+        gr.setColor{1, 1, 1, 1}
         love.graphics.draw(v.ps as Drawable, v.x, v.y)
-        love.graphics.draw(v.ps as Drawable, 0, 0)
+    end
+end
+
+local function updateHits(dt: number)
+    for _, v in ipairs(hits) do
+        v.ps:update(dt)
     end
 end
 
@@ -2159,6 +2238,7 @@ local function moveCamera()
         local tankx, tanky = playerTank.base.physbody:getWorldCenter()
         --print("tankx, tanky", tankx, tanky)
         local diff = vecl.dist(centerx, centery, tankx, tanky)
+        diff = nil
         --print("diff", diff)
     end
 end
@@ -2170,6 +2250,7 @@ local function update(dt: number)
     updateTanks()
     updateBullets()
     arena:update()
+    updateHits(dt)
     coroutinesUpdate()
     moveCamera()
 end
