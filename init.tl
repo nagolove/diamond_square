@@ -231,6 +231,28 @@ local record Base
     -- }}}
 end
 
+local record Hit 
+    -- в пикселях
+    x: number
+    -- в пикселях
+    y: number
+    ps: love.graphics.ParticleSystem
+
+    -- координаты в метрах
+    new: function(x: number, y: number): Hit
+end
+
+function Hit.new(): Hit
+    local Hit_mt: metatable<Hit> = {
+        __index = Hit,
+    }
+    local self: Hit = setmetatable({} as Hit, Hit_mt)
+
+
+
+    return self
+end
+
 -- Класс основного боевого танка.
 local record Tank
     -- {{{
@@ -397,7 +419,7 @@ local baseBatch: Batch = Batch.new("tank_body_small.png")
 local turretBatch: Batch = Batch.new("tank_tower.png")
 
 global maxTrackCount = 128
-
+global hits: {Hit} = {}
 local coroutines: {thread} = {}
 -- }}}
 
@@ -1641,10 +1663,43 @@ local function loadLocales()
     -- }}}
 end
 
+-- координаты в метрах
+local function newHit(x: number, y: number)
+    table.insert(hits, Hit.new(x, y))
+end
+
+local function drawHits()
+    local Drawable = love.graphics.Drawable
+    for _, v in ipairs(hits) do
+        love.graphics.draw(v.ps as Drawable, v.x, v.y)
+    end
+end
+
+local function bindDeveloperKeys()
+    local kc = KeyConfig
+    kc.bind(
+        'keypressed', { key = "p" },
+        function(sc: Shortcut): boolean, Shortcut
+            if mode ~= "normal" then
+                return false, sc
+            end
+
+            if playerTank then
+                local x, y = playerTank.base.physbody:getWorldCenter()
+                --x, y = x * M2PIX, y * M2PIX
+                newHit(x, y)
+            end
+
+            return false, sc
+        end,
+        --i18n("mt" .. "right"))
+        'spawn Hit')
+end
+
 local function bindTerrainControlKeys()
     local kc = KeyConfig
     kc.bind(
-        'keypressed', { key = "c" },
+        'keypressed', { key = "t" },
         function(sc: Shortcut): boolean, Shortcut
             if mode ~= "normal" then
                 return false, sc
@@ -1654,7 +1709,7 @@ local function bindTerrainControlKeys()
             return false, sc
         end,
         --i18n("mt" .. "right"))
-        'none')
+        'draw terrain or not')
         --[[
     kc.bind(
         'keypressed', { key = "v" },
@@ -2015,6 +2070,8 @@ local function mainPresent()
 
     baseBatch:flush()
     turretBatch:flush()
+
+    drawHits()
 
     presentDrawlistTop()
 
@@ -2652,6 +2709,7 @@ local function init()
     bindEscape()
     bindKonsole()
     bindTerrainControlKeys()
+    bindDeveloperKeys()
 
     drawCoro = createDrawCoroutine()
 
