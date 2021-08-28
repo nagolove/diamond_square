@@ -141,6 +141,7 @@ local Bullet = {}
 
 
 
+
 local Turret = {}
 
 
@@ -439,6 +440,7 @@ function Bullet.new(px, py, dirx, diry, tankId)
    self.body:setUserData(self)
    self.body:setBullet(true)
    self.timestamp = love.timer.getTime()
+   self.died = false
    local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
    love.physics.newFixture(self.body, shape)
 
@@ -682,13 +684,15 @@ local function updateBullets()
    local alive = {}
    local now = love.timer.getTime()
    for _, bullet in ipairs(bullets) do
+
       bullet.velx, bullet.vely = bullet.body:getLinearVelocity()
       bullet.mass = bullet.body:getMass()
       bullet.px, bullet.py = bullet.body:getWorldCenter()
       bullet.px, bullet.py = bullet.px * M2PIX, bullet.py * M2PIX
+
       local diff = now - bullet.timestamp
 
-      if diff < bulletLifetime then
+      if diff < bulletLifetime and not bullet.died then
          table.insert(alive, bullet)
       end
    end
@@ -1571,29 +1575,6 @@ local function onBeginContact(
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    local p1x, p1y, p2x, p2y = contact:getPositions()
 
    local body1 = fixture1:getBody()
@@ -1619,32 +1600,6 @@ local function onBeginContact(
       end
    end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    if objectType1 and objectType2 then
       if (objectType1 == 'Bullet' and objectType2 == 'Base') or
          (objectType1 == 'Base' and objectType2 == 'Bullet') or
@@ -1654,6 +1609,19 @@ local function onBeginContact(
          local id2 = userdata2.id
          if id1 ~= id2 then
             newHit(p1x, p1y)
+
+            if objectType1 == 'Bullet' then
+               local b = fixture2:getUserData()
+               if b and b.died then
+                  b.died = true
+               end
+            end
+            if objectType2 == 'Bullet' then
+               local b = fixture2:getUserData()
+               if b and b.died then
+                  b.died = true
+               end
+            end
 
          end
       end

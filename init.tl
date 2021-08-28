@@ -126,6 +126,7 @@ local record Bullet
     objectType: ObjectType
     id: integer
     dir: vector
+    died: boolean
 
     -- START OF DEBUG STUFF
     velx: number
@@ -439,6 +440,7 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number, tankId: 
     self.body:setUserData(self)
     self.body:setBullet(true)
     self.timestamp = love.timer.getTime()
+    self.died = false
     local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
     love.physics.newFixture(self.body, shape as lp.Shape)
     --fixture:setGroupIndex(bulletCollisionGroup)
@@ -682,13 +684,15 @@ local function updateBullets()
     local alive: {Bullet} = {}
     local now = love.timer.getTime()
     for _, bullet in ipairs(bullets) do
+        -- Заполнение отладочных полей.
         bullet.velx, bullet.vely = bullet.body:getLinearVelocity()
         bullet.mass = bullet.body:getMass()
         bullet.px, bullet.py = bullet.body:getWorldCenter()
         bullet.px, bullet.py = bullet.px * M2PIX, bullet.py * M2PIX
+
         local diff = now - bullet.timestamp
         --print('diff', diff)
-        if diff < bulletLifetime then
+        if diff < bulletLifetime and not bullet.died then
             table.insert(alive, bullet)
         end
     end
@@ -1570,29 +1574,6 @@ local function onBeginContact(
     contact: love.physics.Contact
 )
     -- {{{
-    --[[
-  --if drawContactPoints then
-    --local x1, y1, x2, y2 = contact:getPositions()
-    --local body1 = fixture1:getBody()
-    --local body2 = fixture2 and fixture2:getBody() or nil  
-    --if x1 and y1 then
-----    x1, y1 = Snake.cam:worldCoords(x1, y1)
-      ---- отправляю контакты на отрисовку
-      --push2drawlist(function()
-          --lg.setColor(CONTACT_BEGIN_DRAW_COLOR)
-          --lg.circle("fill", x1 * M2PIX, y1 * M2PIX, 10)
-        --end)
-    --end
-    --if x2 and y2 then    
-      --x2, y2 = Snake.cam:worldCoords(x2, y2)
-      ---- отправляю контакты на отрисовку
-      --push2drawlist(function()
-          --lg.setColor(CONTACT_BEGIN_DRAW_COLOR)
-          --lg.circle("fill", x2 * M2PIX, y2 * M2PIX, 10)
-        --end)
-    --end
-  --end
-  --]]
 
     local p1x, p1y, p2x, p2y = contact:getPositions()
 
@@ -1619,32 +1600,6 @@ local function onBeginContact(
         end
     end
 
-    --[[
-    -- {{{
-    if userdata1 and userdata1.objectType and userdata1.objectType == "Bullet" then
-        print('1111111')
-        if userdata2.objectType then
-            if userdata2.objectType == "Turret" then
-                print('Bullet with Turret')
-            elseif userdata2.objectType == "Base" then
-                print('Bullet with Base')
-            end
-        end
-    end
-
-    if userdata2 and userdata2.objectType and userdata2.objectType == "Bullet" then
-        print('2222222')
-        if userdata1.objectType then
-            if userdata1.objectType == "Turret" then
-                print('Turret with Bullet')
-            elseif userdata1.objectType == "Base" then
-                print('Base with Base')
-            end
-        end
-    end
-    -- }}}
-    --]]
-
     if objectType1 and objectType2 then
         if (objectType1 == 'Bullet' and objectType2 == 'Base') or 
            (objectType1 == 'Base' and objectType2 == 'Bullet') or
@@ -1654,6 +1609,19 @@ local function onBeginContact(
                local id2 = userdata2.id
                if id1 ~= id2 then
                    newHit(p1x, p1y)
+
+                   if objectType1 == 'Bullet' then
+                       local b = fixture2:getUserData() as Bullet
+                       if b and b.died then
+                           b.died = true
+                       end
+                   end
+                   if objectType2 == 'Bullet' then
+                       local b = fixture2:getUserData() as Bullet
+                       if b and b.died then
+                           b.died = true
+                       end
+                   end
                    --newHit(p2x, p2y)
                end
        end
