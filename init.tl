@@ -119,26 +119,36 @@ local record FilterData
     group: integer
 end
 
-local record Bullet
+-- Класс основного боевого танка.
+local record Tank
     -- {{{
-    body: love.physics.Body
-    timestamp: number
-    objectType: ObjectType
-    id: integer
+    -- прочность танка от 1 до 0
+    strength: number
+    -- записывается положение в метрах при создании танка
+    -- когда обновляется?
+    pos: vector
+    -- нормализованный вектор
     dir: vector
-    died: boolean
+    -- уникальное за сеанс игры число
+    id: integer
+    -- пушка
+    turret: Turret
+    -- ходовая часть
+    base: Base
 
-    -- START OF DEBUG STUFF
-    velx: number
-    vely: number
-    mass: number
-    px: number
-    py: number
-    -- END OF DEBUG STUFF
+    -- абсолютные координаты в пикселях
+    new: function(pos: vector): Tank
+
+    present: function(Tank)
+    update: function(Tank): Tank
+
+    resetVelocities: function(Tank)
+    left: function(Tank)
+    right: function(Tank)
+    forward: function(Tank)
+    backward: function(Tank)
+    fire: function(Tank)
     -- }}}
-
-    new: function(px: number, py: number, dirx: number, diry: number, tankId: integer): Bullet
-    update: function()
 end
 
 -- Пушка вместе с башней
@@ -232,6 +242,31 @@ local record Base
     -- }}}
 end
 
+-- Основной боевой тип сняряда. Без фугасного воздействия.
+local record Bullet
+    -- {{{
+    body: love.physics.Body
+    timestamp: number
+    objectType: ObjectType
+    id: integer
+    dir: vector
+    died: boolean
+
+    -- START OF DEBUG STUFF
+    velx: number
+    vely: number
+    mass: number
+    px: number
+    py: number
+    -- END OF DEBUG STUFF
+    -- }}}
+
+    new: function(px: number, py: number, dirx: number, diry: number, tankId: integer): Bullet
+    update: function()
+end
+
+
+-- То, что создается когда происходит попадание снаряда в танк.
 local record Hit 
     -- в пикселях
     x: number
@@ -241,36 +276,6 @@ local record Hit
 
     -- координаты в метрах
     new: function(x: number, y: number): Hit
-end
-
--- Класс основного боевого танка.
-local record Tank
-    -- {{{
-    -- записывается положение в метрах при создании танка
-    -- когда обновляется?
-    pos: vector
-    -- нормализованный вектор
-    dir: vector
-    -- уникальное за сеанс игры число
-    id: integer
-    -- пушка
-    turret: Turret
-    -- ходовая часть
-    base: Base
-
-    -- абсолютные координаты в пикселях
-    new: function(pos: vector): Tank
-
-    present: function(Tank)
-    update: function(Tank): Tank
-
-    resetVelocities: function(Tank)
-    left: function(Tank)
-    right: function(Tank)
-    forward: function(Tank)
-    backward: function(Tank)
-    fire: function(Tank)
-    -- }}}
 end
 
 -- Заставка
@@ -483,7 +488,7 @@ local function contactFilter(fixture1: lp.Fixture, fixture2: lp.Fixture): boolea
         end
     end
 
-    print('objects are here', inspect(objectType1), inspect(objectType2))
+    --print('objects are here', inspect(objectType1), inspect(objectType2))
 
     if objectType1 and objectType2 then
         if objectType1 == 'Base' and objectType2 == 'Turret' then
@@ -1011,6 +1016,7 @@ function Tank.new(pos: vector, dir: vector): Tank
     end
     --self.pbody:setAngle(math.pi / 3)
 
+    self.strength = 1
     self.id = tankCounter
     self.dir = dir:clone()
     self.pos = pos:clone()
@@ -1101,6 +1107,13 @@ function Tank:update(): Tank
     -- {{{
     --print("Tank:update()")
     --print("body angle", self.pbody:getAngle())
+
+    if self.strength <= 0. then
+        print('tank died')
+        self.base.physbody:destroy()
+        self.turret.physbody:destroy()
+        return nil
+    end
 
     if self.turret then
         self.turret:update()
@@ -1568,6 +1581,19 @@ local function newHit(x: number, y: number)
     table.insert(hits, Hit.new(x, y))
 end
 
+--local damage = 0.25
+local damage = 1
+
+local function processTankDamage(tank: Tank)
+    if not tank then
+        error('There is no tank to process damage.')
+    end
+    print('processTankDamage')
+    print('tank.strength before', tank.strength)
+    tank.strength = tank.strength - damage
+    print('tank.strength after', tank.strength)
+end
+
 local function onBeginContact(
     fixture1: love.physics.Fixture, 
     fixture2: love.physics.Fixture, 
@@ -1609,18 +1635,19 @@ local function onBeginContact(
                local id2 = userdata2.id
                if id1 ~= id2 then
                    newHit(p1x, p1y)
-
                    if objectType1 == 'Bullet' then
-                       local b = fixture2:getUserData() as Bullet
+                       local b = fixture1:getUserData() as Bullet
                        if b and b.died then
                            b.died = true
                        end
+                       processTankDamage(userdata2['tank'] as Tank)
                    end
                    if objectType2 == 'Bullet' then
                        local b = fixture2:getUserData() as Bullet
                        if b and b.died then
                            b.died = true
                        end
+                       processTankDamage(userdata1['tank'] as Tank)
                    end
                    --newHit(p2x, p2y)
                end
@@ -2185,10 +2212,12 @@ end
 local function updateTanks()
     -- {{{
     local alive: {Tank} = {}
-    for _, v in ipairs(tanks) do
-        local t =  v:update()
+    for _, tank in ipairs(tanks) do
+        local t =  tank:update()
         if t then
             table.insert(alive, t)
+        else
+            print('---------------')
         end
     end
     tanks = alive

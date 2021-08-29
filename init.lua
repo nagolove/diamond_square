@@ -119,7 +119,17 @@ local FilterData = {}
 
 
 
-local Bullet = {}
+
+local Tank = {}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -232,37 +242,32 @@ local Base = {}
 
 
 
+
+local Bullet = {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 local Hit = {}
-
-
-
-
-
-
-
-
-
-
-
-local Tank = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -483,7 +488,7 @@ local function contactFilter(fixture1, fixture2)
       end
    end
 
-   print('objects are here', inspect(objectType1), inspect(objectType2))
+
 
    if objectType1 and objectType2 then
       if objectType1 == 'Base' and objectType2 == 'Turret' then
@@ -1011,6 +1016,7 @@ function Tank.new(pos, dir)
    end
 
 
+   self.strength = 1
    self.id = tankCounter
    self.dir = dir:clone()
    self.pos = pos:clone()
@@ -1101,6 +1107,13 @@ function Tank:update()
 
 
 
+
+   if self.strength <= 0. then
+      print('tank died')
+      self.base.physbody:destroy()
+      self.turret.physbody:destroy()
+      return nil
+   end
 
    if self.turret then
       self.turret:update()
@@ -1568,6 +1581,19 @@ local function newHit(x, y)
    table.insert(hits, Hit.new(x, y))
 end
 
+
+local damage = 1
+
+local function processTankDamage(tank)
+   if not tank then
+      error('There is no tank to process damage.')
+   end
+   print('processTankDamage')
+   print('tank.strength before', tank.strength)
+   tank.strength = tank.strength - damage
+   print('tank.strength after', tank.strength)
+end
+
 local function onBeginContact(
    fixture1,
    fixture2,
@@ -1609,18 +1635,19 @@ local function onBeginContact(
          local id2 = userdata2.id
          if id1 ~= id2 then
             newHit(p1x, p1y)
-
             if objectType1 == 'Bullet' then
-               local b = fixture2:getUserData()
+               local b = fixture1:getUserData()
                if b and b.died then
                   b.died = true
                end
+               processTankDamage(userdata2['tank'])
             end
             if objectType2 == 'Bullet' then
                local b = fixture2:getUserData()
                if b and b.died then
                   b.died = true
                end
+               processTankDamage(userdata1['tank'])
             end
 
          end
@@ -2185,10 +2212,12 @@ end
 local function updateTanks()
 
    local alive = {}
-   for _, v in ipairs(tanks) do
-      local t = v:update()
+   for _, tank in ipairs(tanks) do
+      local t = tank:update()
       if t then
          table.insert(alive, t)
+      else
+         print('---------------')
       end
    end
    tanks = alive
