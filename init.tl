@@ -18,6 +18,7 @@ require 'render'
 require 'diamondsquare'
 --require 'moonshine'
 
+local tween = require 'Tween'
 local List = require "list"
 --local moonshine = require 'moonshine'
 global i18n = require "i18n"
@@ -133,6 +134,8 @@ local record Tank
     strength: number
     -- запас топлива от 1 до 0
     fuel: number
+    -- цвет
+    color: {number}
 
     -- записывается положение в метрах при создании танка
     -- когда обновляется?
@@ -1449,14 +1452,16 @@ function Turret:present()
         --turretCommon.towerRectWH[1], 
         --turretCommon.towerRectWH[2]
         turretCommon.towerRectWH[1], 
-        turretCommon.towerRectWH[2]
+        turretCommon.towerRectWH[2],
+        self.tank.color
     )
     turretBatch:present(
         bx1, by1, bx2, by2, bx3, by3, bx4, by4, 
         turretCommon.barrelRectXY[1], 
         turretCommon.barrelRectXY[2], 
         turretCommon.barrelRectWH[1], 
-        turretCommon.barrelRectWH[2]
+        turretCommon.barrelRectWH[2],
+        self.tank.color
     )
 
     -- }}}
@@ -1554,7 +1559,8 @@ function Base:present()
 
     baseBatch:present(
         x1, y1, x2, y2, x3, y3, x4, y4, 
-        self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2]
+        self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2], 
+        self.tank.color
     )
 
     self.x4 = x4
@@ -1670,7 +1676,7 @@ local function onBeginContact(
                            b.died = true
                        end
                        --processTankDamage(userdata2['tank'] as Tank)
-                       (userdata2['tank'] as Tank):damage()
+                       (userdata2['tank'] as Tank):damage(userdata1 as Bullet)
                    end
                    if objectType2 == 'Bullet' then
                        local b = fixture2:getUserData() as Bullet
@@ -1678,7 +1684,7 @@ local function onBeginContact(
                            b.died = true
                        end
                        --processTankDamage(userdata1['tank'] as Tank)
-                       (userdata1['tank'] as Tank):damage()
+                       (userdata1['tank'] as Tank):damage(userdata2 as Bullet)
                    end
                    --newHit(p2x, p2y)
                end

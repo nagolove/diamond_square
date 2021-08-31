@@ -18,7 +18,8 @@ global record Batch
         x3: number, y3: number, 
         x4: number, y4: number,
         rx: number, ry: number, 
-        rw: number, rh: number
+        rw: number, rh: number,
+        color: {number}
     )
     flush: function(Batch)
 

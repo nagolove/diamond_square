@@ -28,9 +28,16 @@ inspect = require("inspect")
 tabular = require("tabular")
 
 
+local Filesystem = love.filesystem
+local Audio = love.audio
+local Graphics = love.graphics
+local Physics = love.physics
 local gr = love.graphics
 local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
+
+local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow,
+coroutine.resume, math.sqrt
 
 local Mode = {}
 
@@ -270,6 +277,7 @@ local Bullet = {}
 
 
 
+
 local Hit = {}
 
 
@@ -344,7 +352,7 @@ PIX2M = 1 / 10
 
 
 
-local bulletMask = 1
+
 
 
 tankForceScale = 8
@@ -407,11 +415,12 @@ tankCounter = 0
 rng = love.math.newRandomGenerator()
 
 
+
 local cameraZoneR
 
 local edgeColor = { 0, 0, 0, 1 }
 local edgeLineWidth = 10
-local loadCannonSound = love.audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
+local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 local drawTerrain = true
 
 local baseBatch = Batch.new("tank_body_small.png")
@@ -437,7 +446,8 @@ local function coroutinesUpdate()
    coroutines = alive
 end
 
-function Bullet.new(px, py, dirx, diry, tankId)
+function Bullet.new(px, py, dirx, diry,
+   tankId)
 
    local Bullet_mt = {
       __index = Bullet,
@@ -469,7 +479,7 @@ function Bullet.new(px, py, dirx, diry, tankId)
 
 end
 
-local function contactFilter(fixture1, fixture2)
+local function contactFilter(fix1, fix2)
 
 
    local collide = true
@@ -477,15 +487,15 @@ local function contactFilter(fixture1, fixture2)
    local objectType2
    local userdata1, userdata2
 
-   if fixture1 then
-      userdata1 = fixture1:getBody():getUserData()
+   if fix1 then
+      userdata1 = fix1:getBody():getUserData()
       if userdata1 then
          objectType1 = userdata1['objectType']
 
       end
    end
-   if fixture2 then
-      userdata2 = fixture2:getBody():getUserData()
+   if fix2 then
+      userdata2 = fix2:getBody():getUserData()
       if userdata2 then
 
          objectType2 = userdata2['objectType']
@@ -598,7 +608,7 @@ local function bugInit()
 
    local bugDir = 'bug'
    print('SCENE_PREFIX', SCENE_PREFIX)
-   local files = love.filesystem.getDirectoryItems(SCENE_PREFIX .. "/" .. bugDir)
+   local files = Filesystem.getDirectoryItems(SCENE_PREFIX .. "/" .. bugDir)
    local path = SCENE_PREFIX .. "/" .. bugDir .. "/"
    print('path', path)
    local images = {}
@@ -609,7 +619,8 @@ local function bugInit()
 
       if string.match(v, ".*%d*png") then
          print(v)
-         table.insert(images, love.graphics.newImage(path .. v))
+         local image = Graphics.newImage(path .. v)
+         table.insert(images, image)
       end
 
       print(k, inspect(v))
@@ -637,7 +648,11 @@ local function getBodyFilterData(body)
    local result = {}
    for _, fixture in ipairs(body:getFixtures()) do
       local categoies, mask, group = fixture:getFilterData()
-      table.insert(result, { categoies = categoies, mask = mask, group = group })
+      table.insert(result, {
+         categoies = categoies,
+         mask = mask,
+         group = group,
+      })
    end
    return result
 end
@@ -652,7 +667,6 @@ local function drawArrow(
 
    color = color or { 1, 1, 1, 1 }
    local x, y = fromx - tox, fromy - toy
-   local abs = math.abs
    local ux, uy = vecl.normalize(abs(fromx - tox), abs(fromy - toy))
    local len = vecl.len(x, y) / arrowDiv
    local lx, ly = vecl.rotate(angle, ux, uy)
@@ -719,10 +733,16 @@ function Hit.new(x, y)
    local maxParticlesNumber = 128
 
    self.ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
+
+
    self.ps:setParticleLifetime(0.2, 1)
+
    self.ps:setEmissionRate(5)
    self.ps:setSizeVariation(1)
+
+
    self.ps:setLinearAcceleration(-20, -20, 20, 20)
+
    self.ps:setColors(
    1, 1, 1, 1,
    1, 1, 1, 0)
@@ -1030,6 +1050,7 @@ function Tank.new(pos, dir)
    self.turret = Turret.new(self)
 
 
+
    self.base.id = self.id
    self.turret.id = self.id
 
@@ -1160,7 +1181,10 @@ local function drawFixture(f, color)
       local points = { pShape:getPoints() }
       local i = 1
       while i < #points do
-         points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+         points[i], points[i + 1] = body:getWorldPoints(
+         points[i],
+         points[i + 1])
+
          points[i] = points[i] * M2PIX
          points[i + 1] = points[i + 1] * M2PIX
          i = i + 2
@@ -1367,7 +1391,7 @@ function Turret:update()
       self:rotateToMouse()
    end
    if self.fireCoro then
-      local ok, errmsg = coroutine.resume(self.fireCoro)
+      local ok, errmsg = resume(self.fireCoro)
       if not ok then
          print("local ok: boolean = coroutine.resume(self.fireCoro)", errmsg)
       end
@@ -1385,7 +1409,8 @@ function Turret:present()
    local towerShape = self.fixtureTower:getShape()
    local barrelShape = self.fixtureBarrel:getShape()
 
-   if towerShape:getType() ~= "polygon" or barrelShape:getType() ~= "polygon" then
+   if towerShape:getType() ~= "polygon" or
+      barrelShape:getType() ~= "polygon" then
       error("Only polygon shapes are allowed.")
    end
 
@@ -1472,6 +1497,7 @@ function Base.new(t)
    local px, py = t.pos.x, t.pos.y
 
 
+
    local vertices = {
       px - self.rectWH[1] / 2 * PIX2M,
       py - self.rectWH[2] / 2 * PIX2M,
@@ -1486,8 +1512,8 @@ function Base.new(t)
       py + self.rectWH[2] / 2 * PIX2M,
    }
 
-   local shape = love.physics.newPolygonShape(vertices)
-   self.fixture = love.physics.newFixture(self.physbody, shape)
+   local shape = Physics.newPolygonShape(vertices)
+   self.fixture = Physics.newFixture(self.physbody, shape)
 
    self.polyshape = shape
    if DEBUG_TURRET then
@@ -1590,7 +1616,7 @@ end
 function Tank:damage(bullet)
    local bulx, buly = bullet.physbody:getWorldCenter()
    local px, py = bullet.px, bullet.py
-   local len = math.sqrt(math.pow(math.abs(bulx - px), 2) + math.pow(math.abs(buly - py), 2))
+   local len = sqrt(pow(abs(bulx - px), 2) + pow(abs(buly - py), 2))
    print('len', len)
    local damage = 0.25
    self.strength = self.strength - damage
@@ -1644,7 +1670,7 @@ local function onBeginContact(
                   b.died = true
                end
 
-               (userdata2['tank']):damage()
+               (userdata2['tank']):damage(userdata1)
             end
             if objectType2 == 'Bullet' then
                local b = fixture2:getUserData()
@@ -1652,7 +1678,7 @@ local function onBeginContact(
                   b.died = true
                end
 
-               (userdata1['tank']):damage()
+               (userdata1['tank']):damage(userdata2)
             end
 
          end
@@ -1940,13 +1966,15 @@ local function bindCameraControl()
 
    local cameraAnimationDuration = 0.2
 
+   local Return = {}
    local function makeMoveFunction(xc, yc)
 
       return function(sc)
          if mode ~= "normal" then
             return false, sc
          end
-         local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
+         local reldx = cameraSettings.dx / cam.scale
+         local reldy = cameraSettings.dy / cam.scale
          camTimer:during(cameraAnimationDuration,
          function(dt, time, delay)
             local dx = -reldx * (delay - time) * xc
@@ -2003,7 +2031,8 @@ end
 
 local function bindEscape()
 
-   KeyConfig.bind("keypressed", { key = "escape" }, function(sc)
+   KeyConfig.bind("keypressed", { key = "escape" },
+   function(sc)
       if mode ~= "normal" then
          return false, sc
       end
@@ -2014,6 +2043,7 @@ local function bindEscape()
       end
       return false, sc
    end)
+
 
 end
 
@@ -2117,7 +2147,8 @@ function Background:present()
    gr.setColor(1, 1, 1, 1)
    for i = 0, len - 1 do
       for j = 0, len - 1 do
-         gr.draw(self.img, i * imgw * sx, j * imgh * sy, 0, sx, sy)
+         gr.draw(self.img,
+         i * imgw * sx, j * imgh * sy, 0, sx, sy)
       end
    end
 
@@ -2199,7 +2230,7 @@ end
 
 local function draw()
 
-   local ok, errmsg = coroutine.resume(drawCoro)
+   local ok, errmsg = resume(drawCoro)
    if not ok then
       error("drawCoro thread is end: " .. errmsg)
    end
@@ -2263,6 +2294,7 @@ local function backspaceCmdLine()
 
    local byteoffset = u8.offset(cmdline, -1)
    if byteoffset then
+
 
 
       cmdline = string.sub(cmdline, 1, byteoffset - 1)
@@ -2332,6 +2364,7 @@ function attach(varname)
 
                linesbuf:pushi(output)
                linesbuf:pushi(string.format("%s", varname))
+
 
 
 
@@ -2688,10 +2721,10 @@ function Logo.new()
    local fname = SCENE_PREFIX .. "/t80_background_2.png"
    self.image = love.graphics.newImage(fname)
    local tex = self.image
-   local ceil = math.ceil
    local windowscale = 0.7
    self.imgw, self.imgh = ceil(tex:getWidth()), ceil(tex:getHeight())
-   DEFAULT_W, DEFAULT_H = ceil(self.imgw * windowscale), ceil(self.imgh * windowscale)
+   local newdw, newdh = self.imgw * windowscale, self.imgh * windowscale
+   DEFAULT_W, DEFAULT_H = ceil(newdw), ceil(newdh)
    self.sx, self.sy = DEFAULT_W / self.imgw, DEFAULT_H / self.imgh
    setWindowMode()
    if DEBUG_LOGO then
@@ -2796,7 +2829,8 @@ local function init()
    logo = Logo.new()
    cam = require('camera').new()
    if DEBUG_CAMERA then
-      print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
+      print("camera created x, y, scale, rot",
+      cam.x, cam.y, cam.scale, cam.rot)
    end
 
    bindCameraZoomKeys()
@@ -2931,7 +2965,8 @@ local function textinput(text)
 
 
       local sub = string.sub
-      cmdline = sub(cmdline, 1, cursorpos - 1) .. text .. sub(cmdline, cursorpos, #cmdline)
+      cmdline = sub(cmdline, 1, cursorpos - 1) ..
+      text .. sub(cmdline, cursorpos, #cmdline)
       cursorpos = cursorpos + 1
    end
 
