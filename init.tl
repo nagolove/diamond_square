@@ -28,9 +28,16 @@ global inspect = require "inspect"
 global tabular = require "tabular"
 -- }}}
 
+local Filesystem = love.filesystem
+local Audio = love.audio
+local Graphics = love.graphics
+local Physics = love.physics
 local gr = love.graphics
 local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
+
+local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow, 
+    coroutine.resume, math.sqrt
 
 local enum Mode
     "normal"
@@ -124,6 +131,9 @@ local record Tank
     -- {{{
     -- прочность танка от 1 до 0
     strength: number
+    -- запас топлива от 1 до 0
+    fuel: number
+
     -- записывается положение в метрах при создании танка
     -- когда обновляется?
     pos: vector
@@ -245,23 +255,24 @@ end
 -- Основной боевой тип сняряда. Без фугасного воздействия.
 local record Bullet
     -- {{{
-    body: love.physics.Body
+    physbody: love.physics.Body
     timestamp: number
     objectType: ObjectType
     id: integer
     dir: vector
     died: boolean
+    px: number
+    py: number
 
     -- START OF DEBUG STUFF
     velx: number
     vely: number
     mass: number
-    px: number
-    py: number
     -- END OF DEBUG STUFF
     -- }}}
 
-    new: function(px: number, py: number, dirx: number, diry: number, tankId: integer): Bullet
+    new: function(px: number, py: number, dirx: number, diry: number, 
+                  tankId: integer): Bullet
     update: function()
 end
 
@@ -341,7 +352,7 @@ global PIX2M = 1 / 10
 --local tankCollisionGroup = 1
 --local bulletCollisionGroup = -1
 -- Пули не сталкиваются с танками
-local bulletMask = 1
+--local bulletMask = 1
 
 -- Множитель передачи импульса на шасси танка.
 global tankForceScale = 8
@@ -403,12 +414,13 @@ global bulletLifetime = 35
 global tankCounter = 0
 global rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 global diamondSquare: DiamonAndSquare
--- значение в пикселях радиуса окружности, выход танка игрока за которую двигает камеру 
+-- значение в пикселях радиуса окружности, выход танка игрока за которую 
+-- двигает камеру 
 local cameraZoneR: number
 
 local edgeColor = {0, 0, 0, 1}
 local edgeLineWidth = 10
-local loadCannonSound = love.audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
+local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 local drawTerrain = true
 
 local baseBatch: Batch = Batch.new("tank_body_small.png")
@@ -434,26 +446,29 @@ local function coroutinesUpdate()
     coroutines = alive
 end
 
-function Bullet.new(px: number, py: number, dirx: number, diry: number, tankId: integer): Bullet
+function Bullet.new(px: number, py: number, dirx: number, diry: number, 
+    tankId: integer): Bullet
     -- {{{
     local Bullet_mt: metatable<Bullet> = {
         __index = Bullet,
     }
     local self: Bullet = setmetatable({} as Bullet, Bullet_mt)
 
-    self.body = love.physics.newBody(physworld, px, py, "dynamic")
-    self.body:setUserData(self)
-    self.body:setBullet(true)
+    self.physbody = love.physics.newBody(physworld, px, py, "dynamic")
+    self.physbody:setUserData(self)
+    self.physbody:setBullet(true)
     self.timestamp = love.timer.getTime()
     self.died = false
+    self.px = px
+    self.py = py
     local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
-    love.physics.newFixture(self.body, shape as lp.Shape)
+    love.physics.newFixture(self.physbody, shape as lp.Shape)
     --fixture:setGroupIndex(bulletCollisionGroup)
     --fixture:setMask(bulletMask)
-    self.body:setMass(1)
+    self.physbody:setMass(1)
     local impulse = 100
     if dirx and diry then
-        self.body:applyLinearImpulse(dirx * impulse, diry * impulse)
+        self.physbody:applyLinearImpulse(dirx * impulse, diry * impulse)
     end
     --bullet.body:resetMassData()
     self.dir = vec2.new(dirx, diry)
@@ -464,7 +479,7 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number, tankId: 
     -- }}}
 end
 
-local function contactFilter(fixture1: lp.Fixture, fixture2: lp.Fixture): boolean
+local function contactFilter(fix1: lp.Fixture, fix2: lp.Fixture): boolean
     -- {{{
     --print('contactFilter', fixture1, fixture2)
     local collide = true
@@ -472,15 +487,15 @@ local function contactFilter(fixture1: lp.Fixture, fixture2: lp.Fixture): boolea
     local objectType2: ObjectType
     local userdata1, userdata2: {string: any}, {string: any}
 
-    if fixture1 then
-        userdata1 = fixture1:getBody():getUserData() as {string:any}
+    if fix1 then
+        userdata1 = fix1:getBody():getUserData() as {string:any}
         if userdata1 then
             objectType1 = userdata1['objectType'] as ObjectType
             --print("fixture1 userdata", userdata1['objectType'])
         end
     end
-    if fixture2 then
-        userdata2 = fixture2:getBody():getUserData() as {string:any}
+    if fix2 then
+        userdata2 = fix2:getBody():getUserData() as {string:any}
         if userdata2 then
             --print(inspect(userdata2))
             objectType2 = userdata2['objectType'] as ObjectType
@@ -593,7 +608,7 @@ local function bugInit()
     -- {{{
     local bugDir = 'bug'
     print('SCENE_PREFIX', SCENE_PREFIX)
-    local files = love.filesystem.getDirectoryItems(SCENE_PREFIX .. "/" .. bugDir)
+    local files = Filesystem.getDirectoryItems(SCENE_PREFIX .. "/" .. bugDir)
     local path = SCENE_PREFIX .. "/" .. bugDir .. "/"
     print('path', path)
     local images: {love.graphics.Texture} = {}
@@ -604,7 +619,8 @@ local function bugInit()
 
         if string.match(v, ".*%d*png") then
             print(v)
-            table.insert(images, love.graphics.newImage(path .. v) as love.graphics.Texture)
+            local image = Graphics.newImage(path .. v) as Graphics.Texture
+            table.insert(images, image)
         end
 
         print(k, inspect(v))
@@ -632,7 +648,11 @@ local function getBodyFilterData(body: lp.Body): {FilterData}
     local result: {FilterData} = {}
     for _, fixture in ipairs(body:getFixtures()) do
         local categoies, mask, group = fixture:getFilterData()
-        table.insert(result, { categoies = categoies, mask = mask, group = group })
+        table.insert(result, { 
+            categoies = categoies, 
+            mask = mask, 
+            group = group 
+        })
     end
     return result
 end
@@ -647,7 +667,6 @@ local function drawArrow(
 
     color = color or {1, 1, 1, 1}
     local x, y = fromx - tox, fromy - toy
-    local abs = math.abs
     local ux, uy = vecl.normalize(abs(fromx - tox), abs(fromy - toy))
     local len = vecl.len(x, y) / arrowDiv
     local lx, ly = vecl.rotate(angle, ux, uy)
@@ -673,7 +692,7 @@ end
 local function drawBullets()
     -- {{{
     for _, b in ipairs(bullets) do
-        local px, py = b.body:getWorldCenter()
+        local px, py = b.physbody:getWorldCenter()
         px, py = px * M2PIX, py * M2PIX
         gr.setColor(bulletColor)
         if DEBUG_BULLET then
@@ -690,9 +709,9 @@ local function updateBullets()
     local now = love.timer.getTime()
     for _, bullet in ipairs(bullets) do
         -- Заполнение отладочных полей.
-        bullet.velx, bullet.vely = bullet.body:getLinearVelocity()
-        bullet.mass = bullet.body:getMass()
-        bullet.px, bullet.py = bullet.body:getWorldCenter()
+        bullet.velx, bullet.vely = bullet.physbody:getLinearVelocity()
+        bullet.mass = bullet.physbody:getMass()
+        bullet.px, bullet.py = bullet.physbody:getWorldCenter()
         bullet.px, bullet.py = bullet.px * M2PIX, bullet.py * M2PIX
 
         local diff = now - bullet.timestamp
@@ -714,10 +733,16 @@ function Hit.new(x: number, y: number): Hit
     local maxParticlesNumber = 128
 
     self.ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
-    self.ps:setParticleLifetime(0.2, 1) -- Particles live at least 2s and at most 5s.
+
+    -- Particles live at least 2s and at most 5s.
+    self.ps:setParticleLifetime(0.2, 1) 
+
     self.ps:setEmissionRate(5)
     self.ps:setSizeVariation(1)
-    self.ps:setLinearAcceleration(-20, -20, 20, 20) -- Random movement in all directions.
+
+    -- Random movement in all directions.
+    self.ps:setLinearAcceleration(-20, -20, 20, 20) 
+
     self.ps:setColors(
         1, 1, 1, 1, 
         1, 1, 1, 0
@@ -758,9 +783,9 @@ function Turret:createFireCoro(): thread
             --print("Turret:fire()")
         --end
 
-        local duration = loadCannonSound:getDuration('seconds')
-        local time = love.timer.getTime()
-        local stop = false
+        --local duration = loadCannonSound:getDuration('seconds')
+        --local time = love.timer.getTime()
+        --local stop = false
 
         --[[
         print('duration', duration)
@@ -1016,14 +1041,16 @@ function Tank.new(pos: vector, dir: vector): Tank
     end
     --self.pbody:setAngle(math.pi / 3)
 
-    self.strength = 1
+    self.strength = 1.
+    self.fuel = 1.
     self.id = tankCounter
     self.dir = dir:clone()
     self.pos = pos:clone()
     self.base = Base.new(self)
     self.turret = Turret.new(self)
 
-    -- Связать части танка одинаковыми идентификаторами. Используется в contactFilter()
+    -- Связать части танка одинаковыми идентификаторами. 
+    -- Используется в contactFilter()
     self.base.id = self.id
     self.turret.id = self.id
 
@@ -1139,7 +1166,7 @@ local function drawFixture(f: love.physics.Fixture, color: {number})
     local shapeType = shape:getType()
     local body = f:getBody()
     if shapeType == 'circle' then
-        local cShape: love.physics.CircleShape = shape as love.physics.CircleShape
+        local cShape: Physics.CircleShape = shape as Physics.CircleShape
         local px, py = cShape:getPoint()
         local radius = cShape:getRadius()
         px, py = body:getWorldPoints(px, py)
@@ -1150,11 +1177,14 @@ local function drawFixture(f: love.physics.Fixture, color: {number})
         gr.circle("line", px * M2PIX, py * M2PIX, radius * M2PIX)
         gr.setLineWidth(olw)
     elseif shapeType == 'polygon' then
-        local pShape: love.physics.PolygonShape = shape as love.physics.PolygonShape
+        local pShape: Physics.PolygonShape = shape as Physics.PolygonShape
         local points = {pShape:getPoints()}
         local i = 1
         while i < #points do
-            points[i], points[i + 1] = body:getWorldPoints(points[i], points[i + 1])
+            points[i], points[i + 1] = body:getWorldPoints(
+                points[i], 
+                points[i + 1]
+            )
             points[i] = points[i] * M2PIX
             points[i + 1] = points[i + 1] * M2PIX
             i = i + 2
@@ -1361,7 +1391,7 @@ function Turret:update()
         self:rotateToMouse()
     end
     if self.fireCoro then
-        local ok, errmsg: boolean, string = coroutine.resume(self.fireCoro) as (boolean, string)
+        local ok, errmsg: boolean, string = resume(self.fireCoro) as (boolean, string)
         if not ok then
             print("local ok: boolean = coroutine.resume(self.fireCoro)", errmsg)
         end
@@ -1379,8 +1409,9 @@ function Turret:present()
     local towerShape = self.fixtureTower:getShape()
     local barrelShape = self.fixtureBarrel:getShape()
 
-    if towerShape:getType() ~= "polygon" or barrelShape:getType() ~= "polygon" then
-        error("Only polygon shapes are allowed.")
+    if towerShape:getType() ~= "polygon" or 
+       barrelShape:getType() ~= "polygon" then
+           error("Only polygon shapes are allowed.")
     end
 
     local body = self.fixtureTower:getBody()
@@ -1465,7 +1496,8 @@ function Base.new(t: Tank): Base
 
     local px, py = t.pos.x, t.pos.y
 
-    -- XXX Не используется rectXY, будут проблемы при перемещении выделения на текстуре.
+    -- XXX Не используется rectXY, будут проблемы при перемещении 
+    -- выделения на текстуре.
     local vertices = {
         px - self.rectWH[1] / 2 * PIX2M, 
         py - self.rectWH[2] / 2 * PIX2M,  
@@ -1480,8 +1512,8 @@ function Base.new(t: Tank): Base
         py + self.rectWH[2] / 2 * PIX2M,
     }
 
-    local shape = love.physics.newPolygonShape(vertices)
-    self.fixture = love.physics.newFixture(self.physbody, shape as love.physics.Shape)
+    local shape = Physics.newPolygonShape(vertices)
+    self.fixture = Physics.newFixture(self.physbody, shape as Physics.Shape)
     --self.f:setGroupIndex(tankCollisionGroup)
     self.polyshape = shape
     if DEBUG_TURRET then
@@ -1581,17 +1613,14 @@ local function newHit(x: number, y: number)
     table.insert(hits, Hit.new(x, y))
 end
 
---local damage = 0.25
-local damage = 1
-
-local function processTankDamage(tank: Tank)
-    if not tank then
-        error('There is no tank to process damage.')
-    end
-    print('processTankDamage')
-    print('tank.strength before', tank.strength)
-    tank.strength = tank.strength - damage
-    print('tank.strength after', tank.strength)
+function Tank:damage(bullet: Bullet)
+    local bulx, buly = bullet.physbody:getWorldCenter()
+    local px, py = bullet.px, bullet.py
+    local len = sqrt(pow(abs(bulx - px), 2) + pow(abs(buly - py), 2))
+    print('len', len)
+    local damage = 0.25
+    self.strength = self.strength - damage
+    print('strength', self.strength)
 end
 
 local function onBeginContact(
@@ -1640,14 +1669,16 @@ local function onBeginContact(
                        if b and b.died then
                            b.died = true
                        end
-                       processTankDamage(userdata2['tank'] as Tank)
+                       --processTankDamage(userdata2['tank'] as Tank)
+                       (userdata2['tank'] as Tank):damage()
                    end
                    if objectType2 == 'Bullet' then
                        local b = fixture2:getUserData() as Bullet
                        if b and b.died then
                            b.died = true
                        end
-                       processTankDamage(userdata1['tank'] as Tank)
+                       --processTankDamage(userdata1['tank'] as Tank)
+                       (userdata1['tank'] as Tank):damage()
                    end
                    --newHit(p2x, p2y)
                end
@@ -1935,13 +1966,15 @@ local function bindCameraControl()
     -- не прямой а квадратичный зум?
     local cameraAnimationDuration = 0.2
 
-    local function makeMoveFunction(xc: number, yc: number): function(sc: Shortcut): boolean, Shortcut
+    local type Return = function(sc: Shortcut): boolean, Shortcut
+    local function makeMoveFunction(xc: number, yc: number): Return
         -- {{{
         return function(sc: Shortcut): boolean, Shortcut
             if mode ~= "normal" then
                 return false, sc
             end
-            local reldx, reldy = cameraSettings.dx / cam.scale, cameraSettings.dy / cam.scale
+            local reldx = cameraSettings.dx / cam.scale 
+            local reldy = cameraSettings.dy / cam.scale
             camTimer:during(cameraAnimationDuration, 
                 function(dt: number, time: number, delay: number)
                     local dx = -reldx * (delay - time) * xc
@@ -1998,17 +2031,19 @@ end
 -- Сомнительная функция, не работает наверное.
 local function bindEscape()
     -- {{{
-    KeyConfig.bind("keypressed", { key = "escape" }, function(sc: Shortcut): boolean, Shortcut
-        if mode ~= "normal" then
+    KeyConfig.bind("keypressed", { key = "escape" }, 
+        function(sc: Shortcut): boolean, Shortcut
+            if mode ~= "normal" then
+                return false, sc
+            end
+            if showLogo == true then
+                love.event.quit()
+            else
+                showLogo = true
+            end
             return false, sc
         end
-        if showLogo == true then
-            love.event.quit()
-        else
-            showLogo = true
-        end
-        return false, sc
-    end)
+    )
     -- }}}
 end
 
@@ -2112,7 +2147,8 @@ function Background:present()
     gr.setColor(1, 1, 1, 1)
     for i = 0, len - 1 do
         for j = 0, len - 1 do
-            gr.draw(self.img as gr.Drawable, i * imgw * sx, j * imgh * sy, 0, sx, sy)
+            gr.draw(self.img as gr.Drawable, 
+                i * imgw * sx, j * imgh * sy, 0, sx, sy)
         end
     end
     -- }}}
@@ -2194,7 +2230,7 @@ end
 
 local function draw()
     -- {{{
-    local ok, errmsg: boolean, string = coroutine.resume(drawCoro) as (boolean, string)
+    local ok, errmsg: boolean, string = resume(drawCoro) as (boolean, string)
     if not ok then
         error("drawCoro thread is end: " .. errmsg)
     end
@@ -2259,7 +2295,8 @@ local function backspaceCmdLine()
     local byteoffset = u8.offset(cmdline, -1)
     if byteoffset then
         -- remove the last UTF-8 character.
-        -- string.sub operates on bytes rather than UTF-8 characters, so we couldn't do string.sub(text, 1, -2).
+        -- string.sub operates on bytes rather than UTF-8 characters, 
+        -- so we couldn't do string.sub(text, 1, -2).
         cmdline = string.sub(cmdline, 1, byteoffset - 1)
         if cursorpos - 1 >= 1 then
             cursorpos = cursorpos - 1
@@ -2328,7 +2365,8 @@ function attach(varname: string)
                     linesbuf:pushi(output)
                     linesbuf:pushi(string.format("%s", varname))
                     --else
-                        --linesbuf:pushi(string.format('%s = %s', varname, tostring(l)))
+                        --linesbuf:pushi(string.format('%s = %s', varname, 
+                            --tostring(l)))
                     --end
                 else
                     linesbuf:pushi(string.format("%s = nil", varname))
@@ -2683,10 +2721,10 @@ function Logo.new(): Logo
     local fname = SCENE_PREFIX .. "/t80_background_2.png"
     self.image = love.graphics.newImage(fname)
     local tex = self.image as gr.Texture
-    local ceil = math.ceil
     local windowscale = 0.7
     self.imgw, self.imgh = ceil(tex:getWidth()), ceil(tex:getHeight())
-    DEFAULT_W, DEFAULT_H = ceil(self.imgw * windowscale), ceil(self.imgh * windowscale)
+    local newdw, newdh = self.imgw * windowscale, self.imgh * windowscale
+    DEFAULT_W, DEFAULT_H = ceil(newdw), ceil(newdh)
     self.sx, self.sy = DEFAULT_W / self.imgw, DEFAULT_H / self.imgh
     setWindowMode()
     if DEBUG_LOGO then
@@ -2791,7 +2829,8 @@ local function init()
     logo = Logo.new()
     cam = require 'camera'.new()
     if DEBUG_CAMERA then
-        print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
+        print("camera created x, y, scale, rot", 
+            cam.x, cam.y, cam.scale, cam.rot)
     end
 
     bindCameraZoomKeys()
@@ -2926,7 +2965,8 @@ local function textinput(text: string)
         -- Здесь добавить курсор.
         --cmdline = cmdline .. text
         local sub = string.sub
-        cmdline = sub(cmdline, 1, cursorpos - 1) .. text .. sub(cmdline, cursorpos, #cmdline)
+        cmdline = sub(cmdline, 1, cursorpos - 1) .. 
+            text ..  sub(cmdline, cursorpos, #cmdline)
         cursorpos = cursorpos + 1
     end
     -- }}}

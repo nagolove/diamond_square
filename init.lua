@@ -152,6 +152,9 @@ local Tank = {}
 
 
 
+
+
+
 local Turret = {}
 
 
@@ -441,19 +444,21 @@ function Bullet.new(px, py, dirx, diry, tankId)
    }
    local self = setmetatable({}, Bullet_mt)
 
-   self.body = love.physics.newBody(physworld, px, py, "dynamic")
-   self.body:setUserData(self)
-   self.body:setBullet(true)
+   self.physbody = love.physics.newBody(physworld, px, py, "dynamic")
+   self.physbody:setUserData(self)
+   self.physbody:setBullet(true)
    self.timestamp = love.timer.getTime()
    self.died = false
+   self.px = px
+   self.py = py
    local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
-   love.physics.newFixture(self.body, shape)
+   love.physics.newFixture(self.physbody, shape)
 
 
-   self.body:setMass(1)
+   self.physbody:setMass(1)
    local impulse = 100
    if dirx and diry then
-      self.body:applyLinearImpulse(dirx * impulse, diry * impulse)
+      self.physbody:applyLinearImpulse(dirx * impulse, diry * impulse)
    end
 
    self.dir = vec2.new(dirx, diry)
@@ -673,7 +678,7 @@ end
 local function drawBullets()
 
    for _, b in ipairs(bullets) do
-      local px, py = b.body:getWorldCenter()
+      local px, py = b.physbody:getWorldCenter()
       px, py = px * M2PIX, py * M2PIX
       gr.setColor(bulletColor)
       if DEBUG_BULLET then
@@ -690,9 +695,9 @@ local function updateBullets()
    local now = love.timer.getTime()
    for _, bullet in ipairs(bullets) do
 
-      bullet.velx, bullet.vely = bullet.body:getLinearVelocity()
-      bullet.mass = bullet.body:getMass()
-      bullet.px, bullet.py = bullet.body:getWorldCenter()
+      bullet.velx, bullet.vely = bullet.physbody:getLinearVelocity()
+      bullet.mass = bullet.physbody:getMass()
+      bullet.px, bullet.py = bullet.physbody:getWorldCenter()
       bullet.px, bullet.py = bullet.px * M2PIX, bullet.py * M2PIX
 
       local diff = now - bullet.timestamp
@@ -758,9 +763,9 @@ function Turret:createFireCoro()
 
 
 
-      local duration = loadCannonSound:getDuration('seconds')
-      local time = love.timer.getTime()
-      local stop = false
+
+
+
 
 
 
@@ -1016,7 +1021,8 @@ function Tank.new(pos, dir)
    end
 
 
-   self.strength = 1
+   self.strength = 1.
+   self.fuel = 1.
    self.id = tankCounter
    self.dir = dir:clone()
    self.pos = pos:clone()
@@ -1581,17 +1587,14 @@ local function newHit(x, y)
    table.insert(hits, Hit.new(x, y))
 end
 
-
-local damage = 1
-
-local function processTankDamage(tank)
-   if not tank then
-      error('There is no tank to process damage.')
-   end
-   print('processTankDamage')
-   print('tank.strength before', tank.strength)
-   tank.strength = tank.strength - damage
-   print('tank.strength after', tank.strength)
+function Tank:damage(bullet)
+   local bulx, buly = bullet.physbody:getWorldCenter()
+   local px, py = bullet.px, bullet.py
+   local len = math.sqrt(math.pow(math.abs(bulx - px), 2) + math.pow(math.abs(buly - py), 2))
+   print('len', len)
+   local damage = 0.25
+   self.strength = self.strength - damage
+   print('strength', self.strength)
 end
 
 local function onBeginContact(
@@ -1640,14 +1643,16 @@ local function onBeginContact(
                if b and b.died then
                   b.died = true
                end
-               processTankDamage(userdata2['tank'])
+
+               (userdata2['tank']):damage()
             end
             if objectType2 == 'Bullet' then
                local b = fixture2:getUserData()
                if b and b.died then
                   b.died = true
                end
-               processTankDamage(userdata1['tank'])
+
+               (userdata1['tank']):damage()
             end
 
          end
