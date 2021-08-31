@@ -255,6 +255,8 @@ local record Base
     forward: function(Base)
     backward: function(Base)
 
+    engineCycle: function(Base)
+
     pushTrack: function(Base)
     drawTrack: function(Base)
 
@@ -521,7 +523,7 @@ local function contactFilter(fix1: lp.Fixture, fix2: lp.Fixture): boolean
             local id1 = userdata1['id'] as integer
             local id2 = userdata2['id'] as integer
             if id1 == id2 then
-                print('collide', collide)
+                --print('collide', collide)
                 collide = true
             end
         end
@@ -762,16 +764,16 @@ function Hit.new(x: number, y: number): Hit
     local lifetime = 0.1 + (rng:random() + 0.01) / 2
     self.ps:setEmitterLifetime(lifetime)
 
-    print('lifetime', lifetime)
-    print('self.ps:hasRelativeRotation', self.ps:hasRelativeRotation())
-    print('self.ps:getEmitterLifetime()', self.ps:getEmitterLifetime())
-    print('getRotation()', self.ps:getRotation())
+    --print('lifetime', lifetime)
+    --print('self.ps:hasRelativeRotation', self.ps:hasRelativeRotation())
+    --print('self.ps:getEmitterLifetime()', self.ps:getEmitterLifetime())
+    --print('getRotation()', self.ps:getRotation())
 
     --self.ps:setRotation(-2*math.pi, 2*math.pi)
     --self.ps:setRotation(-math.pi, math.pi)
     self.ps:setRotation(0, math.pi / 3)
 
-    print('self.ps:getSizeVariation()', self.ps:getSizeVariation())
+    --print('self.ps:getSizeVariation()', self.ps:getSizeVariation())
 
     --self.ps:setSizes(1, 0.1)
 
@@ -1024,15 +1026,19 @@ end
 
 function Base:forward()
     -- {{{
-    local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
-    self.physbody:applyForce(x, y)
+    if self.tank.fuel > 0. then
+        local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
+        self.physbody:applyForce(x, y)
+    end
     -- }}}
 end
 
 function Base:backward()
     -- {{{
-    local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
-    self.physbody:applyForce(-x, -y)
+    if self.tank.fuel > 0. then
+        local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
+        self.physbody:applyForce(-x, -y)
+    end
     -- }}}
 end
 --]]
@@ -1075,17 +1081,19 @@ function Tank.new(pos: vector, dir: vector): Tank
     end
     --]]
 
-    self.base = Base.new(self)
-    local angle, _ = dir:toPolar()
-    self.base.physbody:setAngle(angle)
-
     self.strength = 1.
     self.fuel = 1.
     self.id = tankCounter
+    if not dir then
+        dir = vector.new(0, 0)
+    end
     self.dir = dir:clone()
     self.pos = pos:clone()
-    self.turret = Turret.new(self)
     self.color = {1, 1, 1, 1}
+    local angle, _ = dir:toPolar()
+    self.base = Base.new(self)
+    self.base.physbody:setAngle(angle)
+    self.turret = Turret.new(self)
 
     -- Связать части танка одинаковыми идентификаторами. 
     -- Используется в contactFilter()
@@ -1150,6 +1158,13 @@ function Base:updateDir()
     -- возможно зад перепутан с передом
     self.dir = vec2.fromPolar(self.physbody:getAngle() + math.pi / 2, unit)
     -- }}}
+end
+
+function Base:engineCycle()
+    -- расход топлива, едениц в секунду
+    local consumption = 10
+    if self.tank.fuel > 0 then
+    end
 end
 
 function Base:update()
@@ -1317,7 +1332,8 @@ function Turret.new(t: Tank): Turret
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.tank = t
     self.objectType = "Turret"
-    --self.image = turretBatch.image
+    print('t', inspect(t))
+    print('t.base', inspect(t.base))
     self.tankphysbody = t.base.physbody
 
     local px, py = t.pos.x, t.pos.y
@@ -1555,6 +1571,7 @@ function Base.new(t: Tank): Base
         print("linear damping", self.physbody:getLinearDamping())
     end
 
+    print('t', inspect(t))
     local px, py = t.pos.x, t.pos.y
 
     -- XXX Не используется rectXY, будут проблемы при перемещении 
@@ -2925,7 +2942,7 @@ local function init()
     bugInit()
 
     for _, tank in ipairs(tanks) do
-        tank:circleMove()
+        --tank:circleMove()
     end
 
     cameraZoneR = H / 2

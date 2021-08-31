@@ -264,6 +264,8 @@ local Base = {}
 
 
 
+
+
 local Bullet = {}
 
 
@@ -521,7 +523,7 @@ local function contactFilter(fix1, fix2)
          local id1 = userdata1['id']
          local id2 = userdata2['id']
          if id1 == id2 then
-            print('collide', collide)
+
             collide = true
          end
       end
@@ -762,16 +764,16 @@ function Hit.new(x, y)
    local lifetime = 0.1 + (rng:random() + 0.01) / 2
    self.ps:setEmitterLifetime(lifetime)
 
-   print('lifetime', lifetime)
-   print('self.ps:hasRelativeRotation', self.ps:hasRelativeRotation())
-   print('self.ps:getEmitterLifetime()', self.ps:getEmitterLifetime())
-   print('getRotation()', self.ps:getRotation())
+
+
+
+
 
 
 
    self.ps:setRotation(0, math.pi / 3)
 
-   print('self.ps:getSizeVariation()', self.ps:getSizeVariation())
+
 
 
 
@@ -1024,15 +1026,19 @@ end
 
 function Base:forward()
 
-   local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
-   self.physbody:applyForce(x, y)
+   if self.tank.fuel > 0. then
+      local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
+      self.physbody:applyForce(x, y)
+   end
 
 end
 
 function Base:backward()
 
-   local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
-   self.physbody:applyForce(-x, -y)
+   if self.tank.fuel > 0. then
+      local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
+      self.physbody:applyForce(-x, -y)
+   end
 
 end
 
@@ -1068,20 +1074,26 @@ function Tank.new(pos, dir)
 
    tankCounter = tankCounter + 1
 
-   if not dir then
-      dir = vector.new(0, -1)
-      print('dir is nil, using default value', inspect(dir))
-   end
+
+
+
+
+
 
 
    self.strength = 1.
    self.fuel = 1.
    self.id = tankCounter
+   if not dir then
+      dir = vector.new(0, 0)
+   end
    self.dir = dir:clone()
    self.pos = pos:clone()
-   self.base = Base.new(self)
-   self.turret = Turret.new(self)
    self.color = { 1, 1, 1, 1 }
+   local angle, _ = dir:toPolar()
+   self.base = Base.new(self)
+   self.base.physbody:setAngle(angle)
+   self.turret = Turret.new(self)
 
 
 
@@ -1146,6 +1158,13 @@ function Base:updateDir()
 
    self.dir = vec2.fromPolar(self.physbody:getAngle() + math.pi / 2, unit)
 
+end
+
+function Base:engineCycle()
+
+   local consumption = 10
+   if self.tank.fuel > 0 then
+   end
 end
 
 function Base:update()
@@ -1313,7 +1332,8 @@ function Turret.new(t)
    local self = setmetatable({}, Turret_mt)
    self.tank = t
    self.objectType = "Turret"
-
+   print('t', inspect(t))
+   print('t.base', inspect(t.base))
    self.tankphysbody = t.base.physbody
 
    local px, py = t.pos.x, t.pos.y
@@ -1551,6 +1571,7 @@ function Base.new(t)
       print("linear damping", self.physbody:getLinearDamping())
    end
 
+   print('t', inspect(t))
    local px, py = t.pos.x, t.pos.y
 
 
@@ -2836,7 +2857,8 @@ local function makeArmy()
    local numHeight = metersHeight / len
    for i = 1, len do
       for j = 1, len do
-         spawnTank(vector.new(i * numWidth, j * numHeight), fromPolar(2 * math.pi))
+         local angle = rng:random() * 2 * math.pi
+         spawnTank(vector.new(i * numWidth, j * numHeight), fromPolar(angle))
       end
    end
    popDEBUG()
@@ -2920,7 +2942,7 @@ local function init()
    bugInit()
 
    for _, tank in ipairs(tanks) do
-      tank:circleMove()
+
    end
 
    cameraZoneR = H / 2
