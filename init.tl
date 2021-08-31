@@ -18,7 +18,7 @@ require 'render'
 require 'diamondsquare'
 --require 'moonshine'
 
-local tween = require 'Tween'
+local tween = require 'tween'
 local List = require "list"
 --local moonshine = require 'moonshine'
 global i18n = require "i18n"
@@ -39,6 +39,7 @@ local Shortcut = KeyConfig.Shortcut
 
 local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow, 
     coroutine.resume, math.sqrt
+local yield = coroutine.yield
 
 local enum Mode
     "normal"
@@ -172,7 +173,7 @@ local record Turret
 
     id: integer
     joint: lp.WeldJoint
-    fireCoro: thread
+    --fireCoro: thread
 
     barrelCategories: integer
     barrelMask: integer
@@ -196,6 +197,12 @@ local record Turret
     tank: Tank
     -- куда смотрит башня, направление выстрела
     dir: vector
+
+    -- загружен-ли снаряд в пушку
+    loaded: boolean
+
+    -- боезапас пушки, в штуках
+    shots: number
 
     new: function(t: Tank): Turret
     present: function(Turret)
@@ -777,7 +784,10 @@ end
 
 function Turret:createFireCoro(): thread
     return coroutine.create(function()
-        --loadCannonSound:play()
+        if not self.loaded then
+            --loadCannonSound:play()
+            -- wait for loadin
+        end
 
         -- wait loadCannonSound file length seconds
         -- and call fire() to create new bullets.
@@ -802,7 +812,7 @@ function Turret:createFireCoro(): thread
                 stop = true
             end
             love.timer.sleep(0.001)
-            coroutine.yield()
+            yield()
         until stop
         --]]
 
@@ -825,10 +835,7 @@ function Turret:createFireCoro(): thread
 end
 
 function Turret:fire()
-    if not self.fireCoro then
-        self.fireCoro = self:createFireCoro()
-    end
-    -- }}}
+    table.insert(coroutines, self:createFireCoro())
 end
 
 local function presentDrawlistBottom()
@@ -1051,6 +1058,7 @@ function Tank.new(pos: vector, dir: vector): Tank
     self.pos = pos:clone()
     self.base = Base.new(self)
     self.turret = Turret.new(self)
+    self.color = {1, 1, 1, 1}
 
     -- Связать части танка одинаковыми идентификаторами. 
     -- Используется в contactFilter()
@@ -1133,16 +1141,33 @@ function Base:update()
     --print('len', len)
 end
 
+local function removeTank(tank: Tank)
+    for k, v in ipairs(tanks) do
+        if v == tank then
+            table.remove(tanks, k)
+            print('tank removed. allright')
+            break
+        end
+    end
+end
+
 function Tank:update(): Tank
     -- {{{
     --print("Tank:update()")
     --print("body angle", self.pbody:getAngle())
 
     if self.strength <= 0. then
-        print('tank died')
-        self.base.physbody:destroy()
-        self.turret.physbody:destroy()
-        return nil
+        table.insert(coroutines, coroutine.create(function()
+            print('tank died')
+            yield()
+            -- waintg loop
+
+            self.base.physbody:destroy()
+            self.turret.physbody:destroy()
+
+            removeTank(self)
+        end))
+        return self
     end
 
     if self.turret then
@@ -1393,6 +1418,8 @@ function Turret:update()
     if playerTank and self.tank == playerTank then
         self:rotateToMouse()
     end
+
+    --[[
     if self.fireCoro then
         local ok, errmsg: boolean, string = resume(self.fireCoro) as (boolean, string)
         if not ok then
@@ -1400,6 +1427,8 @@ function Turret:update()
         end
         self.fireCoro = nil
     end
+    --]]
+
     -- }}}
 end
 
@@ -2213,7 +2242,7 @@ local function mainPresent()
 
     changeKeyConfigListbackground()
 
-    coroutine.yield()
+    yield()
 end
 
 local function drawCameraAxixes()
@@ -2746,7 +2775,7 @@ function Logo:present()
     gr.setColor{1, 1, 1, 1}
     --print('Logo:present() self.sx, self.sy:', self.sx, self.sy)
     love.graphics.draw(self.image as gr.Drawable, 0, 0, 0., self.sx, self.sy)
-    coroutine.yield()
+    yield()
     -- }}}
 end
 

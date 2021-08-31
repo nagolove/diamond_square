@@ -109,60 +109,60 @@ function Batch:present(
     self.dataptr[self.meshIndex].y = y1
     self.dataptr[self.meshIndex].u = x_ + unitw
     self.dataptr[self.meshIndex].v = y_
-    self.dataptr[self.meshIndex].r = color[1]
-    self.dataptr[self.meshIndex].g = color[2]
-    self.dataptr[self.meshIndex].b = color[3]
-    self.dataptr[self.meshIndex].a = color[4]
+    self.dataptr[self.meshIndex].r = color[1] * 255
+    self.dataptr[self.meshIndex].g = color[2] * 255
+    self.dataptr[self.meshIndex].b = color[3] * 255
+    self.dataptr[self.meshIndex].a = color[4] * 255
 
     --vertex = dataptr[self.meshIndex + 2]
     self.dataptr[self.meshIndex + 1].x = x2
     self.dataptr[self.meshIndex + 1].y = y2
     self.dataptr[self.meshIndex + 1].u = x_ + unitw
     self.dataptr[self.meshIndex + 1].v = y_ + unith
-    self.dataptr[self.meshIndex + 1].r = color[1]
-    self.dataptr[self.meshIndex + 1].g = color[2]
-    self.dataptr[self.meshIndex + 1].b = color[3]
-    self.dataptr[self.meshIndex + 1].a = color[4]
+    self.dataptr[self.meshIndex + 1].r = color[1] * 255
+    self.dataptr[self.meshIndex + 1].g = color[2] * 255
+    self.dataptr[self.meshIndex + 1].b = color[3] * 255
+    self.dataptr[self.meshIndex + 1].a = color[4] * 255
 
     --vertex = dataptr[self.meshIndex + 3]
     self.dataptr[self.meshIndex + 2].x = x4
     self.dataptr[self.meshIndex + 2].y = y4
     self.dataptr[self.meshIndex + 2].u = x_
     self.dataptr[self.meshIndex + 2].v = y_
-    self.dataptr[self.meshIndex + 2].r = color[1]
-    self.dataptr[self.meshIndex + 2].g = color[2]
-    self.dataptr[self.meshIndex + 2].b = color[3]
-    self.dataptr[self.meshIndex + 2].a = color[4]
+    self.dataptr[self.meshIndex + 2].r = color[1] * 255
+    self.dataptr[self.meshIndex + 2].g = color[2] * 255
+    self.dataptr[self.meshIndex + 2].b = color[3] * 255
+    self.dataptr[self.meshIndex + 2].a = color[4] * 255
 
     --vertex = dataptr[self.meshIndex + 5]
     self.dataptr[self.meshIndex + 4].x = x2
     self.dataptr[self.meshIndex + 4].y = y2
     self.dataptr[self.meshIndex + 4].u = x_ + unitw
     self.dataptr[self.meshIndex + 4].v = y_ + unith
-    self.dataptr[self.meshIndex + 4].r = color[1]
-    self.dataptr[self.meshIndex + 4].g = color[2]
-    self.dataptr[self.meshIndex + 4].b = color[3]
-    self.dataptr[self.meshIndex + 4].a = color[4]
+    self.dataptr[self.meshIndex + 4].r = color[1] * 255
+    self.dataptr[self.meshIndex + 4].g = color[2] * 255
+    self.dataptr[self.meshIndex + 4].b = color[3] * 255
+    self.dataptr[self.meshIndex + 4].a = color[4] * 255
 
     --vertex = dataptr[self.meshIndex + 6]
     self.dataptr[self.meshIndex + 5].x = x3
     self.dataptr[self.meshIndex + 5].y = y3
     self.dataptr[self.meshIndex + 5].u = x_
     self.dataptr[self.meshIndex + 5].v = y_ + unith
-    self.dataptr[self.meshIndex + 5].r = color[1]
-    self.dataptr[self.meshIndex + 5].g = color[2]
-    self.dataptr[self.meshIndex + 5].b = color[3]
-    self.dataptr[self.meshIndex + 5].a = color[4]
+    self.dataptr[self.meshIndex + 5].r = color[1] * 255
+    self.dataptr[self.meshIndex + 5].g = color[2] * 255
+    self.dataptr[self.meshIndex + 5].b = color[3] * 255
+    self.dataptr[self.meshIndex + 5].a = color[4] * 255
 
     --vertex = dataptr[self.meshIndex + 4]
     self.dataptr[self.meshIndex + 3].x = x4
     self.dataptr[self.meshIndex + 3].y = y4
     self.dataptr[self.meshIndex + 3].u = x_
     self.dataptr[self.meshIndex + 3].v = y_
-    self.dataptr[self.meshIndex + 3].r = color[1]
-    self.dataptr[self.meshIndex + 3].g = color[2]
-    self.dataptr[self.meshIndex + 3].b = color[3]
-    self.dataptr[self.meshIndex + 3].a = color[4]
+    self.dataptr[self.meshIndex + 3].r = color[1] * 255
+    self.dataptr[self.meshIndex + 3].g = color[2] * 255
+    self.dataptr[self.meshIndex + 3].b = color[3] * 255
+    self.dataptr[self.meshIndex + 3].a = color[4] * 255
 
      --DEBUG_TEXCOORDS 
     -- {{{

@@ -18,6 +18,7 @@ require('render')
 require('diamondsquare')
 
 
+local tween = require('tween')
 local List = require("list")
 
 i18n = require("i18n")
@@ -38,6 +39,7 @@ local Shortcut = KeyConfig.Shortcut
 
 local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow,
 coroutine.resume, math.sqrt
+local yield = coroutine.yield
 
 local Mode = {}
 
@@ -162,7 +164,15 @@ local Tank = {}
 
 
 
+
+
 local Turret = {}
+
+
+
+
+
+
 
 
 
@@ -774,7 +784,10 @@ end
 
 function Turret:createFireCoro()
    return coroutine.create(function()
+      if not self.loaded then
 
+
+      end
 
 
 
@@ -822,10 +835,7 @@ function Turret:createFireCoro()
 end
 
 function Turret:fire()
-   if not self.fireCoro then
-      self.fireCoro = self:createFireCoro()
-   end
-
+   table.insert(coroutines, self:createFireCoro())
 end
 
 local function presentDrawlistBottom()
@@ -1048,6 +1058,7 @@ function Tank.new(pos, dir)
    self.pos = pos:clone()
    self.base = Base.new(self)
    self.turret = Turret.new(self)
+   self.color = { 1, 1, 1, 1 }
 
 
 
@@ -1130,16 +1141,33 @@ function Base:update()
 
 end
 
+local function removeTank(tank)
+   for k, v in ipairs(tanks) do
+      if v == tank then
+         table.remove(tanks, k)
+         print('tank removed. allright')
+         break
+      end
+   end
+end
+
 function Tank:update()
 
 
 
 
    if self.strength <= 0. then
-      print('tank died')
-      self.base.physbody:destroy()
-      self.turret.physbody:destroy()
-      return nil
+      table.insert(coroutines, coroutine.create(function()
+         print('tank died')
+         yield()
+
+
+         self.base.physbody:destroy()
+         self.turret.physbody:destroy()
+
+         removeTank(self)
+      end))
+      return self
    end
 
    if self.turret then
@@ -1390,13 +1418,17 @@ function Turret:update()
    if playerTank and self.tank == playerTank then
       self:rotateToMouse()
    end
-   if self.fireCoro then
-      local ok, errmsg = resume(self.fireCoro)
-      if not ok then
-         print("local ok: boolean = coroutine.resume(self.fireCoro)", errmsg)
-      end
-      self.fireCoro = nil
-   end
+
+
+
+
+
+
+
+
+
+
+
 
 end
 
@@ -1449,14 +1481,16 @@ function Turret:present()
 
 
    turretCommon.towerRectWH[1],
-   turretCommon.towerRectWH[2])
+   turretCommon.towerRectWH[2],
+   self.tank.color)
 
    turretBatch:present(
    bx1, by1, bx2, by2, bx3, by3, bx4, by4,
    turretCommon.barrelRectXY[1],
    turretCommon.barrelRectXY[2],
    turretCommon.barrelRectWH[1],
-   turretCommon.barrelRectWH[2])
+   turretCommon.barrelRectWH[2],
+   self.tank.color)
 
 
 
@@ -1554,7 +1588,8 @@ function Base:present()
 
    baseBatch:present(
    x1, y1, x2, y2, x3, y3, x4, y4,
-   self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2])
+   self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2],
+   self.tank.color)
 
 
    self.x4 = x4
@@ -2207,7 +2242,7 @@ local function mainPresent()
 
    changeKeyConfigListbackground()
 
-   coroutine.yield()
+   yield()
 end
 
 local function drawCameraAxixes()
@@ -2740,7 +2775,7 @@ function Logo:present()
    gr.setColor({ 1, 1, 1, 1 })
 
    love.graphics.draw(self.image, 0, 0, 0., self.sx, self.sy)
-   coroutine.yield()
+   yield()
 
 end
 
