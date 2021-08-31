@@ -162,6 +162,7 @@ local record Tank
     forward: function(Tank)
     backward: function(Tank)
     fire: function(Tank)
+    circleMove: function(Tank)
     -- }}}
 end
 
@@ -991,6 +992,28 @@ function Tank:fire()
     -- }}}
 end
 
+function Tank:circleMove()
+    table.insert(coroutines, coroutine.create(function()
+        while true do
+            love.timer.sleep(0.0001)
+            local movementImpulsesNum = 10
+            for _ = 0, rng:random() * movementImpulsesNum do
+                self.base:forward()
+                yield()
+            end
+            local chance = rng:random()
+            if chance > 0.5 then
+                self.base:left()
+                yield()
+            else
+                self.base:right()
+                yield()
+            end
+            --love.timer.sleep(0.01)
+        end
+    end))
+end
+
 function Base:left()
     self.physbody:applyTorque(-angularImpulseScale)
 end
@@ -1045,18 +1068,22 @@ function Tank.new(pos: vector, dir: vector): Tank
 
     tankCounter = tankCounter + 1
 
+    --[[
     if not dir then
         dir = vector.new(0, -1)
         print('dir is nil, using default value', inspect(dir))
     end
-    --self.pbody:setAngle(math.pi / 3)
+    --]]
+
+    self.base = Base.new(self)
+    local angle, _ = dir:toPolar()
+    self.base.physbody:setAngle(angle)
 
     self.strength = 1.
     self.fuel = 1.
     self.id = tankCounter
     self.dir = dir:clone()
     self.pos = pos:clone()
-    self.base = Base.new(self)
     self.turret = Turret.new(self)
     self.color = {1, 1, 1, 1}
 
@@ -2219,7 +2246,6 @@ local function mainPresent()
     cam:attach()
     --background:present()
     if drawTerrain and diamondSquare then
-            --diamondSquare:draw()
             diamondSquare:present()
     end
     queryBoundingBox()
@@ -2660,6 +2686,7 @@ local function spawnTank(pos: vector, dir: vector): Tank
             -- XXX next line not work
              --unbindPlayerTankKeys()
         end
+        print('spawnTank', inspect(dir))
         table.insert(tanks, Tank.new(pos, dir))
         if DEBUG_TANK then
             print("Tank spawn at", pos.x, pos.y)
@@ -2731,6 +2758,7 @@ local function bindFullscreenSwitcher()
         { key = "f11" }, 
         function(sc: KeyConfig.Shortcut): boolean, KeyConfig.Shortcut
             local isfs = love.window.getFullscreen()
+                diamondSquare:draw2canvas()
             if isfs then
                 setWindowMode()
             else
@@ -2801,17 +2829,19 @@ local function createDrawCoroutine(): thread
 end
 
 -- параметры в метрах
-local function makeArmy(x: number, y: number)
+local function makeArmy()
     -- {{{
-    x = x or 0
-    y = y or 0
     local len = 10
-    local space = 200
     pushDEBUG()
     disableDEBUG()
+    local metersWidth = diamondSquare.width * PIX2M
+    local metersHeight = diamondSquare.height * PIX2M
+    local numWidth = metersWidth / len
+    local numHeight = metersHeight / len
     for i = 1, len do
         for j = 1, len do
-            spawnTank(vector.new(x + i * space, y + j * space))
+            local angle = rng:random() * 2 * math.pi
+            spawnTank(vector.new(i * numWidth, j * numHeight), fromPolar(angle))
         end
     end
     popDEBUG()
@@ -2879,40 +2909,24 @@ local function init()
     drawCoro = createDrawCoroutine()
 
     background = Background.new()
+
+    terrain()
     arena = Arena.new("arena.lua")
+    makeArmy()
 
-    --makeArmy()
-    --makeArmy()
-    --makeArmy()
-    --makeArmy()
-    --makeArmy()
-    --makeArmy()
+    local herostartpos = vector.new(0, 0)
+    playerTank = spawnTank(herostartpos)
 
-    --for _ = 1, 30 do 
-    for i = 1, 13 do 
-        for j = 1, 3 do
-            spawnTank(vector.new(j * 45, i * 30))
-        end
-    end
-
-    --local startpos = vector.new(500, 500)
-    --local startpos = vector.new(-500, 500)
-    local startpos = vector.new(0, 0)
-
-    -- TODO прикрепить камеру к игроку
-    playerTank = spawnTank(startpos)
     bindPlayerTankKeys()
-
-    --makeArmy()
-    --makeArmy(0, 500)
-    --makeArmy(500, 0)
-    --makeArmy(500, 500)
 
     --enableDEBUG()
     disableDEBUG()
 
     bugInit()
-    terrain()
+
+    for _, tank in ipairs(tanks) do
+        tank:circleMove()
+    end
 
     cameraZoneR = H / 2
     -- }}}

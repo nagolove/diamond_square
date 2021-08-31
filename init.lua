@@ -166,6 +166,7 @@ local Tank = {}
 
 
 
+
 local Turret = {}
 
 
@@ -989,6 +990,28 @@ function Tank:fire()
       self.turret:fire()
    end
 
+end
+
+function Tank:circleMove()
+   table.insert(coroutines, coroutine.create(function()
+      while true do
+         love.timer.sleep(0.0001)
+         local movementImpulsesNum = 10
+         for _ = 0, rng:random() * movementImpulsesNum do
+            self.base:forward()
+            yield()
+         end
+         local chance = rng:random()
+         if chance > 0.5 then
+            self.base:left()
+            yield()
+         else
+            self.base:right()
+            yield()
+         end
+
+      end
+   end))
 end
 
 function Base:left()
@@ -2219,7 +2242,6 @@ local function mainPresent()
    cam:attach()
 
    if drawTerrain and diamondSquare then
-
       diamondSquare:present()
    end
    queryBoundingBox()
@@ -2660,6 +2682,7 @@ local function spawnTank(pos, dir)
 
 
       end
+      print('spawnTank', inspect(dir))
       table.insert(tanks, Tank.new(pos, dir))
       if DEBUG_TANK then
          print("Tank spawn at", pos.x, pos.y)
@@ -2731,6 +2754,7 @@ local function bindFullscreenSwitcher()
    { key = "f11" },
    function(sc)
       local isfs = love.window.getFullscreen()
+      diamondSquare:draw2canvas()
       if isfs then
          setWindowMode()
       else
@@ -2801,17 +2825,18 @@ local function createDrawCoroutine()
 end
 
 
-local function makeArmy(x, y)
+local function makeArmy()
 
-   x = x or 0
-   y = y or 0
    local len = 10
-   local space = 200
    pushDEBUG()
    disableDEBUG()
+   local metersWidth = diamondSquare.width * PIX2M
+   local metersHeight = diamondSquare.height * PIX2M
+   local numWidth = metersWidth / len
+   local numHeight = metersHeight / len
    for i = 1, len do
       for j = 1, len do
-         spawnTank(vector.new(x + i * space, y + j * space))
+         spawnTank(vector.new(i * numWidth, j * numHeight), fromPolar(2 * math.pi))
       end
    end
    popDEBUG()
@@ -2879,40 +2904,24 @@ local function init()
    drawCoro = createDrawCoroutine()
 
    background = Background.new()
+
+   terrain()
    arena = Arena.new("arena.lua")
+   makeArmy()
 
+   local herostartpos = vector.new(0, 0)
+   playerTank = spawnTank(herostartpos)
 
-
-
-
-
-
-
-
-   for i = 1, 13 do
-      for j = 1, 3 do
-         spawnTank(vector.new(j * 45, i * 30))
-      end
-   end
-
-
-
-   local startpos = vector.new(0, 0)
-
-
-   playerTank = spawnTank(startpos)
    bindPlayerTankKeys()
-
-
-
-
-
 
 
    disableDEBUG()
 
    bugInit()
-   terrain()
+
+   for _, tank in ipairs(tanks) do
+      tank:circleMove()
+   end
 
    cameraZoneR = H / 2
 
