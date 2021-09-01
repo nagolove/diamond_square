@@ -426,6 +426,7 @@ global bulletLifetime = 35
 -- Счетчик живый танков
 global tankCounter = 0
 global rng: love.math.RandomGenerator = love.math.newRandomGenerator()
+--rng:setSeed(os.time())
 global diamondSquare: DiamonAndSquare
 -- значение в пикселях радиуса окружности, выход танка игрока за которую 
 -- двигает камеру 
@@ -2939,11 +2940,11 @@ local function init()
     --enableDEBUG()
     disableDEBUG()
 
-    bugInit()
+    --bugInit()
 
-    for _, tank in ipairs(tanks) do
+    --for _, tank in ipairs(tanks) do
         --tank:circleMove()
-    end
+    --end
 
     cameraZoneR = H / 2
     -- }}}

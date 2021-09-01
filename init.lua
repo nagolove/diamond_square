@@ -429,6 +429,7 @@ rng = love.math.newRandomGenerator()
 
 
 
+
 local cameraZoneR
 
 local edgeColor = { 0, 0, 0, 1 }
@@ -2939,11 +2940,11 @@ local function init()
 
    disableDEBUG()
 
-   bugInit()
 
-   for _, tank in ipairs(tanks) do
 
-   end
+
+
+
 
    cameraZoneR = H / 2
 
