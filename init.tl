@@ -1,7 +1,7 @@
 -- vim: fdm=marker
 -- vim: set colorcolumn=85
 
-global SCENE_PREFIX = "scenes/t90"
+global SCENE_PREFIX = "scenes/t80"
 
 love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
