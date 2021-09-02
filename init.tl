@@ -16,6 +16,7 @@ require "Timer"
 require "imgui"
 require 'render'
 require 'diamondsquare'
+require 'profi'
 --require 'moonshine'
 
 local tween = require 'tween'
@@ -36,6 +37,7 @@ local Physics = love.physics
 local gr = love.graphics
 local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
+local profi = require 'profi'
 
 local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow, 
     coroutine.resume, math.sqrt
@@ -2117,6 +2119,7 @@ local function bindEscape()
                 return false, sc
             end
             if showLogo == true then
+                print('your pressed Escape. exit to system')
                 love.event.quit()
             else
                 showLogo = true
@@ -2356,6 +2359,7 @@ local function moveCamera()
 end
 
 local function update(dt: number)
+    profi:start()
     camTimer:update(dt)
     physworld:update(1 / 60)
     linesbuf:update()
@@ -2365,6 +2369,7 @@ local function update(dt: number)
     updateHits(dt)
     coroutinesUpdate()
     moveCamera()
+    profi:stop()
 end
 
 local function backspaceCmdLine()
@@ -2859,7 +2864,7 @@ local function makeArmy()
     for i = 1, len do
         for j = 1, len do
             local angle = rng:random() * 2 * math.pi
-            spawnTank(vector.new(i * numWidth, j * numHeight), fromPolar(angle))
+            --spawnTank(vector.new(i * numWidth, j * numHeight), fromPolar(angle))
         end
     end
     popDEBUG()
@@ -2930,10 +2935,11 @@ local function init()
 
     terrain()
     arena = Arena.new("arena.lua")
-    makeArmy()
+    --makeArmy()
 
     local herostartpos = vector.new(0, 0)
-    playerTank = spawnTank(herostartpos)
+    local alpha = rng:random() * math.pi
+    playerTank = spawnTank(herostartpos, fromPolar(alpha))
 
     bindPlayerTankKeys()
 
@@ -2976,6 +2982,8 @@ end
 
 local function quit()
     -- {{{
+    profi:writeReport("t80-profiling.txt")
+    print('profi report was writtent')
     metrics.quit()
     unbindPlayerTankKeys()
     tanks = {}
