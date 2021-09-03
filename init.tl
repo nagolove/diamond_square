@@ -990,7 +990,8 @@ function Tank.new(pos: vector, dir: vector): Tank
         dir = vector.new(0, 0)
     end
     self.dir = dir:clone()
-    self.pos = pos:clone()
+    --self.pos = pos:clone()
+    self.pos = pos
     self.color = {1, 1, 1, 1}
     local angle, _ = dir:toPolar()
     self.base = Base.new(self)
@@ -2717,14 +2718,15 @@ local function makeArmy()
     local metersHeight = diamondSquare.height
     local numWidth = metersWidth / len 
     local numHeight = metersHeight / len
-    for i = 1, len do
-        for j = 1, len do
-            local angle = rng:random() * 2 * math.pi
+    for i = 0, len - 1 do
+        for j = 0, len - 1  do
+            --local angle = rng:random() * 2 * math.pi
+            local angle = 0
             local posx, posy = i * numWidth, j * numHeight
             print('posx, posy', posx, posy)
-            spawnTank(
-                vector.new((i - 1) * numWidth * PIX2M, (j - 1) * numHeight * PIX2M), 
-                fromPolar(angle))
+            local pos = vector.new(i * numWidth * PIX2M, 
+                j * numHeight * PIX2M)
+            spawnTank(pos, fromPolar(angle))
         end
     end
     -- }}}
