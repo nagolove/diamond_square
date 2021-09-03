@@ -1748,6 +1748,21 @@ local function updateHits(dt: number)
     end
 end
 
+function terrain(mapn: integer, rez: integer)
+    if not mapn then
+        mapn = 8
+    end
+    if not rez then
+        rez = 128
+    end
+    print('terrain', mapn, rez)
+    linesbuf:push(notificationDelay, 'terrain mapn = %d, rez = %d', mapn, rez)
+    diamondSquare = DiamonAndSquare.new(mapn, rez, rng)
+    diamondSquare:eval()
+    diamondSquare:draw2canvas()
+    diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
+end
+
 local function bindDeveloperKeys()
     local kc = KeyConfig
     kc.bind(
@@ -1764,6 +1779,20 @@ local function bindDeveloperKeys()
                 newHit(x, y)
                 print('new Hit created at', x, y)
             end
+
+            return false, sc
+        end,
+        --i18n("mt" .. "right"))
+        'spawn Hit')
+    kc.bind(
+        --'keypressed', { key = "p" },
+        'keypressed', { key = "r" },
+        function(sc: Shortcut): boolean, Shortcut
+            if mode ~= "normal" then
+                return false, sc
+            end
+
+            terrain()
 
             return false, sc
         end,
@@ -2720,12 +2749,12 @@ local function makeArmy()
     local numHeight = metersHeight / len
     for i = 0, len - 1 do
         for j = 0, len - 1  do
-            --local angle = rng:random() * 2 * math.pi
-            local angle = 0
+            local angle = rng:random() * 2 * math.pi
+            --local angle = 0
             local posx, posy = i * numWidth, j * numHeight
             print('posx, posy', posx, posy)
             local pos = vector.new(i * numWidth * PIX2M, 
-                j * numHeight * PIX2M)
+                -j * numHeight * PIX2M)
             spawnTank(pos, fromPolar(angle))
         end
     end
@@ -2744,21 +2773,6 @@ end
 
 function drawMiniMap()
 
-end
-
-function terrain(mapn: integer, rez: integer)
-    if not mapn then
-        mapn = 8
-    end
-    if not rez then
-        rez = 32
-    end
-    print('terrain', mapn, rez)
-    linesbuf:push(notificationDelay, 'terrain mapn = %d, rez = %d', mapn, rez)
-    diamondSquare = DiamonAndSquare.new(mapn, rez, rng)
-    diamondSquare:eval()
-    diamondSquare:draw2canvas()
-    diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
 end
 
 local function init()
@@ -2805,7 +2819,7 @@ local function init()
     --bugInit()
 
     for _, tank in ipairs(tanks) do
-        --tank:circleMove()
+        tank:circleMove()
     end
 
     cameraZoneR = H / 2
