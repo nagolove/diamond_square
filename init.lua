@@ -1,7 +1,7 @@
 local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pairs = _tl_compat and _tl_compat.pairs or pairs; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
-SCENE_PREFIX = "scenes/t90"
+SCENE_PREFIX = "scenes/t80"
 
 love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
@@ -16,6 +16,7 @@ require("Timer")
 require("imgui")
 require('render')
 require('diamondsquare')
+require('profi')
 
 
 local tween = require('tween')
@@ -36,6 +37,7 @@ local Physics = love.physics
 local gr = love.graphics
 local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
+local profi = require('profi')
 
 local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow,
 coroutine.resume, math.sqrt
@@ -344,7 +346,8 @@ DEBUG_PHYSICS = false
 
 
 cmd_drawBodyStat = true
-cmd_drawCameraAxixes = false
+
+cmd_drawCameraAxixes = true
 
 local debugStack = {}
 
@@ -1333,11 +1336,10 @@ function Turret.new(t)
    local self = setmetatable({}, Turret_mt)
    self.tank = t
    self.objectType = "Turret"
-   print('t', inspect(t))
-   print('t.base', inspect(t.base))
    self.tankphysbody = t.base.physbody
 
-   local px, py = t.pos.x, t.pos.y
+
+   local px, py = t.base.physbody:getWorldCenter()
 
    local towerShapeVertices = {
       px - turretCommon.towerRectWH[1] / 2 * PIX2M - 0,
@@ -1379,15 +1381,15 @@ function Turret.new(t)
 
    self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape)
    self.barrelCategories, self.barrelMask, self.barrelGroup = self.fixtureBarrel:getFilterData()
-   print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
 
-   print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
+
+
 
    self.fixtureTower = lp.newFixture(self.physbody, self.towerShape)
    self.towerCategories, self.towerMask, self.towerGroup = self.fixtureTower:getFilterData()
-   print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
 
-   print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
+
+
 
 
 
@@ -1572,7 +1574,6 @@ function Base.new(t)
       print("linear damping", self.physbody:getLinearDamping())
    end
 
-   print('t', inspect(t))
    local px, py = t.pos.x, t.pos.y
 
 
@@ -2117,6 +2118,7 @@ local function bindEscape()
          return false, sc
       end
       if showLogo == true then
+         print('your pressed Escape. exit to system')
          love.event.quit()
       else
          showLogo = true
@@ -2264,6 +2266,8 @@ local function mainPresent()
    cam:attach()
 
    if drawTerrain and diamondSquare then
+      love.graphics.setColor({ 1, 1, 1, 1 })
+      love.graphics.circle('fill', 0, 0, 100)
       diamondSquare:present()
    end
    queryBoundingBox()
@@ -2356,6 +2360,7 @@ local function moveCamera()
 end
 
 local function update(dt)
+   profi:start()
    camTimer:update(dt)
    physworld:update(1 / 60)
    linesbuf:update()
@@ -2365,6 +2370,7 @@ local function update(dt)
    updateHits(dt)
    coroutinesUpdate()
    moveCamera()
+   profi:stop()
 end
 
 local function backspaceCmdLine()
@@ -2704,7 +2710,7 @@ local function spawnTank(pos, dir)
 
 
       end
-      print('spawnTank', inspect(dir))
+      print('spawnTank')
       table.insert(tanks, Tank.new(pos, dir))
       if DEBUG_TANK then
          print("Tank spawn at", pos.x, pos.y)
@@ -2849,20 +2855,24 @@ end
 
 local function makeArmy()
 
-   local len = 10
+   local len = 7
    pushDEBUG()
-   disableDEBUG()
-   local metersWidth = diamondSquare.width * PIX2M
-   local metersHeight = diamondSquare.height * PIX2M
+
+   local metersWidth = diamondSquare.width
+   local metersHeight = diamondSquare.height
    local numWidth = metersWidth / len
    local numHeight = metersHeight / len
    for i = 1, len do
       for j = 1, len do
          local angle = rng:random() * 2 * math.pi
-         spawnTank(vector.new(i * numWidth, j * numHeight), fromPolar(angle))
+         local posx, posy = i * numWidth, j * numHeight
+         print('posx, posy', posx, posy)
+         spawnTank(
+         vector.new((i - 1) * numWidth * PIX2M, (j - 1) * numHeight * PIX2M),
+         fromPolar(angle))
       end
    end
-   popDEBUG()
+
 
 end
 
@@ -2933,18 +2943,19 @@ local function init()
    makeArmy()
 
    local herostartpos = vector.new(0, 0)
-   playerTank = spawnTank(herostartpos)
+   local alpha = rng:random() * math.pi
+   playerTank = spawnTank(herostartpos, fromPolar(alpha))
 
    bindPlayerTankKeys()
 
 
-   disableDEBUG()
 
 
 
 
+   for _, tank in ipairs(tanks) do
 
-
+   end
 
    cameraZoneR = H / 2
 
@@ -2976,6 +2987,8 @@ end
 
 local function quit()
 
+   profi:writeReport("t80-profiling.txt")
+   print('profi report was writtent')
    metrics.quit()
    unbindPlayerTankKeys()
    tanks = {}

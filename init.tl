@@ -326,31 +326,6 @@ local type CameraSettings = record
     -- }}}
 end
 
--- {{{ DEBUG globals
-global DEBUG_BASE = false
-global DEBUG_TANK = false
-global DEBUG_TANK_MOVEMENT = false
-global DEBUG_TURRET = true
-global DEBUG_CAMERA = false
-global DEBUG_LOGO = false
-global DEBUG_BULLET = true
-global DEBUG_DIRECTION = false
-
---global DEBUG_DRAW_THREAD = true
---global DEBUG_TEXCOORDS = true
---global DEBUG_PHYSICS = true
-
-global DEBUG_DRAW_THREAD = false
-global DEBUG_TEXCOORDS = true
-global DEBUG_PHYSICS = false
-
--- Глобальные флаги отображения
-global cmd_drawBodyStat: boolean = true
-global cmd_drawCameraAxixes: boolean = false
-
-local debugStack: {{string:boolean}} = {}
--- }}}
-
 -- {{{ Global and local variables.
 
 global notificationDelay = 2.5
@@ -547,79 +522,6 @@ local function contactFilter(fix1: lp.Fixture, fix2: lp.Fixture): boolean
     -- }}}
 end
 
-function disableDEBUG()
-    -- {{{
-    DEBUG_BASE = false
-    DEBUG_TANK = false
-    DEBUG_TANK_MOVEMENT = false
-    DEBUG_TURRET = false
-    DEBUG_CAMERA = false
-    DEBUG_LOGO = false
-    DEBUG_BULLET = false
-    DEBUG_DRAW_THREAD = false
-    DEBUG_TEXCOORDS = false
-    DEBUG_PHYSICS = false
-    cmd_drawBodyStat = false
-    cmd_drawCameraAxixes = false
-    -- }}}
-end
-
-function enableDEBUG()
-    -- {{{
-    DEBUG_BASE = true
-    DEBUG_TANK = true
-    DEBUG_TANK_MOVEMENT = true
-    DEBUG_TURRET = true
-    DEBUG_CAMERA = true
-    DEBUG_LOGO = true
-    DEBUG_BULLET = true
-    DEBUG_DRAW_THREAD = true
-    DEBUG_TEXCOORDS = true
-    DEBUG_PHYSICS = true
-    cmd_drawBodyStat = true
-    cmd_drawCameraAxixes = true
-    -- }}}
-end
-
-function pushDEBUG()
-    -- {{{
-    table.insert(debugStack, {
-        ["DEBUG_BASE "] = DEBUG_BASE,
-        ["DEBUG_TANK "] = DEBUG_TANK,
-        ["DEBUG_TANK_MOVEMENT "] = DEBUG_TANK_MOVEMENT,
-        ["DEBUG_TURRET "] = DEBUG_TURRET,
-        ["DEBUG_CAMERA "] = DEBUG_CAMERA,
-        ["DEBUG_LOGO "] = DEBUG_LOGO,
-        ["DEBUG_BULLET "] = DEBUG_BULLET,
-        ["DEBUG_DRAW_THREAD "] = DEBUG_DRAW_THREAD,
-        ["DEBUG_TEXCOORDS "] = DEBUG_TEXCOORDS,
-        ["DEBUG_PHYSICS "] = DEBUG_PHYSICS,
-        ["cmd_drawBodyStat "] = cmd_drawBodyStat,
-        ["cmd_drawCameraAxixes "] = cmd_drawCameraAxixes,
-    })
-    -- }}}
-end
-
-function popDEBUG()
-    -- {{{
-    if #debugStack >= 1 then
-        local entry = debugStack[#debugStack]
-        DEBUG_BASE = entry["DEBUG_BASE"]
-        DEBUG_TANK = entry["DEBUG_TANK"]
-        DEBUG_TANK_MOVEMENT = entry["DEBUG_TANK_MOVEMENT"]
-        DEBUG_TURRET = entry["DEBUG_TURRET"]
-        DEBUG_CAMERA = entry["DEBUG_CAMERA"]
-        DEBUG_LOGO = entry["DEBUG_LOGO"]
-        DEBUG_BULLET = entry["DEBUG_BULLET"]
-        DEBUG_DRAW_THREAD = entry["DEBUG_DRAW_THREAD"]
-        DEBUG_TEXCOORDS = entry["DEBUG_TEXCOORDS"]
-        DEBUG_PHYSICS = entry["DEBUG_PHYSICS"]
-        cmd_drawBodyStat = entry["cmd_drawBodyStat"]
-        cmd_drawCameraAxixes = entry["cmd_drawCameraAxixes"]
-    end
-    -- }}}
-end
-
 local function bugInit()
     -- {{{
     local bugDir = 'bug'
@@ -711,9 +613,6 @@ local function drawBullets()
         local px, py = b.physbody:getWorldCenter()
         px, py = px * M2PIX, py * M2PIX
         gr.setColor(bulletColor)
-        if DEBUG_BULLET then
-            --print("bullet", px, py, bulletRadius)
-        end
         gr.circle("fill", px, py, bulletRadius)
     end
     -- }}}
@@ -1070,9 +969,9 @@ function Tank.new(pos: vector, dir: vector): Tank
         __index = Tank,
     }
 
-    if DEBUG_TANK then
-        print('Start of Tank creating..')
-    end
+    --if DEBUG_TANK then
+        --print('Start of Tank creating..')
+    --end
     local self: Tank = setmetatable({} as Tank, Tank_mt)
 
     tankCounter = tankCounter + 1
@@ -1103,11 +1002,6 @@ function Tank.new(pos: vector, dir: vector): Tank
     self.base.id = self.id
     self.turret.id = self.id
 
-    if DEBUG_TANK then
-        print('self.turret', self.turret)
-        print('self.base', self.base)
-        print('End of Tank creating.')
-    end
     return self
     -- }}}
 end
@@ -1288,6 +1182,7 @@ function Tank:present()
         colprint('Tank ' .. self.id .. ' is damaged. No turret.')
     end
 
+    --[[
     if cmd_drawBodyStat then
         push2drawlistTop(function()
             local baseBody = self.base.physbody
@@ -1316,14 +1211,12 @@ function Tank:present()
             end)
         end
     end
+    --]]
     -- }}}
 end
 
 function Turret.new(t: Tank): Turret
     -- {{{
-    if DEBUG_TURRET then
-        print("Start of Turret creating..")
-    end
     if not t then
         error("Could'not create Turret without Tank object")
     end
@@ -1335,11 +1228,10 @@ function Turret.new(t: Tank): Turret
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.tank = t
     self.objectType = "Turret"
-    print('t', inspect(t))
-    print('t.base', inspect(t.base))
     self.tankphysbody = t.base.physbody
 
-    local px, py = t.pos.x, t.pos.y
+    --local px, py = t.pos.x, t.pos.y
+    local px, py = t.base.physbody:getWorldCenter()
 
     local towerShapeVertices = {
         px - turretCommon.towerRectWH[1] / 2 * PIX2M - 0,
@@ -1381,15 +1273,15 @@ function Turret.new(t: Tank): Turret
 
     self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape as lp.Shape)
     self.barrelCategories, self.barrelMask, self.barrelGroup = self.fixtureBarrel:getFilterData() as (integer, integer, integer)
-    print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
+    --print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
     --self.fixtureBarrel:setFilterData(-1, 0, 0)
-    print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
+    --print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
 
     self.fixtureTower = lp.newFixture(self.physbody, self.towerShape as lp.Shape)
     self.towerCategories, self.towerMask, self.towerGroup = self.fixtureTower:getFilterData() as (integer, integer, integer)
-    print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
+    --print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
     --self.fixtureTower:setFilterData(-2, 1, 1)
-    print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
+    --print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
 
     --print("self.fixtureBarrel", self.fixtureBarrel:getDensity())
     --print("self.fixtureTower", self.fixtureTower:getDensity())
@@ -1416,10 +1308,6 @@ function Turret.new(t: Tank): Turret
     --joint:setFrequency(120)
     --os.exit()
     --local joint = love.physics.newDistanceJoint(self.tank.physbody, self.physbody, 0, 0, 0, 0, false)
-
-    if DEBUG_TURRET then
-        print("circle shape created x, y, r", px, py)
-    end
 
     return self
     -- }}}
@@ -1548,9 +1436,6 @@ function Base.new(t: Tank): Base
         __index = Base,
     }
 
-    if DEBUG_BASE then
-        print("BaseP.new()")
-    end
     if not t then
         error("Could'not create BaseP without Tank object")
     end
@@ -1569,12 +1454,6 @@ function Base.new(t: Tank): Base
     self.physbody:setLinearDamping(2)
     self.physbody:setUserData(self)
 
-    if DEBUG_PHYSICS then
-        print("angular damping", self.physbody:getAngularDamping())
-        print("linear damping", self.physbody:getLinearDamping())
-    end
-
-    print('t', inspect(t))
     local px, py = t.pos.x, t.pos.y
 
     -- XXX Не используется rectXY, будут проблемы при перемещении 
@@ -1597,9 +1476,6 @@ function Base.new(t: Tank): Base
     self.fixture = Physics.newFixture(self.physbody, shape as Physics.Shape)
     --self.f:setGroupIndex(tankCollisionGroup)
     self.polyshape = shape
-    if DEBUG_TURRET then
-        print("polygon shape created x, y, r", px, py)
-    end
 
     return self
     -- }}}
@@ -1613,10 +1489,6 @@ function Base:present()
     local shape = self.fixture:getShape()
     if shape:getType() ~= "polygon" then
         error("Tank BaseP shape should be polygon.")
-    end
-
-    if DEBUG_PHYSICS then
-        drawFixture(self.fixture, {0, 0, 0, 1})
     end
 
     local body = self.fixture:getBody()
@@ -1808,6 +1680,7 @@ local function queryBoundingBox()
         local brx, bry = cam:worldCoords(gr.getDimensions())
         brx, bry = brx + W, bry + H
 
+        --[[
         if DEBUG_PHYSICS then
             -- рисовать окно ограничивающего прямоугольника
             push2drawlistTop(function()
@@ -1819,6 +1692,7 @@ local function queryBoundingBox()
                 gr.setLineWidth(oldwidth)
             end)
         end
+        --]]
 
         physworld:queryBoundingBox(
             tlx * PIX2M, tly * PIX2M, 
@@ -2267,6 +2141,8 @@ local function mainPresent()
     cam:attach()
     --background:present()
     if drawTerrain and diamondSquare then
+            love.graphics.setColor{1, 1, 1, 1}
+            love.graphics.circle('fill', 0, 0, 100)
             diamondSquare:present()
     end
     queryBoundingBox()
@@ -2316,9 +2192,7 @@ local function draw()
     if not ok then
         error("drawCoro thread is end: " .. errmsg)
     end
-    if cmd_drawCameraAxixes then
-        drawCameraAxixes()
-    end
+    drawCameraAxixes()
     konsolePresent()
 
     --drawArrow(300, 600, 400, 600, {1, 0, 0, 1})
@@ -2709,11 +2583,8 @@ local function spawnTank(pos: vector, dir: vector): Tank
             -- XXX next line not work
              --unbindPlayerTankKeys()
         end
-        print('spawnTank', inspect(dir))
         table.insert(tanks, Tank.new(pos, dir))
-        if DEBUG_TANK then
-            print("Tank spawn at", pos.x, pos.y)
-        end
+        print("Tank spawn at", pos.x, pos.y)
     end)
     if not ok then
         error("Could'not load. Please implement stub-tank. " .. errmsg)
@@ -2800,9 +2671,6 @@ function Logo.new(): Logo
         __index = Logo,
     }
 
-    if DEBUG_LOGO then
-        print("Logo.new()")
-    end
     local self = setmetatable({} as Logo, Logo_mt)
     local fname = SCENE_PREFIX .. "/t80_background_2.png"
     self.image = love.graphics.newImage(fname)
@@ -2813,10 +2681,6 @@ function Logo.new(): Logo
     DEFAULT_W, DEFAULT_H = ceil(newdw), ceil(newdh)
     self.sx, self.sy = DEFAULT_W / self.imgw, DEFAULT_H / self.imgh
     setWindowMode()
-    if DEBUG_LOGO then
-        print("self.imgw, self.imgh:", self.imgw, self.imgh)
-        print("self.sx, self.sy:", self.sx, self.sy)
-    end
     return self
     -- }}}
 end
@@ -2832,9 +2696,6 @@ end
 
 local function createDrawCoroutine(): thread
     return coroutine.create(function()
-        if DEBUG_DRAW_THREAD then
-            print("drawCoro started")
-        end
         while true do
             -- режим игрового меню
             while showLogo == true do
@@ -2845,38 +2706,33 @@ local function createDrawCoroutine(): thread
                 mainPresent()
             end
         end
-        if DEBUG_DRAW_THREAD then
-            print("drawCoro finished")
-        end
     end)
 end
 
 -- параметры в метрах
 local function makeArmy()
     -- {{{
-    local len = 10
-    pushDEBUG()
-    disableDEBUG()
-    local metersWidth = diamondSquare.width * PIX2M
-    local metersHeight = diamondSquare.height * PIX2M
-    local numWidth = metersWidth / len
+    local len = 7
+    local metersWidth = diamondSquare.width 
+    local metersHeight = diamondSquare.height
+    local numWidth = metersWidth / len 
     local numHeight = metersHeight / len
     for i = 1, len do
         for j = 1, len do
             local angle = rng:random() * 2 * math.pi
-            --spawnTank(vector.new(i * numWidth, j * numHeight), fromPolar(angle))
+            local posx, posy = i * numWidth, j * numHeight
+            print('posx, posy', posx, posy)
+            spawnTank(
+                vector.new((i - 1) * numWidth * PIX2M, (j - 1) * numHeight * PIX2M), 
+                fromPolar(angle))
         end
     end
-    popDEBUG()
     -- }}}
 end
 
 local function physInit()
     local canSleep = true
     physworld = love.physics.newWorld(0., 0., canSleep)
-    if DEBUG_PHYSICS then
-        print("physics world canSleep:", canSleep)
-    end
     physworld:setCallbacks(onBeginContact, onEndContact)
     physworld:setContactFilter(contactFilter)
 end
@@ -2916,10 +2772,8 @@ local function init()
 
     logo = Logo.new()
     cam = require 'camera'.new()
-    if DEBUG_CAMERA then
-        print("camera created x, y, scale, rot", 
-            cam.x, cam.y, cam.scale, cam.rot)
-    end
+    print("camera created x, y, scale, rot", 
+        cam.x, cam.y, cam.scale, cam.rot)
 
     bindCameraZoomKeys()
     bindCameraControl()
@@ -2935,7 +2789,7 @@ local function init()
 
     terrain()
     arena = Arena.new("arena.lua")
-    --makeArmy()
+    makeArmy()
 
     local herostartpos = vector.new(0, 0)
     local alpha = rng:random() * math.pi
@@ -2944,13 +2798,13 @@ local function init()
     bindPlayerTankKeys()
 
     --enableDEBUG()
-    disableDEBUG()
+    --disableDEBUG()
 
     --bugInit()
 
-    --for _, tank in ipairs(tanks) do
+    for _, tank in ipairs(tanks) do
         --tank:circleMove()
-    --end
+    end
 
     cameraZoneR = H / 2
     -- }}}
@@ -3023,9 +2877,7 @@ end
 local function resize(neww: integer, newh: integer)
     -- {{{
     metrics.resize(neww, newh)
-    if DEBUG_CAMERA then
-        print("tanks window resized to w, h", neww, newh)
-    end
+    print("tanks window resized to w, h", neww, newh)
     W, H = neww, newh
     cameraZoneR = newh / 2
     -- FIXME Нужно менять эти переменные?
