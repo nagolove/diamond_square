@@ -2257,8 +2257,8 @@ local function moveCamera()
       local tankx, tanky = playerTank.base.physbody:getWorldCenter()
 
       local diff = vecl.dist(centerx, centery, tankx, tanky)
-      diff = nil
 
+      print("diff", diff)
    end
 end
 
@@ -2819,7 +2819,7 @@ local function init()
 
 
    for _, tank in ipairs(tanks) do
-      tank:circleMove()
+
    end
 
    cameraZoneR = H / 2
