@@ -1927,6 +1927,12 @@ local function changeKeyConfigListbackground()
 end
 
 local function drawParticlesEditor()
+   imgui.Begin('редактор взрыва', false, "AlwaysAutoResize")
+   local v
+   local st
+
+   imgui.SliderInt('maximum energy', 1, 1, 1)
+   imgui.End()
 end
 
 local function drawui()

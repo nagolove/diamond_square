@@ -22,7 +22,7 @@ require 'profi'
 local tween = require 'tween'
 
 --local camMoveTween = tween.new()
-
+local serpent = require 'serpent'
 local List = require "list"
 --local moonshine = require 'moonshine'
 global i18n = require "i18n"
@@ -640,6 +640,14 @@ local function updateBullets()
     end
     bullets = alive
     -- }}}
+end
+
+local record ParticleSystemDefinition
+end
+
+local psdef: ParticleSystemDefinition
+
+local function newParticleSystemWithDef(def: ParticleSystemDefinition)
 end
 
 function Hit.new(x: number, y: number): Hit
@@ -1927,6 +1935,16 @@ local function changeKeyConfigListbackground()
 end
 
 local function drawParticlesEditor()
+    imgui.Begin('редактор взрыва', false, "AlwaysAutoResize")
+    local v: number
+    local st: boolean
+    --v, st = imgui.SliderInt('скорость частиц', 0, -1, 1)
+    imgui.SliderInt('maximum energy', 1, 1, 1)
+    if imgui.Button('>> write system') then
+        local str = serpent.dump(psdef)
+        love.filesystem.write("hit.ps.lua", str)
+    end
+    imgui.End()
 end
 
 local function drawui()
