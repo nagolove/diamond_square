@@ -20,6 +20,9 @@ require('profi')
 
 
 local tween = require('tween')
+
+
+
 local List = require("list")
 
 i18n = require("i18n")
@@ -2246,6 +2249,11 @@ local function updateTanks()
 
 end
 
+posbuffer = {}
+local maxBufLen = 5
+
+local lastPosX, lastPosY
+
 
 
 
@@ -2255,10 +2263,30 @@ local function moveCamera()
       local centerx, centery = w / 2, h / 2
 
       local tankx, tanky = playerTank.base.physbody:getWorldCenter()
+      tankx, tanky = tankx * M2PIX, tanky * M2PIX
 
       local diff = vecl.dist(centerx, centery, tankx, tanky)
 
       print("diff", diff)
+
+      table.insert(posbuffer, { tankx, tanky })
+      if #posbuffer > maxBufLen then
+         table.remove(posbuffer, 1)
+      end
+
+      if not lastPosX then
+         lastPosX = tankx
+      end
+
+      if not lastPosY then
+         lastPosY = tanky
+      end
+
+
+      local dx, dy = lastPosX - tankx, lastPosY - tanky
+      lastPosX = tankx
+      lastPosY = tanky
+      cam:move(-dx, -dy)
    end
 end
 

@@ -20,6 +20,9 @@ require 'profi'
 --require 'moonshine'
 
 local tween = require 'tween'
+
+--local camMoveTween = tween.new()
+
 local List = require "list"
 --local moonshine = require 'moonshine'
 global i18n = require "i18n"
@@ -2246,6 +2249,11 @@ local function updateTanks()
     -- }}}
 end
 
+global posbuffer: {{number}} = {}
+local maxBufLen = 5
+
+local lastPosX, lastPosY: number, number
+
 --[[ Функция двигает камеру если координаты центра масс танка игрока выходят за
 радиус камеры.
 --]]
@@ -2255,10 +2263,30 @@ local function moveCamera()
         local centerx, centery = w / 2, h / 2
         --print("centerx, centery", centerx, centery)
         local tankx, tanky = playerTank.base.physbody:getWorldCenter()
+        tankx, tanky = tankx * M2PIX, tanky * M2PIX
         --print("tankx, tanky", tankx, tanky)
         local diff = vecl.dist(centerx, centery, tankx, tanky)
         --diff = nil
         print("diff", diff)
+
+        table.insert(posbuffer, { tankx, tanky })
+        if #posbuffer > maxBufLen then
+            table.remove(posbuffer, 1)
+        end
+
+        if not lastPosX then
+            lastPosX = tankx
+        end
+
+        if not lastPosY then
+            lastPosY = tanky
+        end
+
+
+        local dx, dy = lastPosX - tankx, lastPosY - tanky
+        lastPosX = tankx
+        lastPosY = tanky
+        cam:move(-dx, -dy)
     end
 end
 
