@@ -20,7 +20,6 @@ require 'profi'
 --require 'moonshine'
 
 local tween = require 'tween'
-
 --local camMoveTween = tween.new()
 local serpent = require 'serpent'
 local List = require "list"
@@ -33,8 +32,8 @@ global inspect = require "inspect"
 global tabular = require "tabular"
 -- }}}
 
-local Filesystem = love.filesystem
-local Audio = love.audio
+--local Filesystem = love.filesystem
+--local Audio = love.audio
 local Graphics = love.graphics
 local Physics = love.physics
 local gr = love.graphics
@@ -261,6 +260,7 @@ local record Base
     backward: function(Base)
 
     engineCycle: function(Base)
+    processTracks: function(Base)
 
     pushTrack: function(Base)
     drawTrack: function(Base)
@@ -294,9 +294,73 @@ local record Bullet
     update: function()
 end
 
+local record ParticleSystemDefinition
+    lifetime1: number
+    lifetime2: number
+    emissionRate: number
+    sizeVariation: number
+    lineAcceleration: {number}
+    colors: {{number}}
+    emiterlifetimeexp: string
+    rotation1: number
+    rotation2: number
+end
+
+local enum Particles
+    "default"
+    "rocket"
+    "gauss"
+end
+
+local record Hangar
+    new: function(): Hangar
+    update: function()
+end
+
+global hangars: {Hangar} = {}
+
+function Hangar.new(): Hangar
+    local Hangar_mt: metatable<Hangar> = {
+        __index = Hangar,
+    }
+    local self = setmetatable({} as Hangar, Hangar_mt)
+    return self
+end
+
+function Hangar:update()
+
+end
+
+local function updateHangars()
+    for _, v in ipairs(hangars) do
+        if v.update then
+            v:update()
+        end
+    end
+end
+
+global particles: {Particles: ParticleSystemDefinition} = {
+    -- {{{
+    ["default"] = {
+        lifetime1 = 1,
+        lifetime2 = 2,
+        emissionRate = 10,
+        sizeVariation = 1,
+        lineAcceleration = { -20, -20, 20, 20 },
+        colors = {
+            { 1, 1, 1, 1, },
+            { 1, 1, 1, 0, },
+        },
+        emiterlifetimeexp = "return 0.1 + (rng:random() + 0.01) / 2",
+        rotation1 = 0,
+        rotation2 = math.pi * 2,
+    }
+    -- }}}
+}
 
 -- То, что создается когда происходит попадание снаряда в танк.
 local record Hit 
+    -- {{{
     -- в пикселях
     x: number
     -- в пикселях
@@ -305,6 +369,7 @@ local record Hit
 
     -- координаты в метрах
     new: function(x: number, y: number): Hit
+    -- }}}
 end
 
 -- Заставка
@@ -414,8 +479,8 @@ local cameraZoneR: number
 
 local edgeColor = {0, 0, 0, 1}
 local edgeLineWidth = 10
-local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
-local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
+--local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
+--local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
 local drawTerrain = true
 
 local baseBatch: Batch = Batch.new("tank_body_small.png")
@@ -426,7 +491,8 @@ global hits: {Hit} = {}
 local coroutines: {thread} = {}
 -- }}}
 
-local function coroutinesUpdate()
+local function updateCoroutines()
+    -- {{{
     local alive: {thread} = {}
     for _, coro in ipairs(coroutines) do
         if coroutine.status(coro) ~= 'dead' then
@@ -439,6 +505,7 @@ local function coroutinesUpdate()
         end
     end
     coroutines = alive
+    -- }}}
 end
 
 function Bullet.new(px: number, py: number, dirx: number, diry: number, 
@@ -526,6 +593,7 @@ local function contactFilter(fix1: lp.Fixture, fix2: lp.Fixture): boolean
     -- }}}
 end
 
+--[[
 local function bugInit()
     -- {{{
     local bugDir = 'bug'
@@ -565,8 +633,10 @@ local function bugInit()
     print('encoded')
     -- }}}
 end
+--]]
 
 local function getBodyFilterData(body: lp.Body): {FilterData}
+    -- {{{
     local result: {FilterData} = {}
     for _, fixture in ipairs(body:getFixtures()) do
         local categoies, mask, group = fixture:getFilterData()
@@ -577,6 +647,7 @@ local function getBodyFilterData(body: lp.Body): {FilterData}
         })
     end
     return result
+    -- }}}
 end
 
 local function drawArrow(
@@ -643,34 +714,6 @@ local function updateBullets()
     -- }}}
 end
 
-local record ParticleSystemDefinition
-    lifetime1: number
-    lifetime2: number
-    emissionRate: number
-    sizeVariation: number
-    lineAcceleration: {number}
-    colors: {{number}}
-    emiterlifetimeexp: string
-    rotation1: number
-    rotation2: number
-end
-
-local defaultDef: ParticleSystemDefinition = {
-    lifetime1 = 1,
-    lifetime2 = 2,
-    emissionRate = 10,
-    sizeVariation = 1,
-    lineAcceleration = { -20, -20, 20, 20 },
-    colors = {
-        { 1, 1, 1, 1, },
-        { 1, 1, 1, 0, },
-    },
-    emiterlifetimeexp = "return 0.1 + (rng:random() + 0.01) / 2",
-    rotation1 = 0,
-    rotation2 = math.pi * 2,
-}
---]]
-
 local function newParticleSystemWithDef(psdef: ParticleSystemDefinition): Graphics.ParticleSystem
     local ps: love.graphics.ParticleSystem
     ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
@@ -731,7 +774,7 @@ function Hit.new(x: number, y: number): Hit
     --print('self.ps:getSizeVariation()', self.ps:getSizeVariation())
 
     --self.ps:setSizes(1, 0.1)
-    self.ps = newParticleSystemWithDef(defaultDef)
+    self.ps = newParticleSystemWithDef(particles['default'])
 
     x, y = x * M2PIX, y * M2PIX
 
@@ -843,7 +886,6 @@ function Arena.new(fname: string): Arena
     local edges: {Edge} = {}
     local data = love.filesystem.read(fname)
     if data then
-        local serpent = require 'serpent'
         local ok = false
         ok, edges = serpent.load(data) as (boolean, {Edge})
         self.edges = edges
@@ -920,7 +962,6 @@ function Arena:present(fixture: lp.Fixture)
 end
 
 function Arena:save2file(fname: string)
-    local serpent = require 'serpent'
     local data = serpent.dump(self.edges)
     love.filesystem.write(fname, data)
 end
@@ -1061,6 +1102,7 @@ function Tank.new(pos: vector, dir: vector): Tank
     -- }}}
 end
 
+--[[
 local function drawBodyStat(body: love.physics.Body)
     -- {{{
     local color = {0, 0, 0, 1}
@@ -1082,6 +1124,7 @@ local function drawBodyStat(body: love.physics.Body)
     drawArrow(x, y, x + vx * scale, y + vy * scale, color)
     -- }}}
 end
+--]]
 
 function Base:drawDirectionVector()
     -- {{{
@@ -1114,7 +1157,7 @@ end
 
 function Base:engineCycle()
     -- расход топлива, едениц в секунду
-    local consumption = 10
+    --local consumption = 10
     if self.tank.fuel > 0 then
     end
 end
@@ -1124,7 +1167,10 @@ function Base:update()
     if not self.filterdata then
         self.filterdata = getBodyFilterData(self.physbody)
     end
+    self:processTracks()
+end
 
+function Base:processTracks()
     local vx, vy = self.physbody:getLinearVelocity()
     local len = vecl.len(vx, vy)
     local threshold = 1
@@ -1178,6 +1224,7 @@ function Tank:update(): Tank
     -- }}}
 end
 
+--[[
 local function drawFixture(f: love.physics.Fixture, color: {number})
     -- {{{
     local defaultcolor = {1, 0.5, 0, 0.5}
@@ -1222,6 +1269,7 @@ local function drawFixture(f: love.physics.Fixture, color: {number})
     end
     -- }}}
 end
+--]]
 
 function Tank:present()
     -- {{{
@@ -1672,7 +1720,7 @@ local function onBeginContact(
                local id1 = userdata1.id 
                local id2 = userdata2.id
                if id1 ~= id2 then
-                   newHit(p1x, p1y)
+                   --newHit(p1x, p1y)
                    if objectType1 == 'Bullet' then
                        local b = fixture1:getUserData() as Bullet
                        if b and b.died then
@@ -1981,7 +2029,9 @@ local function drawParticlesEditor()
     imgui.Begin('редактор взрыва', false, "AlwaysAutoResize")
     local v: number
     local st: boolean
-    local psdef = defaultDef
+    local zeroseparated, _ = separateByZeros({ "default", "rocket", "gauss", })
+    v, st = imgui.Combo("тип частиц", 1, zeroseparated)
+    local psdef = particles["default"]
     --v, st = imgui.SliderInt('скорость частиц', 0, -1, 1)
 
     psdef.lifetime1, st = imgui.SliderInt('время жизни от', psdef.lifetime1, 0, 1000)
@@ -2008,8 +2058,131 @@ local function drawParticlesEditor()
     psdef.emiterlifetimeexp = imgui.InputTextMultiline("emiterlifetimeexp", psdef.emiterlifetimeexp, 600, 400);
 
     if imgui.Button('>> write system') then
-        local str = serpent.dump(defaultDef)
-        love.filesystem.write("hit.ps.lua", str)
+        --local str = serpent.dump(defaultDef)
+        --love.filesystem.write("hit.ps.lua", str)
+    end
+    imgui.End()
+end
+
+local currentNavigator: Tank
+
+local function findTank(object: Tank): integer
+    for i, v in ipairs(tanks) do
+        if v == object then
+            return i
+        end
+    end
+    return nil
+end
+
+local function moveCameraToTank(tank: Tank)
+    -- {{{
+    if tank then
+        local x, y = tank.base.physbody:getWorldCenter()
+        x, y = x * M2PIX, y * M2PIX
+        cam:lookAt(x, y)
+    end
+    -- }}}
+end
+
+local function enableMovement()
+    for _, tank in ipairs(tanks) do
+        if tank ~= playerTank then
+            tank:circleMove()
+        end
+    end
+end
+
+-- положение в метрах
+local function spawnTank(pos: vector, dir: vector): Tank
+    -- {{{
+    local ok, errmsg: boolean, string = pcall(function()
+        if #tanks >= 1 then
+            -- XXX next line not work
+             --unbindPlayerTankKeys()
+        end
+        table.insert(tanks, Tank.new(pos, dir))
+        print("Tank spawn at", pos.x, pos.y)
+    end)
+    if not ok then
+        error("Could'not load. Please implement stub-tank. " .. errmsg)
+    end
+    return tanks[#tanks]
+    -- }}}
+end
+
+local function makeArmy()
+    -- {{{
+    local len = 7
+    local metersWidth = diamondSquare.width 
+    local metersHeight = diamondSquare.height
+    local numWidth = metersWidth / len 
+    local numHeight = metersHeight / len
+    for i = 0, len - 1 do
+        for j = 0, len - 1  do
+            --local angle = rng:random() * 2 * math.pi
+            --local angle = 0
+            local posx, posy = i * numWidth, j * numHeight
+            print('posx, posy', posx, posy)
+            --local pos = vector.new(i * numWidth * PIX2M, 
+                ---j * numHeight * PIX2M)
+            --spawnTank(pos, fromPolar(angle))
+        end
+    end
+    local angle = rng:random() * 2 * math.pi
+    spawnTank(vector.new(0, 0), fromPolar(angle))
+    spawnTank(vector.new(
+        diamondSquare.width * PIX2M, 
+        diamondSquare.height * PIX2M
+    ), fromPolar(angle))
+    spawnTank(vector.new(0, -diamondSquare.height * PIX2M), fromPolar(angle))
+    spawnTank(vector.new(-diamondSquare.width * PIX2M, 0), fromPolar(angle))
+    spawnTank(vector.new(
+        diamondSquare.width * PIX2M / 2, diamondSquare.height * PIX2M / 2), 
+        fromPolar(angle))
+    -- }}}
+end
+
+local function drawNavigator()
+    if not currentNavigator then
+        currentNavigator = tanks[1]
+    end
+    local index: integer
+    imgui.Begin('навигатор', false, "AlwaysAutoResize")
+    if imgui.Button('предыдущий') then
+        index = findTank(currentNavigator)
+        if index - 1 >= 1 then
+            index = index - 1
+        end
+    end
+    if imgui.Button('следующий') then
+        index = findTank(currentNavigator)
+        if index + 1 <= #tanks then
+            index = index + 1
+        end
+    end
+    if imgui.Button('включить движение') then
+        enableMovement()
+    end
+    if imgui.Button('сделать армию') then
+        makeArmy()
+    end
+    currentNavigator = tanks[index]
+    moveCameraToTank(currentNavigator)
+    imgui.End()
+end
+
+local function drawArenaPallete()
+    imgui.Begin('арена', false, "AlwaysAutoResize")
+    if imgui.Button('выгрузить на накопитель нжмд') then
+
+    end
+    if imgui.Button('подгрузить с на накопителя нжмд') then
+    end
+    if imgui.Button('включить режим кисти граней') then
+
+    end
+    if imgui.Button('включить режим расстановки Ангаров') then
     end
     imgui.End()
 end
@@ -2021,17 +2194,9 @@ local function drawui()
     imgui.ShowUserGuide()
 
     drawParticlesEditor()
+    drawNavigator()
+    drawArenaPallete()
 
-    -- }}}
-end
-
-local function moveCameraToPlayer()
-    -- {{{
-    if playerTank then
-        local x, y = playerTank.base.physbody:getWorldCenter()
-        x, y = x * M2PIX, y * M2PIX
-        cam:lookAt(x, y)
-    end
     -- }}}
 end
 
@@ -2081,7 +2246,7 @@ local function bindCameraControl()
             if mode ~= "normal" then
                 return false, sc
             end
-            moveCameraToPlayer()
+            moveCameraToTank(playerTank)
             return false, sc
         end, 
         i18n("cam2tank"), "cam2tank")
@@ -2375,16 +2540,17 @@ local function moveCamera()
     end
 end
 
-local function update(dt: number)
+local function mainUpdate(dt: number)
     profi:start()
     camTimer:update(dt)
     physworld:update(1 / 60)
     linesbuf:update()
     updateTanks()
     updateBullets()
-    arena:update()
+    updateHangars()
     updateHits(dt)
-    coroutinesUpdate()
+    updateCoroutines()
+    arena:update()
     moveCamera()
     profi:stop()
 end
@@ -2718,24 +2884,6 @@ local function keypressed(key: string)
     -- }}}
 end
 
--- положение в метрах
-local function spawnTank(pos: vector, dir: vector): Tank
-    -- {{{
-    local ok, errmsg: boolean, string = pcall(function()
-        if #tanks >= 1 then
-            -- XXX next line not work
-             --unbindPlayerTankKeys()
-        end
-        table.insert(tanks, Tank.new(pos, dir))
-        print("Tank spawn at", pos.x, pos.y)
-    end)
-    if not ok then
-        error("Could'not load. Please implement stub-tank. " .. errmsg)
-    end
-    return tanks[#tanks]
-    -- }}}
-end
-
 global cameraKeyConfigIds: {integer} = {}
 
 local function bindCameraZoomKeys()
@@ -2853,27 +3001,6 @@ local function createDrawCoroutine(): thread
 end
 
 -- параметры в метрах
-local function makeArmy()
-    -- {{{
-    local len = 7
-    local metersWidth = diamondSquare.width 
-    local metersHeight = diamondSquare.height
-    local numWidth = metersWidth / len 
-    local numHeight = metersHeight / len
-    for i = 0, len - 1 do
-        for j = 0, len - 1  do
-            local angle = rng:random() * 2 * math.pi
-            --local angle = 0
-            local posx, posy = i * numWidth, j * numHeight
-            print('posx, posy', posx, posy)
-            local pos = vector.new(i * numWidth * PIX2M, 
-                -j * numHeight * PIX2M)
-            spawnTank(pos, fromPolar(angle))
-        end
-    end
-    -- }}}
-end
-
 local function physInit()
     local canSleep = true
     physworld = love.physics.newWorld(0., 0., canSleep)
@@ -2930,12 +3057,6 @@ local function init()
     --disableDEBUG()
 
     --bugInit()
-
-    for _, tank in ipairs(tanks) do
-        if tank ~= playerTank then
-            tank:circleMove()
-        end
-    end
 
     cameraZoneR = H / 2
     -- }}}
@@ -3036,7 +3157,7 @@ return {
     quit = quit,
     draw = draw,
     drawui = drawui,
-    update = update,
+    update = mainUpdate,
     keypressed = keypressed,
     mousepressed = mousepressed,
     resize = resize,
