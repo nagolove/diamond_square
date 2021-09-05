@@ -51,11 +51,17 @@ local enum Mode
     "editor"
 end
 
+local enum Brush
+    "None" -- ничего не рисовать
+    "Hangar"
+end
+
 local enum ObjectType
-    "Base"
-    "Turret"
-    "Bullet"
     "Arena"
+    "Base"
+    "Bullet"
+    "Hangar"
+    "Turret"
 end
 
 local record DrawNode
@@ -130,6 +136,27 @@ local record FilterData
     categoies: integer
     mask: integer
     group: integer
+end
+
+local enum Particles
+    "default"
+    "rocket"
+    "gauss"
+end
+
+local record Hangar
+    id: integer
+    objectType: ObjectType
+    color: {number}
+    physbody: Physics.Body
+    polyshape: lp.PolygonShape
+    rectXY: {number}
+    rectWH: {number}
+    fixture: Physics.Fixture
+
+    new: function(): Hangar
+    update: function(Hangar)
+    present: function(Hangar)
 end
 
 -- Класс основного боевого танка.
@@ -306,39 +333,6 @@ local record ParticleSystemDefinition
     rotation2: number
 end
 
-local enum Particles
-    "default"
-    "rocket"
-    "gauss"
-end
-
-local record Hangar
-    new: function(): Hangar
-    update: function()
-end
-
-global hangars: {Hangar} = {}
-
-function Hangar.new(): Hangar
-    local Hangar_mt: metatable<Hangar> = {
-        __index = Hangar,
-    }
-    local self = setmetatable({} as Hangar, Hangar_mt)
-    return self
-end
-
-function Hangar:update()
-
-end
-
-local function updateHangars()
-    for _, v in ipairs(hangars) do
-        if v.update then
-            v:update()
-        end
-    end
-end
-
 global particles: {Particles: ParticleSystemDefinition} = {
     -- {{{
     ["default"] = {
@@ -455,6 +449,7 @@ local cameraSettings: CameraSettings = {
 global physworld: love.physics.World
 -- Все танки, в том числе и тот, которым управляет игрок.
 global tanks: {Tank} = {}
+global hangars: {Hangar} = {}
 -- Танк, которым управляет игрок
 global playerTank: Tank
 -- Подложка
@@ -651,6 +646,82 @@ local function getBodyFilterData(body: lp.Body): {FilterData}
     -- }}}
 end
 
+function Hangar.new(pos: vector): Hangar
+    local Hangar_mt: metatable<Hangar> = {
+        __index = Hangar,
+    }
+    local self = setmetatable({} as Hangar, Hangar_mt)
+    self.objectType = "Hangar"
+    self.physbody = Physics.newBody(physworld, 0, 0, "static")
+    self.physbody:setUserData(self)
+    self.rectXY = {0, 0}
+    self.rectWH = {511, 511}
+    local px, py = pos.x, pos.y
+    local vertices = {
+        px - self.rectWH[1] / 2 * PIX2M, 
+        py - self.rectWH[2] / 2 * PIX2M,  
+
+        px + self.rectWH[1] / 2 * PIX2M, 
+        py - self.rectWH[2] / 2 * PIX2M,  
+
+        px + self.rectWH[1] / 2 * PIX2M, 
+        py + self.rectWH[2] / 2 * PIX2M,  
+
+        px - self.rectWH[1] / 2 * PIX2M,
+        py + self.rectWH[2] / 2 * PIX2M,
+    }
+    local shape = Physics.newPolygonShape(vertices)
+    self.fixture = Physics.newFixture(self.physbody, shape as Physics.Shape)
+    --self.f:setGroupIndex(tankCollisionGroup)
+    self.polyshape = shape
+    self.color = {1, 1, 1, 1}
+    return self
+end
+
+function Hangar:update()
+
+end
+
+function Hangar:present()
+    local shape = self.fixture:getShape()
+    if shape:getType() ~= "polygon" then
+        error("Tank BaseP shape should be polygon.")
+    end
+
+    local body = self.fixture:getBody()
+    --    1   2   3   4   5   6   7   8
+    local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
+
+    x1, y1 = body:getWorldPoints(x1, y1)
+    x2, y2 = body:getWorldPoints(x2, y2)
+    x3, y3 = body:getWorldPoints(x3, y3)
+    x4, y4 = body:getWorldPoints(x4, y4)
+
+    x1, y1 = M2PIX * x1, M2PIX * y1
+    x2, y2 = M2PIX * x2, M2PIX * y2
+    x3, y3 = M2PIX * x3, M2PIX * y3
+    x4, y4 = M2PIX * x4, M2PIX * y4
+
+    hangarBatch:present(
+        x1, y1, x2, y2, x3, y3, x4, y4, 
+        self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2], 
+        self.color
+    )
+
+    --self.x4 = x4
+    --self.y4 = y4
+    --self.x1 = x1
+    --self.y1 = y1
+    --hangarBatch:present()
+end
+
+local function updateHangars()
+    for _, v in ipairs(hangars) do
+        if v.update then
+            v:update()
+        end
+    end
+end
 local function drawArrow(
     fromx: number, fromy: number, tox: number, toy: number, 
     color: {number}
@@ -2100,8 +2171,10 @@ local function enableMovement()
     end
 end
 
-local function spawnHangar(pos: vector)
-
+local function spawnHangar(pos: vector): Hangar
+    local hangar = Hangar.new(pos)
+    table.insert(hangars, hangar)
+    return hangar
 end
 
 -- положение в метрах
@@ -2183,6 +2256,20 @@ local function drawNavigator()
     imgui.End()
 end
 
+local brushFunction: function(x: number, y: number)
+
+local function setupBrush(brush: Brush)
+    if brush == "Hangar" then
+        brushFunction = function()
+            local mx, my = cam:worldCoords(love.mouse.getPosition())
+            local pos = vector.new(mx * PIX2M, my * PIX2M)
+            spawnHangar(pos)
+        end
+    else
+        brushFunction = nil
+    end
+end
+
 local function drawArenaPallete()
     imgui.Begin('арена', false, "AlwaysAutoResize")
     if imgui.Button('выгрузить на накопитель нжмд') then
@@ -2193,7 +2280,9 @@ local function drawArenaPallete()
     if imgui.Button('включить режим кисти граней') then
 
     end
-    if imgui.Button('включить режим расстановки Ангаров') then
+    if imgui.Button(i18n('inserhangarmode')) then
+        mode = 'editor'
+        setupBrush('Hangar')
     end
     imgui.End()
 end
@@ -3135,13 +3224,17 @@ local function mousepressed(x: number, y: number, btn: integer)
             if playerTank then
                 playerTank:fire()
             end
-        elseif btn == 2 then
-            x, y = cam:worldCoords(x, y)
-            x, y = x * PIX2M, y * PIX2M
-            spawnTank(vector.new(x, y))
         end
+        --elseif btn == 2 then
+            --x, y = cam:worldCoords(x, y)
+            --x, y = x * PIX2M, y * PIX2M
+            --spawnTank(vector.new(x, y))
+        --end
     elseif mode == 'editor' then
         arena:mousepressed(x, y, btn)
+        if btn == 1 and brushFunction then 
+            brushFunction(x, y)
+        end
     end
     -- }}}
 end

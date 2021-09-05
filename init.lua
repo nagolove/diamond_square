@@ -51,7 +51,13 @@ local Mode = {}
 
 
 
+local Brush = {}
+
+
+
+
 local ObjectType = {}
+
 
 
 
@@ -127,6 +133,27 @@ local Arena = {}
 
 
 local FilterData = {}
+
+
+
+
+
+local Particles = {}
+
+
+
+
+
+local Hangar = {}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -306,39 +333,6 @@ local ParticleSystemDefinition = {}
 
 
 
-local Particles = {}
-
-
-
-
-
-local Hangar = {}
-
-
-
-
-hangars = {}
-
-function Hangar.new()
-   local Hangar_mt = {
-      __index = Hangar,
-   }
-   local self = setmetatable({}, Hangar_mt)
-   return self
-end
-
-function Hangar:update()
-
-end
-
-local function updateHangars()
-   for _, v in ipairs(hangars) do
-      if v.update then
-         v:update()
-      end
-   end
-end
-
 particles = {
 
    ["default"] = {
@@ -455,6 +449,7 @@ local cameraSettings = {
 
 
 tanks = {}
+hangars = {}
 
 
 
@@ -651,6 +646,82 @@ local function getBodyFilterData(body)
 
 end
 
+function Hangar.new(pos)
+   local Hangar_mt = {
+      __index = Hangar,
+   }
+   local self = setmetatable({}, Hangar_mt)
+   self.objectType = "Hangar"
+   self.physbody = Physics.newBody(physworld, 0, 0, "static")
+   self.physbody:setUserData(self)
+   self.rectXY = { 0, 0 }
+   self.rectWH = { 511, 511 }
+   local px, py = pos.x, pos.y
+   local vertices = {
+      px - self.rectWH[1] / 2 * PIX2M,
+      py - self.rectWH[2] / 2 * PIX2M,
+
+      px + self.rectWH[1] / 2 * PIX2M,
+      py - self.rectWH[2] / 2 * PIX2M,
+
+      px + self.rectWH[1] / 2 * PIX2M,
+      py + self.rectWH[2] / 2 * PIX2M,
+
+      px - self.rectWH[1] / 2 * PIX2M,
+      py + self.rectWH[2] / 2 * PIX2M,
+   }
+   local shape = Physics.newPolygonShape(vertices)
+   self.fixture = Physics.newFixture(self.physbody, shape)
+
+   self.polyshape = shape
+   self.color = { 1, 1, 1, 1 }
+   return self
+end
+
+function Hangar:update()
+
+end
+
+function Hangar:present()
+   local shape = self.fixture:getShape()
+   if shape:getType() ~= "polygon" then
+      error("Tank BaseP shape should be polygon.")
+   end
+
+   local body = self.fixture:getBody()
+
+   local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
+
+   x1, y1 = body:getWorldPoints(x1, y1)
+   x2, y2 = body:getWorldPoints(x2, y2)
+   x3, y3 = body:getWorldPoints(x3, y3)
+   x4, y4 = body:getWorldPoints(x4, y4)
+
+   x1, y1 = M2PIX * x1, M2PIX * y1
+   x2, y2 = M2PIX * x2, M2PIX * y2
+   x3, y3 = M2PIX * x3, M2PIX * y3
+   x4, y4 = M2PIX * x4, M2PIX * y4
+
+   hangarBatch:present(
+   x1, y1, x2, y2, x3, y3, x4, y4,
+   self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2],
+   self.color)
+
+
+
+
+
+
+
+end
+
+local function updateHangars()
+   for _, v in ipairs(hangars) do
+      if v.update then
+         v:update()
+      end
+   end
+end
 local function drawArrow(
    fromx, fromy, tox, toy,
    color)
@@ -2101,7 +2172,9 @@ local function enableMovement()
 end
 
 local function spawnHangar(pos)
-
+   local hangar = Hangar.new(pos)
+   table.insert(hangars, hangar)
+   return hangar
 end
 
 
@@ -2183,6 +2256,20 @@ local function drawNavigator()
    imgui.End()
 end
 
+local brushFunction
+
+local function setupBrush(brush)
+   if brush == "Hangar" then
+      brushFunction = function()
+         local mx, my = cam:worldCoords(love.mouse.getPosition())
+         local pos = vector.new(mx * PIX2M, my * PIX2M)
+         spawnHangar(pos)
+      end
+   else
+      brushFunction = nil
+   end
+end
+
 local function drawArenaPallete()
    imgui.Begin('арена', false, "AlwaysAutoResize")
    if imgui.Button('выгрузить на накопитель нжмд') then
@@ -2193,7 +2280,9 @@ local function drawArenaPallete()
    if imgui.Button('включить режим кисти граней') then
 
    end
-   if imgui.Button('включить режим расстановки Ангаров') then
+   if imgui.Button(i18n('inserhangarmode')) then
+      mode = 'editor'
+      setupBrush('Hangar')
    end
    imgui.End()
 end
@@ -3135,13 +3224,17 @@ local function mousepressed(x, y, btn)
          if playerTank then
             playerTank:fire()
          end
-      elseif btn == 2 then
-         x, y = cam:worldCoords(x, y)
-         x, y = x * PIX2M, y * PIX2M
-         spawnTank(vector.new(x, y))
       end
+
+
+
+
+
    elseif mode == 'editor' then
       arena:mousepressed(x, y, btn)
+      if btn == 1 and brushFunction then
+         brushFunction(x, y)
+      end
    end
 
 end
