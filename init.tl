@@ -330,7 +330,7 @@ local type CameraSettings = record
 end
 
 -- {{{ Global and local variables.
-
+global maxParticlesNumber = 512
 global notificationDelay = 2.5
 -- Размеры экрана по-умолчанию(начальное положение)
 global DEFAULT_W, DEFAULT_H = 1024, 768
@@ -415,6 +415,7 @@ local cameraZoneR: number
 local edgeColor = {0, 0, 0, 1}
 local edgeLineWidth = 10
 local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
+local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
 local drawTerrain = true
 
 local baseBatch: Batch = Batch.new("tank_body_small.png")
@@ -643,11 +644,82 @@ local function updateBullets()
 end
 
 local record ParticleSystemDefinition
+    lifetime1: number
+    lifetime2: number
+    emissionRate: number
+    sizeVariation: number
+    lineAcceleration: {number}
+    colors: {{number}}
+    emiterlifetimeexp: string
+    rotation1: number
+    rotation2: number
 end
 
-local psdef: ParticleSystemDefinition
+local defaultDef: ParticleSystemDefinition = {
+    lifetime1 = 1,
+    lifetime2 = 2,
+    emissionRate = 10,
+    sizeVariation = 1,
+    lineAcceleration = { -20, -20, 20, 20 },
+    colors = {
+        { 1, 1, 1, 1, },
+        { 1, 1, 1, 0, },
+    },
+    emiterlifetimeexp = "return 0.1 + (rng:random() + 0.01) / 2",
+    rotation1 = 0,
+    rotation2 = math.pi * 2,
+}
+--]]
 
-local function newParticleSystemWithDef(def: ParticleSystemDefinition)
+local function newParticleSystemWithDef(psdef: ParticleSystemDefinition): Graphics.ParticleSystem
+    local ps: love.graphics.ParticleSystem
+    ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
+
+    -- Particles live at least 2s and at most 5s.
+    ps:setParticleLifetime(psdef.lifetime1, psdef.lifetime2) 
+
+    ps:setEmissionRate(psdef.emissionRate)
+    ps:setSizeVariation(psdef.sizeVariation)
+
+    -- Random movement in all directions.
+    ps:setLinearAcceleration(
+        psdef.lineAcceleration[1],
+        psdef.lineAcceleration[2],
+        psdef.lineAcceleration[3],
+        psdef.lineAcceleration[4]
+    ) 
+
+    ps:setColors(
+        psdef.colors[1][1],
+        psdef.colors[1][2],
+        psdef.colors[1][3],
+        psdef.colors[1][4],
+        psdef.colors[2][1],
+        psdef.colors[2][2],
+        psdef.colors[2][3],
+        psdef.colors[2][4]
+    ) -- Fade to transparency.
+
+    local lifetime = 1.
+    local ok, errmsg: boolean, string = pcall(function()
+        --lifetime = load(psdef.emiterlifetimeexp)() as number
+        lifetime = rng:random() * 2
+    end)
+    if not ok then
+        print('pddef.emiterlifetimeexp compilation error', errmsg)
+    end
+    ps:setEmitterLifetime(lifetime)
+
+    --print('lifetime', lifetime)
+    --print('ps:hasRelativeRotation', ps:hasRelativeRotation())
+    --print('ps:getEmitterLifetime()', ps:getEmitterLifetime())
+    --print('getRotation()', ps:getRotation())
+
+    --ps:setRotation(-2*math.pi, 2*math.pi)
+    --ps:setRotation(-math.pi, math.pi)
+    --ps:setRotation(0, math.pi / 3)
+    ps:setRotation(psdef.rotation1, psdef.rotation2)
+    return ps
 end
 
 function Hit.new(x: number, y: number): Hit
@@ -656,39 +728,10 @@ function Hit.new(x: number, y: number): Hit
     }
     local self: Hit = setmetatable({} as Hit, Hit_mt)
 
-    local maxParticlesNumber = 128
-
-    self.ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
-
-    -- Particles live at least 2s and at most 5s.
-    self.ps:setParticleLifetime(0.2, 1) 
-
-    self.ps:setEmissionRate(5)
-    self.ps:setSizeVariation(1)
-
-    -- Random movement in all directions.
-    self.ps:setLinearAcceleration(-20, -20, 20, 20) 
-
-    self.ps:setColors(
-        1, 1, 1, 1, 
-        1, 1, 1, 0
-    ) -- Fade to transparency.
-
-    local lifetime = 0.1 + (rng:random() + 0.01) / 2
-    self.ps:setEmitterLifetime(lifetime)
-
-    --print('lifetime', lifetime)
-    --print('self.ps:hasRelativeRotation', self.ps:hasRelativeRotation())
-    --print('self.ps:getEmitterLifetime()', self.ps:getEmitterLifetime())
-    --print('getRotation()', self.ps:getRotation())
-
-    --self.ps:setRotation(-2*math.pi, 2*math.pi)
-    --self.ps:setRotation(-math.pi, math.pi)
-    self.ps:setRotation(0, math.pi / 3)
-
     --print('self.ps:getSizeVariation()', self.ps:getSizeVariation())
 
     --self.ps:setSizes(1, 0.1)
+    self.ps = newParticleSystemWithDef(defaultDef)
 
     x, y = x * M2PIX, y * M2PIX
 
@@ -1938,10 +1981,34 @@ local function drawParticlesEditor()
     imgui.Begin('редактор взрыва', false, "AlwaysAutoResize")
     local v: number
     local st: boolean
+    local psdef = defaultDef
     --v, st = imgui.SliderInt('скорость частиц', 0, -1, 1)
-    imgui.SliderInt('maximum energy', 1, 1, 1)
+
+    psdef.lifetime1, st = imgui.SliderInt('время жизни от', psdef.lifetime1, 0, 1000)
+    psdef.lifetime2, st = imgui.SliderInt('время жизни до', psdef.lifetime2, 0, 1000)
+    psdef.emissionRate, st = imgui.SliderInt('эмиссия', psdef.emissionRate, 0, 1000)
+    psdef.sizeVariation, st = imgui.SliderFloat('вариации размера', psdef.sizeVariation, 0, 1)
+
+    psdef.lineAcceleration[1], st = imgui.SliderInt('парам1', psdef.lineAcceleration[1], -100, 100)
+    psdef.lineAcceleration[2], st = imgui.SliderInt('парам2', psdef.lineAcceleration[2], -100, 100)
+    psdef.lineAcceleration[3], st = imgui.SliderInt('парам3', psdef.lineAcceleration[3], -100, 100)
+    psdef.lineAcceleration[4], st = imgui.SliderInt('парам4', psdef.lineAcceleration[4], -100, 100)
+
+    psdef.colors[1][1], st = imgui.SliderFloat('цвет красный 1', psdef.colors[1][1], 0, 1)
+    psdef.colors[1][2], st = imgui.SliderFloat('цвет зеленый 1', psdef.colors[1][2], 0, 1)
+    psdef.colors[1][3], st = imgui.SliderFloat('цвет голубой 1', psdef.colors[1][3], 0, 1)
+    psdef.colors[1][4], st = imgui.SliderFloat('цвет прозрачности 1', psdef.colors[1][4], 0, 1)
+
+    psdef.colors[2][1], st = imgui.SliderFloat('цвет красный 2', psdef.colors[2][1], 0, 1)
+    psdef.colors[2][2], st = imgui.SliderFloat('цвет зеленый 2', psdef.colors[2][2], 0, 1)
+    psdef.colors[2][3], st = imgui.SliderFloat('цвет голубой 2', psdef.colors[2][3], 0, 1)
+    psdef.colors[2][4], st = imgui.SliderFloat('цвет прозрачности 2', psdef.colors[2][4], 0, 1)
+
+    --
+    psdef.emiterlifetimeexp = imgui.InputTextMultiline("emiterlifetimeexp", psdef.emiterlifetimeexp, 600, 400);
+
     if imgui.Button('>> write system') then
-        local str = serpent.dump(psdef)
+        local str = serpent.dump(defaultDef)
         love.filesystem.write("hit.ps.lua", str)
     end
     imgui.End()
@@ -2865,7 +2932,9 @@ local function init()
     --bugInit()
 
     for _, tank in ipairs(tanks) do
-        --tank:circleMove()
+        if tank ~= playerTank then
+            tank:circleMove()
+        end
     end
 
     cameraZoneR = H / 2

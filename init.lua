@@ -22,7 +22,7 @@ require('profi')
 local tween = require('tween')
 
 
-
+local serpent = require('serpent')
 local List = require("list")
 
 i18n = require("i18n")
@@ -330,7 +330,7 @@ local CameraSettings = {}
 
 
 
-
+maxParticlesNumber = 512
 notificationDelay = 2.5
 
 DEFAULT_W, DEFAULT_H = 1024, 768
@@ -415,6 +415,7 @@ local cameraZoneR
 local edgeColor = { 0, 0, 0, 1 }
 local edgeLineWidth = 10
 local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
+local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
 local drawTerrain = true
 
 local baseBatch = Batch.new("tank_body_small.png")
@@ -642,45 +643,95 @@ local function updateBullets()
 
 end
 
+local ParticleSystemDefinition = {}
+
+
+
+
+
+
+
+
+
+
+
+local defaultDef = {
+   lifetime1 = 1,
+   lifetime2 = 2,
+   emissionRate = 10,
+   sizeVariation = 1,
+   lineAcceleration = { -20, -20, 20, 20 },
+   colors = {
+      { 1, 1, 1, 1 },
+      { 1, 1, 1, 0 },
+   },
+   emiterlifetimeexp = "return 0.1 + (rng:random() + 0.01) / 2",
+   rotation1 = 0,
+   rotation2 = math.pi * 2,
+}
+
+
+local function newParticleSystemWithDef(psdef)
+   local ps
+   ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
+
+
+   ps:setParticleLifetime(psdef.lifetime1, psdef.lifetime2)
+
+   ps:setEmissionRate(psdef.emissionRate)
+   ps:setSizeVariation(psdef.sizeVariation)
+
+
+   ps:setLinearAcceleration(
+   psdef.lineAcceleration[1],
+   psdef.lineAcceleration[2],
+   psdef.lineAcceleration[3],
+   psdef.lineAcceleration[4])
+
+
+   ps:setColors(
+   psdef.colors[1][1],
+   psdef.colors[1][2],
+   psdef.colors[1][3],
+   psdef.colors[1][4],
+   psdef.colors[2][1],
+   psdef.colors[2][2],
+   psdef.colors[2][3],
+   psdef.colors[2][4])
+
+
+   local lifetime = 1.
+   local ok, errmsg = pcall(function()
+
+      lifetime = rng:random() * 2
+   end)
+   if not ok then
+      print('pddef.emiterlifetimeexp compilation error', errmsg)
+   end
+   ps:setEmitterLifetime(lifetime)
+
+
+
+
+
+
+
+
+
+   ps:setRotation(psdef.rotation1, psdef.rotation2)
+   return ps
+end
+
 function Hit.new(x, y)
    local Hit_mt = {
       __index = Hit,
    }
    local self = setmetatable({}, Hit_mt)
 
-   local maxParticlesNumber = 128
-
-   self.ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
-
-
-   self.ps:setParticleLifetime(0.2, 1)
-
-   self.ps:setEmissionRate(5)
-   self.ps:setSizeVariation(1)
-
-
-   self.ps:setLinearAcceleration(-20, -20, 20, 20)
-
-   self.ps:setColors(
-   1, 1, 1, 1,
-   1, 1, 1, 0)
-
-
-   local lifetime = 0.1 + (rng:random() + 0.01) / 2
-   self.ps:setEmitterLifetime(lifetime)
 
 
 
-
-
-
-
-
-   self.ps:setRotation(0, math.pi / 3)
-
-
-
-
+   self.ps = newParticleSystemWithDef(defaultDef)
 
    x, y = x * M2PIX, y * M2PIX
 
@@ -1930,8 +1981,36 @@ local function drawParticlesEditor()
    imgui.Begin('редактор взрыва', false, "AlwaysAutoResize")
    local v
    local st
+   local psdef = defaultDef
 
-   imgui.SliderInt('maximum energy', 1, 1, 1)
+
+   psdef.lifetime1, st = imgui.SliderInt('время жизни от', psdef.lifetime1, 0, 1000)
+   psdef.lifetime2, st = imgui.SliderInt('время жизни до', psdef.lifetime2, 0, 1000)
+   psdef.emissionRate, st = imgui.SliderInt('эмиссия', psdef.emissionRate, 0, 1000)
+   psdef.sizeVariation, st = imgui.SliderFloat('вариации размера', psdef.sizeVariation, 0, 1)
+
+   psdef.lineAcceleration[1], st = imgui.SliderInt('парам1', psdef.lineAcceleration[1], -100, 100)
+   psdef.lineAcceleration[2], st = imgui.SliderInt('парам2', psdef.lineAcceleration[2], -100, 100)
+   psdef.lineAcceleration[3], st = imgui.SliderInt('парам3', psdef.lineAcceleration[3], -100, 100)
+   psdef.lineAcceleration[4], st = imgui.SliderInt('парам4', psdef.lineAcceleration[4], -100, 100)
+
+   psdef.colors[1][1], st = imgui.SliderFloat('цвет красный 1', psdef.colors[1][1], 0, 1)
+   psdef.colors[1][2], st = imgui.SliderFloat('цвет зеленый 1', psdef.colors[1][2], 0, 1)
+   psdef.colors[1][3], st = imgui.SliderFloat('цвет голубой 1', psdef.colors[1][3], 0, 1)
+   psdef.colors[1][4], st = imgui.SliderFloat('цвет прозрачности 1', psdef.colors[1][4], 0, 1)
+
+   psdef.colors[2][1], st = imgui.SliderFloat('цвет красный 2', psdef.colors[2][1], 0, 1)
+   psdef.colors[2][2], st = imgui.SliderFloat('цвет зеленый 2', psdef.colors[2][2], 0, 1)
+   psdef.colors[2][3], st = imgui.SliderFloat('цвет голубой 2', psdef.colors[2][3], 0, 1)
+   psdef.colors[2][4], st = imgui.SliderFloat('цвет прозрачности 2', psdef.colors[2][4], 0, 1)
+
+
+   psdef.emiterlifetimeexp = imgui.InputTextMultiline("emiterlifetimeexp", psdef.emiterlifetimeexp, 600, 400);
+
+   if imgui.Button('>> write system') then
+      local str = serpent.dump(defaultDef)
+      love.filesystem.write("hit.ps.lua", str)
+   end
    imgui.End()
 end
 
@@ -2853,7 +2932,9 @@ local function init()
 
 
    for _, tank in ipairs(tanks) do
-
+      if tank ~= playerTank then
+         tank:circleMove()
+      end
    end
 
    cameraZoneR = H / 2
