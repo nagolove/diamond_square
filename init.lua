@@ -485,6 +485,7 @@ local drawTerrain = true
 
 local baseBatch = Batch.new("tank_body_small.png")
 local turretBatch = Batch.new("tank_tower.png")
+local hangarBatch = Batch.new("hangar.png")
 
 maxTrackCount = 128
 hits = {}
@@ -2418,6 +2419,7 @@ end
 local function mainPresent()
    baseBatch:prepare()
    turretBatch:prepare()
+   hangarBatch:prepare()
 
    push2drawlistTop(drawBullets)
 
@@ -2434,6 +2436,7 @@ local function mainPresent()
 
    baseBatch:flush()
    turretBatch:flush()
+   hangarBatch:flush()
 
    drawHits()
 
@@ -3080,6 +3083,7 @@ function reset()
    bullets = {}
    baseBatch = Batch.new("tank_body_small.png")
    turretBatch = Batch.new("tank_tower.png")
+   hangarBatch = Batch.new("hangar.png")
 
 
    init()

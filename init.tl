@@ -485,6 +485,7 @@ local drawTerrain = true
 
 local baseBatch: Batch = Batch.new("tank_body_small.png")
 local turretBatch: Batch = Batch.new("tank_tower.png")
+local hangarBatch: Batch = Batch.new("hangar.png")
 
 global maxTrackCount = 128
 global hits: {Hit} = {}
@@ -2093,6 +2094,10 @@ local function enableMovement()
     end
 end
 
+local function spawnHangar(pos: vector)
+
+end
+
 -- положение в метрах
 local function spawnTank(pos: vector, dir: vector): Tank
     -- {{{
@@ -2418,6 +2423,7 @@ end
 local function mainPresent()
     baseBatch:prepare()
     turretBatch:prepare()
+    hangarBatch:prepare()
 
     push2drawlistTop(drawBullets)
 
@@ -2434,6 +2440,7 @@ local function mainPresent()
 
     baseBatch:flush()
     turretBatch:flush()
+    hangarBatch:flush()
 
     drawHits()
 
@@ -3015,7 +3022,7 @@ function drawMiniMap()
 
 end
 
-local function init()
+local function mainInit()
     -- {{{
     metrics.init()
     setWindowMode()
@@ -3046,6 +3053,7 @@ local function init()
     terrain()
     arena = Arena.new("arena.lua")
     makeArmy()
+    spawnHangar(vector.new())
 
     local herostartpos = vector.new(0, 0)
     local alpha = rng:random() * math.pi
@@ -3080,6 +3088,7 @@ function reset()
     bullets = {}
     baseBatch = Batch.new("tank_body_small.png")
     turretBatch = Batch.new("tank_tower.png")
+    hangarBatch = Batch.new("hangar.png")
 
     --pushDEBUG()
     init()
@@ -3153,7 +3162,7 @@ end
 
 return {
     -- {{{
-    init = init,
+    init = mainInit,
     quit = quit,
     draw = draw,
     drawui = drawui,
