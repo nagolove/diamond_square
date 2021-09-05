@@ -1866,6 +1866,12 @@ function terrain(mapn, rez)
    diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
 end
 
+
+
+function getTerrainCorners()
+
+end
+
 local function bindDeveloperKeys()
    local kc = KeyConfig
    kc.bind(
@@ -2092,6 +2098,10 @@ local function enableMovement()
          tank:circleMove()
       end
    end
+end
+
+local function spawnHangar(pos)
+
 end
 
 
@@ -3018,7 +3028,7 @@ function drawMiniMap()
 
 end
 
-local function init()
+local function mainInit()
 
    metrics.init()
    setWindowMode()
@@ -3049,6 +3059,12 @@ local function init()
    terrain()
    arena = Arena.new("arena.lua")
    makeArmy()
+   local corners = getTerrainCorners()
+   if corners then
+      for _, c in ipairs(corners) do
+         spawnHangar(c)
+      end
+   end
 
    local herostartpos = vector.new(0, 0)
    local alpha = rng:random() * math.pi
@@ -3086,7 +3102,7 @@ function reset()
    hangarBatch = Batch.new("hangar.png")
 
 
-   init()
+   mainInit()
 
 end
 
@@ -3157,7 +3173,7 @@ end
 
 return {
 
-   init = init,
+   init = mainInit,
    quit = quit,
    draw = draw,
    drawui = drawui,

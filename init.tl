@@ -1866,6 +1866,12 @@ function terrain(mapn: integer, rez: integer)
     diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
 end
 
+-- возвращает массив со значениями координат углов ландшафта в метрах по часовой
+-- стрелке от левого верхнего угла.
+function getTerrainCorners(): {vector}
+
+end
+
 local function bindDeveloperKeys()
     local kc = KeyConfig
     kc.bind(
@@ -3053,7 +3059,12 @@ local function mainInit()
     terrain()
     arena = Arena.new("arena.lua")
     makeArmy()
-    spawnHangar(vector.new())
+    local corners = getTerrainCorners()
+    if corners then
+        for _, c in ipairs(corners) do
+            spawnHangar(c)
+        end
+    end
 
     local herostartpos = vector.new(0, 0)
     local alpha = rng:random() * math.pi
@@ -3091,7 +3102,7 @@ function reset()
     hangarBatch = Batch.new("hangar.png")
 
     --pushDEBUG()
-    init()
+    mainInit()
     --popDEBUG()
 end
 
