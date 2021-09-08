@@ -145,6 +145,7 @@ local enum Particles
 end
 
 local record Hangar
+    vertices: {number}
     id: integer
     objectType: ObjectType
     color: {number}
@@ -671,6 +672,7 @@ function Hangar.new(pos: vector): Hangar
         py + self.rectWH[2] / 2 * PIX2M,
     }
     local shape = Physics.newPolygonShape(vertices)
+    self.vertices = vertices
     self.fixture = Physics.newFixture(self.physbody, shape as Physics.Shape)
     --self.f:setGroupIndex(tankCollisionGroup)
     self.polyshape = shape
@@ -955,19 +957,30 @@ end
 function Arena.new(fname: string): Arena
     local Arena_mt: metatable<Arena> = { __index = Arena }
     local self: Arena = setmetatable({} as Arena, Arena_mt)
-    local edges: {Edge} = {}
-    local data = love.filesystem.read(fname)
-    if data then
-        local ok = false
-        ok, edges = serpent.load(data) as (boolean, {Edge})
-        self.edges = edges
-        if not ok then
-            print("Could'not do serpent.load()")
+
+    if fname and type(fname) == "string" then
+        local edges: {Edge} = {}
+        local filedata = love.filesystem.read(fname)
+        if filedata then
+            local ok = false
+            local root: any
+            ok, root = serpent.load(filedata)
+            self.edges = edges
+            -- PLACE YOUR LOADING CODE HERE
+            if (root as {any:any}).rngSeed then
+                local seed = (root as {any:any}).rngSeed as number
+                print('seed value loaded', seed)
+                rng = love.math.newRandomGenerator(seed)
+            end
+            -- PLACE YOUR LOADING CODE HERE
+            if not ok then
+                print("Could'not do serpent.load()")
+                self:createFixtures()
+            end
+        else
+            self.edges = edges
             self:createFixtures()
         end
-    else
-        self.edges = edges
-        self:createFixtures()
     end
 
     self.objectType = "Arena"
@@ -1034,7 +1047,16 @@ function Arena:present(fixture: lp.Fixture)
 end
 
 function Arena:save2file(fname: string)
-    local data = serpent.dump(self.edges)
+    --local data = serpent.dump(self.edges)
+    local root = {
+        rngSeed = rng:getSeed(),
+        edges = self.edges,
+        hangars = {},
+    }
+    for _, v in ipairs(hangars) do
+        table.insert(root.hangars, v.vertices)
+    end
+    local data = serpent.dump(root)
     love.filesystem.write(fname, data)
 end
 
@@ -1752,6 +1774,34 @@ function Tank:damage(bullet: Bullet)
     print('strength', self.strength)
 end
 
+--[[
+Где находится обрабатывающая функция?
+В методах танка?
+-----------------------------------------------------------------------
+|                           Свободная функция?                        |
+-----------------------------------------------------------------------
+В методах пули?
+В методах ангара?
+
+танк и танк
+танк и пуля
+танк и грань
+танк и ангар
+--]]
+
+local function processTankVsBullet(_: Tank, _: Bullet)
+end
+
+local function processTankVsTank(_: Tank, _: Bullet)
+end
+
+local contactMap = {
+    ['Tank'] = {
+        ['Bullet'] = processTankVsBullet,
+        ['Tank'] = processTankVsTank,
+    }
+}
+
 local function onBeginContact(
     fixture1: love.physics.Fixture, 
     fixture2: love.physics.Fixture, 
@@ -1784,6 +1834,8 @@ local function onBeginContact(
         end
     end
 
+    print('objectType1, objectType2')
+    --[[
     if objectType1 and objectType2 then
         if (objectType1 == 'Bullet' and objectType2 == 'Base') or 
            (objectType1 == 'Base' and objectType2 == 'Bullet') or
@@ -1813,7 +1865,9 @@ local function onBeginContact(
                end
        end
     end
+    --]]
 
+    --[[
     push2drawlistTop(function()
         local contactRadius = 3
         gr.setColor{1, 0, 0, 1}
@@ -1826,6 +1880,7 @@ local function onBeginContact(
             gr.circle('fill', p2x, p2y, contactRadius)
         end
     end)
+    --]]
       -- }}}
 end
 
@@ -2270,6 +2325,12 @@ local function setupBrush(brush: Brush)
     end
 end
 
+local tmpColumns = {
+    true,
+    false,
+    false,
+}
+
 local function drawArenaPallete()
     imgui.Begin('арена', false, "AlwaysAutoResize")
     if imgui.Button('выгрузить на накопитель нжмд') then
@@ -2284,6 +2345,20 @@ local function drawArenaPallete()
         mode = 'editor'
         setupBrush('Hangar')
     end
+    if imgui.Button('отключить редектирование') then
+        mode = 'normal'
+    end
+
+    if imgui.BeginTable('какая-то таблица', 5) then
+        imgui.TableNextColumn(); 
+        tmpColumns[1] = imgui.Checkbox("Огурец", tmpColumns[1])
+        imgui.TableNextColumn()
+        tmpColumns[2] = imgui.Checkbox("Томат", tmpColumns[2])
+        imgui.TableNextColumn()
+        tmpColumns[3] = imgui.Checkbox("Паштет", tmpColumns[3])
+        imgui.EndTable()
+    end
+
     imgui.End()
 end
 
@@ -3145,8 +3220,8 @@ local function mainInit()
 
     background = Background.new()
 
-    terrain()
     arena = Arena.new("arena.lua")
+    terrain()
     makeArmy()
     local corners = getTerrainCorners()
     if corners then

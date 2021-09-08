@@ -2270,6 +2270,12 @@ local function setupBrush(brush)
    end
 end
 
+local tmpColumns = {
+   true,
+   false,
+   false,
+}
+
 local function drawArenaPallete()
    imgui.Begin('арена', false, "AlwaysAutoResize")
    if imgui.Button('выгрузить на накопитель нжмд') then
@@ -2284,6 +2290,20 @@ local function drawArenaPallete()
       mode = 'editor'
       setupBrush('Hangar')
    end
+   if imgui.Button('отключить редектирование') then
+      mode = 'normal'
+   end
+
+   if imgui.BeginTable('какая-то таблица', 5) then
+      imgui.TableNextColumn();
+      tmpColumns[1] = imgui.Checkbox("Огурец", tmpColumns[1])
+      imgui.TableNextColumn()
+      tmpColumns[2] = imgui.Checkbox("Томат", tmpColumns[2])
+      imgui.TableNextColumn()
+      tmpColumns[3] = imgui.Checkbox("Паштет", tmpColumns[3])
+      imgui.EndTable()
+   end
+
    imgui.End()
 end
 
