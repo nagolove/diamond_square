@@ -1834,7 +1834,7 @@ local function onBeginContact(
         end
     end
 
-    print('objectType1, objectType2')
+    print('objectType1, objectType2', objectType1, objectType2)
     --[[
     if objectType1 and objectType2 then
         if (objectType1 == 'Bullet' and objectType2 == 'Base') or 
@@ -2197,6 +2197,7 @@ local function drawParticlesEditor()
     imgui.End()
 end
 
+-- Указатель на текущий подсвеченный навигатором танк.
 local currentNavigator: Tank
 
 local function findTank(object: Tank): integer
@@ -2250,6 +2251,39 @@ local function spawnTank(pos: vector, dir: vector): Tank
     -- }}}
 end
 
+-- параметры в метрах
+local function physInit()
+    local canSleep = true
+    physworld = love.physics.newWorld(0., 0., canSleep)
+    physworld:setCallbacks(onBeginContact, onEndContact)
+    physworld:setContactFilter(contactFilter)
+end
+
+-- работает плохо, сбрасывается отладочное рисование
+function reset()
+    print('reset')
+    -- обрати внимание, происходит глобольная очистка клавиш
+    KeyConfig.clear()
+    if physworld then
+        physworld:destroy()
+        print('physworld destroyed.')
+        local object: love.Object = physworld as love.Object
+        object:release()
+        print('physworld object released.')
+        physworld = nil
+    end
+    tanks = {}
+    playerTank = nil
+    bullets = {}
+    baseBatch = Batch.new("tank_body_small.png")
+    turretBatch = Batch.new("tank_tower.png")
+    hangarBatch = Batch.new("hangar.png")
+    physInit()
+    --pushDEBUG()
+    --mainInit()
+    --popDEBUG()
+end
+
 local function makeArmy()
     -- {{{
     local len = 7
@@ -2282,31 +2316,51 @@ local function makeArmy()
     -- }}}
 end
 
+local navigatorIndex: integer
+
+--[[
+Попробовать сделать класс Navigator и другие классы через список обработчиков
+--]]
 local function drawNavigator()
     if not currentNavigator then
         currentNavigator = tanks[1]
     end
-    local index: integer
     imgui.Begin('навигатор', false, "AlwaysAutoResize")
     if imgui.Button('предыдущий') then
-        index = findTank(currentNavigator)
-        if index - 1 >= 1 then
-            index = index - 1
+        navigatorIndex = findTank(currentNavigator)
+        if navigatorIndex - 1 >= 1 then
+            navigatorIndex = navigatorIndex - 1
         end
     end
     if imgui.Button('следующий') then
-        index = findTank(currentNavigator)
-        if index + 1 <= #tanks then
-            index = index + 1
+        navigatorIndex = findTank(currentNavigator)
+        if navigatorIndex + 1 <= #tanks then
+            navigatorIndex = navigatorIndex + 1
         end
     end
     if imgui.Button('включить движение') then
         enableMovement()
     end
+    if imgui.Button('остановить движение') then
+        -- как отключать ненужные корутины из списка?
+    end
     if imgui.Button('сделать армию') then
         makeArmy()
     end
-    currentNavigator = tanks[index]
+    if imgui.Button('удалить все танки') then
+        tanks = {}
+        bullets = {}
+        print("removed")
+    end
+    if imgui.Button('reset') then
+        reset()
+    end
+
+    print('index', navigatorIndex)
+    print('tanks[index]', inspect(tanks[navigatorIndex]))
+    print(inspect(tanks[navigatorIndex]))
+    currentNavigator = tanks[navigatorIndex]
+
     moveCameraToTank(currentNavigator)
     imgui.End()
 end
@@ -2686,15 +2740,15 @@ local lastPosX, lastPosY: number, number
 --]]
 local function moveCamera()
     if playerTank then
-        local w, h = gr.getDimensions()
-        local centerx, centery = w / 2, h / 2
+        --local w, h = gr.getDimensions()
+        --local centerx, centery = w / 2, h / 2
         --print("centerx, centery", centerx, centery)
         local tankx, tanky = playerTank.base.physbody:getWorldCenter()
         tankx, tanky = tankx * M2PIX, tanky * M2PIX
         --print("tankx, tanky", tankx, tanky)
-        local diff = vecl.dist(centerx, centery, tankx, tanky)
+        --local diff = vecl.dist(centerx, centery, tankx, tanky)
         --diff = nil
-        print("diff", diff)
+        --print("diff", diff)
 
         table.insert(posbuffer, { tankx, tanky })
         if #posbuffer > maxBufLen then
@@ -2720,7 +2774,9 @@ end
 local function mainUpdate(dt: number)
     profi:start()
     camTimer:update(dt)
-    physworld:update(1 / 60)
+    if physworld then
+        physworld:update(1 / 60)
+    end
     linesbuf:update()
     updateTanks()
     updateBullets()
@@ -3177,14 +3233,6 @@ local function createDrawCoroutine(): thread
     end)
 end
 
--- параметры в метрах
-local function physInit()
-    local canSleep = true
-    physworld = love.physics.newWorld(0., 0., canSleep)
-    physworld:setCallbacks(onBeginContact, onEndContact)
-    physworld:setContactFilter(contactFilter)
-end
-
 --local effect: moonshine.Effect
 --local effect: any
 
@@ -3245,31 +3293,6 @@ local function mainInit()
     -- }}}
 end
 
--- работает плохо, сбрасывается отладочное рисование
-function reset()
-    print('reset')
-    -- обрати внимание, происходит глобольная очистка клавиш
-    KeyConfig.clear()
-    if physworld then
-        physworld:destroy()
-        print('physworld destroyed.')
-        local object: love.Object = physworld as love.Object
-        object:release()
-        print('physworld object released.')
-        physworld = nil
-    end
-    tanks = {}
-    playerTank = {}
-    bullets = {}
-    baseBatch = Batch.new("tank_body_small.png")
-    turretBatch = Batch.new("tank_tower.png")
-    hangarBatch = Batch.new("hangar.png")
-
-    --pushDEBUG()
-    mainInit()
-    --popDEBUG()
-end
-
 local function quit()
     -- {{{
     profi:writeReport("t80-profiling.txt")
@@ -3291,6 +3314,9 @@ local function wheelmoved(x: number, y: number)
     metrics.wheelmoved(x, y)
 end
 
+--[[
+Сделать передвижение камеры по зажатию средней клавиши мыши.
+--]]
 local function mousepressed(x: number, y: number, btn: integer)
     -- {{{
     metrics.mousepressed(x, y, btn)

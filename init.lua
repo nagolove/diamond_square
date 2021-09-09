@@ -160,6 +160,7 @@ local Hangar = {}
 
 
 
+
 local Tank = {}
 
 
@@ -671,6 +672,7 @@ function Hangar.new(pos)
       py + self.rectWH[2] / 2 * PIX2M,
    }
    local shape = Physics.newPolygonShape(vertices)
+   self.vertices = vertices
    self.fixture = Physics.newFixture(self.physbody, shape)
 
    self.polyshape = shape
@@ -955,19 +957,30 @@ end
 function Arena.new(fname)
    local Arena_mt = { __index = Arena }
    local self = setmetatable({}, Arena_mt)
-   local edges = {}
-   local data = love.filesystem.read(fname)
-   if data then
-      local ok = false
-      ok, edges = serpent.load(data)
-      self.edges = edges
-      if not ok then
-         print("Could'not do serpent.load()")
+
+   if fname and type(fname) == "string" then
+      local edges = {}
+      local filedata = love.filesystem.read(fname)
+      if filedata then
+         local ok = false
+         local root
+         ok, root = serpent.load(filedata)
+         self.edges = edges
+
+         if (root).rngSeed then
+            local seed = (root).rngSeed
+            print('seed value loaded', seed)
+            rng = love.math.newRandomGenerator(seed)
+         end
+
+         if not ok then
+            print("Could'not do serpent.load()")
+            self:createFixtures()
+         end
+      else
+         self.edges = edges
          self:createFixtures()
       end
-   else
-      self.edges = edges
-      self:createFixtures()
    end
 
    self.objectType = "Arena"
@@ -1034,7 +1047,16 @@ function Arena:present(fixture)
 end
 
 function Arena:save2file(fname)
-   local data = serpent.dump(self.edges)
+
+   local root = {
+      rngSeed = rng:getSeed(),
+      edges = self.edges,
+      hangars = {},
+   }
+   for _, v in ipairs(hangars) do
+      table.insert(root.hangars, v.vertices)
+   end
+   local data = serpent.dump(root)
    love.filesystem.write(fname, data)
 end
 
@@ -1752,6 +1774,34 @@ function Tank:damage(bullet)
    print('strength', self.strength)
 end
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local function processTankVsBullet(_, _)
+end
+
+local function processTankVsTank(_, _)
+end
+
+local contactMap = {
+   ['Tank'] = {
+      ['Bullet'] = processTankVsBullet,
+      ['Tank'] = processTankVsTank,
+   },
+}
+
 local function onBeginContact(
    fixture1,
    fixture2,
@@ -1784,48 +1834,53 @@ local function onBeginContact(
       end
    end
 
-   if objectType1 and objectType2 then
-      if (objectType1 == 'Bullet' and objectType2 == 'Base') or
-         (objectType1 == 'Base' and objectType2 == 'Bullet') or
-         (objectType1 == 'Turret' and objectType2 == 'Bullet') or
-         (objectType1 == 'Base' and objectType2 == 'Turret') then
-         local id1 = userdata1.id
-         local id2 = userdata2.id
-         if id1 ~= id2 then
+   print('objectType1, objectType2', objectType1, objectType2)
 
-            if objectType1 == 'Bullet' then
-               local b = fixture1:getUserData()
-               if b and b.died then
-                  b.died = true
-               end
 
-               (userdata2['tank']):damage(userdata1)
-            end
-            if objectType2 == 'Bullet' then
-               local b = fixture2:getUserData()
-               if b and b.died then
-                  b.died = true
-               end
 
-               (userdata1['tank']):damage(userdata2)
-            end
 
-         end
-      end
-   end
 
-   push2drawlistTop(function()
-      local contactRadius = 3
-      gr.setColor({ 1, 0, 0, 1 })
-      if p1x and p1y then
-         p1x, p1y = p1x * M2PIX, p1y * M2PIX
-         gr.circle('fill', p1x, p1y, contactRadius)
-      end
-      if p2x and p2y then
-         p2x, p2y = p2x * M2PIX, p2y * M2PIX
-         gr.circle('fill', p2x, p2y, contactRadius)
-      end
-   end)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 end
 
@@ -2142,6 +2197,7 @@ local function drawParticlesEditor()
    imgui.End()
 end
 
+
 local currentNavigator
 
 local function findTank(object)
@@ -2195,6 +2251,39 @@ local function spawnTank(pos, dir)
 
 end
 
+
+local function physInit()
+   local canSleep = true
+   physworld = love.physics.newWorld(0., 0., canSleep)
+   physworld:setCallbacks(onBeginContact, onEndContact)
+   physworld:setContactFilter(contactFilter)
+end
+
+
+function reset()
+   print('reset')
+
+   KeyConfig.clear()
+   if physworld then
+      physworld:destroy()
+      print('physworld destroyed.')
+      local object = physworld
+      object:release()
+      print('physworld object released.')
+      physworld = nil
+   end
+   tanks = {}
+   playerTank = nil
+   bullets = {}
+   baseBatch = Batch.new("tank_body_small.png")
+   turretBatch = Batch.new("tank_tower.png")
+   hangarBatch = Batch.new("hangar.png")
+   physInit()
+
+
+
+end
+
 local function makeArmy()
 
    local len = 7
@@ -2227,31 +2316,51 @@ local function makeArmy()
 
 end
 
+local navigatorIndex
+
+
+
+
 local function drawNavigator()
    if not currentNavigator then
       currentNavigator = tanks[1]
    end
-   local index
    imgui.Begin('навигатор', false, "AlwaysAutoResize")
    if imgui.Button('предыдущий') then
-      index = findTank(currentNavigator)
-      if index - 1 >= 1 then
-         index = index - 1
+      navigatorIndex = findTank(currentNavigator)
+      if navigatorIndex - 1 >= 1 then
+         navigatorIndex = navigatorIndex - 1
       end
    end
    if imgui.Button('следующий') then
-      index = findTank(currentNavigator)
-      if index + 1 <= #tanks then
-         index = index + 1
+      navigatorIndex = findTank(currentNavigator)
+      if navigatorIndex + 1 <= #tanks then
+         navigatorIndex = navigatorIndex + 1
       end
    end
    if imgui.Button('включить движение') then
       enableMovement()
    end
+   if imgui.Button('остановить движение') then
+
+   end
    if imgui.Button('сделать армию') then
       makeArmy()
    end
-   currentNavigator = tanks[index]
+   if imgui.Button('удалить все танки') then
+      tanks = {}
+      bullets = {}
+      print("removed")
+   end
+   if imgui.Button('reset') then
+      reset()
+   end
+
+   print('index', navigatorIndex)
+   print('tanks[index]', inspect(tanks[navigatorIndex]))
+   print(inspect(tanks[navigatorIndex]))
+   currentNavigator = tanks[navigatorIndex]
+
    moveCameraToTank(currentNavigator)
    imgui.End()
 end
@@ -2631,15 +2740,15 @@ local lastPosX, lastPosY
 
 local function moveCamera()
    if playerTank then
-      local w, h = gr.getDimensions()
-      local centerx, centery = w / 2, h / 2
+
+
 
       local tankx, tanky = playerTank.base.physbody:getWorldCenter()
       tankx, tanky = tankx * M2PIX, tanky * M2PIX
 
-      local diff = vecl.dist(centerx, centery, tankx, tanky)
 
-      print("diff", diff)
+
+
 
       table.insert(posbuffer, { tankx, tanky })
       if #posbuffer > maxBufLen then
@@ -2665,7 +2774,9 @@ end
 local function mainUpdate(dt)
    profi:start()
    camTimer:update(dt)
-   physworld:update(1 / 60)
+   if physworld then
+      physworld:update(1 / 60)
+   end
    linesbuf:update()
    updateTanks()
    updateBullets()
@@ -3123,14 +3234,6 @@ local function createDrawCoroutine()
 end
 
 
-local function physInit()
-   local canSleep = true
-   physworld = love.physics.newWorld(0., 0., canSleep)
-   physworld:setCallbacks(onBeginContact, onEndContact)
-   physworld:setContactFilter(contactFilter)
-end
-
-
 
 
 function drawMiniMap()
@@ -3165,8 +3268,8 @@ local function mainInit()
 
    background = Background.new()
 
-   terrain()
    arena = Arena.new("arena.lua")
+   terrain()
    makeArmy()
    local corners = getTerrainCorners()
    if corners then
@@ -3190,31 +3293,6 @@ local function mainInit()
 
 end
 
-
-function reset()
-   print('reset')
-
-   KeyConfig.clear()
-   if physworld then
-      physworld:destroy()
-      print('physworld destroyed.')
-      local object = physworld
-      object:release()
-      print('physworld object released.')
-      physworld = nil
-   end
-   tanks = {}
-   playerTank = {}
-   bullets = {}
-   baseBatch = Batch.new("tank_body_small.png")
-   turretBatch = Batch.new("tank_tower.png")
-   hangarBatch = Batch.new("hangar.png")
-
-
-   mainInit()
-
-end
-
 local function quit()
 
    profi:writeReport("t80-profiling.txt")
@@ -3235,6 +3313,9 @@ end
 local function wheelmoved(x, y)
    metrics.wheelmoved(x, y)
 end
+
+
+
 
 local function mousepressed(x, y, btn)
 
