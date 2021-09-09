@@ -420,7 +420,11 @@ cursorpos = 1
 suggestList = List.new()
 
 attachedVarsList = {}
-local hitImage = love.graphics.newImage(SCENE_PREFIX .. '/flame2.png')
+local hitImages = {
+   love.graphics.newImage(SCENE_PREFIX .. '/flame2.png'),
+   love.graphics.newImage(SCENE_PREFIX .. '/tentacles.png'),
+}
+
 
 
 
@@ -788,9 +792,11 @@ local function updateBullets()
 
 end
 
+local activeImage = 1
+
 local function newParticleSystemWithDef(psdef)
    local ps
-   ps = love.graphics.newParticleSystem(hitImage, maxParticlesNumber)
+   ps = love.graphics.newParticleSystem(hitImages[activeImage], maxParticlesNumber)
 
 
    ps:setParticleLifetime(psdef.lifetime1, psdef.lifetime2)
@@ -1834,37 +1840,37 @@ local function onBeginContact(
       end
    end
 
-   print('objectType1, objectType2', objectType1, objectType2)
 
 
+   if objectType1 and objectType2 then
+      if (objectType1 == 'Bullet' and objectType2 == 'Base') or
+         (objectType1 == 'Base' and objectType2 == 'Bullet') or
+         (objectType1 == 'Turret' and objectType2 == 'Bullet') or
+         (objectType1 == 'Base' and objectType2 == 'Turret') then
+         local id1 = userdata1.id
+         local id2 = userdata2.id
+         if id1 ~= id2 then
+            newHit(p1x, p1y)
+            if objectType1 == 'Bullet' then
+               local b = fixture1:getUserData()
+               if b and b.died then
+                  b.died = true
+               end
 
+               (userdata2['tank']):damage(userdata1)
+            end
+            if objectType2 == 'Bullet' then
+               local b = fixture2:getUserData()
+               if b and b.died then
+                  b.died = true
+               end
 
+               (userdata1['tank']):damage(userdata2)
+            end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+         end
+      end
+   end
 
 
 
@@ -1965,6 +1971,12 @@ end
 
 local function drawHits()
    local Drawable = love.graphics.Drawable
+   local blendmode, alphamode = love.graphics.getBlendMode()
+   print('blendmode', blendmode)
+   print('alphamode', alphamode)
+
+   Graphics.setBlendMode('alpha', 'premultiplied')
+
    for _, v in ipairs(hits) do
       gr.setColor({ 1, 1, 1, 1 })
       love.graphics.draw(v.ps, v.x, v.y)
@@ -2167,6 +2179,13 @@ local function drawParticlesEditor()
    local psdef = particles["default"]
 
 
+   zeroseparated = separateByZeros({ "1", "2" })
+   v, st = imgui.Combo('выбери картинки', activeImage - 1, zeroseparated)
+   if st then
+      print('v', v)
+      activeImage = ceil(tonumber(v)) + 1
+   end
+
    psdef.lifetime1, st = imgui.SliderInt('время жизни от', psdef.lifetime1, 0, 1000)
    psdef.lifetime2, st = imgui.SliderInt('время жизни до', psdef.lifetime2, 0, 1000)
    psdef.emissionRate, st = imgui.SliderInt('эмиссия', psdef.emissionRate, 0, 1000)
@@ -2356,9 +2375,6 @@ local function drawNavigator()
       reset()
    end
 
-   print('index', navigatorIndex)
-   print('tanks[index]', inspect(tanks[navigatorIndex]))
-   print(inspect(tanks[navigatorIndex]))
    currentNavigator = tanks[navigatorIndex]
 
    moveCameraToTank(currentNavigator)
