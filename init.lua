@@ -19,7 +19,7 @@ require('diamondsquare')
 require('profi')
 
 
-local tween = require('tween')
+
 
 local serpent = require('serpent')
 local List = require("list")
@@ -334,9 +334,13 @@ local ParticleSystemDefinition = {}
 
 
 
+
+
 particles = {
 
    ["default"] = {
+      blendmode = 'alpha',
+      alphamode = 'alphamultiply',
       lifetime1 = 1,
       lifetime2 = 2,
       emissionRate = 10,
@@ -412,7 +416,7 @@ tankForceScale = 8
 
 
 local historyfname = "cmdhistory.txt"
-local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
+local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 26)
 mode = "normal"
 cmdline = ""
 local cmdhistory = {}
@@ -1815,7 +1819,8 @@ local function onBeginContact(
 
 
 
-   local p1x, p1y, p2x, p2y = contact:getPositions()
+
+   local p1x, p1y, _, _ = contact:getPositions()
 
    local body1 = fixture1:getBody()
    local userdata1 = body1:getUserData()
@@ -1972,10 +1977,17 @@ end
 local function drawHits()
    local Drawable = love.graphics.Drawable
    local blendmode, alphamode = love.graphics.getBlendMode()
-   print('blendmode', blendmode)
-   print('alphamode', alphamode)
 
-   Graphics.setBlendMode('alpha', 'premultiplied')
+
+
+
+
+
+
+
+
+
+
 
    for _, v in ipairs(hits) do
       gr.setColor({ 1, 1, 1, 1 })
@@ -2599,9 +2611,10 @@ local function konsolePresent()
 
    stats()
 
-   cam:attach()
+
+   linesbuf.color = { 0, 1, 1 }
    linesbuf:draw()
-   cam:detach()
+
 
    if suggestList then
 

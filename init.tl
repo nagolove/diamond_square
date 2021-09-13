@@ -19,7 +19,7 @@ require 'diamondsquare'
 require 'profi'
 --require 'moonshine'
 
-local tween = require 'tween'
+--local tween = require 'tween'
 --local camMoveTween = tween.new()
 local serpent = require 'serpent'
 local List = require "list"
@@ -323,6 +323,8 @@ local record Bullet
 end
 
 local record ParticleSystemDefinition
+    blendmode: Graphics.BlendMode
+    alphamode: Graphics.BlendAlphaMode
     lifetime1: number
     lifetime2: number
     emissionRate: number
@@ -337,6 +339,8 @@ end
 global particles: {Particles: ParticleSystemDefinition} = {
     -- {{{
     ["default"] = {
+        blendmode = 'alpha',
+        alphamode = 'alphamultiply',
         lifetime1 = 1,
         lifetime2 = 2,
         emissionRate = 10,
@@ -412,7 +416,7 @@ global tankForceScale = 8
 
 -- {{{ Konsole editing
 local historyfname = "cmdhistory.txt"
-local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 20)
+local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 26)
 global mode: Mode = "normal"
 global cmdline: string = ""
 local cmdhistory: {string} = {}
@@ -1815,7 +1819,8 @@ local function onBeginContact(
 )
     -- {{{
 
-    local p1x, p1y, p2x, p2y = contact:getPositions()
+    --local p1x, p1y, p2x, p2y = contact:getPositions()
+    local p1x, p1y, _, _= contact:getPositions()
 
     local body1 = fixture1:getBody()
     local userdata1: {any:any} = body1:getUserData() as {any:any}
@@ -1972,10 +1977,17 @@ end
 local function drawHits()
     local Drawable = love.graphics.Drawable
     local blendmode, alphamode = love.graphics.getBlendMode()
-    print('blendmode', blendmode)
-    print('alphamode', alphamode)
+
+    --print('blendmode', blendmode)
+    --print('alphamode', alphamode)
+    --print('os.exit()')
+    --os.exit()
+
     --Graphics.setBlendMode('alpha', 'alphamultiply')
-    Graphics.setBlendMode('alpha', 'premultiplied')
+
+    -- Не работает как надо
+    --Graphics.setBlendMode('alpha', 'premultiplied')
+
     --Graphics.setBlendMode('alpha', 'multiply')
     for _, v in ipairs(hits) do
         gr.setColor{1, 1, 1, 1}
@@ -2599,9 +2611,10 @@ local function konsolePresent()
 
     stats()
 
-    cam:attach()
+    --cam:attach()
+    linesbuf.color = {0, 1, 1}
     linesbuf:draw()
-    cam:detach()
+    --cam:detach()
 
     if suggestList then
         -- XXX если раскоментить следущую строку, то программа падает.
