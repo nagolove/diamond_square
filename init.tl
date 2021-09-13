@@ -336,8 +336,11 @@ local record ParticleSystemDefinition
     rotation2: number
 end
 
-global particles: {Particles: ParticleSystemDefinition} = {
+local type ParticlesMap = {string: ParticleSystemDefinition}
+
+global particles: ParticlesMap= {
     -- {{{
+    -- значение для по-умолчанию для новых эффектов
     ["default"] = {
         blendmode = 'alpha',
         alphamode = 'alphamultiply',
@@ -495,6 +498,23 @@ global maxTrackCount = 128
 global hits: {Hit} = {}
 local coroutines: {thread} = {}
 -- }}}
+
+local function initParticles(fname: string)
+    local fdata = love.filesystem.read(fname)
+    if fdata then
+        local ok, data: boolean, ParticlesMap = serpent.load(fdata) as boolean, ParticlesMap
+        if ok then
+            for k, v in pairs(data) do
+                if particles[k] then
+                    print('initParticles: override existing value. Be careful.')
+                end
+                particles[k] = v
+            end
+        else
+            print('initParticles error', fname)
+        end
+    end
+end
 
 local function updateCoroutines()
     -- {{{
@@ -2183,7 +2203,7 @@ local function changeKeyConfigListbackground()
 end
 
 local function drawParticlesEditor()
-    imgui.Begin('редактор взрыва', false, "AlwaysAutoResize")
+    imgui.Begin(i18n('effecteditor'), false, "AlwaysAutoResize")
     local v: number
     local st: boolean
     local zeroseparated, _ = separateByZeros({ "default", "rocket", "gauss", })
@@ -3296,6 +3316,11 @@ local function mainInit()
     drawCoro = createDrawCoroutine()
 
     background = Background.new()
+
+    -- файлик должен лежать в каталоге сохранений
+    initParticles("particles1.lua")
+    -- файлик должен лежать в каталоге программы
+    initParticles("particles2.lua")
 
     arena = Arena.new("arena.lua")
     terrain()

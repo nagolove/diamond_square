@@ -23,6 +23,8 @@ return {
 
         resetVelocities = "reset velocity",
 
+        effecteditor = 'effect editor',
+
         --[[
         -- {{{
         pos = "Position", -- пространство(??)

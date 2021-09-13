@@ -336,7 +336,10 @@ local ParticleSystemDefinition = {}
 
 
 
+local ParticlesMap = {}
+
 particles = {
+
 
    ["default"] = {
       blendmode = 'alpha',
@@ -495,6 +498,23 @@ maxTrackCount = 128
 hits = {}
 local coroutines = {}
 
+
+local function initParticles(fname)
+   local fdata = love.filesystem.read(fname)
+   if fdata then
+      local ok, data = serpent.load(fdata), ParticlesMap
+      if ok then
+         for k, v in pairs(data) do
+            if particles[k] then
+               print('initParticles: override existing value. Be careful.')
+            end
+            particles[k] = v
+         end
+      else
+         print('initParticles error', fname)
+      end
+   end
+end
 
 local function updateCoroutines()
 
@@ -2183,7 +2203,7 @@ local function changeKeyConfigListbackground()
 end
 
 local function drawParticlesEditor()
-   imgui.Begin('редактор взрыва', false, "AlwaysAutoResize")
+   imgui.Begin(i18n('effecteditor'), false, "AlwaysAutoResize")
    local v
    local st
    local zeroseparated, _ = separateByZeros({ "default", "rocket", "gauss" })
@@ -3296,6 +3316,11 @@ local function mainInit()
    drawCoro = createDrawCoroutine()
 
    background = Background.new()
+
+
+   initParticles("particles1.lua")
+
+   initParticles("particles2.lua")
 
    arena = Arena.new("arena.lua")
    terrain()
