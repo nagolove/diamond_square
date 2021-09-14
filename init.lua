@@ -2229,25 +2229,45 @@ local currentParticesType = 0
 local function selectParticleType()
    local v
    local st
-   local zeroseparated, _ = separateByZeros(buildParticlesNames())
+   local names = buildParticlesNames()
+   local zeroseparated, _ = separateByZeros(names)
    v, st = imgui.Combo("тип частиц", currentParticesType, zeroseparated)
    if st then
       currentParticesType = ceil(v)
+      for k, s in ipairs(names) do
+         if k == v then
+            print(k, s)
+            return s
+         end
+      end
    end
+   return 'default'
 end
+
+str = ""
 
 local function drawParticlesEditor()
    imgui.Begin(i18n('effecteditor'), false, "AlwaysAutoResize")
    local v
    local st
 
-   selectParticleType()
 
-   local psdef = particles["default"]
+   local particleType = selectParticleType()
+
+   str, st = imgui.InputText('название типа', str, "")
+   imgui.SameLine()
+   if imgui.Button('добавить новый тип') then
+
+   end
+
+
+
+   print('particleType', particleType)
+   local psdef = particles[particleType]
 
 
    local zeroseparated = separateByZeros({ "1", "2" })
-   v, st = imgui.Combo('выбери картинки', activeImage - 1, zeroseparated)
+   v, st = imgui.Combo('выбор картинки', activeImage - 1, zeroseparated)
    if st then
       print('v', v)
       activeImage = ceil(tonumber(v)) + 1

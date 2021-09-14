@@ -2226,28 +2226,48 @@ end
 
 local currentParticesType: integer = 0
 
-local function selectParticleType()
+local function selectParticleType(): string
     local v: number
     local st: boolean
-    local zeroseparated, _ = separateByZeros(buildParticlesNames())
+    local names = buildParticlesNames()
+    local zeroseparated, _ = separateByZeros(names)
     v, st = imgui.Combo("тип частиц", currentParticesType, zeroseparated)
     if st then
         currentParticesType = ceil(v)
+        for k, s in ipairs(names) do
+            if k == v then
+                print(k, s)
+                return s
+            end
+        end
     end
+    return 'default'
 end
+
+global str: string = ""
 
 local function drawParticlesEditor()
     imgui.Begin(i18n('effecteditor'), false, "AlwaysAutoResize")
     local v: number
     local st: boolean
+    --local str: string
 
-    selectParticleType()
+    local particleType = selectParticleType()
 
-    local psdef = particles["default"]
+    str, st = imgui.InputText('название типа', str, "")
+    imgui.SameLine()
+    if imgui.Button('добавить новый тип') then
+
+    end
+
+    --str, st = imgui.InputText('название типа', str, "None")
+
+    print('particleType', particleType)
+    local psdef = particles[particleType]
     --v, st = imgui.SliderInt('скорость частиц', 0, -1, 1)
 
     local zeroseparated = separateByZeros({ "1", "2" })
-    v, st = imgui.Combo('выбери картинки', activeImage - 1, zeroseparated)
+    v, st = imgui.Combo('выбор картинки', activeImage - 1, zeroseparated)
     if st then
         print('v', v)
         activeImage = ceil(tonumber(v)) + 1
@@ -2276,10 +2296,6 @@ local function drawParticlesEditor()
     --
     psdef.emiterlifetimeexp = imgui.InputTextMultiline("emiterlifetimeexp", psdef.emiterlifetimeexp, 600, 400);
 
-    if imgui.Button('>> write system') then
-        --local str = serpent.dump(defaultDef)
-        --love.filesystem.write("hit.ps.lua", str)
-    end
     imgui.End()
 end
 
