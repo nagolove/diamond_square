@@ -32,7 +32,7 @@ global inspect = require "inspect"
 global tabular = require "tabular"
 -- }}}
 
---local Filesystem = love.filesystem
+local Filesystem = love.filesystem
 --local Audio = love.audio
 local Graphics = love.graphics
 local Physics = love.physics
@@ -41,6 +41,7 @@ local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
 local profi = require 'profi'
 
+local Drawable = love.graphics.Drawable
 local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow, 
     coroutine.resume, math.sqrt
 local yield = coroutine.yield
@@ -138,11 +139,13 @@ local record FilterData
     group: integer
 end
 
+--[[
 local enum Particles
     "default"
     "rocket"
     "gauss"
 end
+--]]
 
 local record Hangar
     vertices: {number}
@@ -397,6 +400,10 @@ local type CameraSettings = record
 end
 
 -- {{{ Global and local variables.
+-- Указатель на текущий подсвеченный навигатором танк.
+local currentNavigator: Tank
+-- имя файла для загрузки имен и установок частиц
+local particlesfname = "particles-def.lua"
 global maxParticlesNumber = 512
 global notificationDelay = 2.5
 -- Размеры экрана по-умолчанию(начальное положение)
@@ -500,20 +507,28 @@ local coroutines: {thread} = {}
 -- }}}
 
 local function initParticles(fname: string)
+    print('initParticles')
+    print('loading from', fname)
     local fdata = love.filesystem.read(fname)
     if fdata then
         local ok, data: boolean, ParticlesMap = serpent.load(fdata) as boolean, ParticlesMap
         if ok then
             for k, v in pairs(data) do
                 if particles[k] then
-                    print('initParticles: override existing value. Be careful.')
+                    print(string.format('override existing value [%s]. Be careful.', k))
                 end
                 particles[k] = v
             end
         else
-            print('initParticles error', fname)
+            print('parsing error', fname)
         end
+    else
+        print('reading error', fname)
     end
+end
+
+local function writeParticles(fname: string)
+    Filesystem.write(fname, serpent.dump(particles))
 end
 
 local function updateCoroutines()
@@ -1995,7 +2010,6 @@ local function loadLocales()
 end
 
 local function drawHits()
-    local Drawable = love.graphics.Drawable
     local blendmode, alphamode = love.graphics.getBlendMode()
 
     --print('blendmode', blendmode)
@@ -2202,16 +2216,37 @@ local function changeKeyConfigListbackground()
     -- }}}
 end
 
+local function buildParticlesNames(): {string}
+    local res: {string} = {}
+    for k, _ in pairs(particles) do
+        table.insert(res, k)
+    end
+    return res
+end
+
+local currentParticesType: integer = 0
+
+local function selectParticleType()
+    local v: number
+    local st: boolean
+    local zeroseparated, _ = separateByZeros(buildParticlesNames())
+    v, st = imgui.Combo("тип частиц", currentParticesType, zeroseparated)
+    if st then
+        currentParticesType = ceil(v)
+    end
+end
+
 local function drawParticlesEditor()
     imgui.Begin(i18n('effecteditor'), false, "AlwaysAutoResize")
     local v: number
     local st: boolean
-    local zeroseparated, _ = separateByZeros({ "default", "rocket", "gauss", })
-    v, st = imgui.Combo("тип частиц", 1, zeroseparated)
+
+    selectParticleType()
+
     local psdef = particles["default"]
     --v, st = imgui.SliderInt('скорость частиц', 0, -1, 1)
 
-    zeroseparated = separateByZeros({ "1", "2" })
+    local zeroseparated = separateByZeros({ "1", "2" })
     v, st = imgui.Combo('выбери картинки', activeImage - 1, zeroseparated)
     if st then
         print('v', v)
@@ -2247,9 +2282,6 @@ local function drawParticlesEditor()
     end
     imgui.End()
 end
-
--- Указатель на текущий подсвеченный навигатором танк.
-local currentNavigator: Tank
 
 local function findTank(object: Tank): integer
     for i, v in ipairs(tanks) do
@@ -2337,6 +2369,7 @@ end
 
 local function makeArmy()
     -- {{{
+    --[[
     local len = 7
     local metersWidth = diamondSquare.width 
     local metersHeight = diamondSquare.height
@@ -2346,13 +2379,14 @@ local function makeArmy()
         for j = 0, len - 1  do
             --local angle = rng:random() * 2 * math.pi
             --local angle = 0
-            local posx, posy = i * numWidth, j * numHeight
-            print('posx, posy', posx, posy)
+            --local posx, posy = i * numWidth, j * numHeight
+            --print('posx, posy', posx, posy)
             --local pos = vector.new(i * numWidth * PIX2M, 
                 ---j * numHeight * PIX2M)
             --spawnTank(pos, fromPolar(angle))
         end
     end
+    --]]
     local angle = rng:random() * 2 * math.pi
     spawnTank(vector.new(0, 0), fromPolar(angle))
     spawnTank(vector.new(
@@ -3318,9 +3352,8 @@ local function mainInit()
     background = Background.new()
 
     -- файлик должен лежать в каталоге сохранений
-    initParticles("particles1.lua")
+    initParticles(particlesfname)
     -- файлик должен лежать в каталоге программы
-    initParticles("particles2.lua")
 
     arena = Arena.new("arena.lua")
     terrain()
@@ -3354,6 +3387,7 @@ local function quit()
     metrics.quit()
     unbindPlayerTankKeys()
     tanks = {}
+    writeParticles(particlesfname)
     -- }}}
 end
 
