@@ -32,6 +32,7 @@ global inspect = require "inspect"
 global tabular = require "tabular"
 -- }}}
 
+local Drawable = love.graphics.Drawable
 local Filesystem = love.filesystem
 --local Audio = love.audio
 local Graphics = love.graphics
@@ -41,7 +42,6 @@ local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
 local profi = require 'profi'
 
-local Drawable = love.graphics.Drawable
 local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow, 
     coroutine.resume, math.sqrt
 local yield = coroutine.yield
@@ -103,6 +103,10 @@ local record Edge
     y2: number
 end
 
+-- Чем занят класс Arena?
+-- Класс Arena применяется для хранения геометрии ограничивающей игровое поле.
+-- Также объект класса позволяет записать полное описание сцены в строку или файл и
+-- восстановить сцену из файла. Сцена содержит списки танков, списки ребер, списки ангаров.
 local record Arena
     -- {{{
 
@@ -124,7 +128,9 @@ local record Arena
     update: function(Arena)
     mousemoved: function(Arena, x: number, y: number, dx: number, dy: number)
     mousepressed: function(Arena, x: number, y: number, btn: integer)
+
     save2file: function(Arena, fname: string)
+    ser: function(Arena): string
 
     -- internal 
 
@@ -176,7 +182,7 @@ local record Tank
     -- записывается положение в метрах при создании танка
     -- когда обновляется?
     pos: vector
-    -- нормализованный вектор
+    -- нормализованный вектор направления движения
     dir: vector
     -- уникальное за сеанс игры число
     id: integer
@@ -188,15 +194,21 @@ local record Tank
     -- абсолютные координаты в пикселях
     new: function(pos: vector): Tank
 
+    -- рисовать
     present: function(Tank)
+    -- обновить
     update: function(Tank): Tank
 
     resetVelocities: function(Tank)
+
+    -- движение
     left: function(Tank)
     right: function(Tank)
     forward: function(Tank)
     backward: function(Tank)
     fire: function(Tank)
+
+    -- запустить сопрограмму
     circleMove: function(Tank)
     -- }}}
 end
@@ -211,6 +223,7 @@ local record Turret
     joint: lp.WeldJoint
     --fireCoro: thread
 
+    -- категории, маски и группы столконовений box2d
     barrelCategories: integer
     barrelMask: integer
     barrelGroup: integer
@@ -266,6 +279,7 @@ local record Base
     -- нормализованный вектор
     dir: vector
 
+    -- следы движения
     track: {{number}}
     x4: number
     y4: number
@@ -290,10 +304,14 @@ local record Base
     forward: function(Base)
     backward: function(Base)
 
+    -- один такт движения
     engineCycle: function(Base)
+    -- продвинуть треки
     processTracks: function(Base)
 
+    -- добавить трек в список
     pushTrack: function(Base)
+    -- рисовать весь след
     drawTrack: function(Base)
 
     resetVelocities: function(Base)
@@ -325,13 +343,19 @@ local record Bullet
     update: function()
 end
 
+-- информация о наборе частиц
 local record ParticleSystemDefinition
+    -- режим смешивания
     blendmode: Graphics.BlendMode
+    -- режим смешивания канала прозрачности
     alphamode: Graphics.BlendAlphaMode
     lifetime1: number
     lifetime2: number
+    -- интенсивность эммисия
     emissionRate: number
+    -- вариация размеров
     sizeVariation: number
+    -- линейное ускорение
     lineAcceleration: {number}
     colors: {{number}}
     emiterlifetimeexp: string
@@ -400,19 +424,28 @@ local type CameraSettings = record
 end
 
 -- {{{ Global and local variables.
+
 -- Указатель на текущий подсвеченный навигатором танк.
 local currentNavigator: Tank
+
 -- имя файла для загрузки имен и установок частиц
 local particlesfname = "particles-def.lua"
+
+-- максимальное количество частиц
 global maxParticlesNumber = 512
+
 global notificationDelay = 2.5
+
 -- Размеры экрана по-умолчанию(начальное положение)
 global DEFAULT_W, DEFAULT_H = 1024, 768
+
 -- Размеры экрана
 global W, H = love.graphics.getDimensions()
+
 --[[ Танк длиной пять метров имеет отображаемый размер 50 пикселей
 коэффициент на который домножаю при переводе из метров в пиксели --]]
 global M2PIX = 10
+
 -- коэффициент на который домножаю при переводе из пикселей в метры
 global PIX2M = 1 / 10
 
@@ -434,12 +467,11 @@ global cursorpos: integer = 1
 global suggestList: List = List.new()
 -- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
-local hitImages = {
+-- }}}
+local particlesImages = {
     love.graphics.newImage(SCENE_PREFIX .. '/flame2.png'),
     love.graphics.newImage(SCENE_PREFIX .. '/tentacles.png'),
 }
-
--- }}}
 
 -- верхний список отрисовки, рисуется после рисования пачки танков
 local drawlistTop: {DrawNode} = {}
@@ -447,6 +479,7 @@ local drawlistTop: {DrawNode} = {}
 local drawlistBottom: {DrawNode} = {}
 
 global cam: Camera
+global konsoleCam: Camera
 
 -- используется для анимации масштабирования камеры
 local camTimer: Timer = require "Timer".new()
@@ -493,8 +526,8 @@ local cameraZoneR: number
 
 local edgeColor = {0, 0, 0, 1}
 local edgeLineWidth = 10
---local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
---local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
+local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
+local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
 local drawTerrain = true
 
 local baseBatch: Batch = Batch.new("tank_body_small.png")
@@ -835,7 +868,7 @@ local activeImage: integer = 1
 
 local function newParticleSystemWithDef(psdef: ParticleSystemDefinition): Graphics.ParticleSystem
     local ps: love.graphics.ParticleSystem
-    ps = love.graphics.newParticleSystem(hitImages[activeImage], maxParticlesNumber)
+    ps = love.graphics.newParticleSystem(particlesImages[activeImage], maxParticlesNumber)
 
     -- Particles live at least 2s and at most 5s.
     ps:setParticleLifetime(psdef.lifetime1, psdef.lifetime2) 
@@ -1091,6 +1124,10 @@ function Arena:present(fixture: lp.Fixture)
     gr.setLineWidth(olw)
 end
 
+function Arena:ser(): string
+
+end
+
 function Arena:save2file(fname: string)
     --local data = serpent.dump(self.edges)
     local root = {
@@ -1309,6 +1346,7 @@ function Base:update()
     self:processTracks()
 end
 
+-- TODO трек должен менятся при изменении направления движения
 function Base:processTracks()
     local vx, vy = self.physbody:getLinearVelocity()
     local len = vecl.len(vx, vy)
@@ -1834,16 +1872,20 @@ end
 танк и ангар
 --]]
 
+--[[
 local function processTankVsBullet(_: Tank, _: Bullet)
 end
 
 local function processTankVsTank(_: Tank, _: Bullet)
 end
+--]]
 
 local contactMap = {
     ['Tank'] = {
-        ['Bullet'] = processTankVsBullet,
-        ['Tank'] = processTankVsTank,
+        ['Bullet'] = function(_: Tank, _: Bullet)
+        end,
+        ['Tank'] = function(_: Tank, _: Tank)
+        end,
     }
 }
 
@@ -2267,6 +2309,7 @@ local function drawParticlesEditor()
     --v, st = imgui.SliderInt('скорость частиц', 0, -1, 1)
 
     local zeroseparated = separateByZeros({ "1", "2" })
+    -- как рисовать картинку здесь выбираемого изображения?
     v, st = imgui.Combo('выбор картинки', activeImage - 1, zeroseparated)
     if st then
         print('v', v)
@@ -2404,6 +2447,10 @@ local function makeArmy()
     end
     --]]
     local angle = rng:random() * 2 * math.pi
+    for i = 1, 30 do
+        local angle = rng:random() * 2 * math.pi
+        spawnTank(vector.new(-100 * i, -100 * i), fromPolar(angle))
+    end
     spawnTank(vector.new(0, 0), fromPolar(angle))
     spawnTank(vector.new(
         diamondSquare.width * PIX2M, 
@@ -2520,8 +2567,11 @@ local function drawui()
     imgui.ShowDemoWindow()
     imgui.ShowUserGuide()
 
+    -- рисовать редактор частиц
     drawParticlesEditor()
+    -- рисовать навигатор объектов
     drawNavigator()
+    -- рисовать редактор карты
     drawArenaPallete()
 
     -- }}}
@@ -2663,6 +2713,7 @@ end
 
 local function konsolePresent()
     -- {{{
+    konsoleCam:attach()
     gr.setColor{1, 1, 1, 1}
 
     processAttachedVariables()
@@ -2685,6 +2736,7 @@ local function konsolePresent()
     linesbuf.color = {0, 1, 1}
     linesbuf:draw()
     --cam:detach()
+    konsoleCam:detach()
 
     if suggestList then
         -- XXX если раскоментить следущую строку, то программа падает.
@@ -2771,7 +2823,7 @@ local function mainPresent()
 
     cam:detach()
 
-    drawCameraCircle()
+    --drawCameraCircle()
 
     drawlistTop = {}
     drawlistBottom = {}
@@ -2805,7 +2857,7 @@ local function draw()
     if not ok then
         error("drawCoro thread is end: " .. errmsg)
     end
-    drawCameraAxixes()
+    --drawCameraAxixes()
     konsolePresent()
 
     --drawArrow(300, 600, 400, 600, {1, 0, 0, 1})
@@ -3209,7 +3261,7 @@ local function keypressed(key: string)
     if mode == "command" then
         processCommandModeKeys(key)
     else
-        if key == ";" and love.keyboard.isDown("lshift") then
+        if key == ";" and love.keyboard.isDown("lctrl") then
             enterCommandMode()
         end
     end
@@ -3217,6 +3269,49 @@ local function keypressed(key: string)
 end
 
 global cameraKeyConfigIds: {integer} = {}
+
+local function bindKonsoleCameraZoomKeys()
+    -- {{{
+    local ids = {
+        KeyConfig.bind(
+            "isdown",
+            { mod = { "lshift" },
+                key = "z" },
+            function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
+                if konsoleCam.scale < camZoomHigher then
+                    konsoleCam:zoom(1. + zoomSpeed)
+                end
+                return false, sc
+            end,
+            "zoom camera in",
+            "zoomin"
+        ),
+        KeyConfig.bind(
+            "isdown",
+            { key = "x" },
+            function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
+                if konsoleCam.scale > camZoomLower then
+                    konsoleCam:zoom(1.0 - zoomSpeed)
+                end
+                return false, sc
+            end,
+            "zoom camera out",
+            "zoomout"
+        ),
+    }
+    cameraKeyConfigIds = {}
+    for _, v in ipairs(ids) do
+        table.insert(cameraKeyConfigIds, v)
+    end
+    print('bindKonsoleCameraZoomKeys')
+    -- }}}
+end
 
 local function bindCameraZoomKeys()
     -- {{{
@@ -3352,10 +3447,13 @@ local function mainInit()
 
     logo = Logo.new()
     cam = require 'camera'.new()
-    print("camera created x, y, scale, rot", 
-        cam.x, cam.y, cam.scale, cam.rot)
+    konsoleCam = require 'camera'.new()
+    print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
+    print("kons cam created x, y, scale, rot", 
+        konsoleCam.x, konsoleCam.y, konsoleCam.scale, konsoleCam.rot)
 
     bindCameraZoomKeys()
+    bindKonsoleCameraZoomKeys()
     bindCameraControl()
     bindFullscreenSwitcher()
     bindEscape()

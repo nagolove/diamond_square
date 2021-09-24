@@ -103,7 +103,13 @@ local Edge = {}
 
 
 
+
+
+
+
 local Arena = {}
+
+
 
 
 
@@ -202,7 +208,14 @@ local Tank = {}
 
 
 
+
+
+
+
+
+
 local Turret = {}
+
 
 
 
@@ -302,6 +315,11 @@ local Base = {}
 
 
 
+
+
+
+
+
 local Bullet = {}
 
 
@@ -325,7 +343,13 @@ local Bullet = {}
 
 
 
+
 local ParticleSystemDefinition = {}
+
+
+
+
+
 
 
 
@@ -401,18 +425,27 @@ local CameraSettings = {}
 
 
 
+
 local currentNavigator
 
+
 local particlesfname = "particles-def.lua"
+
+
 maxParticlesNumber = 512
+
 notificationDelay = 2.5
 
+
 DEFAULT_W, DEFAULT_H = 1024, 768
+
 
 W, H = love.graphics.getDimensions()
 
 
+
 M2PIX = 10
+
 
 PIX2M = 1 / 10
 
@@ -434,17 +467,17 @@ cursorpos = 1
 suggestList = List.new()
 
 attachedVarsList = {}
-local hitImages = {
+
+local particlesImages = {
    love.graphics.newImage(SCENE_PREFIX .. '/flame2.png'),
    love.graphics.newImage(SCENE_PREFIX .. '/tentacles.png'),
 }
 
 
-
-
 local drawlistTop = {}
 
 local drawlistBottom = {}
+
 
 
 
@@ -835,7 +868,7 @@ local activeImage = 1
 
 local function newParticleSystemWithDef(psdef)
    local ps
-   ps = love.graphics.newParticleSystem(hitImages[activeImage], maxParticlesNumber)
+   ps = love.graphics.newParticleSystem(particlesImages[activeImage], maxParticlesNumber)
 
 
    ps:setParticleLifetime(psdef.lifetime1, psdef.lifetime2)
@@ -1089,6 +1122,10 @@ function Arena:present(fixture)
    gr.line(x1, y1, x2, y2)
    gr.setColor(ocolor)
    gr.setLineWidth(olw)
+end
+
+function Arena:ser()
+
 end
 
 function Arena:save2file(fname)
@@ -1834,16 +1871,20 @@ end
 
 
 
-local function processTankVsBullet(_, _)
-end
 
-local function processTankVsTank(_, _)
-end
+
+
+
+
+
+
 
 local contactMap = {
    ['Tank'] = {
-      ['Bullet'] = processTankVsBullet,
-      ['Tank'] = processTankVsTank,
+      ['Bullet'] = function(_, _)
+      end,
+      ['Tank'] = function(_, _)
+      end,
    },
 }
 
@@ -2267,6 +2308,7 @@ local function drawParticlesEditor()
 
 
    local zeroseparated = separateByZeros({ "1", "2" })
+
    v, st = imgui.Combo('выбор картинки', activeImage - 1, zeroseparated)
    if st then
       print('v', v)
@@ -2296,10 +2338,6 @@ local function drawParticlesEditor()
 
    psdef.emiterlifetimeexp = imgui.InputTextMultiline("emiterlifetimeexp", psdef.emiterlifetimeexp, 600, 400);
 
-   if imgui.Button('>> write system') then
-
-
-   end
    imgui.End()
 end
 
@@ -2408,6 +2446,10 @@ local function makeArmy()
 
 
    local angle = rng:random() * 2 * math.pi
+   for i = 1, 30 do
+      local angle = rng:random() * 2 * math.pi
+      spawnTank(vector.new(-100 * i, -100 * i), fromPolar(angle))
+   end
    spawnTank(vector.new(0, 0), fromPolar(angle))
    spawnTank(vector.new(
    diamondSquare.width * PIX2M,
@@ -2667,6 +2709,7 @@ end
 
 local function konsolePresent()
 
+   konsoleCam:attach()
    gr.setColor({ 1, 1, 1, 1 })
 
    processAttachedVariables()
@@ -2689,6 +2732,7 @@ local function konsolePresent()
    linesbuf.color = { 0, 1, 1 }
    linesbuf:draw()
 
+   konsoleCam:detach()
 
    if suggestList then
 
@@ -2775,7 +2819,7 @@ local function mainPresent()
 
    cam:detach()
 
-   drawCameraCircle()
+
 
    drawlistTop = {}
    drawlistBottom = {}
@@ -2809,7 +2853,7 @@ local function draw()
    if not ok then
       error("drawCoro thread is end: " .. errmsg)
    end
-   drawCameraAxixes()
+
    konsolePresent()
 
 
@@ -3213,7 +3257,7 @@ local function keypressed(key)
    if mode == "command" then
       processCommandModeKeys(key)
    else
-      if key == ";" and love.keyboard.isDown("lshift") then
+      if key == ";" and love.keyboard.isDown("lctrl") then
          enterCommandMode()
       end
    end
@@ -3221,6 +3265,49 @@ local function keypressed(key)
 end
 
 cameraKeyConfigIds = {}
+
+local function bindKonsoleCameraZoomKeys()
+
+   local ids = {
+      KeyConfig.bind(
+      "isdown",
+      { mod = { "lshift" },
+key = "z", },
+      function(sc)
+         if mode ~= "normal" then
+            return false, sc
+         end
+         if konsoleCam.scale < camZoomHigher then
+            konsoleCam:zoom(1. + zoomSpeed)
+         end
+         return false, sc
+      end,
+      "zoom camera in",
+      "zoomin"),
+
+      KeyConfig.bind(
+      "isdown",
+      { key = "x" },
+      function(sc)
+         if mode ~= "normal" then
+            return false, sc
+         end
+         if konsoleCam.scale > camZoomLower then
+            konsoleCam:zoom(1.0 - zoomSpeed)
+         end
+         return false, sc
+      end,
+      "zoom camera out",
+      "zoomout"),
+
+   }
+   cameraKeyConfigIds = {}
+   for _, v in ipairs(ids) do
+      table.insert(cameraKeyConfigIds, v)
+   end
+   print('bindKonsoleCameraZoomKeys')
+
+end
 
 local function bindCameraZoomKeys()
 
@@ -3356,10 +3443,13 @@ local function mainInit()
 
    logo = Logo.new()
    cam = require('camera').new()
-   print("camera created x, y, scale, rot",
-   cam.x, cam.y, cam.scale, cam.rot)
+   konsoleCam = require('camera').new()
+   print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
+   print("kons cam created x, y, scale, rot",
+   konsoleCam.x, konsoleCam.y, konsoleCam.scale, konsoleCam.rot)
 
    bindCameraZoomKeys()
+   bindKonsoleCameraZoomKeys()
    bindCameraControl()
    bindFullscreenSwitcher()
    bindEscape()
