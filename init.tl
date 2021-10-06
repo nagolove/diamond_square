@@ -526,8 +526,8 @@ local cameraZoneR: number
 
 local edgeColor = {0, 0, 0, 1}
 local edgeLineWidth = 10
-local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
-local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
+--local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
+--local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
 local drawTerrain = true
 
 local baseBatch: Batch = Batch.new("tank_body_small.png")
@@ -1880,6 +1880,7 @@ local function processTankVsTank(_: Tank, _: Bullet)
 end
 --]]
 
+--[[
 local contactMap = {
     ['Tank'] = {
         ['Bullet'] = function(_: Tank, _: Bullet)
@@ -1888,6 +1889,7 @@ local contactMap = {
         end,
     }
 }
+-]]
 
 local function onBeginContact(
     fixture1: love.physics.Fixture, 
@@ -2052,7 +2054,7 @@ local function loadLocales()
 end
 
 local function drawHits()
-    local blendmode, alphamode = love.graphics.getBlendMode()
+    --local blendmode, alphamode = love.graphics.getBlendMode()
 
     --print('blendmode', blendmode)
     --print('alphamode', alphamode)
@@ -2446,11 +2448,20 @@ local function makeArmy()
         end
     end
     --]]
-    local angle = rng:random() * 2 * math.pi
+
+    --[[ 
+    Непонятная ситуация с данныни. Как располагать танки по карте.
+    --]]
+
+    --[[
+    -- Применить свободное расположение.
     for i = 1, 30 do
         local angle = rng:random() * 2 * math.pi
         spawnTank(vector.new(-100 * i, -100 * i), fromPolar(angle))
     end
+    --]]
+
+    local angle = rng:random() * 2 * math.pi
     spawnTank(vector.new(0, 0), fromPolar(angle))
     spawnTank(vector.new(
         diamondSquare.width * PIX2M, 
@@ -2465,6 +2476,7 @@ local function makeArmy()
 end
 
 local navigatorIndex: integer
+local makeTank = false
 
 --[[
 Попробовать сделать класс Navigator и другие классы через список обработчиков
@@ -2473,33 +2485,46 @@ local function drawNavigator()
     if not currentNavigator then
         currentNavigator = tanks[1]
     end
+
     imgui.Begin('навигатор', false, "AlwaysAutoResize")
+
     if imgui.Button('предыдущий') then
         navigatorIndex = findTank(currentNavigator)
         if navigatorIndex - 1 >= 1 then
             navigatorIndex = navigatorIndex - 1
         end
     end
+
     if imgui.Button('следующий') then
         navigatorIndex = findTank(currentNavigator)
         if navigatorIndex + 1 <= #tanks then
             navigatorIndex = navigatorIndex + 1
         end
     end
+
     if imgui.Button('включить движение') then
         enableMovement()
     end
+
     if imgui.Button('остановить движение') then
         -- как отключать ненужные корутины из списка?
     end
+
     if imgui.Button('сделать армию') then
         makeArmy()
     end
+
+    if imgui.Button('создать один танк по левому клику мыши') then
+        --
+        makeTank = true
+    end
+
     if imgui.Button('удалить все танки') then
         tanks = {}
         bullets = {}
         print("removed")
     end
+
     if imgui.Button('reset') then
         reset()
     end
@@ -2776,6 +2801,7 @@ end
 
 local isCameraCircleOut: boolean = false
 
+--[[
 local function drawCameraCircle()
     local circleColor1 = {1, 0, 0, 1}
     local circleColor2 = {1, 1, 1, 1}
@@ -2794,6 +2820,7 @@ local function drawCameraCircle()
     gr.setColor(oldcolor)
     gr.setLineWidth(olw)
 end
+--]]
 
 local function mainPresent()
     baseBatch:prepare()
@@ -2833,6 +2860,7 @@ local function mainPresent()
     yield()
 end
 
+--[[
 local function drawCameraAxixes()
     -- {{{
     local color = {0., 0.1, 0.97}
@@ -2850,6 +2878,7 @@ local function drawCameraAxixes()
     gr.setLineWidth(oldwidth)
     -- }}}
 end
+--]]
 
 local function draw()
     -- {{{
@@ -3524,8 +3553,18 @@ local function mousepressed(x: number, y: number, btn: integer)
     metrics.mousepressed(x, y, btn)
     if mode == 'normal' then
         if btn == 1 then
-            if playerTank then
-                playerTank:fire()
+            if makeTank then
+                x, y = cam:worldCoords(x, y)
+                x, y = x * PIX2M, y * PIX2M
+                local dir = fromPolar(rng:random() * math.pi)
+                print('dir', inspect(dir))
+                --spawnTank(vector.new(x, y), fromPolar(rng:random() * math.pi))
+                spawnTank(vector.new(x, y))
+                makeTank = false
+            else
+                if playerTank then
+                    playerTank:fire()
+                end
             end
         end
         --elseif btn == 2 then

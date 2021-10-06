@@ -32,6 +32,7 @@ inspect = require("inspect")
 tabular = require("tabular")
 
 
+local Drawable = love.graphics.Drawable
 local Filesystem = love.filesystem
 
 local Graphics = love.graphics
@@ -41,7 +42,6 @@ local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
 local profi = require('profi')
 
-local Drawable = love.graphics.Drawable
 local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow,
 coroutine.resume, math.sqrt
 local yield = coroutine.yield
@@ -1346,6 +1346,7 @@ function Base:update()
    self:processTracks()
 end
 
+
 function Base:processTracks()
    local vx, vy = self.physbody:getLinearVelocity()
    local len = vecl.len(vx, vy)
@@ -1879,14 +1880,16 @@ end
 
 
 
-local contactMap = {
-   ['Tank'] = {
-      ['Bullet'] = function(_, _)
-      end,
-      ['Tank'] = function(_, _)
-      end,
-   },
-}
+
+
+
+
+
+
+
+
+
+
 
 local function onBeginContact(
    fixture1,
@@ -2051,7 +2054,7 @@ local function loadLocales()
 end
 
 local function drawHits()
-   local blendmode, alphamode = love.graphics.getBlendMode()
+
 
 
 
@@ -2445,11 +2448,20 @@ local function makeArmy()
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
    local angle = rng:random() * 2 * math.pi
-   for i = 1, 30 do
-      local angle = rng:random() * 2 * math.pi
-      spawnTank(vector.new(-100 * i, -100 * i), fromPolar(angle))
-   end
    spawnTank(vector.new(0, 0), fromPolar(angle))
    spawnTank(vector.new(
    diamondSquare.width * PIX2M,
@@ -2464,6 +2476,7 @@ local function makeArmy()
 end
 
 local navigatorIndex
+local makeTank = false
 
 
 
@@ -2472,33 +2485,46 @@ local function drawNavigator()
    if not currentNavigator then
       currentNavigator = tanks[1]
    end
+
    imgui.Begin('навигатор', false, "AlwaysAutoResize")
+
    if imgui.Button('предыдущий') then
       navigatorIndex = findTank(currentNavigator)
       if navigatorIndex - 1 >= 1 then
          navigatorIndex = navigatorIndex - 1
       end
    end
+
    if imgui.Button('следующий') then
       navigatorIndex = findTank(currentNavigator)
       if navigatorIndex + 1 <= #tanks then
          navigatorIndex = navigatorIndex + 1
       end
    end
+
    if imgui.Button('включить движение') then
       enableMovement()
    end
+
    if imgui.Button('остановить движение') then
 
    end
+
    if imgui.Button('сделать армию') then
       makeArmy()
    end
+
+   if imgui.Button('создать один танк по левому клику мыши') then
+
+      makeTank = true
+   end
+
    if imgui.Button('удалить все танки') then
       tanks = {}
       bullets = {}
       print("removed")
    end
+
    if imgui.Button('reset') then
       reset()
    end
@@ -2566,8 +2592,11 @@ local function drawui()
    imgui.ShowDemoWindow()
    imgui.ShowUserGuide()
 
+
    drawParticlesEditor()
+
    drawNavigator()
+
    drawArenaPallete()
 
 
@@ -2772,24 +2801,26 @@ end
 
 local isCameraCircleOut = false
 
-local function drawCameraCircle()
-   local circleColor1 = { 1, 0, 0, 1 }
-   local circleColor2 = { 1, 1, 1, 1 }
-   local linew = 8
-   local w, h = gr.getDimensions()
-   local oldcolor = { gr.getColor() }
-   local olw = gr.getLineWidth()
 
-   if isCameraCircleOut then
-      gr.setColor(circleColor1)
-   else
-      gr.setColor(circleColor2)
-   end
-   gr.setLineWidth(linew)
-   gr.circle("line", w / 2, h / 2, cameraZoneR)
-   gr.setColor(oldcolor)
-   gr.setLineWidth(olw)
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function mainPresent()
    baseBatch:prepare()
@@ -2829,23 +2860,25 @@ local function mainPresent()
    yield()
 end
 
-local function drawCameraAxixes()
 
-   local color = { 0., 0.1, 0.97 }
-   local lw = 5
-   local radius = 40
-   local len = W * 2
-   local oldwidth = gr.getLineWidth()
-   gr.setColor(color)
-   gr.setLineWidth(lw)
-   gr.circle("fill", cam.x, cam.y, radius)
-   gr.line(cam.x, cam.y, cam.x + len, cam.y)
-   gr.line(cam.x, cam.y, cam.x - len, cam.y)
-   gr.line(cam.x, cam.y, cam.x, cam.y + len)
-   gr.line(cam.x, cam.y, cam.x, cam.y - len)
-   gr.setLineWidth(oldwidth)
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function draw()
 
@@ -3520,8 +3553,16 @@ local function mousepressed(x, y, btn)
    metrics.mousepressed(x, y, btn)
    if mode == 'normal' then
       if btn == 1 then
-         if playerTank then
-            playerTank:fire()
+         if makeTank then
+            x, y = cam:worldCoords(x, y)
+            x, y = x * PIX2M, y * PIX2M
+
+            spawnTank(vector.new(x, y))
+            makeTank = false
+         else
+            if playerTank then
+               playerTank:fire()
+            end
          end
       end
 
