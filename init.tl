@@ -2091,7 +2091,7 @@ function terrain(mapn: integer, rez: integer)
     diamondSquare = DiamonAndSquare.new(mapn, rez, rng)
     diamondSquare:eval()
     diamondSquare:draw2canvas()
-    diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
+    --diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
 end
 
 -- возвращает массив со значениями координат углов ландшафта в метрах по часовой
@@ -2306,7 +2306,7 @@ local function drawParticlesEditor()
 
     --str, st = imgui.InputText('название типа', str, "None")
 
-    print('particleType', particleType)
+    --print('particleType', particleType)
     local psdef = particles[particleType]
     --v, st = imgui.SliderInt('скорость частиц', 0, -1, 1)
 
@@ -3072,22 +3072,6 @@ local function evalCommand()
 
     -- {{{ preload
     local preload = [[
--- Aliases section
-if not _G['pt'] then
-    pt = playerTank
-end
-
-function editor()
-    mode = 'editor'
-    print('mode', mode)
-end
-
-function exiteditor()
-    arena:save2file('arena.lua')
-    mode = 'normal'
-    print('mode', mode)
-end
-
 function ptabular(ref)
     print(tabular(ref, nil, "cyan"))
 end
@@ -3136,46 +3120,14 @@ function detach(name)
     attachedVarsList[name] = nil
 end
 
--- XXX Global variable
-systemPrint = print
---print = konsolePrint
-
 if not __ATTACH_ONCE__ then
     print('before')
-    -- attached variables
-    --attach("playerTank")
-    --attach("DEFAULT_W")
-    --attach("DEFAULT_H")
-    --attach("W")
-    --attach("H")
-    --attach("M2PIX")
-    --attach("PIX2M")
-    --attach("tankForceScale")
-    --attach("cam")
-    --attach("showLogo")
-    --attach("playerTankKeyconfigIds")
-    --attach("angularImpulseScale")
-    --attach("rot")
-    --attach("camZoomLower")
-    --attach("camZoomHigher")
-    --attach("pworld")
-    ----attach("tanks")
-    --attach("playerTank")
-    --attach("background")
-    --attach("logo")
-    ----attach("bullets")
-    --attach("bulletLifetime")
-    --attach("tankCounter")
-    --attach("rng")
-    --print('after')
     __ATTACH_ONCE__ = true
     attach('mode')
     attach("tankCounter")
 end
     ]]
     -- }}}
-
-    --local preload = [[]]
 
     cmdline = trim(cmdline)
     local func, loaderrmsg: function, string = load(preload .. cmdline)

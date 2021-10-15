@@ -2091,7 +2091,7 @@ function terrain(mapn, rez)
    diamondSquare = DiamonAndSquare.new(mapn, rez, rng)
    diamondSquare:eval()
    diamondSquare:draw2canvas()
-   diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
+
 end
 
 
@@ -2306,7 +2306,7 @@ local function drawParticlesEditor()
 
 
 
-   print('particleType', particleType)
+
    local psdef = particles[particleType]
 
 
@@ -3072,22 +3072,6 @@ local function evalCommand()
 
 
    local preload = [[
--- Aliases section
-if not _G['pt'] then
-    pt = playerTank
-end
-
-function editor()
-    mode = 'editor'
-    print('mode', mode)
-end
-
-function exiteditor()
-    arena:save2file('arena.lua')
-    mode = 'normal'
-    print('mode', mode)
-end
-
 function ptabular(ref)
     print(tabular(ref, nil, "cyan"))
 end
@@ -3136,45 +3120,13 @@ function detach(name)
     attachedVarsList[name] = nil
 end
 
--- XXX Global variable
-systemPrint = print
---print = konsolePrint
-
 if not __ATTACH_ONCE__ then
     print('before')
-    -- attached variables
-    --attach("playerTank")
-    --attach("DEFAULT_W")
-    --attach("DEFAULT_H")
-    --attach("W")
-    --attach("H")
-    --attach("M2PIX")
-    --attach("PIX2M")
-    --attach("tankForceScale")
-    --attach("cam")
-    --attach("showLogo")
-    --attach("playerTankKeyconfigIds")
-    --attach("angularImpulseScale")
-    --attach("rot")
-    --attach("camZoomLower")
-    --attach("camZoomHigher")
-    --attach("pworld")
-    ----attach("tanks")
-    --attach("playerTank")
-    --attach("background")
-    --attach("logo")
-    ----attach("bullets")
-    --attach("bulletLifetime")
-    --attach("tankCounter")
-    --attach("rng")
-    --print('after')
     __ATTACH_ONCE__ = true
     attach('mode')
     attach("tankCounter")
 end
     ]]
-
-
 
 
    cmdline = trim(cmdline)
@@ -3556,6 +3508,8 @@ local function mousepressed(x, y, btn)
          if makeTank then
             x, y = cam:worldCoords(x, y)
             x, y = x * PIX2M, y * PIX2M
+            local dir = fromPolar(rng:random() * math.pi)
+            print('dir', inspect(dir))
 
             spawnTank(vector.new(x, y))
             makeTank = false
