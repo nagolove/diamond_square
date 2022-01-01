@@ -6,8 +6,13 @@ SCENE_PREFIX = "scenes/t80"
 love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
 
-require("tabular")
+require('joystate')
 require("love")
+require("love_inc").require()
+require('pipeline')
+require("tabular")
+
+
 require("common")
 require("keyconfig")
 require("camera")
@@ -36,7 +41,7 @@ local Drawable = love.graphics.Drawable
 local Filesystem = love.filesystem
 
 local Graphics = love.graphics
-local Physics = love.physics
+
 local gr = love.graphics
 local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
@@ -729,8 +734,10 @@ function Hangar.new(pos)
    }
    local self = setmetatable({}, Hangar_mt)
    self.objectType = "Hangar"
-   self.physbody = Physics.newBody(physworld, 0, 0, "static")
-   self.physbody:setUserData(self)
+
+
+
+
    self.rectXY = { 0, 0 }
    self.rectWH = { 511, 511 }
    local px, py = pos.x, pos.y
@@ -747,11 +754,13 @@ function Hangar.new(pos)
       px - self.rectWH[1] / 2 * PIX2M,
       py + self.rectWH[2] / 2 * PIX2M,
    }
-   local shape = Physics.newPolygonShape(vertices)
-   self.vertices = vertices
-   self.fixture = Physics.newFixture(self.physbody, shape)
 
-   self.polyshape = shape
+
+   self.vertices = vertices
+
+
+
+
    self.color = { 1, 1, 1, 1 }
    return self
 end
@@ -761,29 +770,29 @@ function Hangar:update()
 end
 
 function Hangar:present()
-   local shape = self.fixture:getShape()
-   if shape:getType() ~= "polygon" then
-      error("Tank BaseP shape should be polygon.")
-   end
 
-   local body = self.fixture:getBody()
 
-   local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
 
-   x1, y1 = body:getWorldPoints(x1, y1)
-   x2, y2 = body:getWorldPoints(x2, y2)
-   x3, y3 = body:getWorldPoints(x3, y3)
-   x4, y4 = body:getWorldPoints(x4, y4)
 
-   x1, y1 = M2PIX * x1, M2PIX * y1
-   x2, y2 = M2PIX * x2, M2PIX * y2
-   x3, y3 = M2PIX * x3, M2PIX * y3
-   x4, y4 = M2PIX * x4, M2PIX * y4
 
-   hangarBatch:present(
-   x1, y1, x2, y2, x3, y3, x4, y4,
-   self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2],
-   self.color)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1734,28 +1743,30 @@ function Base.new(t)
    self.physbody:setLinearDamping(2)
    self.physbody:setUserData(self)
 
-   local px, py = t.pos.x, t.pos.y
 
 
 
-   local vertices = {
-      px - self.rectWH[1] / 2 * PIX2M,
-      py - self.rectWH[2] / 2 * PIX2M,
 
-      px + self.rectWH[1] / 2 * PIX2M,
-      py - self.rectWH[2] / 2 * PIX2M,
 
-      px + self.rectWH[1] / 2 * PIX2M,
-      py + self.rectWH[2] / 2 * PIX2M,
 
-      px - self.rectWH[1] / 2 * PIX2M,
-      py + self.rectWH[2] / 2 * PIX2M,
-   }
 
-   local shape = Physics.newPolygonShape(vertices)
-   self.fixture = Physics.newFixture(self.physbody, shape)
 
-   self.polyshape = shape
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
    return self
 
@@ -2799,7 +2810,7 @@ function Background:present()
 
 end
 
-local isCameraCircleOut = false
+
 
 
 

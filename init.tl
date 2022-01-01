@@ -1,13 +1,38 @@
 -- vim: fdm=marker
 -- vim: set colorcolumn=85
 
+local colorize = require 'ansicolors2'.ansicolors
+local inspect = require "inspect"
+local dprint = require 'debug_print'
+local debug_print = dprint.debug_print
+
+dprint.set_filter { 
+    [1] = { "joy" },
+    [2] = { 'phys' },
+    [3] = { "thread", 'someName' },
+    [4] = { "graphics" },
+    [5] = { "input" },
+    [6] = { "verts" },
+    --[7] = { "phys" },
+    --[8] = { "phys" },
+    --[9] = { "phys" },
+    --[0] = { "phys" },
+}
+
+debug_print('thread', colorize('%{yellow}>>>>>%{reset} chipmunk_mt started'))
+
 global SCENE_PREFIX = "scenes/t80"
 
 love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
 -- {{{ require
-require "tabular"
+require 'joystate'
 require "love"
+require "love_inc".require()
+require 'pipeline'
+require "tabular"
+
+--require "love"
 require "common"
 require "keyconfig"
 require "camera"
@@ -30,21 +55,24 @@ global vec2 = require "vector"
 global vecl = require "vector-light"
 global inspect = require "inspect"
 global tabular = require "tabular"
+local pw = require "physics_wrapper"
 -- }}}
 
 local Drawable = love.graphics.Drawable
 local Filesystem = love.filesystem
 --local Audio = love.audio
 local Graphics = love.graphics
-local Physics = love.physics
+--local Physics = love.physics
 local gr = love.graphics
 local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
 local profi = require 'profi'
 
-local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow, 
-    coroutine.resume, math.sqrt
+local abs, ceil, pow, sqrt = math.abs, math.ceil, math.pow, math.sqrt
 local yield = coroutine.yield
+
+--local joy: love.joystick.Joystick
+--local joyState: JoyState
 
 local enum Mode
     "normal"
@@ -158,11 +186,11 @@ local record Hangar
     id: integer
     objectType: ObjectType
     color: {number}
-    physbody: Physics.Body
-    polyshape: lp.PolygonShape
+    --physbody: Physics.Body
+    --polyshape: lp.PolygonShape
     rectXY: {number}
     rectWH: {number}
-    fixture: Physics.Fixture
+    --fixture: Physics.Fixture
 
     new: function(): Hangar
     update: function(Hangar)
@@ -537,7 +565,25 @@ local hangarBatch: Batch = Batch.new("hangar.png")
 global maxTrackCount = 128
 global hits: {Hit} = {}
 local coroutines: {thread} = {}
+
+local event_channel = love.thread.getChannel("event_channel")
+local main_channel = love.thread.getChannel("main_channel")
+--local joystick = love.joystick
 -- }}}
+
+--[[
+local function initJoy()
+    for _, j in ipairs(joystick.getJoysticks()) do
+        debug_print("joy", colorize('%{green}' .. inspect(j)))
+    end
+    joy = joystick.getJoysticks()[1]
+    if joy then
+        debug_print("joy", colorize('%{green}avaible ' .. joy:getButtonCount() .. ' buttons'))
+        debug_print("joy", colorize('%{green}hats num: ' .. joy:getHatCount()))
+    end
+    joyState = JoyState.new(joy)
+end
+--]]
 
 local function initParticles(fname: string)
     print('initParticles')
@@ -729,8 +775,10 @@ function Hangar.new(pos: vector): Hangar
     }
     local self = setmetatable({} as Hangar, Hangar_mt)
     self.objectType = "Hangar"
-    self.physbody = Physics.newBody(physworld, 0, 0, "static")
-    self.physbody:setUserData(self)
+
+    --self.physbody = Physics.newBody(physworld, 0, 0, "static")
+    --self.physbody:setUserData(self)
+
     self.rectXY = {0, 0}
     self.rectWH = {511, 511}
     local px, py = pos.x, pos.y
@@ -747,11 +795,13 @@ function Hangar.new(pos: vector): Hangar
         px - self.rectWH[1] / 2 * PIX2M,
         py + self.rectWH[2] / 2 * PIX2M,
     }
-    local shape = Physics.newPolygonShape(vertices)
+
+    --local shape = Physics.newPolygonShape(vertices)
     self.vertices = vertices
-    self.fixture = Physics.newFixture(self.physbody, shape as Physics.Shape)
+    --self.fixture = Physics.newFixture(self.physbody, shape as Physics.Shape)
     --self.f:setGroupIndex(tankCollisionGroup)
-    self.polyshape = shape
+    --self.polyshape = shape
+
     self.color = {1, 1, 1, 1}
     return self
 end
@@ -761,30 +811,30 @@ function Hangar:update()
 end
 
 function Hangar:present()
-    local shape = self.fixture:getShape()
-    if shape:getType() ~= "polygon" then
-        error("Tank BaseP shape should be polygon.")
-    end
+    --local shape = self.fixture:getShape()
+    --if shape:getType() ~= "polygon" then
+        --error("Tank BaseP shape should be polygon.")
+    --end
 
-    local body = self.fixture:getBody()
+    --local body = self.fixture:getBody()
     --    1   2   3   4   5   6   7   8
-    local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
+    --local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
 
-    x1, y1 = body:getWorldPoints(x1, y1)
-    x2, y2 = body:getWorldPoints(x2, y2)
-    x3, y3 = body:getWorldPoints(x3, y3)
-    x4, y4 = body:getWorldPoints(x4, y4)
+    --x1, y1 = body:getWorldPoints(x1, y1)
+    --x2, y2 = body:getWorldPoints(x2, y2)
+    --x3, y3 = body:getWorldPoints(x3, y3)
+    --x4, y4 = body:getWorldPoints(x4, y4)
 
-    x1, y1 = M2PIX * x1, M2PIX * y1
-    x2, y2 = M2PIX * x2, M2PIX * y2
-    x3, y3 = M2PIX * x3, M2PIX * y3
-    x4, y4 = M2PIX * x4, M2PIX * y4
+    --x1, y1 = M2PIX * x1, M2PIX * y1
+    --x2, y2 = M2PIX * x2, M2PIX * y2
+    --x3, y3 = M2PIX * x3, M2PIX * y3
+    --x4, y4 = M2PIX * x4, M2PIX * y4
 
-    hangarBatch:present(
-        x1, y1, x2, y2, x3, y3, x4, y4, 
-        self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2], 
-        self.color
-    )
+    --hangarBatch:present(
+        --x1, y1, x2, y2, x3, y3, x4, y4, 
+        --self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2], 
+        --self.color
+    --)
 
     --self.x4 = x4
     --self.y4 = y4
@@ -1734,10 +1784,11 @@ function Base.new(t: Tank): Base
     self.physbody:setLinearDamping(2)
     self.physbody:setUserData(self)
 
-    local px, py = t.pos.x, t.pos.y
+    --local px, py = t.pos.x, t.pos.y
 
     -- XXX Не используется rectXY, будут проблемы при перемещении 
     -- выделения на текстуре.
+    --[[
     local vertices = {
         px - self.rectWH[1] / 2 * PIX2M, 
         py - self.rectWH[2] / 2 * PIX2M,  
@@ -1751,11 +1802,12 @@ function Base.new(t: Tank): Base
         px - self.rectWH[1] / 2 * PIX2M,
         py + self.rectWH[2] / 2 * PIX2M,
     }
+    --]]
 
-    local shape = Physics.newPolygonShape(vertices)
-    self.fixture = Physics.newFixture(self.physbody, shape as Physics.Shape)
+    --local shape = Physics.newPolygonShape(vertices)
+    --self.fixture = Physics.newFixture(self.physbody, shape as Physics.Shape)
     --self.f:setGroupIndex(tankCollisionGroup)
-    self.polyshape = shape
+    --self.polyshape = shape
 
     return self
     -- }}}
@@ -2290,6 +2342,7 @@ end
 
 global str: string = ""
 
+--[[
 local function drawParticlesEditor()
     imgui.Begin(i18n('effecteditor'), false, "AlwaysAutoResize")
     local v: number
@@ -2343,6 +2396,7 @@ local function drawParticlesEditor()
 
     imgui.End()
 end
+--]]
 
 local function findTank(object: Tank): integer
     for i, v in ipairs(tanks) do
@@ -2475,12 +2529,13 @@ local function makeArmy()
     -- }}}
 end
 
-local navigatorIndex: integer
+--local navigatorIndex: integer
 local makeTank = false
 
 --[[
 Попробовать сделать класс Navigator и другие классы через список обработчиков
 --]]
+--[[
 local function drawNavigator()
     if not currentNavigator then
         currentNavigator = tanks[1]
@@ -2534,6 +2589,7 @@ local function drawNavigator()
     moveCameraToTank(currentNavigator)
     imgui.End()
 end
+--]]
 
 local brushFunction: function(x: number, y: number)
 
@@ -2549,12 +2605,15 @@ local function setupBrush(brush: Brush)
     end
 end
 
+--[[
 local tmpColumns = {
     true,
     false,
     false,
 }
+--]]
 
+--[[
 local function drawArenaPallete()
     imgui.Begin('арена', false, "AlwaysAutoResize")
     if imgui.Button('выгрузить на накопитель нжмд') then
@@ -2585,7 +2644,9 @@ local function drawArenaPallete()
 
     imgui.End()
 end
+--]]
 
+--[[
 local function drawui()
     -- {{{
     imgui.StyleColorsLight()
@@ -2601,6 +2662,7 @@ local function drawui()
 
     -- }}}
 end
+--]]
 
 local function bindCameraControl()
     -- {{{
@@ -2722,12 +2784,15 @@ function printBody(body: love.physics.Body)
     -- }}}
 end
 
+--[[
 local function processAttachedVariables()
     for _, v in pairs(attachedVarsList) do
         v()
     end
 end
+--]]
 
+--[[
 local function stats()
     linesbuf:pushi('Lua used %d Mb', (collectgarbage('count') as integer)/ 1024)
     local stat = love.graphics.getStats()
@@ -2735,7 +2800,9 @@ local function stats()
     linesbuf:pushi('canvasswitches %d', stat.canvasswitches)
     --linesbuf:pushi('texturememory %d', (stat.texturememory as integer) / 1024)
 end 
+--]]
 
+--[[
 local function konsolePresent()
     -- {{{
     konsoleCam:attach()
@@ -2769,6 +2836,7 @@ local function konsolePresent()
     end
     -- }}}
 end
+--]]
 
 function Background.new(): Background
     -- {{{
@@ -2799,7 +2867,7 @@ function Background:present()
     -- }}}
 end
 
-local isCameraCircleOut: boolean = false
+--local isCameraCircleOut: boolean = false
 
 --[[
 local function drawCameraCircle()
@@ -2880,6 +2948,7 @@ local function drawCameraAxixes()
 end
 --]]
 
+--[[
 local function draw()
     -- {{{
     local ok, errmsg: boolean, string = resume(drawCoro) as (boolean, string)
@@ -2894,6 +2963,7 @@ local function draw()
     --drawArrow(600, 300, 40, 300, {0, 0, 1, 1})
     -- }}}
 end
+--]]
 
 local function updateTanks()
     -- {{{
@@ -2949,23 +3019,6 @@ local function moveCamera()
         lastPosY = tanky
         cam:move(-dx, -dy)
     end
-end
-
-local function mainUpdate(dt: number)
-    profi:start()
-    camTimer:update(dt)
-    if physworld then
-        physworld:update(1 / 60)
-    end
-    linesbuf:update()
-    updateTanks()
-    updateBullets()
-    updateHangars()
-    updateHits(dt)
-    updateCoroutines()
-    arena:update()
-    moveCamera()
-    profi:stop()
 end
 
 local function backspaceCmdLine()
@@ -3415,7 +3468,7 @@ function drawMiniMap()
 
 end
 
-local function mainInit()
+local function init()
     -- {{{
     metrics.init()
     setWindowMode()
@@ -3558,6 +3611,98 @@ local function textinput(text: string)
     -- }}}
 end
 
+local is_stop = false
+local last_render: number
+
+local function mainloop()
+    while not is_stop do
+        --print('mainloop iter')
+        local events = event_channel:pop() as {any}
+        if events then
+            for _, e in ipairs(events) do
+                local evtype: string = (e as {string})[1]
+                if evtype == "mousemoved" then
+                    --mx = math.floor((e as {number})[2])
+                    --my = math.floor((e as {number})[3])
+                elseif evtype == "keypressed" then
+                    local key = (e as {string})[2]
+                    local scancode = (e as {string})[3]
+
+                    local msg = '%{green}keypressed '
+                    debug_print('input', colorize(msg .. key .. ' ' .. scancode))
+
+                    dprint.keypressed(scancode)
+
+                    if scancode == "escape" then
+                        is_stop = true
+                        debug_print('input', colorize('%{blue}escape pressed'))
+                        break
+                    end
+
+                    -- Использовать scancode или key?
+                    keypressed(scancode)
+
+                    --msg = '%{yellow}keypressed '
+                    --print(colorize(msg .. key .. ' ' .. scancode))
+
+                elseif evtype == "mousepressed" then
+                    --local x: number = (e as {number})[2]
+                    --local y: number = (e as {number})[3]
+                    --local button: number = (e as {number})[4]
+                    --local istouch: boolean = (e as {boolean})[5]
+                    --local presses: number = (e as {number})[6]
+                end
+            end
+        end
+        
+        -- Ограничение кадров в секунду до 60
+        local nt = love.timer.getTime()
+        local pause = 1. / 300.
+        --local pause = 1. / 4000.
+        local diff = nt - last_render
+
+        -- Правильно-ли расчитано значение dt?
+        local dt = diff
+
+        if diff >= pause then
+            last_render = nt
+            --local msg = 'love.timer.getTime() = %f'
+            --print(colorize('%{blue}' .. format(msg, love.timer.getTime())))
+            render()
+        end
+
+        -- UPDATE HERE PLEASE
+        camTimer:update(dt)
+        if physworld then
+            physworld:update(1 / 60)
+        end
+        linesbuf:update()
+        updateTanks()
+        updateBullets()
+        updateHangars()
+        updateHits(dt)
+        updateCoroutines()
+        arena:update()
+        moveCamera()
+
+        -- шаг физики
+        pw.update(diff)
+
+        --applyInput()
+        --print('------------------------------------------------')
+        --print('------------------------------------------------')
+        --debug_print('phys', tank:getInfoStr())
+        --local pos = tank:getPos()
+        --debug_print('phys', 'tank pos', pos.x, pos.y)
+
+        updateJoyState()
+
+        local timeout = 0.0001
+        love.timer.sleep(timeout)
+    end
+end
+
+--[[
 return {
     -- {{{
     init = mainInit,
@@ -3573,6 +3718,7 @@ return {
     wheelmoved = wheelmoved
     -- }}}
 }
+--]]
 
 --[[
 -- {{{ BulletPool prototype
@@ -3590,4 +3736,16 @@ function BulletPool.new(num: integer): BulletPool
 end
 -- }}}
 --]]
+
+init()
+mainloop()
+
+if is_stop then
+    pw.free()
+    main_channel:push('quit')
+    debug_print('thread', 'Thread resources are freed')
+end
+
+
+debug_print('thread', colorize('%{yellow}<<<<<%{reset} t80 finished'))
 
