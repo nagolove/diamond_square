@@ -1,6 +1,26 @@
 local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pairs = _tl_compat and _tl_compat.pairs or pairs; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
+local colorize = require('ansicolors2').ansicolors
+local inspect = require("inspect")
+local dprint = require('debug_print')
+local debug_print = dprint.debug_print
+
+dprint.set_filter({
+   [1] = { "joy" },
+   [2] = { 'phys' },
+   [3] = { "thread", 'someName' },
+   [4] = { "graphics" },
+   [5] = { "input" },
+   [6] = { "verts" },
+
+
+
+
+})
+
+debug_print('thread', colorize('%{yellow}>>>>>%{reset} chipmunk_mt started'))
+
 SCENE_PREFIX = "scenes/t80"
 
 love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
@@ -35,6 +55,7 @@ vec2 = require("vector")
 vecl = require("vector-light")
 inspect = require("inspect")
 tabular = require("tabular")
+local pw = require("physics_wrapper")
 
 
 local Drawable = love.graphics.Drawable
@@ -47,9 +68,11 @@ local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
 local profi = require('profi')
 
-local abs, ceil, pow, resume, sqrt = math.abs, math.ceil, math.pow,
-coroutine.resume, math.sqrt
-local yield = coroutine.yield
+local abs, ceil, pow, sqrt = math.abs, math.ceil, math.pow, math.sqrt
+local yield, resume = coroutine.yield, coroutine.resume
+
+
+local joyState
 
 local Mode = {}
 
@@ -57,7 +80,9 @@ local Mode = {}
 
 
 
-local Brush = {}
+
+
+
 
 
 
@@ -431,7 +456,7 @@ local CameraSettings = {}
 
 
 
-local currentNavigator
+
 
 
 local particlesfname = "particles-def.lua"
@@ -542,6 +567,25 @@ local hangarBatch = Batch.new("hangar.png")
 maxTrackCount = 128
 hits = {}
 local coroutines = {}
+
+local event_channel = love.thread.getChannel("event_channel")
+local main_channel = love.thread.getChannel("main_channel")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 local function initParticles(fname)
@@ -2271,98 +2315,106 @@ local function changeKeyConfigListbackground()
 
 end
 
-local function buildParticlesNames()
-   local res = {}
-   for k, _ in pairs(particles) do
-      table.insert(res, k)
-   end
-   return res
-end
 
-local currentParticesType = 0
 
-local function selectParticleType()
-   local v
-   local st
-   local names = buildParticlesNames()
-   local zeroseparated, _ = separateByZeros(names)
-   v, st = imgui.Combo("тип частиц", currentParticesType, zeroseparated)
-   if st then
-      currentParticesType = ceil(v)
-      for k, s in ipairs(names) do
-         if k == v then
-            print(k, s)
-            return s
-         end
-      end
-   end
-   return 'default'
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 str = ""
 
-local function drawParticlesEditor()
-   imgui.Begin(i18n('effecteditor'), false, "AlwaysAutoResize")
-   local v
-   local st
-
-
-   local particleType = selectParticleType()
-
-   str, st = imgui.InputText('название типа', str, "")
-   imgui.SameLine()
-   if imgui.Button('добавить новый тип') then
-
-   end
 
 
 
 
-   local psdef = particles[particleType]
 
 
-   local zeroseparated = separateByZeros({ "1", "2" })
-
-   v, st = imgui.Combo('выбор картинки', activeImage - 1, zeroseparated)
-   if st then
-      print('v', v)
-      activeImage = ceil(tonumber(v)) + 1
-   end
-
-   psdef.lifetime1, st = imgui.SliderInt('время жизни от', psdef.lifetime1, 0, 1000)
-   psdef.lifetime2, st = imgui.SliderInt('время жизни до', psdef.lifetime2, 0, 1000)
-   psdef.emissionRate, st = imgui.SliderInt('эмиссия', psdef.emissionRate, 0, 1000)
-   psdef.sizeVariation, st = imgui.SliderFloat('вариации размера', psdef.sizeVariation, 0, 1)
-
-   psdef.lineAcceleration[1], st = imgui.SliderInt('парам1', psdef.lineAcceleration[1], -100, 100)
-   psdef.lineAcceleration[2], st = imgui.SliderInt('парам2', psdef.lineAcceleration[2], -100, 100)
-   psdef.lineAcceleration[3], st = imgui.SliderInt('парам3', psdef.lineAcceleration[3], -100, 100)
-   psdef.lineAcceleration[4], st = imgui.SliderInt('парам4', psdef.lineAcceleration[4], -100, 100)
-
-   psdef.colors[1][1], st = imgui.SliderFloat('цвет красный 1', psdef.colors[1][1], 0, 1)
-   psdef.colors[1][2], st = imgui.SliderFloat('цвет зеленый 1', psdef.colors[1][2], 0, 1)
-   psdef.colors[1][3], st = imgui.SliderFloat('цвет голубой 1', psdef.colors[1][3], 0, 1)
-   psdef.colors[1][4], st = imgui.SliderFloat('цвет прозрачности 1', psdef.colors[1][4], 0, 1)
-
-   psdef.colors[2][1], st = imgui.SliderFloat('цвет красный 2', psdef.colors[2][1], 0, 1)
-   psdef.colors[2][2], st = imgui.SliderFloat('цвет зеленый 2', psdef.colors[2][2], 0, 1)
-   psdef.colors[2][3], st = imgui.SliderFloat('цвет голубой 2', psdef.colors[2][3], 0, 1)
-   psdef.colors[2][4], st = imgui.SliderFloat('цвет прозрачности 2', psdef.colors[2][4], 0, 1)
 
 
-   psdef.emiterlifetimeexp = imgui.InputTextMultiline("emiterlifetimeexp", psdef.emiterlifetimeexp, 600, 400);
 
-   imgui.End()
-end
 
-local function findTank(object)
-   for i, v in ipairs(tanks) do
-      if v == object then
-         return i
-      end
-   end
-   return nil
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function moveCameraToTank(tank)
 
@@ -2374,13 +2426,15 @@ local function moveCameraToTank(tank)
 
 end
 
-local function enableMovement()
-   for _, tank in ipairs(tanks) do
-      if tank ~= playerTank then
-         tank:circleMove()
-      end
-   end
-end
+
+
+
+
+
+
+
+
+
 
 local function spawnHangar(pos)
    local hangar = Hangar.new(pos)
@@ -2486,132 +2540,142 @@ local function makeArmy()
 
 end
 
-local navigatorIndex
+
 local makeTank = false
 
 
 
 
-local function drawNavigator()
-   if not currentNavigator then
-      currentNavigator = tanks[1]
-   end
 
-   imgui.Begin('навигатор', false, "AlwaysAutoResize")
 
-   if imgui.Button('предыдущий') then
-      navigatorIndex = findTank(currentNavigator)
-      if navigatorIndex - 1 >= 1 then
-         navigatorIndex = navigatorIndex - 1
-      end
-   end
 
-   if imgui.Button('следующий') then
-      navigatorIndex = findTank(currentNavigator)
-      if navigatorIndex + 1 <= #tanks then
-         navigatorIndex = navigatorIndex + 1
-      end
-   end
 
-   if imgui.Button('включить движение') then
-      enableMovement()
-   end
 
-   if imgui.Button('остановить движение') then
 
-   end
 
-   if imgui.Button('сделать армию') then
-      makeArmy()
-   end
 
-   if imgui.Button('создать один танк по левому клику мыши') then
 
-      makeTank = true
-   end
 
-   if imgui.Button('удалить все танки') then
-      tanks = {}
-      bullets = {}
-      print("removed")
-   end
 
-   if imgui.Button('reset') then
-      reset()
-   end
 
-   currentNavigator = tanks[navigatorIndex]
 
-   moveCameraToTank(currentNavigator)
-   imgui.End()
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local brushFunction
 
-local function setupBrush(brush)
-   if brush == "Hangar" then
-      brushFunction = function()
-         local mx, my = cam:worldCoords(love.mouse.getPosition())
-         local pos = vector.new(mx * PIX2M, my * PIX2M)
-         spawnHangar(pos)
-      end
-   else
-      brushFunction = nil
-   end
-end
-
-local tmpColumns = {
-   true,
-   false,
-   false,
-}
-
-local function drawArenaPallete()
-   imgui.Begin('арена', false, "AlwaysAutoResize")
-   if imgui.Button('выгрузить на накопитель нжмд') then
-
-   end
-   if imgui.Button('подгрузить с на накопителя нжмд') then
-   end
-   if imgui.Button('включить режим кисти граней') then
-
-   end
-   if imgui.Button(i18n('inserhangarmode')) then
-      mode = 'editor'
-      setupBrush('Hangar')
-   end
-   if imgui.Button('отключить редектирование') then
-      mode = 'normal'
-   end
-
-   if imgui.BeginTable('какая-то таблица', 5) then
-      imgui.TableNextColumn();
-      tmpColumns[1] = imgui.Checkbox("Огурец", tmpColumns[1])
-      imgui.TableNextColumn()
-      tmpColumns[2] = imgui.Checkbox("Томат", tmpColumns[2])
-      imgui.TableNextColumn()
-      tmpColumns[3] = imgui.Checkbox("Паштет", tmpColumns[3])
-      imgui.EndTable()
-   end
-
-   imgui.End()
-end
-
-local function drawui()
-
-   imgui.StyleColorsLight()
-   imgui.ShowDemoWindow()
-   imgui.ShowUserGuide()
 
 
-   drawParticlesEditor()
-
-   drawNavigator()
-
-   drawArenaPallete()
 
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function bindCameraControl()
 
@@ -2700,18 +2764,20 @@ local function bindEscape()
 
 end
 
-local function removeFirstColon(s)
 
-   if not s then
-      return nil
-   end
-   if string.sub(s, 1, 1) == ":" then
-      return string.sub(s, 2, #s)
-   else
-      return s
-   end
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2733,53 +2799,59 @@ function printBody(body)
 
 end
 
-local function processAttachedVariables()
-   for _, v in pairs(attachedVarsList) do
-      v()
-   end
-end
-
-local function stats()
-   linesbuf:pushi('Lua used %d Mb', (collectgarbage('count')) / 1024)
-   local stat = love.graphics.getStats()
-   linesbuf:pushi('drawcalls %d', stat.drawcalls)
-   linesbuf:pushi('canvasswitches %d', stat.canvasswitches)
-
-end
-
-local function konsolePresent()
-
-   konsoleCam:attach()
-   gr.setColor({ 1, 1, 1, 1 })
-
-   processAttachedVariables()
-
-   if mode == "command" then
-      cmdline = removeFirstColon(cmdline)
-      if cmdline then
 
 
 
-         local prompt = ">: "
-
-         linesbuf:pushi(prompt .. cmdline)
-      end
-   end
-
-   stats()
 
 
-   linesbuf.color = { 0, 1, 1 }
-   linesbuf:draw()
-
-   konsoleCam:detach()
-
-   if suggestList then
 
 
-   end
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function Background.new()
 
@@ -2891,14 +2963,14 @@ end
 
 
 
-local function draw()
+local function render()
 
    local ok, errmsg = resume(drawCoro)
    if not ok then
       error("drawCoro thread is end: " .. errmsg)
    end
 
-   konsolePresent()
+
 
 
 
@@ -2960,23 +3032,6 @@ local function moveCamera()
       lastPosY = tanky
       cam:move(-dx, -dy)
    end
-end
-
-local function mainUpdate(dt)
-   profi:start()
-   camTimer:update(dt)
-   if physworld then
-      physworld:update(1 / 60)
-   end
-   linesbuf:update()
-   updateTanks()
-   updateBullets()
-   updateHangars()
-   updateHits(dt)
-   updateCoroutines()
-   arena:update()
-   moveCamera()
-   profi:stop()
 end
 
 local function backspaceCmdLine()
@@ -3426,7 +3481,7 @@ function drawMiniMap()
 
 end
 
-local function mainInit()
+local function init()
 
    metrics.init()
    setWindowMode()
@@ -3544,43 +3599,191 @@ local function mousepressed(x, y, btn)
 
 end
 
-local function resize(neww, newh)
-
-   metrics.resize(neww, newh)
-   print("tanks window resized to w, h", neww, newh)
-   W, H = neww, newh
-   cameraZoneR = newh / 2
-
-   DEFAULT_W, DEFAULT_H = neww, newh
-
-end
-
-local function textinput(text)
-
-   metrics.textinput(text)
-   if mode == "command" then
 
 
-      local sub = string.sub
-      cmdline = sub(cmdline, 1, cursorpos - 1) ..
-      text .. sub(cmdline, cursorpos, #cmdline)
-      cursorpos = cursorpos + 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local function updateJoyState()
+   joyState:update()
+   if joyState.state and joyState.state ~= "" then
+      debug_print('joy', joyState.state)
    end
-
 end
 
-return {
+local is_stop = false
+local last_render
 
-   init = mainInit,
-   quit = quit,
-   draw = draw,
-   drawui = drawui,
-   update = mainUpdate,
-   keypressed = keypressed,
-   mousepressed = mousepressed,
-   resize = resize,
-   textinput = textinput,
-   mousemoved = mousemoved,
-   wheelmoved = wheelmoved,
+local function mainloop()
+   while not is_stop do
 
-}
+      local events = event_channel:pop()
+      if events then
+         for _, e in ipairs(events) do
+            local evtype = (e)[1]
+            if evtype == "mousemoved" then
+
+               local x, y = (e)[2], (e)[3]
+               local dx, dy = (e)[4], (e)[5]
+               mousemoved(x, y, dx, dy)
+
+            elseif evtype == 'wheelmoved' then
+
+               local x, y = (e)[2], (e)[3]
+               wheelmoved(x, y)
+
+            elseif evtype == "keypressed" then
+               local key = (e)[2]
+               local scancode = (e)[3]
+
+               local msg = '%{green}keypressed '
+               debug_print('input', colorize(msg .. key .. ' ' .. scancode))
+
+               dprint.keypressed(scancode)
+
+               if scancode == "escape" then
+                  is_stop = true
+                  debug_print('input', colorize('%{blue}escape pressed'))
+                  break
+               end
+
+
+               keypressed(scancode)
+
+
+
+
+            elseif evtype == "mousepressed" then
+
+
+
+
+
+
+               local x, y = (e)[2], (e)[3]
+               local btn = (e)[4]
+               mousepressed(x, y, btn)
+
+            end
+         end
+      end
+
+
+      local nt = love.timer.getTime()
+      local pause = 1. / 300.
+
+      local diff = nt - last_render
+
+
+      local dt = diff
+
+      if diff >= pause then
+         last_render = nt
+
+
+         render()
+      end
+
+
+      camTimer:update(dt)
+      if physworld then
+         physworld:update(1 / 60)
+      end
+      linesbuf:update()
+      updateTanks()
+      updateBullets()
+      updateHangars()
+      updateHits(dt)
+      updateCoroutines()
+      arena:update()
+      moveCamera()
+
+
+      pw.update(diff)
+
+
+
+
+
+
+
+
+      updateJoyState()
+
+      local timeout = 0.0001
+      love.timer.sleep(timeout)
+   end
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+init()
+mainloop()
+
+if is_stop then
+   quit()
+   pw.free()
+   main_channel:push('quit')
+   debug_print('thread', 'Thread resources are freed')
+end
+
+debug_print('thread', colorize('%{yellow}<<<<<%{reset} t80 finished'))

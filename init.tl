@@ -69,10 +69,10 @@ local Shortcut = KeyConfig.Shortcut
 local profi = require 'profi'
 
 local abs, ceil, pow, sqrt = math.abs, math.ceil, math.pow, math.sqrt
-local yield = coroutine.yield
+local yield, resume = coroutine.yield, coroutine.resume
 
 --local joy: love.joystick.Joystick
---local joyState: JoyState
+local joyState: JoyState
 
 local enum Mode
     "normal"
@@ -80,10 +80,12 @@ local enum Mode
     "editor"
 end
 
+--[[
 local enum Brush
     "None" -- ничего не рисовать
     "Hangar"
 end
+--]]
 
 local enum ObjectType
     "Arena"
@@ -454,7 +456,7 @@ end
 -- {{{ Global and local variables.
 
 -- Указатель на текущий подсвеченный навигатором танк.
-local currentNavigator: Tank
+--local currentNavigator: Tank
 
 -- имя файла для загрузки имен и установок частиц
 local particlesfname = "particles-def.lua"
@@ -568,6 +570,7 @@ local coroutines: {thread} = {}
 
 local event_channel = love.thread.getChannel("event_channel")
 local main_channel = love.thread.getChannel("main_channel")
+
 --local joystick = love.joystick
 -- }}}
 
@@ -2312,6 +2315,7 @@ local function changeKeyConfigListbackground()
     -- }}}
 end
 
+--[[
 local function buildParticlesNames(): {string}
     local res: {string} = {}
     for k, _ in pairs(particles) do
@@ -2319,9 +2323,11 @@ local function buildParticlesNames(): {string}
     end
     return res
 end
+--]]
 
-local currentParticesType: integer = 0
+--local currentParticesType: integer = 0
 
+--[[
 local function selectParticleType(): string
     local v: number
     local st: boolean
@@ -2339,6 +2345,7 @@ local function selectParticleType(): string
     end
     return 'default'
 end
+--]]
 
 global str: string = ""
 
@@ -2398,6 +2405,7 @@ local function drawParticlesEditor()
 end
 --]]
 
+--[[
 local function findTank(object: Tank): integer
     for i, v in ipairs(tanks) do
         if v == object then
@@ -2406,6 +2414,7 @@ local function findTank(object: Tank): integer
     end
     return nil
 end
+--]]
 
 local function moveCameraToTank(tank: Tank)
     -- {{{
@@ -2417,6 +2426,7 @@ local function moveCameraToTank(tank: Tank)
     -- }}}
 end
 
+--[[
 local function enableMovement()
     for _, tank in ipairs(tanks) do
         if tank ~= playerTank then
@@ -2424,6 +2434,7 @@ local function enableMovement()
         end
     end
 end
+--]]
 
 local function spawnHangar(pos: vector): Hangar
     local hangar = Hangar.new(pos)
@@ -2593,6 +2604,7 @@ end
 
 local brushFunction: function(x: number, y: number)
 
+--[[
 local function setupBrush(brush: Brush)
     if brush == "Hangar" then
         brushFunction = function()
@@ -2604,6 +2616,7 @@ local function setupBrush(brush: Brush)
         brushFunction = nil
     end
 end
+--]]
 
 --[[
 local tmpColumns = {
@@ -2751,6 +2764,7 @@ local function bindEscape()
     -- }}}
 end
 
+--[[
 local function removeFirstColon(s: string): string
     -- {{{
     if not s then
@@ -2763,6 +2777,7 @@ local function removeFirstColon(s: string): string
     end
     -- }}}
 end
+--]]
 
 --[[
 {{{ removeFirstColon tests
@@ -2948,22 +2963,20 @@ local function drawCameraAxixes()
 end
 --]]
 
---[[
-local function draw()
+local function render()
     -- {{{
     local ok, errmsg: boolean, string = resume(drawCoro) as (boolean, string)
     if not ok then
         error("drawCoro thread is end: " .. errmsg)
     end
     --drawCameraAxixes()
-    konsolePresent()
+    --konsolePresent()
 
     --drawArrow(300, 600, 400, 600, {1, 0, 0, 1})
     --drawArrow(0, 0, 40, 700, {0, 1, 0, 1})
     --drawArrow(600, 300, 40, 300, {0, 0, 1, 1})
     -- }}}
 end
---]]
 
 local function updateTanks()
     -- {{{
@@ -3586,6 +3599,7 @@ local function mousepressed(x: number, y: number, btn: integer)
     -- }}}
 end
 
+--[[
 local function resize(neww: integer, newh: integer)
     -- {{{
     metrics.resize(neww, newh)
@@ -3596,7 +3610,9 @@ local function resize(neww: integer, newh: integer)
     DEFAULT_W, DEFAULT_H = neww, newh
     -- }}}
 end
+--]]
 
+--[[
 local function textinput(text: string)
     -- {{{
     metrics.textinput(text)
@@ -3610,6 +3626,14 @@ local function textinput(text: string)
     end
     -- }}}
 end
+--]]
+
+local function updateJoyState()
+    joyState:update()
+    if joyState.state and joyState.state ~= "" then
+        debug_print('joy', joyState.state)
+    end
+end
 
 local is_stop = false
 local last_render: number
@@ -3622,8 +3646,16 @@ local function mainloop()
             for _, e in ipairs(events) do
                 local evtype: string = (e as {string})[1]
                 if evtype == "mousemoved" then
-                    --mx = math.floor((e as {number})[2])
-                    --my = math.floor((e as {number})[3])
+
+                    local x, y = (e as {number})[2], (e as {number})[3]
+                    local dx, dy = (e as {number})[4], (e as {number})[5]
+                    mousemoved(x, y, dx, dy)
+
+                elseif evtype == 'wheelmoved' then
+
+                    local x, y = (e as {number})[2], (e as {number})[3]
+                    wheelmoved(x, y)
+
                 elseif evtype == "keypressed" then
                     local key = (e as {string})[2]
                     local scancode = (e as {string})[3]
@@ -3646,11 +3678,16 @@ local function mainloop()
                     --print(colorize(msg .. key .. ' ' .. scancode))
 
                 elseif evtype == "mousepressed" then
+
                     --local x: number = (e as {number})[2]
                     --local y: number = (e as {number})[3]
                     --local button: number = (e as {number})[4]
                     --local istouch: boolean = (e as {boolean})[5]
                     --local presses: number = (e as {number})[6]
+                    local x, y = (e as {number})[2], (e as {number})[3]
+                    local btn = (e as {integer})[4]
+                    mousepressed(x, y, btn)
+
                 end
             end
         end
@@ -3705,6 +3742,7 @@ end
 --[[
 return {
     -- {{{
+
     init = mainInit,
     quit = quit,
     draw = draw,
@@ -3716,6 +3754,7 @@ return {
     textinput = textinput,
     mousemoved = mousemoved,
     wheelmoved = wheelmoved
+
     -- }}}
 }
 --]]
@@ -3741,11 +3780,10 @@ init()
 mainloop()
 
 if is_stop then
+    quit()
     pw.free()
     main_channel:push('quit')
     debug_print('thread', 'Thread resources are freed')
 end
 
-
 debug_print('thread', colorize('%{yellow}<<<<<%{reset} t80 finished'))
-
