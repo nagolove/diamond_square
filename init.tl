@@ -663,6 +663,7 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number,
     -- }}}
 end
 
+--[[
 local function contactFilter(fix1: lp.Fixture, fix2: lp.Fixture): boolean
     -- {{{
     --print('contactFilter', fixture1, fixture2)
@@ -700,20 +701,10 @@ local function contactFilter(fix1: lp.Fixture, fix2: lp.Fixture): boolean
         end
     end
 
-    --[[
-    if objectType1 and objectType2 then
-        if (objectType1 == 'Bullet' and objectType2 == 'Base') or 
-           (objectType1 == 'Base' and objectType2 == 'Bullet') or
-           (objectType1 == 'Turret' and objectType2 == 'Bullet') or
-           (objectType1 == 'Base' and objectType2 == 'Turret') then
-
-       end
-    end
-    --]]
-
     return collide
     -- }}}
 end
+--]]
 
 --[[
 local function bugInit()
@@ -1946,6 +1937,7 @@ local contactMap = {
 }
 -]]
 
+--[[
 local function onBeginContact(
     fixture1: love.physics.Fixture, 
     fixture2: love.physics.Fixture, 
@@ -2010,25 +2002,12 @@ local function onBeginContact(
                end
        end
     end
-    --]]
 
-    --[[
-    push2drawlistTop(function()
-        local contactRadius = 3
-        gr.setColor{1, 0, 0, 1}
-        if p1x and p1y then
-            p1x, p1y = p1x * M2PIX, p1y * M2PIX
-            gr.circle('fill', p1x, p1y, contactRadius)
-        end
-        if p2x and p2y then
-            p2x, p2y = p2x * M2PIX, p2y * M2PIX
-            gr.circle('fill', p2x, p2y, contactRadius)
-        end
-    end)
-    --]]
-      -- }}}
+    -- }}}
 end
+--]]
 
+--[[
 local function onEndContact(
         _: love.physics.Fixture, 
         _: love.physics.Fixture,
@@ -2037,7 +2016,9 @@ local function onEndContact(
     -- {{{
     -- }}}
 end
+--]]
 
+--[[
 local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
     -- {{{
     local selfPtr: {any:any} = fixture:getBody():getUserData() as {any:any}
@@ -2047,36 +2028,25 @@ local function onQueryBoundingBox(fixture: love.physics.Fixture): boolean
     return true
     -- }}}
 end
+--]]
 
+--[[
 local function queryBoundingBox()
     -- {{{
     if cam then
-        local tlx, tly = cam:worldCoords(0, 0)
-        local brx, bry = cam:worldCoords(gr.getDimensions())
-        brx, bry = brx + W, bry + H
+        --local tlx, tly = cam:worldCoords(0, 0)
+        --local brx, bry = cam:worldCoords(gr.getDimensions())
+        --brx, bry = brx + W, bry + H
 
-        --[[
-        if DEBUG_PHYSICS then
-            -- рисовать окно ограничивающего прямоугольника
-            push2drawlistTop(function()
-                local oldwidth = gr.getLineWidth()
-                local lwidth = 4
-                gr.setLineWidth(lwidth)
-                gr.setColor{0., 0., 1.}
-                gr.rectangle("line", tlx, tly, brx - tlx, bry - tly)
-                gr.setLineWidth(oldwidth)
-            end)
-        end
-        --]]
-
-        physworld:queryBoundingBox(
-            tlx * PIX2M, tly * PIX2M, 
-            brx * PIX2M, bry * PIX2M, 
-            onQueryBoundingBox
-        )
+        --physworld:queryBoundingBox(
+            --tlx * PIX2M, tly * PIX2M, 
+            --brx * PIX2M, bry * PIX2M, 
+            --onQueryBoundingBox
+        --)
     end
     -- }}}
 end
+--]]
 
 local function unbindPlayerTankKeys()
     if #playerTankKeyconfigIds ~= 0 then
@@ -2462,10 +2432,10 @@ end
 
 -- параметры в метрах
 local function physInit()
-    local canSleep = true
-    physworld = love.physics.newWorld(0., 0., canSleep)
-    physworld:setCallbacks(onBeginContact, onEndContact)
-    physworld:setContactFilter(contactFilter)
+    --local canSleep = true
+    --physworld = love.physics.newWorld(0., 0., canSleep)
+    --physworld:setCallbacks(onBeginContact, onEndContact)
+    --physworld:setContactFilter(contactFilter)
 end
 
 -- работает плохо, сбрасывается отладочное рисование
@@ -2919,7 +2889,7 @@ local function mainPresent()
             love.graphics.circle('fill', 0, 0, 100)
             diamondSquare:present()
     end
-    queryBoundingBox()
+    --queryBoundingBox()
 
     presentDrawlistBottom()
 
