@@ -663,42 +663,6 @@ function Bullet.new(px, py, dirx, diry,
 
 end
 
-local function contactFilter(fix1, fix2)
-
-
-   local collide = true
-   local objectType1
-   local objectType2
-   local userdata1, userdata2
-
-   if fix1 then
-      userdata1 = fix1:getBody():getUserData()
-      if userdata1 then
-         objectType1 = userdata1['objectType']
-
-      end
-   end
-   if fix2 then
-      userdata2 = fix2:getBody():getUserData()
-      if userdata2 then
-
-         objectType2 = userdata2['objectType']
-
-      end
-   end
-
-
-
-   if objectType1 and objectType2 then
-      if objectType1 == 'Base' and objectType2 == 'Turret' then
-         local id1 = userdata1['id']
-         local id2 = userdata2['id']
-         if id1 == id2 then
-
-            collide = true
-         end
-      end
-   end
 
 
 
@@ -711,9 +675,36 @@ local function contactFilter(fix1, fix2)
 
 
 
-   return collide
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1946,70 +1937,6 @@ end
 
 
 
-local function onBeginContact(
-   fixture1,
-   fixture2,
-   contact)
-
-
-
-
-   local p1x, p1y, _, _ = contact:getPositions()
-
-   local body1 = fixture1:getBody()
-   local userdata1 = body1:getUserData()
-   local body2 = fixture2:getBody()
-   local userdata2 = body2:getUserData()
-   local objectType1
-   local objectType2
-
-   if fixture1 then
-      userdata1 = fixture1:getBody():getUserData()
-      if userdata1 then
-         objectType1 = userdata1['objectType']
-
-      end
-   end
-   if fixture2 then
-      userdata2 = fixture2:getBody():getUserData()
-      if userdata2 then
-
-         objectType2 = userdata2['objectType']
-
-      end
-   end
-
-
-
-   if objectType1 and objectType2 then
-      if (objectType1 == 'Bullet' and objectType2 == 'Base') or
-         (objectType1 == 'Base' and objectType2 == 'Bullet') or
-         (objectType1 == 'Turret' and objectType2 == 'Bullet') or
-         (objectType1 == 'Base' and objectType2 == 'Turret') then
-         local id1 = userdata1.id
-         local id2 = userdata2.id
-         if id1 ~= id2 then
-            newHit(p1x, p1y)
-            if objectType1 == 'Bullet' then
-               local b = fixture1:getUserData()
-               if b and b.died then
-                  b.died = true
-               end
-
-               (userdata2['tank']):damage(userdata1)
-            end
-            if objectType2 == 'Bullet' then
-               local b = fixture2:getUserData()
-               if b and b.died then
-                  b.died = true
-               end
-
-               (userdata1['tank']):damage(userdata2)
-            end
-
-         end
-      end
-   end
 
 
 
@@ -2027,33 +1954,6 @@ local function onBeginContact(
 
 
 
-end
-
-local function onEndContact(
-   _,
-   _,
-   _)
-
-
-
-end
-
-local function onQueryBoundingBox(fixture)
-
-   local selfPtr = fixture:getBody():getUserData()
-   if selfPtr and selfPtr['present'] then
-      (selfPtr['present'])(selfPtr, fixture)
-   end
-   return true
-
-end
-
-local function queryBoundingBox()
-
-   if cam then
-      local tlx, tly = cam:worldCoords(0, 0)
-      local brx, bry = cam:worldCoords(gr.getDimensions())
-      brx, bry = brx + W, bry + H
 
 
 
@@ -2069,14 +1969,84 @@ local function queryBoundingBox()
 
 
 
-      physworld:queryBoundingBox(
-      tlx * PIX2M, tly * PIX2M,
-      brx * PIX2M, bry * PIX2M,
-      onQueryBoundingBox)
 
-   end
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function unbindPlayerTankKeys()
    if #playerTankKeyconfigIds ~= 0 then
@@ -2462,10 +2432,10 @@ end
 
 
 local function physInit()
-   local canSleep = true
-   physworld = love.physics.newWorld(0., 0., canSleep)
-   physworld:setCallbacks(onBeginContact, onEndContact)
-   physworld:setContactFilter(contactFilter)
+
+
+
+
 end
 
 
@@ -2919,7 +2889,7 @@ local function mainPresent()
       love.graphics.circle('fill', 0, 0, 100)
       diamondSquare:present()
    end
-   queryBoundingBox()
+
 
    presentDrawlistBottom()
 
