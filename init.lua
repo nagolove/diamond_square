@@ -28,7 +28,7 @@ love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
 
 require('joystate')
 require("love")
-require("love_inc").require()
+require("love_inc").require_pls()
 require('pipeline')
 require("tabular")
 
