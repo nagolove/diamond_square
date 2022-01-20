@@ -26,12 +26,20 @@ debug_print('thread', colorize('%{yellow}>>>>>%{reset} chipmunk_mt started'))
 
 global SCENE_PREFIX = "scenes/t80"
 
-love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
+require "love_inc".require_pls_nographic()
+--local require_path = "?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua"
+print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
+
+--local require_path = SCENE_PREFIX .. "/?.lua;?.lua;?/init.lua;"
+local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
+print('require_path', require_path)
+love.filesystem.setRequirePath(require_path)
+
+print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
 -- {{{ require
 require 'joystate'
 require "love"
-require "love_inc".require_pls()
 require 'pipeline'
 require "tabular"
 require "common"
@@ -42,7 +50,7 @@ require "imgui"
 require 'render'
 require 'diamondsquare'
 require 'profi'
---require "love"
+require "love"
 
 --require 'moonshine'
 --local tween = require 'tween'
@@ -62,6 +70,9 @@ local pw = require "physics_wrapper"
 
 local pipeline = Pipeline.new("scenes/t80")
 
+require 'love.graphics'
+--print('love.graphics', inspect(love.graphics))
+
 local Drawable = love.graphics.Drawable
 local Filesystem = love.filesystem
 --local Audio = love.audio
@@ -71,6 +82,8 @@ local gr = love.graphics
 local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
 local profi = require 'profi'
+
+print('11111111111111111111111')
 
 local abs, ceil, pow, sqrt = math.abs, math.ceil, math.pow, math.sqrt
 local yield, resume = coroutine.yield, coroutine.resume
@@ -464,6 +477,8 @@ end
 -- Указатель на текущий подсвеченный навигатором танк.
 --local currentNavigator: Tank
 
+print('55555555')
+
 -- имя файла для загрузки имен и установок частиц
 local particlesfname = "particles-def.lua"
 
@@ -495,7 +510,14 @@ global tankForceScale = 8
 
 -- {{{ Konsole editing
 local historyfname = "cmdhistory.txt"
-local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 26)
+
+print('666666')
+
+--local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 26)
+local linesbuf = require "kons".new(16)
+
+print('77777')
+
 global mode: Mode = "normal"
 global cmdline: string = ""
 local cmdhistory: {string} = {}
@@ -504,10 +526,27 @@ global cursorpos: integer = 1
 -- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
 -- }}}
+
+print('2222222222222')
+local obj: any
+--print('love.graphics.newImage', love.graphics.newImage)
+local file_name = SCENE_PREFIX .. '/flame2.png'
+print('file_name', file_name)
+
+local ok, errmsg = pcall(function()
+    obj = love.graphics.newImage(SCENE_PREFIX .. '/flame2.png')
+end) as boolean, string
+
+print('obj', obj)
+print('333333333333')
+
+--[[
 local particlesImages = {
     love.graphics.newImage(SCENE_PREFIX .. '/flame2.png'),
     love.graphics.newImage(SCENE_PREFIX .. '/tentacles.png'),
 }
+--]]
+print('44444444444444')
 
 -- верхний список отрисовки, рисуется после рисования пачки танков
 local drawlistTop: {DrawNode} = {}
@@ -920,6 +959,7 @@ end
 
 local activeImage: integer = 1
 
+--[[
 local function newParticleSystemWithDef(psdef: ParticleSystemDefinition): Graphics.ParticleSystem
     local ps: love.graphics.ParticleSystem
     ps = love.graphics.newParticleSystem(particlesImages[activeImage], maxParticlesNumber)
@@ -970,6 +1010,7 @@ local function newParticleSystemWithDef(psdef: ParticleSystemDefinition): Graphi
     ps:setRotation(psdef.rotation1, psdef.rotation2)
     return ps
 end
+--]]
 
 function Hit.new(x: number, y: number): Hit
     local Hit_mt: metatable<Hit> = {
@@ -980,7 +1021,9 @@ function Hit.new(x: number, y: number): Hit
     --print('self.ps:getSizeVariation()', self.ps:getSizeVariation())
 
     --self.ps:setSizes(1, 0.1)
-    self.ps = newParticleSystemWithDef(particles['default'])
+    --self.ps = newParticleSystemWithDef(particles['default'])
+    self.ps = nil
+    error('self.ps = nil')
 
     x, y = x * M2PIX, y * M2PIX
 
@@ -3615,6 +3658,8 @@ end
 
 local is_stop = false
 local last_render: number
+
+print('33333333333333333')
 
 local function mainloop()
     while not is_stop do
