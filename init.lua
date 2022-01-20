@@ -1,23 +1,26 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pairs = _tl_compat and _tl_compat.pairs or pairs; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 local colorize = require('ansicolors2').ansicolors
 local inspect = require("inspect")
-local dprint = require('debug_print')
-local debug_print = dprint.debug_print
 
-dprint.set_filter({
-   [1] = { "joy" },
-   [2] = { 'phys' },
-   [3] = { "thread", 'someName' },
-   [4] = { "graphics" },
-   [5] = { "input" },
-   [6] = { "verts" },
+local debug_print = print
 
 
 
 
-})
+
+
+
+
+
+
+
+
+
+
+
+
 
 debug_print('thread', colorize('%{yellow}>>>>>%{reset} chipmunk_mt started'))
 
@@ -31,11 +34,8 @@ require("love")
 require("love_inc").require_pls()
 require('pipeline')
 require("tabular")
-
-
 require("common")
 require("keyconfig")
-require("camera")
 require("vector")
 require("Timer")
 require("imgui")
@@ -46,8 +46,10 @@ require('profi')
 
 
 
+
+
+
 local serpent = require('serpent')
-local List = require("list")
 
 i18n = require("i18n")
 local metrics = require("metrics")
@@ -57,6 +59,8 @@ inspect = require("inspect")
 tabular = require("tabular")
 local pw = require("physics_wrapper")
 
+
+local pipeline = Pipeline.new("scenes/t80")
 
 local Drawable = love.graphics.Drawable
 local Filesystem = love.filesystem
@@ -446,7 +450,9 @@ local Logo = {}
 
 
 
-local CameraSettings = {}
+
+
+
 
 
 
@@ -494,7 +500,7 @@ mode = "normal"
 cmdline = ""
 local cmdhistory = {}
 cursorpos = 1
-suggestList = List.new()
+
 
 attachedVarsList = {}
 
@@ -509,10 +515,8 @@ local drawlistTop = {}
 local drawlistBottom = {}
 
 
-
-
-
 local camTimer = require("Timer").new()
+
 local drawCoro = nil
 showLogo = true
 
@@ -522,11 +526,15 @@ angularImpulseScale = 5 * math.pi / 4
 
 camZoomLower, camZoomHigher = 0.075, 3.5
 
-local zoomSpeed = 0.01
-local cameraSettings = {
 
-   dx = 2000, dy = 2000,
-}
+
+
+
+
+
+
+
+
 
 
 
@@ -560,9 +568,9 @@ local edgeLineWidth = 10
 
 local drawTerrain = true
 
-local baseBatch = Batch.new("tank_body_small.png")
-local turretBatch = Batch.new("tank_tower.png")
-local hangarBatch = Batch.new("hangar.png")
+
+
+
 
 maxTrackCount = 128
 hits = {}
@@ -588,26 +596,28 @@ local main_channel = love.thread.getChannel("main_channel")
 
 
 
-local function initParticles(fname)
-   print('initParticles')
-   print('loading from', fname)
-   local fdata = love.filesystem.read(fname)
-   if fdata then
-      local ok, data = serpent.load(fdata), ParticlesMap
-      if ok then
-         for k, v in pairs(data) do
-            if particles[k] then
-               print(string.format('override existing value [%s]. Be careful.', k))
-            end
-            particles[k] = v
-         end
-      else
-         print('parsing error', fname)
-      end
-   else
-      print('reading error', fname)
-   end
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function writeParticles(fname)
    Filesystem.write(fname, serpent.dump(particles))
@@ -1137,7 +1147,7 @@ function Arena:mousepressed(x, y, _)
    push2drawlistTop(function()
       gr.circle('fill', x, y, 10)
    end)
-   x, y = cam:worldCoords(x, y)
+
    x, y = x * PIX2M, y * PIX2M
    if self.mode then
       if self.mode == 'first' then
@@ -1642,7 +1652,7 @@ end
 function Turret:rotateToMouse()
 
    local mx, my = love.mouse.getPosition()
-   mx, my = cam:worldCoords(mx, my)
+
    mx, my = mx * PIX2M, my * PIX2M
 
    local x, y = self.physbody:getWorldCenter()
@@ -1732,23 +1742,25 @@ function Turret:present()
    bx3, by3 = M2PIX * bx3, M2PIX * by3
    bx4, by4 = M2PIX * bx4, M2PIX * by4
 
-   turretBatch:present(
-   tx1, ty1, tx2, ty2, tx3, ty3, tx4, ty4,
-   turretCommon.towerRectXY[1],
-   turretCommon.towerRectXY[2],
 
 
-   turretCommon.towerRectWH[1],
-   turretCommon.towerRectWH[2],
-   self.tank.color)
 
-   turretBatch:present(
-   bx1, by1, bx2, by2, bx3, by3, bx4, by4,
-   turretCommon.barrelRectXY[1],
-   turretCommon.barrelRectXY[2],
-   turretCommon.barrelRectWH[1],
-   turretCommon.barrelRectWH[2],
-   self.tank.color)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1831,10 +1843,12 @@ function Base:present()
    x3, y3 = M2PIX * x3, M2PIX * y3
    x4, y4 = M2PIX * x4, M2PIX * y4
 
-   baseBatch:present(
-   x1, y1, x2, y2, x3, y3, x4, y4,
-   self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2],
-   self.tank.color)
+
+
+
+
+
+
 
 
    self.x4 = x4
@@ -2104,7 +2118,7 @@ local function updateHits(dt)
    end
 end
 
-function terrain(mapn, rez)
+local function terrain(mapn, rez)
    if not mapn then
       mapn = 8
    end
@@ -2191,97 +2205,99 @@ local function bindTerrainControlKeys()
 
 end
 
-local function bindPlayerTankKeys()
 
-   if playerTank then
 
-      local kc = KeyConfig
-      local bmode = "isdown"
 
-      local ids = {
-         kc.bind(
-         bmode, { key = "d" },
-         function(sc)
-            if mode ~= "normal" then
-               return false, sc
-            end
-            playerTank["right"](playerTank)
-            return false, sc
-         end,
-         i18n("mt" .. "right")),
 
-         kc.bind(
-         bmode, { key = "a" },
-         function(sc)
-            if mode ~= "normal" then
-               return false, sc
-            end
-            playerTank["left"](playerTank)
-            return false, sc
-         end,
-         i18n("mt" .. "left")),
 
-         kc.bind(
-         bmode, { key = "w" },
-         function(sc)
-            if mode ~= "normal" then
-               return false, sc
-            end
-            playerTank["forward"](playerTank)
-            return false, sc
-         end,
-         i18n("mt" .. "forward")),
 
-         kc.bind(
-         bmode, { key = "s" },
-         function(sc)
-            if mode ~= "normal" then
-               return false, sc
-            end
-            playerTank["backward"](playerTank)
-            return false, sc
-         end,
-         i18n("mt" .. "backward")),
 
-         kc.bind(
-         bmode, { key = "v" },
-         function(sc)
-            if mode ~= "normal" then
-               return false, sc
-            end
-            playerTank["resetVelocities"](playerTank)
-            return false, sc
-         end,
-         i18n("resetVelocities")),
 
-         kc.bind(
-         "isdown", { key = "space" },
-         function(sc)
-            if mode ~= "normal" then
-               return false, sc
-            end
-            if playerTank then
-               playerTank:fire()
-            end
-            return false, sc
-         end,
-         i18n("fire")),
-      }
-      for _, v in ipairs(ids) do
-         table.insert(playerTankKeyconfigIds, v)
-      end
 
-   else
-      error("There is no player tank object instance, sorry. Keys are not binded.")
-   end
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function changeKeyConfigListbackground()
 
-   KeyConfig.setListSetupCallback(function(list)
-      list.colors.normal = { bg = { 0.19, 0.61, 0.88 }, fg = { 1, 1., 1., 1. } }
-   end)
+
+
+
 
 end
 
@@ -2386,16 +2402,6 @@ str = ""
 
 
 
-local function moveCameraToTank(tank)
-
-   if tank then
-      local x, y = tank.base.physbody:getWorldCenter()
-      x, y = x * M2PIX, y * M2PIX
-      cam:lookAt(x, y)
-   end
-
-end
-
 
 
 
@@ -2431,14 +2437,6 @@ local function spawnTank(pos, dir)
 end
 
 
-local function physInit()
-
-
-
-
-end
-
-
 function reset()
    print('reset')
 
@@ -2454,10 +2452,11 @@ function reset()
    tanks = {}
    playerTank = nil
    bullets = {}
-   baseBatch = Batch.new("tank_body_small.png")
-   turretBatch = Batch.new("tank_tower.png")
-   hangarBatch = Batch.new("hangar.png")
-   physInit()
+
+
+
+
+
 
 
 
@@ -2653,21 +2652,24 @@ local function bindCameraControl()
    local cameraAnimationDuration = 0.2
 
    local Return = {}
-   local function makeMoveFunction(xc, yc)
+
+   local function makeMoveFunction(_, _)
 
       return function(sc)
          if mode ~= "normal" then
             return false, sc
          end
-         local reldx = cameraSettings.dx / cam.scale
-         local reldy = cameraSettings.dy / cam.scale
+
+
+
          camTimer:during(cameraAnimationDuration,
-         function(dt, time, delay)
-            local dx = -reldx * (delay - time) * xc
-            local dy = -reldy * (delay - time) * yc
-            if delay - time > 0 then
-               cam:move(dx * dt, dy * dt)
-            end
+
+         function(_, _, _)
+
+
+
+
+
          end,
          function()
 
@@ -2693,7 +2695,7 @@ local function bindCameraControl()
       if mode ~= "normal" then
          return false, sc
       end
-      moveCameraToTank(playerTank)
+
       return false, sc
    end,
    i18n("cam2tank"), "cam2tank")
@@ -2876,13 +2878,13 @@ end
 
 
 local function mainPresent()
-   baseBatch:prepare()
-   turretBatch:prepare()
-   hangarBatch:prepare()
+
+
+
 
    push2drawlistTop(drawBullets)
 
-   cam:attach()
+
 
    if drawTerrain and diamondSquare then
       love.graphics.setColor({ 1, 1, 1, 1 })
@@ -2893,15 +2895,15 @@ local function mainPresent()
 
    presentDrawlistBottom()
 
-   baseBatch:flush()
-   turretBatch:flush()
-   hangarBatch:flush()
+
+
+
 
    drawHits()
 
    presentDrawlistTop()
 
-   cam:detach()
+
 
 
 
@@ -2939,11 +2941,6 @@ local function render()
    if not ok then
       error("drawCoro thread is end: " .. errmsg)
    end
-
-
-
-
-
 
 
 end
@@ -2997,10 +2994,11 @@ local function moveCamera()
       end
 
 
-      local dx, dy = lastPosX - tankx, lastPosY - tanky
+
+
       lastPosX = tankx
       lastPosY = tanky
-      cam:move(-dx, -dy)
+
    end
 end
 
@@ -3187,7 +3185,8 @@ end
       table.insert(cmdhistory, cmdline)
       love.filesystem.append(historyfname, cmdline .. "\n")
    end
-   suggestList = nil
+
+
 
 end
 
@@ -3223,13 +3222,15 @@ end
 
 local function suggestCompletion()
 
-   if not suggestList then
-      suggestList = List.new()
-   end
 
-   for k, v in pairs(_G) do
-      suggestList:add(string.format("%s: %s", tostring(k), tostring(v)))
-   end
+
+
+
+
+
+
+
+
 
 end
 
@@ -3298,9 +3299,11 @@ key = "z", },
          if mode ~= "normal" then
             return false, sc
          end
-         if konsoleCam.scale < camZoomHigher then
-            konsoleCam:zoom(1. + zoomSpeed)
-         end
+
+
+
+
+
          return false, sc
       end,
       "zoom camera in",
@@ -3313,9 +3316,11 @@ key = "z", },
          if mode ~= "normal" then
             return false, sc
          end
-         if konsoleCam.scale > camZoomLower then
-            konsoleCam:zoom(1.0 - zoomSpeed)
-         end
+
+
+
+
+
          return false, sc
       end,
       "zoom camera out",
@@ -3340,9 +3345,11 @@ local function bindCameraZoomKeys()
          if mode ~= "normal" then
             return false, sc
          end
-         if cam.scale < camZoomHigher then
-            cam:zoom(1. + zoomSpeed)
-         end
+
+
+
+
+
          return false, sc
       end,
       "zoom camera in",
@@ -3355,9 +3362,11 @@ local function bindCameraZoomKeys()
          if mode ~= "normal" then
             return false, sc
          end
-         if cam.scale > camZoomLower then
-            cam:zoom(1.0 - zoomSpeed)
-         end
+
+
+
+
+
          return false, sc
       end,
       "zoom camera out",
@@ -3453,6 +3462,8 @@ end
 
 local function init()
 
+   print('init started')
+
    metrics.init()
    setWindowMode()
 
@@ -3460,14 +3471,8 @@ local function init()
 
 
    loadLocales()
-   physInit()
 
-   logo = Logo.new()
-   cam = require('camera').new()
-   konsoleCam = require('camera').new()
-   print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
-   print("kons cam created x, y, scale, rot",
-   konsoleCam.x, konsoleCam.y, konsoleCam.scale, konsoleCam.rot)
+
 
    bindCameraZoomKeys()
    bindKonsoleCameraZoomKeys()
@@ -3483,8 +3488,6 @@ local function init()
    background = Background.new()
 
 
-   initParticles(particlesfname)
-
 
    arena = Arena.new("arena.lua")
    terrain()
@@ -3496,11 +3499,13 @@ local function init()
       end
    end
 
-   local herostartpos = vector.new(0, 0)
-   local alpha = rng:random() * math.pi
-   playerTank = spawnTank(herostartpos, fromPolar(alpha))
 
-   bindPlayerTankKeys()
+
+
+
+
+
+   pw.init(pipeline)
 
 
 
@@ -3509,6 +3514,7 @@ local function init()
 
    cameraZoneR = H / 2
 
+   print('init finished')
 end
 
 local function quit()
@@ -3542,7 +3548,9 @@ local function mousepressed(x, y, btn)
    if mode == 'normal' then
       if btn == 1 then
          if makeTank then
-            x, y = cam:worldCoords(x, y)
+
+
+
             x, y = x * PIX2M, y * PIX2M
             local dir = fromPolar(rng:random() * math.pi)
             print('dir', inspect(dir))
@@ -3633,7 +3641,7 @@ local function mainloop()
                local msg = '%{green}keypressed '
                debug_print('input', colorize(msg .. key .. ' ' .. scancode))
 
-               dprint.keypressed(scancode)
+
 
                if scancode == "escape" then
                   is_stop = true
@@ -3693,7 +3701,7 @@ local function mainloop()
       moveCamera()
 
 
-      pw.update(diff)
+
 
 
 
@@ -3708,26 +3716,6 @@ local function mainloop()
       love.timer.sleep(timeout)
    end
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
