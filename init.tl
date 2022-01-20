@@ -70,7 +70,6 @@ local pw = require "physics_wrapper"
 
 local pipeline = Pipeline.new("scenes/t80")
 
-require 'love.graphics'
 --print('love.graphics', inspect(love.graphics))
 
 local Drawable = love.graphics.Drawable
@@ -514,6 +513,13 @@ local historyfname = "cmdhistory.txt"
 print('666666')
 
 --local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 26)
+local kons = require 'kons'
+print('kons', inspect(kons))
+
+print('999999999')
+--kons.new()
+print('8888888888888888')
+
 local linesbuf = require "kons".new(16)
 
 print('77777')
