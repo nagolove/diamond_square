@@ -70,7 +70,6 @@ local pw = require("physics_wrapper")
 
 local pipeline = Pipeline.new("scenes/t80")
 
-require('love.graphics')
 
 
 local Drawable = love.graphics.Drawable
@@ -513,6 +512,13 @@ local historyfname = "cmdhistory.txt"
 
 print('666666')
 
+
+local kons = require('kons')
+print('kons', inspect(kons))
+
+print('999999999')
+
+print('8888888888888888')
 
 local linesbuf = require("kons").new(16)
 
