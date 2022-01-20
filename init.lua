@@ -26,12 +26,20 @@ debug_print('thread', colorize('%{yellow}>>>>>%{reset} chipmunk_mt started'))
 
 SCENE_PREFIX = "scenes/t80"
 
-love.filesystem.setRequirePath("?.lua;?/init.lua;" .. SCENE_PREFIX .. "/?.lua")
+require("love_inc").require_pls_nographic()
+
+print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
+
+
+local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
+print('require_path', require_path)
+love.filesystem.setRequirePath(require_path)
+
+print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
 
 require('joystate')
 require("love")
-require("love_inc").require_pls()
 require('pipeline')
 require("tabular")
 require("common")
@@ -42,7 +50,7 @@ require("imgui")
 require('render')
 require('diamondsquare')
 require('profi')
-
+require("love")
 
 
 
@@ -62,6 +70,9 @@ local pw = require("physics_wrapper")
 
 local pipeline = Pipeline.new("scenes/t80")
 
+require('love.graphics')
+
+
 local Drawable = love.graphics.Drawable
 local Filesystem = love.filesystem
 
@@ -71,6 +82,8 @@ local gr = love.graphics
 local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
 local profi = require('profi')
+
+print('11111111111111111111111')
 
 local abs, ceil, pow, sqrt = math.abs, math.ceil, math.pow, math.sqrt
 local yield, resume = coroutine.yield, coroutine.resume
@@ -464,6 +477,8 @@ local Logo = {}
 
 
 
+print('55555555')
+
 
 local particlesfname = "particles-def.lua"
 
@@ -495,7 +510,14 @@ tankForceScale = 8
 
 
 local historyfname = "cmdhistory.txt"
-local linesbuf = require("kons").new(SCENE_PREFIX .. "/VeraMono.ttf", 26)
+
+print('666666')
+
+
+local linesbuf = require("kons").new(16)
+
+print('77777')
+
 mode = "normal"
 cmdline = ""
 local cmdhistory = {}
@@ -504,10 +526,27 @@ cursorpos = 1
 
 attachedVarsList = {}
 
-local particlesImages = {
-   love.graphics.newImage(SCENE_PREFIX .. '/flame2.png'),
-   love.graphics.newImage(SCENE_PREFIX .. '/tentacles.png'),
-}
+
+print('2222222222222')
+local obj
+
+local file_name = SCENE_PREFIX .. '/flame2.png'
+print('file_name', file_name)
+
+local ok, errmsg = pcall(function()
+   obj = love.graphics.newImage(SCENE_PREFIX .. '/flame2.png')
+end), string
+
+print('obj', obj)
+print('333333333333')
+
+
+
+
+
+
+
+print('44444444444444')
 
 
 local drawlistTop = {}
@@ -920,44 +959,6 @@ end
 
 local activeImage = 1
 
-local function newParticleSystemWithDef(psdef)
-   local ps
-   ps = love.graphics.newParticleSystem(particlesImages[activeImage], maxParticlesNumber)
-
-
-   ps:setParticleLifetime(psdef.lifetime1, psdef.lifetime2)
-
-   ps:setEmissionRate(psdef.emissionRate)
-   ps:setSizeVariation(psdef.sizeVariation)
-
-
-   ps:setLinearAcceleration(
-   psdef.lineAcceleration[1],
-   psdef.lineAcceleration[2],
-   psdef.lineAcceleration[3],
-   psdef.lineAcceleration[4])
-
-
-   ps:setColors(
-   psdef.colors[1][1],
-   psdef.colors[1][2],
-   psdef.colors[1][3],
-   psdef.colors[1][4],
-   psdef.colors[2][1],
-   psdef.colors[2][2],
-   psdef.colors[2][3],
-   psdef.colors[2][4])
-
-
-   local lifetime = 1.
-   local ok, errmsg = pcall(function()
-
-      lifetime = rng:random() * 2
-   end)
-   if not ok then
-      print('pddef.emiterlifetimeexp compilation error', errmsg)
-   end
-   ps:setEmitterLifetime(lifetime)
 
 
 
@@ -967,9 +968,49 @@ local function newParticleSystemWithDef(psdef)
 
 
 
-   ps:setRotation(psdef.rotation1, psdef.rotation2)
-   return ps
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function Hit.new(x, y)
    local Hit_mt = {
@@ -980,7 +1021,9 @@ function Hit.new(x, y)
 
 
 
-   self.ps = newParticleSystemWithDef(particles['default'])
+
+   self.ps = nil
+   error('self.ps = nil')
 
    x, y = x * M2PIX, y * M2PIX
 
@@ -3615,6 +3658,8 @@ end
 
 local is_stop = false
 local last_render
+
+print('33333333333333333')
 
 local function mainloop()
    while not is_stop do
