@@ -3,9 +3,11 @@
 
 local colorize = require 'ansicolors2'.ansicolors
 local inspect = require "inspect"
+
+local debug_print = print
+--[[
 local dprint = require 'debug_print'
 local debug_print = dprint.debug_print
-
 dprint.set_filter { 
     [1] = { "joy" },
     [2] = { 'phys' },
@@ -18,6 +20,7 @@ dprint.set_filter {
     --[9] = { "phys" },
     --[0] = { "phys" },
 }
+--]]
 
 debug_print('thread', colorize('%{yellow}>>>>>%{reset} chipmunk_mt started'))
 
@@ -31,24 +34,23 @@ require "love"
 require "love_inc".require_pls()
 require 'pipeline'
 require "tabular"
-
---require "love"
 require "common"
 require "keyconfig"
-require "camera"
 require "vector"
 require "Timer"
 require "imgui"
 require 'render'
 require 'diamondsquare'
 require 'profi'
---require 'moonshine'
+--require "love"
 
+--require 'moonshine'
 --local tween = require 'tween'
 --local camMoveTween = tween.new()
-local serpent = require 'serpent'
-local List = require "list"
 --local moonshine = require 'moonshine'
+
+local serpent = require 'serpent'
+--local List = require "list"
 global i18n = require "i18n"
 local metrics = require "metrics"
 global vec2 = require "vector"
@@ -57,6 +59,8 @@ global inspect = require "inspect"
 global tabular = require "tabular"
 local pw = require "physics_wrapper"
 -- }}}
+
+local pipeline = Pipeline.new("scenes/t80")
 
 local Drawable = love.graphics.Drawable
 local Filesystem = love.filesystem
@@ -446,12 +450,14 @@ local record Logo
     -- }}}
 end
 
+--[[
 local type CameraSettings = record
     -- {{{
     dx: number
     dy: number
     -- }}}
 end
+--]]
 
 -- {{{ Global and local variables.
 
@@ -494,7 +500,7 @@ global mode: Mode = "normal"
 global cmdline: string = ""
 local cmdhistory: {string} = {}
 global cursorpos: integer = 1
-global suggestList: List = List.new()
+--global suggestList: List = List.new()
 -- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
 -- }}}
@@ -508,11 +514,9 @@ local drawlistTop: {DrawNode} = {}
 -- нижний список отрисовки, рисуется после подложки, но до пачек танков
 local drawlistBottom: {DrawNode} = {}
 
-global cam: Camera
-global konsoleCam: Camera
-
 -- используется для анимации масштабирования камеры
 local camTimer: Timer = require "Timer".new()
+
 local drawCoro: thread = nil
 global showLogo = true
 -- идентификаторы клавиш управления танком игрока
@@ -521,12 +525,16 @@ global playerTankKeyconfigIds: {integer} = {}
 global angularImpulseScale = 5 * math.pi / 4
 -- минимальный и максимальные порог масштаба камеры
 global camZoomLower, camZoomHigher = 0.075, 3.5
+
 -- скорость изменения масштаба камеры
+--[[
 local zoomSpeed = 0.01
 local cameraSettings: CameraSettings = {
     -- значение в пикселях
     dx = 2000, dy = 2000,
 }
+--]]
+
 -- Экземпляр мира box2d
 global physworld: love.physics.World
 -- Все танки, в том числе и тот, которым управляет игрок.
@@ -560,9 +568,9 @@ local edgeLineWidth = 10
 --local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
 local drawTerrain = true
 
-local baseBatch: Batch = Batch.new("tank_body_small.png")
-local turretBatch: Batch = Batch.new("tank_tower.png")
-local hangarBatch: Batch = Batch.new("hangar.png")
+--local baseBatch: Batch = Batch.new("tank_body_small.png")
+--local turretBatch: Batch = Batch.new("tank_tower.png")
+--local hangarBatch: Batch = Batch.new("hangar.png")
 
 global maxTrackCount = 128
 global hits: {Hit} = {}
@@ -588,6 +596,7 @@ local function initJoy()
 end
 --]]
 
+--[[
 local function initParticles(fname: string)
     print('initParticles')
     print('loading from', fname)
@@ -608,6 +617,7 @@ local function initParticles(fname: string)
         print('reading error', fname)
     end
 end
+--]]
 
 local function writeParticles(fname: string)
     Filesystem.write(fname, serpent.dump(particles))
@@ -1137,7 +1147,7 @@ function Arena:mousepressed(x: number, y: number, _: integer)
     push2drawlistTop(function()
         gr.circle('fill', x, y, 10)
     end)
-    x, y = cam:worldCoords(x, y)
+    --x, y = cam:worldCoords(x, y)
     x, y = x * PIX2M, y * PIX2M
     if self.mode then
         if self.mode == 'first' then
@@ -1642,7 +1652,7 @@ end
 function Turret:rotateToMouse()
     -- {{{
     local mx, my = love.mouse.getPosition()
-    mx, my = cam:worldCoords(mx, my)
+    --mx, my = cam:worldCoords(mx, my)
     mx, my = mx * PIX2M, my * PIX2M
 
     local x, y = self.physbody:getWorldCenter()
@@ -1732,6 +1742,7 @@ function Turret:present()
     bx3, by3 = M2PIX * bx3, M2PIX * by3
     bx4, by4 = M2PIX * bx4, M2PIX * by4
 
+    --[[
     turretBatch:present(
         tx1, ty1, tx2, ty2, tx3, ty3, tx4, ty4, 
         turretCommon.towerRectXY[1], 
@@ -1750,6 +1761,7 @@ function Turret:present()
         turretCommon.barrelRectWH[2],
         self.tank.color
     )
+    --]]
 
     -- }}}
 end
@@ -1831,11 +1843,13 @@ function Base:present()
     x3, y3 = M2PIX * x3, M2PIX * y3
     x4, y4 = M2PIX * x4, M2PIX * y4
 
+    --[[
     baseBatch:present(
         x1, y1, x2, y2, x3, y3, x4, y4, 
         self.rectXY[1], self.rectXY[2], self.rectWH[1], self.rectWH[2], 
         self.tank.color
     )
+    --]]
 
     self.x4 = x4
     self.y4 = y4
@@ -2104,7 +2118,7 @@ local function updateHits(dt: number)
     end
 end
 
-function terrain(mapn: integer, rez: integer)
+local function terrain(mapn: integer, rez: integer)
     if not mapn then
         mapn = 8
     end
@@ -2191,6 +2205,7 @@ local function bindTerrainControlKeys()
         --]]
 end
 
+--[[
 local function bindPlayerTankKeys()
     -- {{{
     if playerTank then
@@ -2276,12 +2291,13 @@ local function bindPlayerTankKeys()
     end
     -- }}}
 end
+--]]
 
 local function changeKeyConfigListbackground()
     -- {{{
-    KeyConfig.setListSetupCallback(function(list: List)
-        list.colors.normal = {bg = {0.19, 0.61, 0.88}, fg = {1, 1., 1., 1.}}
-    end)
+    --KeyConfig.setListSetupCallback(function(list: List)
+        --list.colors.normal = {bg = {0.19, 0.61, 0.88}, fg = {1, 1., 1., 1.}}
+    --end)
     -- }}}
 end
 
@@ -2386,16 +2402,6 @@ local function findTank(object: Tank): integer
 end
 --]]
 
-local function moveCameraToTank(tank: Tank)
-    -- {{{
-    if tank then
-        local x, y = tank.base.physbody:getWorldCenter()
-        x, y = x * M2PIX, y * M2PIX
-        cam:lookAt(x, y)
-    end
-    -- }}}
-end
-
 --[[
 local function enableMovement()
     for _, tank in ipairs(tanks) do
@@ -2430,14 +2436,6 @@ local function spawnTank(pos: vector, dir: vector): Tank
     -- }}}
 end
 
--- параметры в метрах
-local function physInit()
-    --local canSleep = true
-    --physworld = love.physics.newWorld(0., 0., canSleep)
-    --physworld:setCallbacks(onBeginContact, onEndContact)
-    --physworld:setContactFilter(contactFilter)
-end
-
 -- работает плохо, сбрасывается отладочное рисование
 function reset()
     print('reset')
@@ -2454,10 +2452,11 @@ function reset()
     tanks = {}
     playerTank = nil
     bullets = {}
-    baseBatch = Batch.new("tank_body_small.png")
-    turretBatch = Batch.new("tank_tower.png")
-    hangarBatch = Batch.new("hangar.png")
-    physInit()
+
+    --baseBatch = Batch.new("tank_body_small.png")
+    --turretBatch = Batch.new("tank_tower.png")
+    --hangarBatch = Batch.new("hangar.png")
+
     --pushDEBUG()
     --mainInit()
     --popDEBUG()
@@ -2653,21 +2652,24 @@ local function bindCameraControl()
     local cameraAnimationDuration = 0.2
 
     local type Return = function(sc: Shortcut): boolean, Shortcut
-    local function makeMoveFunction(xc: number, yc: number): Return
+    --local function makeMoveFunction(xc: number, yc: number): Return
+    local function makeMoveFunction(_: number, _: number): Return
         -- {{{
         return function(sc: Shortcut): boolean, Shortcut
             if mode ~= "normal" then
                 return false, sc
             end
-            local reldx = cameraSettings.dx / cam.scale 
-            local reldy = cameraSettings.dy / cam.scale
+
+            --local reldx = cameraSettings.dx / cam.scale 
+            --local reldy = cameraSettings.dy / cam.scale
             camTimer:during(cameraAnimationDuration, 
-                function(dt: number, time: number, delay: number)
-                    local dx = -reldx * (delay - time) * xc
-                    local dy = -reldy * (delay - time) * yc
-                    if delay - time > 0 then
-                        cam:move(dx * dt, dy * dt)
-                    end
+                --function(dt: number, time: number, delay: number)
+                function(_: number, _: number, _: number)
+                    --local dx = -reldx * (delay - time) * xc
+                    --local dy = -reldy * (delay - time) * yc
+                    --if delay - time > 0 then
+                        --cam:move(dx * dt, dy * dt)
+                    --end
                 end,
                 function()
                     --print("after camera moving")
@@ -2693,7 +2695,7 @@ local function bindCameraControl()
             if mode ~= "normal" then
                 return false, sc
             end
-            moveCameraToTank(playerTank)
+            --moveCameraToTank(playerTank)
             return false, sc
         end, 
         i18n("cam2tank"), "cam2tank")
@@ -2876,13 +2878,13 @@ end
 --]]
 
 local function mainPresent()
-    baseBatch:prepare()
-    turretBatch:prepare()
-    hangarBatch:prepare()
+    --baseBatch:prepare()
+    --turretBatch:prepare()
+    --hangarBatch:prepare()
 
     push2drawlistTop(drawBullets)
 
-    cam:attach()
+    --cam:attach()
     --background:present()
     if drawTerrain and diamondSquare then
             love.graphics.setColor{1, 1, 1, 1}
@@ -2893,15 +2895,15 @@ local function mainPresent()
 
     presentDrawlistBottom()
 
-    baseBatch:flush()
-    turretBatch:flush()
-    hangarBatch:flush()
+    --baseBatch:flush()
+    --turretBatch:flush()
+    --hangarBatch:flush()
 
     drawHits()
 
     presentDrawlistTop()
 
-    cam:detach()
+    --cam:detach()
 
     --drawCameraCircle()
 
@@ -2941,11 +2943,6 @@ local function render()
     end
     --drawCameraAxixes()
     --konsolePresent()
-
-    --drawArrow(300, 600, 400, 600, {1, 0, 0, 1})
-    --drawArrow(0, 0, 40, 700, {0, 1, 0, 1})
-    --drawArrow(600, 300, 40, 300, {0, 0, 1, 1})
-    -- }}}
 end
 
 local function updateTanks()
@@ -2997,10 +2994,11 @@ local function moveCamera()
         end
 
 
-        local dx, dy = lastPosX - tankx, lastPosY - tanky
+        --local dx, dy = lastPosX - tankx, lastPosY - tanky
+
         lastPosX = tankx
         lastPosY = tanky
-        cam:move(-dx, -dy)
+        --cam:move(-dx, -dy)
     end
 end
 
@@ -3187,7 +3185,8 @@ end
         table.insert(cmdhistory, cmdline)
         love.filesystem.append(historyfname, cmdline .. "\n")
     end
-    suggestList = nil
+    --suggestList = nil
+
     -- }}}
 end
 
@@ -3223,13 +3222,15 @@ end
 
 local function suggestCompletion()
     -- {{{
-    if not suggestList then
-        suggestList = List.new()
-    end
+
+    --if not suggestList then
+        --suggestList = List.new()
+    --end
+
     -- Как рисовать список идентификаторов?
-    for k, v in pairs(_G as {any:any}) do
-        suggestList:add(string.format("%s: %s", tostring(k), tostring(v)))
-    end
+    --for k, v in pairs(_G as {any:any}) do
+        --suggestList:add(string.format("%s: %s", tostring(k), tostring(v)))
+    --end
     -- }}}
 end
 
@@ -3298,9 +3299,11 @@ local function bindKonsoleCameraZoomKeys()
                 if mode ~= "normal" then
                     return false, sc
                 end
-                if konsoleCam.scale < camZoomHigher then
-                    konsoleCam:zoom(1. + zoomSpeed)
-                end
+
+                --if konsoleCam.scale < camZoomHigher then
+                    --konsoleCam:zoom(1. + zoomSpeed)
+                --end
+
                 return false, sc
             end,
             "zoom camera in",
@@ -3313,9 +3316,11 @@ local function bindKonsoleCameraZoomKeys()
                 if mode ~= "normal" then
                     return false, sc
                 end
-                if konsoleCam.scale > camZoomLower then
-                    konsoleCam:zoom(1.0 - zoomSpeed)
-                end
+
+                --if konsoleCam.scale > camZoomLower then
+                    --konsoleCam:zoom(1.0 - zoomSpeed)
+                --end
+
                 return false, sc
             end,
             "zoom camera out",
@@ -3340,9 +3345,11 @@ local function bindCameraZoomKeys()
                 if mode ~= "normal" then
                     return false, sc
                 end
-                if cam.scale < camZoomHigher then
-                    cam:zoom(1. + zoomSpeed)
-                end
+
+                --if cam.scale < camZoomHigher then
+                    --cam:zoom(1. + zoomSpeed)
+                --end
+
                 return false, sc
             end,
             "zoom camera in",
@@ -3355,9 +3362,11 @@ local function bindCameraZoomKeys()
                 if mode ~= "normal" then
                     return false, sc
                 end
-                if cam.scale > camZoomLower then
-                    cam:zoom(1.0 - zoomSpeed)
-                end
+
+                --if cam.scale > camZoomLower then
+                    --cam:zoom(1.0 - zoomSpeed)
+                --end
+
                 return false, sc
             end,
             "zoom camera out",
@@ -3453,6 +3462,8 @@ end
 
 local function init()
     -- {{{
+    print('init started')
+
     metrics.init()
     setWindowMode()
 
@@ -3460,14 +3471,8 @@ local function init()
         --chain(moonshine.effects.vignette)
 
     loadLocales()
-    physInit()
 
-    logo = Logo.new()
-    cam = require 'camera'.new()
-    konsoleCam = require 'camera'.new()
-    print("camera created x, y, scale, rot", cam.x, cam.y, cam.scale, cam.rot)
-    print("kons cam created x, y, scale, rot", 
-        konsoleCam.x, konsoleCam.y, konsoleCam.scale, konsoleCam.rot)
+    --logo = Logo.new()
 
     bindCameraZoomKeys()
     bindKonsoleCameraZoomKeys()
@@ -3482,9 +3487,7 @@ local function init()
 
     background = Background.new()
 
-    -- файлик должен лежать в каталоге сохранений
-    initParticles(particlesfname)
-    -- файлик должен лежать в каталоге программы
+    --initParticles(particlesfname)
 
     arena = Arena.new("arena.lua")
     terrain()
@@ -3496,11 +3499,13 @@ local function init()
         end
     end
 
-    local herostartpos = vector.new(0, 0)
-    local alpha = rng:random() * math.pi
-    playerTank = spawnTank(herostartpos, fromPolar(alpha))
+    --local herostartpos = vector.new(0, 0)
+    --local alpha = rng:random() * math.pi
+    --playerTank = spawnTank(herostartpos, fromPolar(alpha))
 
-    bindPlayerTankKeys()
+    --bindPlayerTankKeys()
+
+    pw.init(pipeline)
 
     --enableDEBUG()
     --disableDEBUG()
@@ -3509,6 +3514,7 @@ local function init()
 
     cameraZoneR = H / 2
     -- }}}
+    print('init finished')
 end
 
 local function quit()
@@ -3542,7 +3548,9 @@ local function mousepressed(x: number, y: number, btn: integer)
     if mode == 'normal' then
         if btn == 1 then
             if makeTank then
-                x, y = cam:worldCoords(x, y)
+
+                --x, y = cam:worldCoords(x, y)
+
                 x, y = x * PIX2M, y * PIX2M
                 local dir = fromPolar(rng:random() * math.pi)
                 print('dir', inspect(dir))
@@ -3633,7 +3641,7 @@ local function mainloop()
                     local msg = '%{green}keypressed '
                     debug_print('input', colorize(msg .. key .. ' ' .. scancode))
 
-                    dprint.keypressed(scancode)
+                    --dprint.keypressed(scancode)
 
                     if scancode == "escape" then
                         is_stop = true
@@ -3693,7 +3701,7 @@ local function mainloop()
         moveCamera()
 
         -- шаг физики
-        pw.update(diff)
+        --pw.update(diff)
 
         --applyInput()
         --print('------------------------------------------------')
@@ -3708,26 +3716,6 @@ local function mainloop()
         love.timer.sleep(timeout)
     end
 end
-
---[[
-return {
-    -- {{{
-
-    init = mainInit,
-    quit = quit,
-    draw = draw,
-    drawui = drawui,
-    update = mainUpdate,
-    keypressed = keypressed,
-    mousepressed = mousepressed,
-    resize = resize,
-    textinput = textinput,
-    mousemoved = mousemoved,
-    wheelmoved = wheelmoved
-
-    -- }}}
-}
---]]
 
 --[[
 -- {{{ BulletPool prototype
