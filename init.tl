@@ -48,7 +48,7 @@ require "vector"
 require "Timer"
 require "imgui"
 require 'render'
-require 'diamondsquare'
+--require 'diamondsquare'
 require 'profi'
 require "love"
 
@@ -68,17 +68,16 @@ global tabular = require "tabular"
 local pw = require "physics_wrapper"
 -- }}}
 
-local pipeline = Pipeline.new("scenes/t80")
+local pipeline = Pipeline.new(SCENE_PREFIX)
 
 --print('love.graphics', inspect(love.graphics))
 
-local Drawable = love.graphics.Drawable
 local Filesystem = love.filesystem
 --local Audio = love.audio
 local Graphics = love.graphics
 --local Physics = love.physics
 local gr = love.graphics
-local lp = love.physics
+--local lp = love.physics
 local Shortcut = KeyConfig.Shortcut
 local profi = require 'profi'
 
@@ -126,6 +125,7 @@ local record Background
     -- }}}
 end
 
+--[[
 local record TurretCommon
     -- {{{
     barrelRectXY: {number}
@@ -133,13 +133,17 @@ local record TurretCommon
     towerRectXY: {number}
     towerRectWH: {number}
 end
+--]]
 
+--[[
 local turretCommon: TurretCommon = {
     barrelRectXY = {124, 0},
     barrelRectWH = {8, 109},
     towerRectXY = {101, 103},
     towerRectWH = {54, 58},
 }
+--]]
+
 -- }}}
 
 local record Edge
@@ -164,7 +168,7 @@ local record Arena
 
     mode: Mode
     edges: {Edge}
-    physbody: lp.Body
+    --physbody: lp.Body
     objectType: ObjectType
 
     -- interface
@@ -266,7 +270,7 @@ local record Turret
     rectWH: {number}
 
     id: integer
-    joint: lp.WeldJoint
+    --joint: lp.WeldJoint
     --fireCoro: thread
 
     -- категории, маски и группы столконовений box2d
@@ -278,13 +282,13 @@ local record Turret
     towerGroup: integer
 
     filterdata: {FilterData}
-    physbody: love.physics.Body
-    tankphysbody: lp.Body
-    fixtureBarrel: love.physics.Fixture
-    fixtureTower: love.physics.Fixture
+    --physbody: love.physics.Body
+    --tankphysbody: lp.Body
+    --fixtureBarrel: love.physics.Fixture
+    --fixtureTower: love.physics.Fixture
 
-    barrelShape: lp.PolygonShape
-    towerShape: lp.PolygonShape
+    --barrelShape: lp.PolygonShape
+    --towerShape: lp.PolygonShape
 
     objectType: ObjectType
     --image: love.graphics.Image
@@ -321,7 +325,7 @@ local record Base
     fixture: love.physics.Fixture
     --pos: vector -- центр поворота корпуса
     tank: Tank
-    polyshape: lp.PolygonShape
+    --polyshape: lp.PolygonShape
     -- нормализованный вектор
     dir: vector
 
@@ -490,7 +494,10 @@ global notificationDelay = 2.5
 global DEFAULT_W, DEFAULT_H = 1024, 768
 
 -- Размеры экрана
-global W, H = love.graphics.getDimensions()
+--global W, H = love.graphics.getDimensions()
+
+--global W, H = pipeline:getDimensions()
+--print("W, H", W, H)
 
 --[[ Танк длиной пять метров имеет отображаемый размер 50 пикселей
 коэффициент на который домножаю при переводе из метров в пиксели --]]
@@ -510,20 +517,6 @@ global tankForceScale = 8
 -- {{{ Konsole editing
 local historyfname = "cmdhistory.txt"
 
-print('666666')
-
---local linesbuf = require "kons".new(SCENE_PREFIX .. "/VeraMono.ttf", 26)
-local kons = require 'kons'
-print('kons', inspect(kons))
-
-print('999999999')
---kons.new()
-print('8888888888888888')
-
-local linesbuf = require "kons".new(16)
-
-print('77777')
-
 global mode: Mode = "normal"
 global cmdline: string = ""
 local cmdhistory: {string} = {}
@@ -532,19 +525,6 @@ global cursorpos: integer = 1
 -- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
 -- }}}
-
-print('2222222222222')
-local obj: any
---print('love.graphics.newImage', love.graphics.newImage)
-local file_name = SCENE_PREFIX .. '/flame2.png'
-print('file_name', file_name)
-
-local ok, errmsg = pcall(function()
-    obj = love.graphics.newImage(SCENE_PREFIX .. '/flame2.png')
-end) as boolean, string
-
-print('obj', obj)
-print('333333333333')
 
 --[[
 local particlesImages = {
@@ -601,14 +581,18 @@ global bulletLifetime = 35
 -- Счетчик живый танков
 global tankCounter = 0
 global rng: love.math.RandomGenerator = love.math.newRandomGenerator()
+
 --rng:setSeed(os.time())
-global diamondSquare: DiamonAndSquare
+
+--global diamondSquare: DiamonAndSquare
+
 -- значение в пикселях радиуса окружности, выход танка игрока за которую 
 -- двигает камеру 
-local cameraZoneR: number
+--local cameraZoneR: number
 
-local edgeColor = {0, 0, 0, 1}
-local edgeLineWidth = 10
+--local edgeColor = {0, 0, 0, 1}
+--local edgeLineWidth = 10
+
 --local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 --local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
 local drawTerrain = true
@@ -627,7 +611,9 @@ local main_channel = love.thread.getChannel("main_channel")
 --local joystick = love.joystick
 -- }}}
 
---[[
+local joystick = love.joystick
+local joy: joystick.Joystick
+
 local function initJoy()
     for _, j in ipairs(joystick.getJoysticks()) do
         debug_print("joy", colorize('%{green}' .. inspect(j)))
@@ -639,7 +625,6 @@ local function initJoy()
     end
     joyState = JoyState.new(joy)
 end
---]]
 
 --[[
 local function initParticles(fname: string)
@@ -700,10 +685,12 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number,
     self.died = false
     self.px = px
     self.py = py
-    local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
-    love.physics.newFixture(self.physbody, shape as lp.Shape)
+    --local shape = love.physics.newCircleShape(0, 0, bulletRadius * PIX2M)
+    --love.physics.newFixture(self.physbody, shape as lp.Shape)
+
     --fixture:setGroupIndex(bulletCollisionGroup)
     --fixture:setMask(bulletMask)
+
     self.physbody:setMass(1)
     local impulse = 100
     if dirx and diry then
@@ -803,6 +790,7 @@ local function bugInit()
 end
 --]]
 
+--[[
 local function getBodyFilterData(body: lp.Body): {FilterData}
     -- {{{
     local result: {FilterData} = {}
@@ -817,6 +805,7 @@ local function getBodyFilterData(body: lp.Body): {FilterData}
     return result
     -- }}}
 end
+--]]
 
 function Hangar.new(pos: vector): Hangar
     local Hangar_mt: metatable<Hangar> = {
@@ -963,7 +952,7 @@ local function updateBullets()
     -- }}}
 end
 
-local activeImage: integer = 1
+--local activeImage: integer = 1
 
 --[[
 local function newParticleSystemWithDef(psdef: ParticleSystemDefinition): Graphics.ParticleSystem
@@ -1212,6 +1201,7 @@ function Arena:mousepressed(x: number, y: number, _: integer)
     end
 end
 
+--[[
 function Arena:present(fixture: lp.Fixture)
     local shape = fixture:getShape() as lp.EdgeShape
     local x1, y1, x2, y2 = shape:getPoints()
@@ -1226,6 +1216,7 @@ function Arena:present(fixture: lp.Fixture)
     gr.setColor(ocolor)
     gr.setLineWidth(olw)
 end
+--]]
 
 function Arena:ser(): string
 
@@ -1247,17 +1238,20 @@ end
 
 function Arena:createFixtures()
     assert(self.edges )
-    if self.physbody then
-        self.physbody:destroy()
-        self.physbody = nil
-    end
-    if not self.physbody then
-        self.physbody = love.physics.newBody(physworld, 0, 0, 'static')
-    end
-    for _, edge in ipairs(self.edges) do
-        local shape = lp.newEdgeShape(edge.x1, edge.y1, edge.x2, edge.y2)
-        lp.newFixture(self.physbody, shape as lp.Shape)
-    end
+
+    --if self.physbody then
+        --self.physbody:destroy()
+        --self.physbody = nil
+    --end
+
+    --if not self.physbody then
+        --self.physbody = love.physics.newBody(physworld, 0, 0, 'static')
+    --end
+
+    --for _, edge in ipairs(self.edges) do
+        --local shape = lp.newEdgeShape(edge.x1, edge.y1, edge.x2, edge.y2)
+        --lp.newFixture(self.physbody, shape as lp.Shape)
+    --end
 end
 
 global arena: Arena
@@ -1367,9 +1361,9 @@ function Tank.new(pos: vector, dir: vector): Tank
     --self.pos = pos:clone()
     self.pos = pos
     self.color = {1, 1, 1, 1}
-    local angle, _ = dir:toPolar()
+    --local angle, _ = dir:toPolar()
     self.base = Base.new(self)
-    self.base.physbody:setAngle(angle)
+    --self.base.physbody:setAngle(angle)
     self.turret = Turret.new(self)
 
     -- Связать части танка одинаковыми идентификаторами. 
@@ -1428,9 +1422,9 @@ end
 
 function Base:updateDir()
     -- {{{
-    local unit = 1
+    --local unit = 1
     -- возможно зад перепутан с передом
-    self.dir = vec2.fromPolar(self.physbody:getAngle() + math.pi / 2, unit)
+    --self.dir = vec2.fromPolar(self.physbody:getAngle() + math.pi / 2, unit)
     -- }}}
 end
 
@@ -1444,20 +1438,20 @@ end
 function Base:update()
     self:updateDir()
     if not self.filterdata then
-        self.filterdata = getBodyFilterData(self.physbody)
+        --self.filterdata = getBodyFilterData(self.physbody)
     end
     self:processTracks()
 end
 
 -- TODO трек должен менятся при изменении направления движения
 function Base:processTracks()
-    local vx, vy = self.physbody:getLinearVelocity()
-    local len = vecl.len(vx, vy)
-    local threshold = 1
-    local w = self.physbody:getAngularVelocity()
-    if len > threshold or w > 0.1 then
-        self:pushTrack()
-    end
+    --local vx, vy = self.physbody:getLinearVelocity()
+    --local len = vecl.len(vx, vy)
+    --local threshold = 1
+    --local w = self.physbody:getAngularVelocity()
+    --if len > threshold or w > 0.1 then
+        --self:pushTrack()
+    --end
     --print('len', len)
 end
 
@@ -1482,8 +1476,8 @@ function Tank:update(): Tank
             yield()
             -- waintg loop
 
-            self.base.physbody:destroy()
-            self.turret.physbody:destroy()
+            --self.base.physbody:destroy()
+            --self.turret.physbody:destroy()
 
             removeTank(self)
         end))
@@ -1493,7 +1487,7 @@ function Tank:update(): Tank
     if self.turret then
         self.turret:update()
         if not self.turret.filterdata then
-            self.turret.filterdata = getBodyFilterData(self.turret.physbody)
+            --self.turret.filterdata = getBodyFilterData(self.turret.physbody)
         end
     end
     if self.base then
@@ -1611,11 +1605,12 @@ function Turret.new(t: Tank): Turret
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.tank = t
     self.objectType = "Turret"
-    self.tankphysbody = t.base.physbody
+    --self.tankphysbody = t.base.physbody
 
     --local px, py = t.pos.x, t.pos.y
-    local px, py = t.base.physbody:getWorldCenter()
+    --local px, py = t.base.physbody:getWorldCenter()
 
+    --[[
     local towerShapeVertices = {
         px - turretCommon.towerRectWH[1] / 2 * PIX2M - 0,
         py - turretCommon.towerRectWH[2] / 2 * PIX2M - 0,
@@ -1629,11 +1624,13 @@ function Turret.new(t: Tank): Turret
         px - turretCommon.towerRectWH[1] / 2 * PIX2M - 0,
         py + turretCommon.towerRectWH[2] / 2 * PIX2M + 0,
     }
+    --]]
 
-    local magic = 1.45
-    local towerSize = turretCommon.towerRectWH[2] * PIX2M * magic
+    --local magic = 1.45
+    --local towerSize = turretCommon.towerRectWH[2] * PIX2M * magic
     
     -- Нужно сместить ствол так, что-бы он едва касался башни.
+    --[[
     local barrelShapeVertices = {
         px - turretCommon.barrelRectWH[1] / 2 * PIX2M, 
         py - turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
@@ -1647,21 +1644,24 @@ function Turret.new(t: Tank): Turret
         px - turretCommon.barrelRectWH[1] / 2 * PIX2M,
         py + turretCommon.barrelRectWH[2] / 2 * PIX2M + towerSize,
     }
+    --]]
 
-    self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
-    self.physbody:setUserData(self)
+    --self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
+    --self.physbody:setUserData(self)
 
-    self.barrelShape = love.physics.newPolygonShape(barrelShapeVertices)
-    self.towerShape = love.physics.newPolygonShape(towerShapeVertices)
+    --self.barrelShape = love.physics.newPolygonShape(barrelShapeVertices)
+    --self.towerShape = love.physics.newPolygonShape(towerShapeVertices)
 
-    self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape as lp.Shape)
-    self.barrelCategories, self.barrelMask, self.barrelGroup = self.fixtureBarrel:getFilterData() as (integer, integer, integer)
+    --self.fixtureBarrel = lp.newFixture(self.physbody, self.barrelShape as lp.Shape)
+    --self.barrelCategories, self.barrelMask, self.barrelGroup = self.fixtureBarrel:getFilterData() as (integer, integer, integer)
+
     --print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
     --self.fixtureBarrel:setFilterData(-1, 0, 0)
     --print("barrelCategories, barrelMask, barrelGroup", self.barrelCategories, self.barrelMask, self.barrelGroup)
 
-    self.fixtureTower = lp.newFixture(self.physbody, self.towerShape as lp.Shape)
-    self.towerCategories, self.towerMask, self.towerGroup = self.fixtureTower:getFilterData() as (integer, integer, integer)
+    --self.fixtureTower = lp.newFixture(self.physbody, self.towerShape as lp.Shape)
+    --self.towerCategories, self.towerMask, self.towerGroup = self.fixtureTower:getFilterData() as (integer, integer, integer)
+
     --print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
     --self.fixtureTower:setFilterData(-2, 1, 1)
     --print("towerCategories, towerMask, towerGroup", self.towerCategories, self.towerMask, self.towerGroup)
@@ -1669,17 +1669,17 @@ function Turret.new(t: Tank): Turret
     --print("self.fixtureBarrel", self.fixtureBarrel:getDensity())
     --print("self.fixtureTower", self.fixtureTower:getDensity())
 
-    self.fixtureTower:setDensity(0.0001)
-    self.fixtureBarrel:setDensity(0.0001)
-    self.physbody:resetMassData()
+    --self.fixtureTower:setDensity(0.0001)
+    --self.fixtureBarrel:setDensity(0.0001)
+    --self.physbody:resetMassData()
 
     --local magix = -100
-    local p1x, p1y = self.tank.base.physbody:getWorldCenter()
-    local p2x, p2y = self.tank.base.physbody:getWorldCenter()
+    --local p1x, p1y = self.tank.base.physbody:getWorldCenter()
+    --local p2x, p2y = self.tank.base.physbody:getWorldCenter()
 
     --p2x = p2x + 50
 
-    self.joint = lp.newWeldJoint(self.tank.base.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
+    --self.joint = lp.newWeldJoint(self.tank.base.physbody, self.physbody, p1x, p1y, p2x, p2y, false)
     --local joint = love.physics.newDistanceJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
 
     --local joint = lp.newWeldJoint(self.tank.physbody, self.physbody, p1x, p1y, p2x, p2y, true)
@@ -1704,10 +1704,10 @@ function Turret:rotateToMouse()
     --mx, my = cam:worldCoords(mx, my)
     mx, my = mx * PIX2M, my * PIX2M
 
-    local x, y = self.physbody:getWorldCenter()
-    local d = vec2.new(x - mx, y - my)
-    self.dir = d:normalizeInplace()
-    local a, _ = d:toPolar()
+    --local x, y = self.physbody:getWorldCenter()
+    --local d = vec2.new(x - mx, y - my)
+    --self.dir = d:normalizeInplace()
+    --local a, _ = d:toPolar()
 
     --[[
     push2drawlist(function()
@@ -1723,9 +1723,9 @@ function Turret:rotateToMouse()
     end)
     --]]
 
-    self.angle = -a
+    --self.angle = -a
     -- Вместо установки угла поробовать поворачитать тело через applyTorque()
-    self.physbody:setAngle(self.angle + math.pi)
+    --self.physbody:setAngle(self.angle + math.pi)
     -- }}}
 end
 
@@ -1751,45 +1751,45 @@ end
 
 function Turret:present()
     -- {{{
-    if not self.fixtureTower or not self.fixtureBarrel then
-        return
-    end
+    --if not self.fixtureTower or not self.fixtureBarrel then
+        --return
+    --end
 
-    local towerShape = self.fixtureTower:getShape()
-    local barrelShape = self.fixtureBarrel:getShape()
+    --local towerShape = self.fixtureTower:getShape()
+    --local barrelShape = self.fixtureBarrel:getShape()
 
-    if towerShape:getType() ~= "polygon" or 
-       barrelShape:getType() ~= "polygon" then
-           error("Only polygon shapes are allowed.")
-    end
+    --if towerShape:getType() ~= "polygon" or 
+       --barrelShape:getType() ~= "polygon" then
+           --error("Only polygon shapes are allowed.")
+    --end
 
-    local body = self.fixtureTower:getBody()
-
-    --    1   2   3   4   5   6   7   8
-    local tx1, ty1, tx2, ty2, tx3, ty3, tx4, ty4 = self.towerShape:getPoints()
-
-    tx1, ty1 = body:getWorldPoints(tx1, ty1)
-    tx2, ty2 = body:getWorldPoints(tx2, ty2)
-    tx3, ty3 = body:getWorldPoints(tx3, ty3)
-    tx4, ty4 = body:getWorldPoints(tx4, ty4)
-
-    tx1, ty1 = M2PIX * tx1, M2PIX * ty1
-    tx2, ty2 = M2PIX * tx2, M2PIX * ty2
-    tx3, ty3 = M2PIX * tx3, M2PIX * ty3
-    tx4, ty4 = M2PIX * tx4, M2PIX * ty4
+    --local body = self.fixtureTower:getBody()
 
     --    1   2   3   4   5   6   7   8
-    local bx1, by1, bx2, by2, bx3, by3, bx4, by4 = self.barrelShape:getPoints()
+    --local tx1, ty1, tx2, ty2, tx3, ty3, tx4, ty4 = self.towerShape:getPoints()
 
-    bx1, by1 = body:getWorldPoints(bx1, by1)
-    bx2, by2 = body:getWorldPoints(bx2, by2)
-    bx3, by3 = body:getWorldPoints(bx3, by3)
-    bx4, by4 = body:getWorldPoints(bx4, by4)
+    --tx1, ty1 = body:getWorldPoints(tx1, ty1)
+    --tx2, ty2 = body:getWorldPoints(tx2, ty2)
+    --tx3, ty3 = body:getWorldPoints(tx3, ty3)
+    --tx4, ty4 = body:getWorldPoints(tx4, ty4)
 
-    bx1, by1 = M2PIX * bx1, M2PIX * by1
-    bx2, by2 = M2PIX * bx2, M2PIX * by2
-    bx3, by3 = M2PIX * bx3, M2PIX * by3
-    bx4, by4 = M2PIX * bx4, M2PIX * by4
+    --tx1, ty1 = M2PIX * tx1, M2PIX * ty1
+    --tx2, ty2 = M2PIX * tx2, M2PIX * ty2
+    --tx3, ty3 = M2PIX * tx3, M2PIX * ty3
+    --tx4, ty4 = M2PIX * tx4, M2PIX * ty4
+
+    --    1   2   3   4   5   6   7   8
+    --local bx1, by1, bx2, by2, bx3, by3, bx4, by4 = self.barrelShape:getPoints()
+
+    --bx1, by1 = body:getWorldPoints(bx1, by1)
+    --bx2, by2 = body:getWorldPoints(bx2, by2)
+    --bx3, by3 = body:getWorldPoints(bx3, by3)
+    --bx4, by4 = body:getWorldPoints(bx4, by4)
+
+    --bx1, by1 = M2PIX * bx1, M2PIX * by1
+    --bx2, by2 = M2PIX * bx2, M2PIX * by2
+    --bx3, by3 = M2PIX * bx3, M2PIX * by3
+    --bx4, by4 = M2PIX * bx4, M2PIX * by4
 
     --[[
     turretBatch:present(
@@ -1834,10 +1834,10 @@ function Base.new(t: Tank): Base
     self.rectXY = {86, 72}
     self.rectWH = {84, 111}
 
-    self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
-    self.physbody:setAngularDamping(3.99)
-    self.physbody:setLinearDamping(2)
-    self.physbody:setUserData(self)
+    --self.physbody = love.physics.newBody(physworld, 0, 0, "dynamic")
+    --self.physbody:setAngularDamping(3.99)
+    --self.physbody:setLinearDamping(2)
+    --self.physbody:setUserData(self)
 
     --local px, py = t.pos.x, t.pos.y
 
@@ -1878,19 +1878,19 @@ function Base:present()
         error("Tank BaseP shape should be polygon.")
     end
 
-    local body = self.fixture:getBody()
+    --local body = self.fixture:getBody()
     --    1   2   3   4   5   6   7   8
-    local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
+    --local x1, y1, x2, y2, x3, y3, x4, y4 = self.polyshape:getPoints()
 
-    x1, y1 = body:getWorldPoints(x1, y1)
-    x2, y2 = body:getWorldPoints(x2, y2)
-    x3, y3 = body:getWorldPoints(x3, y3)
-    x4, y4 = body:getWorldPoints(x4, y4)
+    --x1, y1 = body:getWorldPoints(x1, y1)
+    --x2, y2 = body:getWorldPoints(x2, y2)
+    --x3, y3 = body:getWorldPoints(x3, y3)
+    --x4, y4 = body:getWorldPoints(x4, y4)
 
-    x1, y1 = M2PIX * x1, M2PIX * y1
-    x2, y2 = M2PIX * x2, M2PIX * y2
-    x3, y3 = M2PIX * x3, M2PIX * y3
-    x4, y4 = M2PIX * x4, M2PIX * y4
+    --x1, y1 = M2PIX * x1, M2PIX * y1
+    --x2, y2 = M2PIX * x2, M2PIX * y2
+    --x3, y3 = M2PIX * x3, M2PIX * y3
+    --x4, y4 = M2PIX * x4, M2PIX * y4
 
     --[[
     baseBatch:present(
@@ -1900,10 +1900,10 @@ function Base:present()
     )
     --]]
 
-    self.x4 = x4
-    self.y4 = y4
-    self.x1 = x1
-    self.y1 = y1
+    --self.x4 = x4
+    --self.y4 = y4
+    --self.x1 = x1
+    --self.y1 = y1
     self:drawTrack()
 -- }}}
 end
@@ -2155,10 +2155,13 @@ local function drawHits()
     --Graphics.setBlendMode('alpha', 'premultiplied')
 
     --Graphics.setBlendMode('alpha', 'multiply')
+
+    --[[
     for _, v in ipairs(hits) do
         gr.setColor{1, 1, 1, 1}
         love.graphics.draw(v.ps as Drawable, v.x, v.y)
     end
+    --]]
 end
 
 local function updateHits(dt: number)
@@ -2175,10 +2178,12 @@ local function terrain(mapn: integer, rez: integer)
         rez = 128
     end
     print('terrain', mapn, rez)
-    linesbuf:push(notificationDelay, 'terrain mapn = %d, rez = %d', mapn, rez)
-    diamondSquare = DiamonAndSquare.new(mapn, rez, rng)
-    diamondSquare:eval()
-    diamondSquare:draw2canvas()
+    --linesbuf:push(notificationDelay, 'terrain mapn = %d, rez = %d', mapn, rez)
+
+    --diamondSquare = DiamonAndSquare.new(mapn, rez, rng)
+    --diamondSquare:eval()
+    --diamondSquare:draw2canvas()
+
     --diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
 end
 
@@ -2546,6 +2551,8 @@ local function makeArmy()
 
     local angle = rng:random() * 2 * math.pi
     spawnTank(vector.new(0, 0), fromPolar(angle))
+
+    --[[
     spawnTank(vector.new(
         diamondSquare.width * PIX2M, 
         diamondSquare.height * PIX2M
@@ -2555,6 +2562,8 @@ local function makeArmy()
     spawnTank(vector.new(
         diamondSquare.width * PIX2M / 2, diamondSquare.height * PIX2M / 2), 
         fromPolar(angle))
+    --]]
+
     -- }}}
 end
 
@@ -2758,7 +2767,7 @@ local function bindKonsole()
             if mode ~= "normal" then
                 return false, sc
             end
-            linesbuf.show = not linesbuf.show
+            --linesbuf.show = not linesbuf.show
             return false, sc
         end
     )
@@ -2882,7 +2891,7 @@ function Background.new(): Background
     local self = setmetatable({} as Background, Background_mt)
     --self.img = gr.newImage(SCENE_PREFIX .. "/grass.jpg")
     --self.img = gr.newImage(SCENE_PREFIX .. "/forrest_ground_01_diff_4k.jpg")
-    self.img = gr.newImage(SCENE_PREFIX .. "/grass3.jpg")
+    --self.img = gr.newImage(SCENE_PREFIX .. "/grass3.jpg")
 
     return self
     -- }}}
@@ -2935,11 +2944,15 @@ local function mainPresent()
 
     --cam:attach()
     --background:present()
+
+    --[[
     if drawTerrain and diamondSquare then
             love.graphics.setColor{1, 1, 1, 1}
             love.graphics.circle('fill', 0, 0, 100)
             diamondSquare:present()
     end
+    --]]
+
     --queryBoundingBox()
 
     presentDrawlistBottom()
@@ -2986,12 +2999,15 @@ end
 
 local function render()
     -- {{{
-    local ok, errmsg: boolean, string = resume(drawCoro) as (boolean, string)
-    if not ok then
-        error("drawCoro thread is end: " .. errmsg)
-    end
+
+    --local ok, errmsg: boolean, string = resume(drawCoro) as (boolean, string)
+    --if not ok then
+        --error("drawCoro thread is end: " .. errmsg)
+    --end
+
     --drawCameraAxixes()
     --konsolePresent()
+    pipeline:sync()
 end
 
 local function updateTanks()
@@ -3070,6 +3086,7 @@ end
 
 local function enterCommandMode()
     -- {{{
+    --[[
     if linesbuf.show then
         print("command mode enabled.")
         mode = "command"
@@ -3088,8 +3105,8 @@ local function enterCommandMode()
             end
             --print("all entries.")
         end
-        --]]
     end
+    --]]
     -- }}}
 end
 
@@ -3103,19 +3120,6 @@ local function leaveCommandMode()
     -- }}}
 end
 
--- TODO
-function konsolePrint(...: any)
-    -- {{{
-    for _, v in ipairs({...}) do
-        if type(v) == "string" then
-            linesbuf:push(0.5, tostring(v))
-        else
-            colprint("konsolePrint warning")
-        end
-    end
-    -- }}}
-end
-
 function attach(varname: string)
     if type(varname) == "string" then
         attachedVarsList[varname] = function()
@@ -3125,14 +3129,14 @@ function attach(varname: string)
                 if output then 
                     --linesbuf:pushi(string.format("%s", output))
                     --if type(l) == 'table' then
-                    linesbuf:pushi(output)
-                    linesbuf:pushi(string.format("%s", varname))
+                    --linesbuf:pushi(output)
+                    --linesbuf:pushi(string.format("%s", varname))
                     --else
                         --linesbuf:pushi(string.format('%s = %s', varname, 
                             --tostring(l)))
                     --end
                 else
-                    linesbuf:pushi(string.format("%s = nil", varname))
+                    --linesbuf:pushi(string.format("%s = nil", varname))
                 end
             end)
             if not ok then
@@ -3214,18 +3218,18 @@ end
 
     cmdline = trim(cmdline)
     local func, loaderrmsg: function, string = load(preload .. cmdline)
-    local time = 2
+    --local time = 2
 
     --TODO в обработке ошибок искать ]:1: и обрезать сообщение об ошибке.
     if not func then
-        linesbuf:push(time, "load() errmsg: " .. loaderrmsg)
+        --linesbuf:push(time, "load() errmsg: " .. loaderrmsg)
         print("load() errmsg:|" .. loaderrmsg .. "|")
     else
         local ok, pcallerrmsg: boolean, string = pcall(function()
             func()
         end)
         if not ok then
-            linesbuf:push(time, "pcall() errmsg: " .. pcallerrmsg)
+            --linesbuf:push(time, "pcall() errmsg: " .. pcallerrmsg)
             print("pcall() errmsg:|" .. pcallerrmsg .. "|")
         end
     end
@@ -3430,13 +3434,13 @@ local function bindCameraZoomKeys()
     -- }}}
 end
 
-local function setWindowMode()
-    love.window.setMode(DEFAULT_W, DEFAULT_H, { resizable = false })
-end
+--local function setWindowMode()
+    --love.window.setMode(DEFAULT_W, DEFAULT_H, { resizable = false })
+--end
 
-local function setFullscreenMode()
-    love.window.setFullscreen(true)
-end
+--local function setFullscreenMode()
+    --love.window.setFullscreen(true)
+--end
 
 local function bindFullscreenSwitcher()
     -- {{{
@@ -3445,11 +3449,11 @@ local function bindFullscreenSwitcher()
         { key = "f11" }, 
         function(sc: KeyConfig.Shortcut): boolean, KeyConfig.Shortcut
             local isfs = love.window.getFullscreen()
-                diamondSquare:draw2canvas()
+                --diamondSquare:draw2canvas()
             if isfs then
-                setWindowMode()
+                --setWindowMode()
             else
-                setFullscreenMode()
+                --setFullscreenMode()
             end
             return false, sc
         end,
@@ -3473,7 +3477,7 @@ function Logo.new(): Logo
     local newdw, newdh = self.imgw * windowscale, self.imgh * windowscale
     DEFAULT_W, DEFAULT_H = ceil(newdw), ceil(newdh)
     self.sx, self.sy = DEFAULT_W / self.imgw, DEFAULT_H / self.imgh
-    setWindowMode()
+    --setWindowMode()
     return self
     -- }}}
 end
@@ -3492,7 +3496,7 @@ local function createDrawCoroutine(): thread
         while true do
             -- режим игрового меню
             while showLogo == true do
-                logo:present()
+                --logo:present()
             end
             -- режим сражения
             while showLogo == false do
@@ -3514,7 +3518,9 @@ local function init()
     print('init started')
 
     metrics.init()
-    setWindowMode()
+    initJoy()
+
+    --setWindowMode()
 
     --effect = moonshine.chain(moonshine.effects.filmgrain).
         --chain(moonshine.effects.vignette)
@@ -3561,7 +3567,7 @@ local function init()
 
     --bugInit()
 
-    cameraZoneR = H / 2
+    --cameraZoneR = H / 2
     -- }}}
     print('init finished')
 end
@@ -3663,7 +3669,7 @@ local function updateJoyState()
 end
 
 local is_stop = false
-local last_render: number
+local last_render: number = love.timer.getTime()
 
 print('33333333333333333')
 
@@ -3739,17 +3745,19 @@ local function mainloop()
 
         -- UPDATE HERE PLEASE
         camTimer:update(dt)
-        if physworld then
-            physworld:update(1 / 60)
-        end
-        linesbuf:update()
-        updateTanks()
-        updateBullets()
-        updateHangars()
-        updateHits(dt)
-        updateCoroutines()
-        arena:update()
-        moveCamera()
+
+        --if physworld then
+            --physworld:update(1 / 60)
+        --end
+
+        --linesbuf:update()
+        --updateTanks()
+        --updateBullets()
+        --updateHangars()
+        --updateHits(dt)
+        --updateCoroutines()
+        --arena:update()
+        --moveCamera()
 
         -- шаг физики
         --pw.update(diff)
