@@ -605,10 +605,14 @@ local coroutines = {}
 local event_channel = love.thread.getChannel("event_channel")
 local main_channel = love.thread.getChannel("main_channel")
 
+local is_stop = false
+local last_render = love.timer.getTime()
+
 
 
 
 local joystick = love.joystick
+
 local joy
 
 local function initJoy()
@@ -2964,6 +2968,17 @@ end
 
 local function render()
 
+   local nt = love.timer.getTime()
+   local pause = 1. / 400.
+   local diff = nt - last_render
+
+   if diff >= pause then
+      last_render = nt
+
+
+
+      pipeline:sync()
+   end
 
 
 
@@ -2972,7 +2987,7 @@ local function render()
 
 
 
-   pipeline:sync()
+
 end
 
 local function updateTanks()
@@ -3603,79 +3618,67 @@ local function updateJoyState()
    end
 end
 
-local is_stop = false
-local last_render = love.timer.getTime()
+local function process_events()
+   local events = event_channel:pop()
+   if events then
+      for _, e in ipairs(events) do
+         local evtype = (e)[1]
+         if evtype == "mousemoved" then
 
-print('33333333333333333')
+            local x, y = (e)[2], (e)[3]
+            local dx, dy = (e)[4], (e)[5]
+            mousemoved(x, y, dx, dy)
 
-local function mainloop()
-   while not is_stop do
+         elseif evtype == 'wheelmoved' then
 
-      local events = event_channel:pop()
-      if events then
-         for _, e in ipairs(events) do
-            local evtype = (e)[1]
-            if evtype == "mousemoved" then
+            local x, y = (e)[2], (e)[3]
+            wheelmoved(x, y)
 
-               local x, y = (e)[2], (e)[3]
-               local dx, dy = (e)[4], (e)[5]
-               mousemoved(x, y, dx, dy)
+         elseif evtype == "keypressed" then
+            local key = (e)[2]
+            local scancode = (e)[3]
 
-            elseif evtype == 'wheelmoved' then
-
-               local x, y = (e)[2], (e)[3]
-               wheelmoved(x, y)
-
-            elseif evtype == "keypressed" then
-               local key = (e)[2]
-               local scancode = (e)[3]
-
-               local msg = '%{green}keypressed '
-               debug_print('input', colorize(msg .. key .. ' ' .. scancode))
+            local msg = '%{green}keypressed '
+            debug_print('input', colorize(msg .. key .. ' ' .. scancode))
 
 
 
-               if scancode == "escape" then
-                  is_stop = true
-                  debug_print('input', colorize('%{blue}escape pressed'))
-                  break
-               end
-
-
-               keypressed(scancode)
-
-
-
-
-            elseif evtype == "mousepressed" then
-
-
-
-
-
-
-               local x, y = (e)[2], (e)[3]
-               local btn = (e)[4]
-               mousepressed(x, y, btn)
-
+            if scancode == "escape" then
+               is_stop = true
+               debug_print('input', colorize('%{blue}escape pressed'))
+               break
             end
+
+
+            keypressed(scancode)
+
+
+
+
+         elseif evtype == "mousepressed" then
+
+
+
+
+
+
+            local x, y = (e)[2], (e)[3]
+            local btn = (e)[4]
+            mousepressed(x, y, btn)
+
          end
       end
+   end
+end
 
+local function mainloop()
+   local last_time = love.timer.getTime()
+   while not is_stop do
+      process_events()
+      render()
 
-      local nt = love.timer.getTime()
-      local pause = 1. / 400.
-      local diff = nt - last_render
-
-
-      local dt = diff
-
-      if diff >= pause then
-         last_render = nt
-
-
-         render()
-      end
+      local now_time = love.timer.getTime()
+      local dt = now_time - last_time
 
 
       camTimer:update(dt)
@@ -3685,7 +3688,10 @@ local function mainloop()
 
 
 
+
       updateTanks()
+
+
 
 
 
