@@ -18,7 +18,7 @@ end
 
 local function init(scene: string)
     file = love.filesystem.newFile(fname, "a")
-    write(string.format("init(%s)", scene))
+    write(string.format(" init(%s)", scene))
 end
 
 local function quit()
