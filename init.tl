@@ -3729,7 +3729,7 @@ local function mainloop()
         
         -- Ограничение кадров в секунду до 60
         local nt = love.timer.getTime()
-        local pause = 1. / 300.
+        local pause = 1. / 400.
         --local pause = 1. / 4000.
         local diff = nt - last_render
 
