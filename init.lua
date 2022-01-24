@@ -24,8 +24,6 @@ local debug_print = print
 
 debug_print('thread', colorize('%{yellow}>>>>>%{reset} chipmunk_mt started'))
 
-SCENE_PREFIX = "scenes/t80"
-
 require("love_inc").require_pls_nographic()
 
 print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
@@ -38,6 +36,7 @@ love.filesystem.setRequirePath(require_path)
 print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
 
+require('konstants')
 require('joystate')
 require("love")
 require('pipeline')
@@ -70,6 +69,9 @@ local pw = require("physics_wrapper")
 
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
+local arrow = require('arrow')
+arrow.init(pipeline)
+
 
 
 local Filesystem = love.filesystem
@@ -81,10 +83,11 @@ local gr = love.graphics
 local Shortcut = KeyConfig.Shortcut
 local profi = require('profi')
 
-print('11111111111111111111111')
 
-local abs, ceil, pow, sqrt = math.abs, math.ceil, math.pow, math.sqrt
-local yield, resume = coroutine.yield, coroutine.resume
+
+local abs, pow, sqrt = math.abs, math.pow, math.sqrt
+
+local yield = coroutine.yield
 
 
 local joyState
@@ -110,7 +113,7 @@ local ObjectType = {}
 
 
 
-local DrawNode = {}
+
 
 
 
@@ -158,6 +161,7 @@ local Edge = {}
 
 
 local Arena = {}
+
 
 
 
@@ -370,6 +374,10 @@ local Base = {}
 
 
 
+
+
+
+
 local Bullet = {}
 
 
@@ -452,21 +460,6 @@ local Hit = {}
 
 
 
-local Logo = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -491,7 +484,8 @@ maxParticlesNumber = 512
 notificationDelay = 2.5
 
 
-DEFAULT_W, DEFAULT_H = 1024, 768
+
+DEFAULT_W, DEFAULT_H = nil, nil
 
 
 
@@ -535,9 +529,9 @@ attachedVarsList = {}
 print('44444444444444')
 
 
-local drawlistTop = {}
 
-local drawlistBottom = {}
+
+
 
 
 local camTimer = require("Timer").new()
@@ -561,8 +555,6 @@ camZoomLower, camZoomHigher = 0.075, 3.5
 
 
 
-
-
 tanks = {}
 hangars = {}
 
@@ -572,10 +564,14 @@ hangars = {}
 
 
 
+require('logo')
+
+
+
 bullets = {}
 
-local bulletRadius = 4
-local bulletColor = { 0.1, 0.1, 0.1, 1 }
+
+
 
 bulletLifetime = 35
 
@@ -584,6 +580,7 @@ rng = love.math.newRandomGenerator()
 
 
 
+require('diamondsquare')
 
 
 
@@ -653,22 +650,24 @@ local function writeParticles(fname)
    Filesystem.write(fname, serpent.dump(particles))
 end
 
-local function updateCoroutines()
 
-   local alive = {}
-   for _, coro in ipairs(coroutines) do
-      if coroutine.status(coro) ~= 'dead' then
-         local ok, errmsg = coroutine.resume(coro), string
-         if ok then
-            table.insert(alive, coro)
-         else
-            print('coro error:', errmsg)
-         end
-      end
-   end
-   coroutines = alive
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function Bullet.new(px, py, dirx, diry,
    tankId)
@@ -678,9 +677,10 @@ function Bullet.new(px, py, dirx, diry,
    }
    local self = setmetatable({}, Bullet_mt)
 
-   self.physbody = love.physics.newBody(physworld, px, py, "dynamic")
-   self.physbody:setUserData(self)
-   self.physbody:setBullet(true)
+
+
+
+
    self.timestamp = love.timer.getTime()
    self.died = false
    self.px = px
@@ -881,76 +881,51 @@ function Hangar:present()
 
 end
 
-local function updateHangars()
-   for _, v in ipairs(hangars) do
-      if v.update then
-         v:update()
-      end
-   end
-end
-local function drawArrow(
-   fromx, fromy, tox, toy,
-   color)
 
 
-   local angle = math.pi / 11
-   local arrowDiv = 20
-
-   color = color or { 1, 1, 1, 1 }
-   local x, y = fromx - tox, fromy - toy
-   local ux, uy = vecl.normalize(abs(fromx - tox), abs(fromy - toy))
-   local len = vecl.len(x, y) / arrowDiv
-   local lx, ly = vecl.rotate(angle, ux, uy)
-   local rx, ry = vecl.rotate(-angle, ux, uy)
-   lx, ly = len * lx, len * ly
-   rx, ry = len * rx, len * ry
-
-   local oldlinew = gr.getLineWidth()
-   local linew = 15
-   gr.setLineWidth(linew)
-   gr.setColor(color)
 
 
-   gr.line(tox, toy, tox - lx, toy - ly)
 
-   gr.line(tox, toy, tox - rx, toy - ry)
 
-   gr.line(fromx, fromy, tox, toy)
 
-   gr.setLineWidth(oldlinew)
-end
 
-local function drawBullets()
 
-   for _, b in ipairs(bullets) do
-      local px, py = b.physbody:getWorldCenter()
-      px, py = px * M2PIX, py * M2PIX
-      gr.setColor(bulletColor)
-      gr.circle("fill", px, py, bulletRadius)
-   end
 
-end
 
-local function updateBullets()
 
-   local alive = {}
-   local now = love.timer.getTime()
-   for _, bullet in ipairs(bullets) do
 
-      bullet.velx, bullet.vely = bullet.physbody:getLinearVelocity()
-      bullet.mass = bullet.physbody:getMass()
-      bullet.px, bullet.py = bullet.physbody:getWorldCenter()
-      bullet.px, bullet.py = bullet.px * M2PIX, bullet.py * M2PIX
 
-      local diff = now - bullet.timestamp
 
-      if diff < bulletLifetime and not bullet.died then
-         table.insert(alive, bullet)
-      end
-   end
-   bullets = alive
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1028,12 +1003,6 @@ function Hit.new(x, y)
    return self
 end
 
-function Turret:createFireCoro()
-   return coroutine.create(function()
-      if not self.loaded then
-
-
-      end
 
 
 
@@ -1063,66 +1032,80 @@ function Turret:createFireCoro()
 
 
 
-      local px, py = self.tank.base.physbody:getWorldCenter()
 
 
-      local magic = 14
-
-      print(self.id)
 
 
-      table.insert(bullets, Bullet.new(
-      px - self.dir.x * magic,
-      py - self.dir.y * magic,
-      -self.dir.x, -self.dir.y,
-      self.id))
 
-   end)
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function Turret:fire()
-   table.insert(coroutines, self:createFireCoro())
+
 end
 
-local function presentDrawlistBottom()
-   for _, v in ipairs(drawlistBottom) do
-      if v.self then
-         v.f(v.self)
-      else
-         v.f()
-      end
-   end
-end
 
-local function presentDrawlistTop()
-   for _, v in ipairs(drawlistTop) do
-      if v.self then
-         v.f(v.self)
-      else
-         v.f()
-      end
-   end
-end
 
-function push2drawlistTop(f, self)
-   if not f then
-      error("Draw could'not be nil.")
-   end
-   if type(f) ~= "function" then
-      error("Draw function is not a function. It is a .. " .. type(f))
-   end
-   table.insert(drawlistTop, { f = f, self = self })
-end
 
-function push2drawlistBottom(f, self)
-   if not f then
-      error("Draw could'not be nil.")
-   end
-   if type(f) ~= "function" then
-      error("Draw function is not a function. It is a .. " .. type(f))
-   end
-   table.insert(drawlistBottom, { f = f, self = self })
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function Arena.new(fname)
    local Arena_mt = { __index = Arena }
@@ -1159,32 +1142,36 @@ function Arena.new(fname)
 end
 
 function Arena:mousemoved(_, _, _, _)
-   push2drawlistTop(function()
-      local linew = 3
-      if self.mode then
-         if self.mode == 'second' then
-            gr.setColor({ 0, 0, 0.9, 1 })
-            local ow = gr.getLineWidth()
-            gr.setLineWidth(linew)
-            gr.line(
-            self.edges[#self.edges].x1,
-            self.edges[#self.edges].y1,
-            self.edges[#self.edges].x2,
-            self.edges[#self.edges].y2)
 
-            gr.setLineWidth(ow)
-         end
-      end
-   end)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 end
 
 function Arena:update()
 end
 
 function Arena:mousepressed(x, y, _)
-   push2drawlistTop(function()
-      gr.circle('fill', x, y, 10)
-   end)
+
+
+
+
+
 
    x, y = x * PIX2M, y * PIX2M
    if self.mode then
@@ -1265,40 +1252,42 @@ function Tank:fire()
 end
 
 function Tank:circleMove()
-   table.insert(coroutines, coroutine.create(function()
-      while true do
-         love.timer.sleep(0.0001)
-         local movementImpulsesNum = 10
-         for _ = 0, rng:random() * movementImpulsesNum do
-            self.base:forward()
-            yield()
-         end
-         local chance = rng:random()
-         if chance > 0.5 then
-            self.base:left()
-            yield()
-         else
-            self.base:right()
-            yield()
-         end
 
-      end
-   end))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 end
 
 function Base:left()
-   self.physbody:applyTorque(-angularImpulseScale)
+
 end
 
 function Base:right()
-   self.physbody:applyTorque(angularImpulseScale)
+
 end
 
 function Base:forward()
 
    if self.tank.fuel > 0. then
-      local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
-      self.physbody:applyForce(x, y)
+
+
    end
 
 end
@@ -1306,8 +1295,8 @@ end
 function Base:backward()
 
    if self.tank.fuel > 0. then
-      local x, y = self.dir.x * tankForceScale, self.dir.y * tankForceScale
-      self.physbody:applyForce(-x, -y)
+
+
    end
 
 end
@@ -1400,23 +1389,23 @@ end
 
 
 function Base:drawDirectionVector()
-
    if self.dir then
-      local x, y = self.physbody:getWorldCenter()
+      local x, y = 0, 0
+
       local scale = 100
       local color = { 0., 0.05, 0.99, 1 }
       x, y = x * M2PIX, y * M2PIX
-      drawArrow(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
-   end
 
+      arrow.draw(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
+   end
 end
 
 function Base:resetVelocities()
 
-   if self.physbody then
-      self.physbody:setAngularVelocity(0)
-      self.physbody:setLinearVelocity(0, 0)
-   end
+
+
+
+
 
 end
 
@@ -1873,10 +1862,11 @@ end
 
 function Base:present()
 
-   local shape = self.fixture:getShape()
-   if shape:getType() ~= "polygon" then
-      error("Tank BaseP shape should be polygon.")
-   end
+
+
+
+
+
 
 
 
@@ -1952,9 +1942,9 @@ function Base:drawTrack()
 end
 
 
-local function newHit(x, y)
-   table.insert(hits, Hit.new(x, y))
-end
+
+
+
 
 function Tank:damage(bullet)
    local bulx, buly = bullet.physbody:getWorldCenter()
@@ -2164,11 +2154,13 @@ local function drawHits()
 
 end
 
-local function updateHits(dt)
-   for _, v in ipairs(hits) do
-      v.ps:update(dt)
-   end
-end
+
+
+
+
+
+
+
 
 local function terrain(mapn, rez)
    if not mapn then
@@ -2205,9 +2197,9 @@ local function bindDeveloperKeys()
 
       print('works')
       if playerTank then
-         local x, y = playerTank.base.physbody:getWorldCenter()
-         newHit(x, y)
-         print('new Hit created at', x, y)
+
+
+
       end
 
       return false, sc
@@ -2495,14 +2487,16 @@ function reset()
    print('reset')
 
    KeyConfig.clear()
-   if physworld then
-      physworld:destroy()
-      print('physworld destroyed.')
-      local object = physworld
-      object:release()
-      print('physworld object released.')
-      physworld = nil
-   end
+
+
+
+
+
+
+
+
+
+
    tanks = {}
    playerTank = nil
    bullets = {}
@@ -2883,35 +2877,6 @@ end
 
 
 
-function Background.new()
-
-   local Background_mt = {
-      __index = Background,
-   }
-   local self = setmetatable({}, Background_mt)
-
-
-
-
-   return self
-
-end
-
-function Background:present()
-
-   local len = 50
-   local imgw, imgh = (self.img):getDimensions()
-   local sx, sy = 1, 1
-   gr.setColor(1, 1, 1, 1)
-   for i = 0, len - 1 do
-      for j = 0, len - 1 do
-         gr.draw(self.img,
-         i * imgw * sx, j * imgh * sy, 0, sx, sy)
-      end
-   end
-
-end
-
 
 
 
@@ -2940,7 +2905,6 @@ local function mainPresent()
 
 
 
-   push2drawlistTop(drawBullets)
 
 
 
@@ -2955,7 +2919,8 @@ local function mainPresent()
 
 
 
-   presentDrawlistBottom()
+
+
 
 
 
@@ -2963,14 +2928,14 @@ local function mainPresent()
 
    drawHits()
 
-   presentDrawlistTop()
 
 
 
 
 
-   drawlistTop = {}
-   drawlistBottom = {}
+
+
+
 
    changeKeyConfigListbackground()
 
@@ -3025,10 +2990,8 @@ local function updateTanks()
 
 end
 
-posbuffer = {}
-local maxBufLen = 5
-
 local lastPosX, lastPosY
+
 
 
 
@@ -3038,31 +3001,32 @@ local function moveCamera()
 
 
 
-      local tankx, tanky = playerTank.base.physbody:getWorldCenter()
-      tankx, tanky = tankx * M2PIX, tanky * M2PIX
 
 
 
 
 
-      table.insert(posbuffer, { tankx, tanky })
-      if #posbuffer > maxBufLen then
-         table.remove(posbuffer, 1)
-      end
+
+
+
+
+
+
+
 
       if not lastPosX then
-         lastPosX = tankx
+
       end
 
       if not lastPosY then
-         lastPosY = tanky
+
       end
 
 
 
 
-      lastPosX = tankx
-      lastPosY = tanky
+
+
 
    end
 end
@@ -3462,35 +3426,6 @@ local function bindFullscreenSwitcher()
 
 end
 
-function Logo.new()
-
-   local Logo_mt = {
-      __index = Logo,
-   }
-
-   local self = setmetatable({}, Logo_mt)
-   local fname = SCENE_PREFIX .. "/t80_background_2.png"
-   self.image = love.graphics.newImage(fname)
-   local tex = self.image
-   local windowscale = 0.7
-   self.imgw, self.imgh = ceil(tex:getWidth()), ceil(tex:getHeight())
-   local newdw, newdh = self.imgw * windowscale, self.imgh * windowscale
-   DEFAULT_W, DEFAULT_H = ceil(newdw), ceil(newdh)
-   self.sx, self.sy = DEFAULT_W / self.imgw, DEFAULT_H / self.imgh
-
-   return self
-
-end
-
-function Logo:present()
-
-   gr.setColor({ 1, 1, 1, 1 })
-
-   love.graphics.draw(self.image, 0, 0, 0., self.sx, self.sy)
-   yield()
-
-end
-
 local function createDrawCoroutine()
    return coroutine.create(function()
       while true do
@@ -3540,7 +3475,7 @@ local function init()
 
    drawCoro = createDrawCoroutine()
 
-   background = Background.new()
+
 
 
 
@@ -3730,7 +3665,6 @@ local function mainloop()
 
       local nt = love.timer.getTime()
       local pause = 1. / 400.
-
       local diff = nt - last_render
 
 
@@ -3751,13 +3685,13 @@ local function mainloop()
 
 
 
+      updateTanks()
 
 
 
 
 
-
-
+      moveCamera()
 
 
 
