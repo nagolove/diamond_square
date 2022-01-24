@@ -605,10 +605,14 @@ local coroutines: {thread} = {}
 local event_channel = love.thread.getChannel("event_channel")
 local main_channel = love.thread.getChannel("main_channel")
 
+local is_stop = false
+local last_render: number = love.timer.getTime()
+
 --local joystick = love.joystick
 -- }}}
 
 local joystick = love.joystick
+--local joys: {joystick.Joystick} = {}
 local joy: joystick.Joystick
 
 local function initJoy()
@@ -2963,6 +2967,18 @@ end
 --]]
 
 local function render()
+    -- Ограничение кадров в секунду до 60
+    local nt = love.timer.getTime()
+    local pause = 1. / 400.
+    local diff = nt - last_render
+
+    if diff >= pause then
+        last_render = nt
+        --local msg = 'love.timer.getTime() = %f'
+        --print(colorize('%{blue}' .. format(msg, love.timer.getTime())))
+
+        pipeline:sync()
+    end
     -- {{{
 
     --local ok, errmsg: boolean, string = resume(drawCoro) as (boolean, string)
@@ -2972,7 +2988,6 @@ local function render()
 
     --drawCameraAxixes()
     --konsolePresent()
-    pipeline:sync()
 end
 
 local function updateTanks()
@@ -3603,81 +3618,69 @@ local function updateJoyState()
     end
 end
 
-local is_stop = false
-local last_render: number = love.timer.getTime()
+local function process_events()
+    local events = event_channel:pop() as {any}
+    if events then
+        for _, e in ipairs(events) do
+            local evtype: string = (e as {string})[1]
+            if evtype == "mousemoved" then
 
-print('33333333333333333')
+                local x, y = (e as {number})[2], (e as {number})[3]
+                local dx, dy = (e as {number})[4], (e as {number})[5]
+                mousemoved(x, y, dx, dy)
 
-local function mainloop()
-    while not is_stop do
-        --print('mainloop iter')
-        local events = event_channel:pop() as {any}
-        if events then
-            for _, e in ipairs(events) do
-                local evtype: string = (e as {string})[1]
-                if evtype == "mousemoved" then
+            elseif evtype == 'wheelmoved' then
 
-                    local x, y = (e as {number})[2], (e as {number})[3]
-                    local dx, dy = (e as {number})[4], (e as {number})[5]
-                    mousemoved(x, y, dx, dy)
+                local x, y = (e as {number})[2], (e as {number})[3]
+                wheelmoved(x, y)
 
-                elseif evtype == 'wheelmoved' then
+            elseif evtype == "keypressed" then
+                local key = (e as {string})[2]
+                local scancode = (e as {string})[3]
 
-                    local x, y = (e as {number})[2], (e as {number})[3]
-                    wheelmoved(x, y)
+                local msg = '%{green}keypressed '
+                debug_print('input', colorize(msg .. key .. ' ' .. scancode))
 
-                elseif evtype == "keypressed" then
-                    local key = (e as {string})[2]
-                    local scancode = (e as {string})[3]
+                --dprint.keypressed(scancode)
 
-                    local msg = '%{green}keypressed '
-                    debug_print('input', colorize(msg .. key .. ' ' .. scancode))
-
-                    --dprint.keypressed(scancode)
-
-                    if scancode == "escape" then
-                        is_stop = true
-                        debug_print('input', colorize('%{blue}escape pressed'))
-                        break
-                    end
-
-                    -- Использовать scancode или key?
-                    keypressed(scancode)
-
-                    --msg = '%{yellow}keypressed '
-                    --print(colorize(msg .. key .. ' ' .. scancode))
-
-                elseif evtype == "mousepressed" then
-
-                    --local x: number = (e as {number})[2]
-                    --local y: number = (e as {number})[3]
-                    --local button: number = (e as {number})[4]
-                    --local istouch: boolean = (e as {boolean})[5]
-                    --local presses: number = (e as {number})[6]
-                    local x, y = (e as {number})[2], (e as {number})[3]
-                    local btn = (e as {integer})[4]
-                    mousepressed(x, y, btn)
-
+                if scancode == "escape" then
+                    is_stop = true
+                    debug_print('input', colorize('%{blue}escape pressed'))
+                    break
                 end
+
+                -- Использовать scancode или key?
+                keypressed(scancode)
+
+                --msg = '%{yellow}keypressed '
+                --print(colorize(msg .. key .. ' ' .. scancode))
+
+            elseif evtype == "mousepressed" then
+
+                --local x: number = (e as {number})[2]
+                --local y: number = (e as {number})[3]
+                --local button: number = (e as {number})[4]
+                --local istouch: boolean = (e as {boolean})[5]
+                --local presses: number = (e as {number})[6]
+                local x, y = (e as {number})[2], (e as {number})[3]
+                local btn = (e as {integer})[4]
+                mousepressed(x, y, btn)
+
             end
         end
-        
-        -- Ограничение кадров в секунду до 60
-        local nt = love.timer.getTime()
-        local pause = 1. / 400.
-        local diff = nt - last_render
+    end
+end
 
-        -- Правильно-ли расчитано значение dt?
-        local dt = diff
+local function mainloop()
+    local last_time = love.timer.getTime()
+    while not is_stop do
+        process_events()
+        render()
 
-        if diff >= pause then
-            last_render = nt
-            --local msg = 'love.timer.getTime() = %f'
-            --print(colorize('%{blue}' .. format(msg, love.timer.getTime())))
-            render()
-        end
+        local now_time = love.timer.getTime()
+        local dt = now_time - last_time
 
-        -- UPDATE HERE PLEASE
+        ------------ UPDATE HERE PLEASE ------------ 
         camTimer:update(dt)
 
         --if physworld then
@@ -3685,16 +3688,19 @@ local function mainloop()
         --end
 
         --linesbuf:update()
+
         updateTanks()
+
         --updateBullets()
         --updateHangars()
         --updateHits(dt)
         --updateCoroutines()
         --arena:update()
+
         moveCamera()
 
         -- шаг физики
-        --pw.update(diff)
+        pw.update(dt)
 
         --applyInput()
         --print('------------------------------------------------')
