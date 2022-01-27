@@ -62,6 +62,7 @@ local vec2 = require "vector"
 local vecl = require "vector-light"
 local tabular = require "tabular"
 local pw = require "physics_wrapper"
+local Cm = require 'chipmunk'
 -- }}}
 
 local pipeline = Pipeline.new(SCENE_PREFIX)
@@ -77,9 +78,6 @@ local Shortcut = KeyConfig.Shortcut
 --local abs, pow, sqrt = math.abs, math.pow, math.sqrt
 --local yield, resume = coroutine.yield, coroutine.resume
 --local yield = coroutine.yield
-
---local joy: love.joystick.Joystick
-local joyState: JoyState
 
 local enum Mode
     "normal"
@@ -204,7 +202,14 @@ end
 
 -- Класс основного боевого танка.
 local record Tank
+
+    record Options
+        body_opts: pw.Options
+    end
+
     -- {{{
+    first_render: boolean
+
     -- прочность танка от 1 до 0
     strength: number
     -- запас топлива от 1 до 0
@@ -227,7 +232,7 @@ local record Tank
     --base: Base
 
     -- абсолютные координаты в пикселях
-    new: function(pos: vector): Tank
+    new: function(pos: vector, options: Options): Tank
 
     -- рисовать
     present: function(Tank)
@@ -458,6 +463,9 @@ end
 -- Указатель на текущий подсвеченный навигатором танк.
 --local currentNavigator: Tank
 
+local bodyIter: pw.EachSpaceBodyIter
+local shapeIter: pw.EachBodyShapeIter
+
 -- максимальное количество частиц
 global maxParticlesNumber = 512
 
@@ -509,6 +517,7 @@ require "Timer"
 
 -- используется для анимации масштабирования камеры
 local camTimer: Timer = require "Timer".new()
+local camera: love.math.Transform = love.math.newTransform()
 
 --local drawCoro: thread = nil
 global showLogo = true
@@ -559,20 +568,10 @@ local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 require 'diamondsquare'
 --local diamondSquare: DiamonAndSquare
 
--- значение в пикселях радиуса окружности, выход танка игрока за которую 
--- двигает камеру 
---local cameraZoneR: number
-
---local edgeColor = {0, 0, 0, 1}
---local edgeLineWidth = 10
-
 --local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 --local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
-local drawTerrain = true
 
---local baseBatch: Batch = Batch.new("tank_body_small.png")
---local turretBatch: Batch = Batch.new("tank_tower.png")
---local hangarBatch: Batch = Batch.new("hangar.png")
+local drawTerrain = true
 
 global maxTrackCount = 128
 global hits: {Hit} = {}
@@ -583,11 +582,10 @@ local main_channel = love.thread.getChannel("main_channel")
 
 local is_stop = false
 local last_render: number = love.timer.getTime()
-
---local joystick = love.joystick
 -- }}}
 
 local joystick = love.joystick
+local joyState: JoyState
 --local joys: {joystick.Joystick} = {}
 local joy: joystick.Joystick
 
@@ -602,29 +600,6 @@ local function initJoy()
     end
     joyState = JoyState.new(joy)
 end
-
---[[
-local function initParticles(fname: string)
-    print('initParticles')
-    print('loading from', fname)
-    local fdata = love.filesystem.read(fname)
-    if fdata then
-        local ok, data: boolean, ParticlesMap = serpent.load(fdata) as boolean, ParticlesMap
-        if ok then
-            for k, v in pairs(data) do
-                if particles[k] then
-                    print(string.format('override existing value [%s]. Be careful.', k))
-                end
-                particles[k] = v
-            end
-        else
-            print('parsing error', fname)
-        end
-    else
-        print('reading error', fname)
-    end
-end
---]]
 
 --[[
 local function updateCoroutines()
@@ -679,6 +654,43 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number,
 
     return self
     -- }}}
+end
+
+local function gather_verts(shape: Cm.cpShape): {number}
+    local num = pw.polyShapeGetCount(shape)
+    local verts = {}
+    for i = 0, num - 1 do
+        local vert = pw.polyShapeGetVert(shape, i)
+        table.insert(verts, vert.x)
+        table.insert(verts, vert.y)
+    end
+    return verts
+end
+
+local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
+    local shape_type = pw.polyShapeGetType(shape)
+    if shape_type == pw.CP_POLY_SHAPE then
+
+        --local body_wrap = pw.cpBody2Body(b)
+        --local tank = body_wrap.user_data as Tank
+
+        pipeline:open('poly_shape')
+        local verts = gather_verts(shape)
+        pipeline:push(verts)
+        pipeline:close()
+    end
+end
+--]]
+
+local function eachBody(b: Cm.cpBody)
+    local body = pw.cpBody2Body(b)
+    if body then
+        --print(colorize('%{green}' .. inspect(body)))
+        --print(colorize('%{yellow}' .. body:getInfoStr()))
+        pw.eachBodyShape(b, shapeIter)
+    else
+        --print(colorize('%{red}body is nil ' .. debug.traceback()))
+    end
 end
 
 --[[
@@ -905,59 +917,6 @@ end
 
 --local activeImage: integer = 1
 
---[[
-local function newParticleSystemWithDef(psdef: ParticleSystemDefinition): Graphics.ParticleSystem
-    local ps: love.graphics.ParticleSystem
-    ps = love.graphics.newParticleSystem(particlesImages[activeImage], maxParticlesNumber)
-
-    -- Particles live at least 2s and at most 5s.
-    ps:setParticleLifetime(psdef.lifetime1, psdef.lifetime2) 
-
-    ps:setEmissionRate(psdef.emissionRate)
-    ps:setSizeVariation(psdef.sizeVariation)
-
-    -- Random movement in all directions.
-    ps:setLinearAcceleration(
-        psdef.lineAcceleration[1],
-        psdef.lineAcceleration[2],
-        psdef.lineAcceleration[3],
-        psdef.lineAcceleration[4]
-    ) 
-
-    ps:setColors(
-        psdef.colors[1][1],
-        psdef.colors[1][2],
-        psdef.colors[1][3],
-        psdef.colors[1][4],
-        psdef.colors[2][1],
-        psdef.colors[2][2],
-        psdef.colors[2][3],
-        psdef.colors[2][4]
-    ) -- Fade to transparency.
-
-    local lifetime = 1.
-    local ok, errmsg: boolean, string = pcall(function()
-        --lifetime = load(psdef.emiterlifetimeexp)() as number
-        lifetime = rng:random() * 2
-    end)
-    if not ok then
-        print('pddef.emiterlifetimeexp compilation error', errmsg)
-    end
-    ps:setEmitterLifetime(lifetime)
-
-    --print('lifetime', lifetime)
-    --print('ps:hasRelativeRotation', ps:hasRelativeRotation())
-    --print('ps:getEmitterLifetime()', ps:getEmitterLifetime())
-    --print('getRotation()', ps:getRotation())
-
-    --ps:setRotation(-2*math.pi, 2*math.pi)
-    --ps:setRotation(-math.pi, math.pi)
-    --ps:setRotation(0, math.pi / 3)
-    ps:setRotation(psdef.rotation1, psdef.rotation2)
-    return ps
-end
---]]
-
 function Hit.new(x: number, y: number): Hit
     local Hit_mt: metatable<Hit> = {
         __index = Hit,
@@ -1087,6 +1046,7 @@ function Arena.new(fname: string): Arena
     local Arena_mt: metatable<Arena> = { __index = Arena }
     local self: Arena = setmetatable({} as Arena, Arena_mt)
 
+    --[[
     if fname and type(fname) == "string" then
         local edges: {Edge} = {}
         local filedata = love.filesystem.read(fname)
@@ -1111,6 +1071,7 @@ function Arena.new(fname: string): Arena
             self:createFixtures()
         end
     end
+    --]]
 
     self.objectType = "Arena"
 
@@ -1308,7 +1269,7 @@ local tank_width, tank_height = getTankSize()
 
 -- местоположение передавать в метрах
 -- направление шасси - нормализованный вектор
-function Tank.new(pos: vector, dir: vector): Tank
+function Tank.new(pos: vector, options: Tank.Options): Tank
     -- {{{
     local Tank_mt: metatable<Tank> = {
         __index = Tank,
@@ -1327,9 +1288,12 @@ function Tank.new(pos: vector, dir: vector): Tank
     self.strength = 1.
     self.fuel = 1.
     self.id = tankCounter
-    if not dir then
-        dir = vector.new(0, 0)
-    end
+    self.first_render = true
+
+    --if not dir then
+        --dir = vector.new(0, 0)
+    --end
+
     --self.dir = dir:clone()
 
     --self.pos = pos:clone()
@@ -1345,8 +1309,10 @@ function Tank.new(pos: vector, dir: vector): Tank
     --self.base.id = self.id
     --self.turret.id = self.id
 
-    self.body = pw.newBoxBody(tank_width, tank_height)
+    local body_options = options and options.body_opts
+    self.body = pw.newBoxBody(tank_width, tank_height, body_options)
     self.body:bodySetPosition(pos.x, pos.y)
+    self.body.user_data = self
 
     return self
     -- }}}
@@ -2130,6 +2096,7 @@ local function updateHits(dt: number)
 end
 --]]
 
+--[[
 local function terrain(mapn: integer, rez: integer)
     if not mapn then
         mapn = 8
@@ -2146,6 +2113,7 @@ local function terrain(mapn: integer, rez: integer)
 
     --diamondSquare.canvas:newImageData():encode('png', 'terrain.png')
 end
+--]]
 
 -- возвращает массив со значениями координат углов ландшафта в метрах по часовой
 -- стрелке от левого верхнего угла.
@@ -2182,7 +2150,7 @@ local function bindDeveloperKeys()
                 return false, sc
             end
 
-            terrain()
+            --terrain()
 
             return false, sc
         end,
@@ -2449,163 +2417,6 @@ local function spawnTank(pos: vector, dir: vector): Tank
     end
     return tanks[#tanks]
     -- }}}
-end
---]]
-
--- работает плохо, сбрасывается отладочное рисование
-function reset()
-    print('reset')
-    -- обрати внимание, происходит глобольная очистка клавиш
-    KeyConfig.clear()
-
-    --if physworld then
-        --physworld:destroy()
-        --print('physworld destroyed.')
-        --local object: love.Object = physworld as love.Object
-        --object:release()
-        --print('physworld object released.')
-        --physworld = nil
-    --end
-
-    tanks = {}
-    playerTank = nil
-    --bullets = {}
-
-    --baseBatch = Batch.new("tank_body_small.png")
-    --turretBatch = Batch.new("tank_tower.png")
-    --hangarBatch = Batch.new("hangar.png")
-
-    --pushDEBUG()
-    --mainInit()
-    --popDEBUG()
-end
-
-local function makeArmy()
-    -- {{{
-    --[[
-    local len = 7
-    local metersWidth = diamondSquare.width 
-    local metersHeight = diamondSquare.height
-    local numWidth = metersWidth / len 
-    local numHeight = metersHeight / len
-    for i = 0, len - 1 do
-        for j = 0, len - 1  do
-            --local angle = rng:random() * 2 * math.pi
-            --local angle = 0
-            --local posx, posy = i * numWidth, j * numHeight
-            --print('posx, posy', posx, posy)
-            --local pos = vector.new(i * numWidth * PIX2M, 
-                ---j * numHeight * PIX2M)
-            --spawnTank(pos, fromPolar(angle))
-        end
-    end
-    --]]
-
-    --[[ 
-    Непонятная ситуация с данныни. Как располагать танки по карте.
-    --]]
-
-    --[[
-    -- Применить свободное расположение.
-    for i = 1, 30 do
-        local angle = rng:random() * 2 * math.pi
-        spawnTank(vector.new(-100 * i, -100 * i), fromPolar(angle))
-    end
-    --]]
-
-    --local angle = rng:random() * 2 * math.pi
-    --spawnTank(vector.new(0, 0), fromPolar(angle))
-
-    --[[
-    spawnTank(vector.new(
-        diamondSquare.width * PIX2M, 
-        diamondSquare.height * PIX2M
-    ), fromPolar(angle))
-    spawnTank(vector.new(0, -diamondSquare.height * PIX2M), fromPolar(angle))
-    spawnTank(vector.new(-diamondSquare.width * PIX2M, 0), fromPolar(angle))
-    spawnTank(vector.new(
-        diamondSquare.width * PIX2M / 2, diamondSquare.height * PIX2M / 2), 
-        fromPolar(angle))
-    --]]
-
-    -- }}}
-end
-
---local navigatorIndex: integer
-local makeTank = false
-
---[[
-Попробовать сделать класс Navigator и другие классы через список обработчиков
---]]
---[[
-local function drawNavigator()
-    if not currentNavigator then
-        currentNavigator = tanks[1]
-    end
-
-    imgui.Begin('навигатор', false, "AlwaysAutoResize")
-
-    if imgui.Button('предыдущий') then
-        navigatorIndex = findTank(currentNavigator)
-        if navigatorIndex - 1 >= 1 then
-            navigatorIndex = navigatorIndex - 1
-        end
-    end
-
-    if imgui.Button('следующий') then
-        navigatorIndex = findTank(currentNavigator)
-        if navigatorIndex + 1 <= #tanks then
-            navigatorIndex = navigatorIndex + 1
-        end
-    end
-
-    if imgui.Button('включить движение') then
-        enableMovement()
-    end
-
-    if imgui.Button('остановить движение') then
-        -- как отключать ненужные корутины из списка?
-    end
-
-    if imgui.Button('сделать армию') then
-        makeArmy()
-    end
-
-    if imgui.Button('создать один танк по левому клику мыши') then
-        --
-        makeTank = true
-    end
-
-    if imgui.Button('удалить все танки') then
-        tanks = {}
-        bullets = {}
-        print("removed")
-    end
-
-    if imgui.Button('reset') then
-        reset()
-    end
-
-    currentNavigator = tanks[navigatorIndex]
-
-    moveCameraToTank(currentNavigator)
-    imgui.End()
-end
---]]
-
-local brushFunction: function(x: number, y: number)
-
---[[
-local function setupBrush(brush: Brush)
-    if brush == "Hangar" then
-        brushFunction = function()
-            local mx, my = cam:worldCoords(love.mouse.getPosition())
-            local pos = vector.new(mx * PIX2M, my * PIX2M)
-            spawnHangar(pos)
-        end
-    else
-        brushFunction = nil
-    end
 end
 --]]
 
@@ -2932,7 +2743,7 @@ local function drawCameraAxixes()
 end
 --]]
 
-local function render()
+local function renderScene()
     -- Ограничение кадров в секунду до 60
     local nt = love.timer.getTime()
     local pause = 1. / 400.
@@ -2940,20 +2751,19 @@ local function render()
 
     if diff >= pause then
         last_render = nt
-        --local msg = 'love.timer.getTime() = %f'
-        --print(colorize('%{blue}' .. format(msg, love.timer.getTime())))
+
+        pipeline:openAndClose('clear')
+
+        pipeline:open('set_transform')
+        pipeline:push(camera)
+        pipeline:close()
+
+        pw.eachSpaceBody(bodyIter)
+
+        pipeline:openAndClose('pop_transform')
 
         pipeline:sync()
     end
-    -- {{{
-
-    --local ok, errmsg: boolean, string = resume(drawCoro) as (boolean, string)
-    --if not ok then
-        --error("drawCoro thread is end: " .. errmsg)
-    --end
-
-    --drawCameraAxixes()
-    --konsolePresent()
 end
 
 local function updateTanks()
@@ -3407,28 +3217,149 @@ local function bindFullscreenSwitcher()
         -- }}}
 end
 
---[[
-local function createDrawCoroutine(): thread
-    return coroutine.create(function()
-        while true do
-            -- режим игрового меню
-            while showLogo == true do
-                --logo:present()
-            end
-            -- режим сражения
-            while showLogo == false do
-                mainPresent()
-            end
+local function initRenderCode()
+
+    pipeline:pushCode("poly_shape", [[
+    local col = {1, 0, 0, 1}
+    local inspect = require "inspect"
+
+    while true do
+        love.graphics.setColor(col)
+
+        local verts = graphic_command_channel:demand()
+        --local verts = graphic_command_channel:pop()
+        --print('verts', inspect(verts))
+        love.graphics.polygon('fill', verts)
+
+        coroutine.yield()
+    end
+    ]])
+
+    pipeline:pushCode('clear', [[
+    while true do
+        love.graphics.clear{0.5, 0.5, 0.5}
+        coroutine.yield()
+    end
+    ]])
+
+    pipeline:pushCode('set_transform', [[
+    local gr = love.graphics
+    local yield = coroutine.yield
+    while true do
+        gr.applyTransform(graphic_command_channel:demand())
+        yield()
+    end
+    ]])
+
+    pipeline:pushCode('pop_transform', [[
+    local gr = love.graphics
+    local yield = coroutine.yield
+    while true do
+        gr.origin()
+        yield()
+    end
+    ]])
+
+    pipeline:pushCode("poly_shape_smart", [[
+    local inspect = require 'inspect'
+    local col = {1, 0, 0, 1}
+
+    -- какое название лучше?
+    local hash = {}
+
+    local verts = nil
+    --local id = nil
+
+    while true do
+        love.graphics.setColor(col)
+
+        local id = graphic_command_channel:demand()
+        local cmd = graphic_command_channel:demand()
+
+        -- команды cmd:
+        -- new      - создать новый объект
+        -- draw     - рисовать существущий
+        -- ?????? draw_new - обновить координаты и рисовать ???????
+        -- remove   - удалить объект
+
+        if cmd == "new" then
+            verts = graphic_command_channel:demand()
+            hash[id] = verts
+        elseif cmd == "draw" then
+            verts = hash[id]
+        elseif cmd == "remove" then
+            hash[id] = nil
         end
-    end)
+
+        --print('id', id)
+        --print('cmd', cmd)
+        --print('verts', inspect(verts))
+
+        love.graphics.polygon('fill', verts)
+
+        coroutine.yield()
+    end
+    ]])
+
 end
---]]
 
---local effect: moonshine.Effect
---local effect: any
+local function eachShape_smart(b: Cm.cpBody, shape: Cm.cpShape)
+    --debug_print('phys', 'eachShape call')
+    --print('phys', 'eachShape call')
 
-function drawMiniMap()
+    local shape_type = pw.polyShapeGetType(shape)
 
+    if shape_type == pw.CP_POLY_SHAPE then
+
+        -- Возможно стоит поместить формирование таблички в 
+        -- вспомогательную библиотеку или переписать с прямым доступом к
+        -- shape->planes[i].v0
+
+        local body_wrap = pw.cpBody2Body(b)
+        local tank = body_wrap.user_data as Tank
+
+        if not tank then
+            error("tank is nil")
+        end
+
+        pipeline:open('poly_shape_smart')
+        pipeline:push(tank.id)
+
+        if tank.first_render then
+            local verts = gather_verts(shape)
+            pipeline:push('new')
+            pipeline:push(verts)
+
+            --tank.first_render = false
+
+            --tank.prev_posx = body_wrap.body.p.x
+            --tank.prev_posy = body_wrap.body.p.y
+        else
+            -- сравнивать не только линейную скорость, но и угловую
+            local len = vecl.len(b.v.x, b.v.y)
+            local epsilon = 0.0001 
+            if len < epsilon then
+                pipeline:push('draw')
+                --print('draw')
+            else
+                --pipeline:push('draw')
+                local verts = gather_verts(shape)
+                pipeline:push('new')
+                pipeline:push(verts)
+                tank.first_render = true
+            end
+
+        end
+
+        pipeline:close()
+    end
+    --]]
+end
+
+local function initPhysIterators()
+    bodyIter = pw.newEachSpaceBodyIter(eachBody)
+    --shapeIter = pw.newEachBodyShapeIter(eachShape)
+    shapeIter = pw.newEachBodyShapeIter(eachShape_smart)
 end
 
 local function init()
@@ -3436,7 +3367,12 @@ local function init()
     print('init started')
 
     metrics.init()
+
+    pw.init(pipeline)
+
     initJoy()
+    initRenderCode()
+    initPhysIterators()
 
     --setWindowMode()
 
@@ -3463,8 +3399,7 @@ local function init()
     --initParticles(particlesfname)
 
     arena = Arena.new("arena.lua")
-    terrain()
-    makeArmy()
+    --terrain()
     local corners = getTerrainCorners()
     if corners then
         for _, c in ipairs(corners) do
@@ -3477,8 +3412,6 @@ local function init()
     --playerTank = spawnTank(herostartpos, fromPolar(alpha))
 
     --bindPlayerTankKeys()
-
-    pw.init(pipeline)
 
     --enableDEBUG()
     --disableDEBUG()
@@ -3616,22 +3549,73 @@ end
 local state: State = 'map'
 
 local function spawnTanks()
+    local options: Tank.Options = {
+        body_opts = {
+            use_print = false,
+        },
+    }
+
     local tanks_num = 500
-    local minx, miny = -2000, -20000
-    local maxx, maxy = 20000, 20000
+
+    local minx, maxx = 0, 4000
+    local miny, maxy = 0, 4000
+
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-        local tank = Tank.new(vec2(px, py))
+        local tank = Tank.new(vec2(px, py), options)
         table.insert(tanks, tank)
     end
 end
 
+-- применять dt с прошлого кадра или dt полученный из pipeline?
+local function cameraScale(j: joystick.Joystick)
+    local axes = {j:getAxes()}
+    local dy = axes[2]
+    local factor = 0.01
+    if dy > 0 then
+        camera:scale(1 + factor, 1 + factor)
+    elseif dy < 0 then
+        camera:scale(1 - factor, 1 - factor)
+    end
+end
+
+-- применять dt с прошлого кадра или dt полученный из pipeline?
+local function cameraMovement(j: joystick.Joystick)
+    local axes = {j:getAxes()}
+    local dx, dy = axes[4], axes[5]
+    local amount_x, amount_y = 10, 10
+    local tx, ty = 0, 0
+    local changed = false
+
+    if dx > 0 then
+        changed = true
+        tx = -amount_x
+    elseif dx < 0 then
+        changed = true
+        tx = amount_x
+    end
+
+    if dy > 0 then
+        changed = true
+        ty = -amount_y
+    elseif dy < 0 then
+        changed = true
+        ty = amount_y
+    end
+
+    if changed then
+        camera:translate(tx, ty)
+    end
+end
+
 local stateCoro: thread = coroutine.create(function(dt: number)
+
     spawnTanks()
+
     while true do
         if state == 'map' then
             process_events()
-            render()
+            renderScene()
             updateTanks()
 
             ------------ UPDATE HERE PLEASE ------------ 
@@ -3642,6 +3626,9 @@ local stateCoro: thread = coroutine.create(function(dt: number)
             --updateHits(dt)
             --updateCoroutines()
             --arena:update()
+
+            cameraScale(joy)
+            cameraMovement(joy)
 
             moveCamera()
 
