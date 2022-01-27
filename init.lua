@@ -2757,9 +2757,10 @@ local function renderScene()
       pipeline:push(camera)
       pipeline:close()
 
+      pipeline:open('poly_shape_smart_tex')
 
-      pw.eachSpaceBody(bodyIter)
-
+      pipeline:push('flush')
+      pipeline:close()
 
       pipeline:openAndClose('pop_transform')
 
@@ -3358,29 +3359,38 @@ local function initRenderCode()
     while true do
         love.graphics.setColor {1, 1, 1, 1}
 
-        local id = graphic_command_channel:demand()
         local cmd = graphic_command_channel:demand()
+
+        -- Примеры последовательности данных в канале:
+        -- имя команды, идентификатор объекта, вершины
+        -- имя команды, идентификатор объекта 
+        -- имя команды
 
         -- команды cmd:
         -- new      - создать новый объект
         -- draw     - рисовать существущий
-        -- ?????? draw_new - обновить координаты и рисовать ???????
         -- remove   - удалить объект
+        -- flush    - нарисовать все
 
         if cmd == "new" then
+            local id = graphic_command_channel:demand()
             verts = graphic_command_channel:demand()
             hash[id] = verts
         elseif cmd == "draw" then
+            local id = graphic_command_channel:demand()
             verts = hash[id]
         elseif cmd == "remove" then
+            local id = graphic_command_channel:demand()
             hash[id] = nil
+        elseif cmd == 'flush' then
+            love.graphics.draw(mesh)
         end
 
         --print('id', id)
         --print('cmd', cmd)
         --print('verts', inspect(verts))
 
-        love.graphics.polygon('fill', verts)
+        --love.graphics.polygon('fill', verts)
 
         yield()
     end
@@ -3415,13 +3425,10 @@ local function eachShape_smart(b, shape)
          error("tank is nil")
       end
 
-
-      pipeline:open('poly_shape_smart_tex')
-      pipeline:push(tank.id)
-
       if tank.first_render then
          local verts = gather_verts(shape)
          pipeline:push('new')
+         pipeline:push(tank.id)
          pipeline:push(verts)
 
 
@@ -3434,18 +3441,17 @@ local function eachShape_smart(b, shape)
          local epsilon = 0.0001
          if len < epsilon then
             pipeline:push('draw')
-
+            pipeline:push(tank.id)
          else
-
             local verts = gather_verts(shape)
             pipeline:push('new')
             pipeline:push(verts)
             tank.first_render = true
          end
 
-      end
 
-      pipeline:close()
+
+      end
    end
 
 end
