@@ -1,32 +1,29 @@
 local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
+
+local dprint = require('debug_print')
+local debug_print = dprint.debug_print
+dprint.set_filter({
+   [1] = { "joy" },
+   [2] = { 'phys' },
+   [3] = { "thread", 'someName' },
+   [4] = { "graphics" },
+   [5] = { "input" },
+   [6] = { "verts" },
+
+
+
+
+})
+
+
 local colorize = require('ansicolors2').ansicolors
-local inspect = require("inspect")
-
-local debug_print = print
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-debug_print('thread', colorize('%{yellow}>>>>>%{reset} chipmunk_mt started'))
+debug_print('thread', colorize('%{yellow}>>>>>%{reset} t80 started'))
 
 require("love_inc").require_pls_nographic()
 
-print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
+debug_print('thread', 'love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
 
 local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
@@ -38,17 +35,18 @@ print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
 require('konstants')
 require('joystate')
-require("love")
 require('pipeline')
-require("tabular")
 require("common")
 require("keyconfig")
-require("vector")
-require("Timer")
-require("imgui")
-require('render')
 
-require('profi')
+local IMGUI = false
+if love.system.getOS() == 'Linux' then
+   require("imgui")
+   IMGUI = true
+end
+
+
+
 require("love")
 
 
@@ -56,38 +54,29 @@ require("love")
 
 
 
+local inspect = require("inspect")
 local serpent = require('serpent')
-
-i18n = require("i18n")
+local i18n = require("i18n")
 local metrics = require("metrics")
-vec2 = require("vector")
-vecl = require("vector-light")
-inspect = require("inspect")
-tabular = require("tabular")
+local vec2 = require("vector")
+local vecl = require("vector-light")
+local tabular = require("tabular")
 local pw = require("physics_wrapper")
 
 
 local pipeline = Pipeline.new(SCENE_PREFIX)
+
 
 local arrow = require('arrow')
 arrow.init(pipeline)
 
 
 
-local Filesystem = love.filesystem
-
-local Graphics = love.graphics
-
-local gr = love.graphics
-
 local Shortcut = KeyConfig.Shortcut
-local profi = require('profi')
 
 
 
-local abs, pow, sqrt = math.abs, math.pow, math.sqrt
 
-local yield = coroutine.yield
 
 
 local joyState
@@ -110,16 +99,6 @@ local ObjectType = {}
 
 
 
-
-
-
-
-
-
-
-
-
-local Background = {}
 
 
 
@@ -225,6 +204,12 @@ local Hangar = {}
 
 
 local Tank = {}
+
+
+
+
+
+
 
 
 
@@ -473,11 +458,6 @@ local Hit = {}
 
 
 
-print('55555555')
-
-
-local particlesfname = "particles-def.lua"
-
 
 maxParticlesNumber = 512
 
@@ -525,18 +505,12 @@ attachedVarsList = {}
 
 
 
-
-print('44444444444444')
-
-
-
-
-
+require("Timer")
 
 
 local camTimer = require("Timer").new()
 
-local drawCoro = nil
+
 showLogo = true
 
 playerTankKeyconfigIds = {}
@@ -568,15 +542,17 @@ require('logo')
 
 
 
-bullets = {}
 
 
 
 
-bulletLifetime = 35
 
-tankCounter = 0
-rng = love.math.newRandomGenerator()
+
+
+
+local tankCounter = 0
+
+local rng = love.math.newRandomGenerator()
 
 
 
@@ -600,7 +576,7 @@ local drawTerrain = true
 
 maxTrackCount = 128
 hits = {}
-local coroutines = {}
+
 
 local event_channel = love.thread.getChannel("event_channel")
 local main_channel = love.thread.getChannel("main_channel")
@@ -649,10 +625,6 @@ end
 
 
 
-
-local function writeParticles(fname)
-   Filesystem.write(fname, serpent.dump(particles))
-end
 
 
 
@@ -1249,9 +1221,9 @@ end
 
 function Tank:fire()
 
-   if self.turret then
-      self.turret:fire()
-   end
+
+
+
 
 end
 
@@ -1307,20 +1279,32 @@ end
 
 
 function Tank:left()
-   self.base:left()
+
 end
 
 function Tank:right()
-   self.base:right()
+
 end
 
 function Tank:forward()
-   self.base:forward()
+
 end
 
 function Tank:backward()
-   self.base:backward()
+
 end
+
+local function getTankSize()
+   local base_tex_fname = '/tank_body.png'
+   local path = SCENE_PREFIX .. base_tex_fname
+   local image = love.image.newImageData(path)
+   if not image then
+      error('Could not load base_tex_fname: ' .. path)
+   end
+   return image:getDimensions()
+end
+
+local tank_width, tank_height = getTankSize()
 
 
 
@@ -1340,29 +1324,29 @@ function Tank.new(pos, dir)
 
 
 
-
-
-
-
    self.strength = 1.
    self.fuel = 1.
    self.id = tankCounter
    if not dir then
       dir = vector.new(0, 0)
    end
-   self.dir = dir:clone()
 
-   self.pos = pos
+
+
+
    self.color = { 1, 1, 1, 1 }
 
-   self.base = Base.new(self)
-
-   self.turret = Turret.new(self)
 
 
 
-   self.base.id = self.id
-   self.turret.id = self.id
+
+
+
+
+
+
+   self.body = pw.newBoxBody(tank_width, tank_height)
+   self.body:bodySetPosition(pos.x, pos.y)
 
    return self
 
@@ -1448,15 +1432,17 @@ function Base:processTracks()
 
 end
 
-local function removeTank(tank)
-   for k, v in ipairs(tanks) do
-      if v == tank then
-         table.remove(tanks, k)
-         print('tank removed. allright')
-         break
-      end
-   end
-end
+
+
+
+
+
+
+
+
+
+
+
 
 function Tank:update()
 
@@ -1464,28 +1450,30 @@ function Tank:update()
 
 
    if self.strength <= 0. then
-      table.insert(coroutines, coroutine.create(function()
-         print('tank died')
-         yield()
 
 
 
 
 
-         removeTank(self)
-      end))
+
+
+
+
+
+
+
       return self
    end
 
-   if self.turret then
-      self.turret:update()
-      if not self.turret.filterdata then
 
-      end
-   end
-   if self.base then
-      self.base:update()
-   end
+
+
+
+
+
+
+
+
 
    return self
 
@@ -1539,35 +1527,6 @@ end
 
 
 function Tank:present()
-
-   if self.base and self.base.present then
-      self.base:present()
-   else
-      colprint('Tank ' .. self.id .. ' is damaged. No base.')
-   end
-   if self.turret and self.turret.present then
-      self.turret:present()
-
-   else
-      colprint('Tank ' .. self.id .. ' is damaged. No turret.')
-   end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1934,15 +1893,17 @@ function Base:pushTrack()
 end
 
 function Base:drawTrack()
-   local linew = 2
-   local olw = gr.getLineWidth()
-   gr.setLineWidth(linew)
-   gr.setColor({ 0, 0, 0, 1 })
-   for _, v in ipairs(self.track) do
-      gr.line(v[1], v[2], v[3], v[4])
-      gr.line(v[5], v[6], v[7], v[8])
-   end
-   gr.setLineWidth(olw)
+
+
+
+
+
+
+
+
+
+
+
 end
 
 
@@ -1950,14 +1911,17 @@ end
 
 
 
-function Tank:damage(bullet)
-   local bulx, buly = bullet.physbody:getWorldCenter()
-   local px, py = bullet.px, bullet.py
-   local len = sqrt(pow(abs(bulx - px), 2) + pow(abs(buly - py), 2))
-   print('len', len)
-   local damage = 0.25
-   self.strength = self.strength - damage
-   print('strength', self.strength)
+function Tank:damage(_)
+
+
+
+
+
+
+
+
+
+
 end
 
 
@@ -2135,7 +2099,6 @@ local function loadLocales()
 
 end
 
-local function drawHits()
 
 
 
@@ -2156,7 +2119,8 @@ local function drawHits()
 
 
 
-end
+
+
 
 
 
@@ -2343,13 +2307,13 @@ end
 
 
 
-local function changeKeyConfigListbackground()
 
 
 
 
 
-end
+
+
 
 
 
@@ -2469,22 +2433,24 @@ local function spawnHangar(pos)
 end
 
 
-local function spawnTank(pos, dir)
-
-   local ok, errmsg = pcall(function()
-      if #tanks >= 1 then
 
 
-      end
-      table.insert(tanks, Tank.new(pos, dir))
-      print("Tank spawn at", pos.x, pos.y)
-   end)
-   if not ok then
-      error("Could'not load. Please implement stub-tank. " .. errmsg)
-   end
-   return tanks[#tanks]
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 function reset()
@@ -2503,7 +2469,7 @@ function reset()
 
    tanks = {}
    playerTank = nil
-   bullets = {}
+
 
 
 
@@ -2547,8 +2513,8 @@ local function makeArmy()
 
 
 
-   local angle = rng:random() * 2 * math.pi
-   spawnTank(vector.new(0, 0), fromPolar(angle))
+
+
 
 
 
@@ -2904,7 +2870,6 @@ end
 
 
 
-local function mainPresent()
 
 
 
@@ -2930,7 +2895,6 @@ local function mainPresent()
 
 
 
-   drawHits()
 
 
 
@@ -2941,10 +2905,12 @@ local function mainPresent()
 
 
 
-   changeKeyConfigListbackground()
 
-   yield()
-end
+
+
+
+
+
 
 
 
@@ -3441,20 +3407,22 @@ local function bindFullscreenSwitcher()
 
 end
 
-local function createDrawCoroutine()
-   return coroutine.create(function()
-      while true do
 
-         while showLogo == true do
 
-         end
 
-         while showLogo == false do
-            mainPresent()
-         end
-      end
-   end)
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3488,7 +3456,7 @@ local function init()
    bindTerrainControlKeys()
    bindDeveloperKeys()
 
-   drawCoro = createDrawCoroutine()
+
 
 
 
@@ -3524,12 +3492,10 @@ end
 
 local function quit()
 
-   profi:writeReport("t80-profiling.txt")
-   print('profi report was writtent')
    metrics.quit()
    unbindPlayerTankKeys()
    tanks = {}
-   writeParticles(particlesfname)
+
 
 end
 
@@ -3550,35 +3516,6 @@ end
 local function mousepressed(x, y, btn)
 
    metrics.mousepressed(x, y, btn)
-   if mode == 'normal' then
-      if btn == 1 then
-         if makeTank then
-
-
-
-            x, y = x * PIX2M, y * PIX2M
-            local dir = fromPolar(rng:random() * math.pi)
-            print('dir', inspect(dir))
-
-            spawnTank(vector.new(x, y))
-            makeTank = false
-         else
-            if playerTank then
-               playerTank:fire()
-            end
-         end
-      end
-
-
-
-
-
-   elseif mode == 'editor' then
-      arena:mousepressed(x, y, btn)
-      if btn == 1 and brushFunction then
-         brushFunction(x, y)
-      end
-   end
 
 end
 
@@ -3671,45 +3608,66 @@ local function process_events()
    end
 end
 
+local State = {}
+
+
+
+
+local state = 'map'
+
+local function spawnTanks()
+   local tanks_num = 500
+   local minx, miny = -2000, -20000
+   local maxx, maxy = 20000, 20000
+   for _ = 1, tanks_num do
+      local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
+      local tank = Tank.new(vec2(px, py))
+      table.insert(tanks, tank)
+   end
+end
+
+local stateCoro = coroutine.create(function(dt)
+   spawnTanks()
+   while true do
+      if state == 'map' then
+         process_events()
+         render()
+         updateTanks()
+
+
+         camTimer:update(dt)
+
+
+
+
+
+
+
+         moveCamera()
+
+
+         pw.update(dt)
+
+         updateJoyState()
+
+         dt = coroutine.yield()
+      elseif state == 'garage' then
+
+      end
+
+   end
+end)
+
 local function mainloop()
    local last_time = love.timer.getTime()
    while not is_stop do
-      process_events()
-      render()
-
       local now_time = love.timer.getTime()
       local dt = now_time - last_time
 
-
-      camTimer:update(dt)
-
-
-
-
-
-
-
-      updateTanks()
-
-
-
-
-
-
-
-      moveCamera()
-
-
-
-
-
-
-
-
-
-
-
-      updateJoyState()
+      local ok, errmsg = coroutine.resume(stateCoro, dt)
+      if not ok then
+         error('stateCoro: ' .. errmsg)
+      end
 
       local timeout = 0.0001
       love.timer.sleep(timeout)
