@@ -1255,9 +1255,10 @@ function Tank:backward()
 
 end
 
+local base_tex_fname = 'tank_body.png'
+
 local function getTankSize()
-   local base_tex_fname = '/tank_body.png'
-   local path = SCENE_PREFIX .. base_tex_fname
+   local path = SCENE_PREFIX .. '/' .. base_tex_fname
    local image = love.image.newImageData(path)
    if not image then
       error('Could not load base_tex_fname: ' .. path)
@@ -1281,8 +1282,6 @@ function Tank.new(pos, options)
    local self = setmetatable({}, Tank_mt)
 
    tankCounter = tankCounter + 1
-
-
 
 
    self.strength = 1.
@@ -2758,7 +2757,9 @@ local function renderScene()
       pipeline:push(camera)
       pipeline:close()
 
+
       pw.eachSpaceBody(bodyIter)
+
 
       pipeline:openAndClose('pop_transform')
 
@@ -3262,13 +3263,31 @@ local function initRenderCode()
 
    pipeline:pushCode("poly_shape_smart", [[
     local inspect = require 'inspect'
+    local serpent = require 'serpent'
     local col = {1, 0, 0, 1}
 
-    -- какое название лучше?
-    local hash = {}
+    local texture_msg = graphic_command_channel:demand()
 
+    --local struct
+    --local ok, errmsg = pcall(function()
+        --struct = load()
+    --end)
+    --if not ok then
+        --error('Could not load texture_msg', texture_msg)
+    --end
+    --if struct.check ~= 'texture' then
+        --error('Bad struct for texture loading')
+    --end
+
+    local path = SCENE_PREFIX .. '/' .. texture_msg
+    print('path', path)
+    local texture = love.graphics.newImage(path)
+    
+    local yield = coroutine.yield
+    yield()
+
+    local hash = {}
     local verts = nil
-    --local id = nil
 
     while true do
         love.graphics.setColor(col)
@@ -3297,10 +3316,84 @@ local function initRenderCode()
 
         love.graphics.polygon('fill', verts)
 
-        coroutine.yield()
+        yield()
     end
     ]])
 
+   pipeline:pushCode("poly_shape_smart_tex", [[
+    local inspect = require 'inspect'
+    local serpent = require 'serpent'
+    local yield = coroutine.yield
+    local color = {1, 1, 1, 1}
+
+    local texture_msg = graphic_command_channel:demand()
+    if type(texture_msg) ~= 'string' then
+        error('Wrong texture type')
+    end
+
+    local mesh_size = 1024
+    local mesh = love.graphics.newMesh(mesh_size * 6, "triangles", "dynamic")
+    local mesh_verts: {{number}} = {}
+
+    local path = SCENE_PREFIX .. '/' .. texture_msg
+    print('path', path)
+    local texture = love.graphics.newImage(path)
+
+    mesh:setTexture(texture)
+    ---------------------------------------------------------------------
+    ---------------------------------------------------------------------
+    ---------------------------------------------------------------------
+    ---------------------------------------------------------------------
+
+    yield()
+
+    ---------------------------------------------------------------------
+    ---------------------------------------------------------------------
+    ---------------------------------------------------------------------
+    ---------------------------------------------------------------------
+
+    local hash = {}
+    local verts = nil
+
+    while true do
+        love.graphics.setColor {1, 1, 1, 1}
+
+        local id = graphic_command_channel:demand()
+        local cmd = graphic_command_channel:demand()
+
+        -- команды cmd:
+        -- new      - создать новый объект
+        -- draw     - рисовать существущий
+        -- ?????? draw_new - обновить координаты и рисовать ???????
+        -- remove   - удалить объект
+
+        if cmd == "new" then
+            verts = graphic_command_channel:demand()
+            hash[id] = verts
+        elseif cmd == "draw" then
+            verts = hash[id]
+        elseif cmd == "remove" then
+            hash[id] = nil
+        end
+
+        --print('id', id)
+        --print('cmd', cmd)
+        --print('verts', inspect(verts))
+
+        love.graphics.polygon('fill', verts)
+
+        yield()
+    end
+    ]])
+
+end
+
+local function initTextures()
+   pipeline:open('poly_shape_smart_tex')
+   pipeline:push(base_tex_fname)
+   pipeline:close()
+
+   pipeline:sync()
 end
 
 local function eachShape_smart(b, shape)
@@ -3322,7 +3415,8 @@ local function eachShape_smart(b, shape)
          error("tank is nil")
       end
 
-      pipeline:open('poly_shape_smart')
+
+      pipeline:open('poly_shape_smart_tex')
       pipeline:push(tank.id)
 
       if tank.first_render then
@@ -3372,6 +3466,7 @@ local function init()
 
    initJoy()
    initRenderCode()
+   initTextures()
    initPhysIterators()
 
 
