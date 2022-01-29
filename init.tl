@@ -2758,7 +2758,7 @@ local function renderScene()
         pipeline:close()
 
         pipeline:open('poly_shape_smart_tex')
-        --pw.eachSpaceBody(bodyIter)
+        pw.eachSpaceBody(bodyIter)
         pipeline:push('flush')
         pipeline:close()
 
@@ -3333,6 +3333,8 @@ local function initRenderCode()
     end
 
     local mesh_size = 1024
+    -- TODO Использовать соединенные треугольники
+    --local mesh = love.graphics.newMesh(mesh_size * 6, "strip", "dynamic")
     local mesh = love.graphics.newMesh(mesh_size * 6, "triangles", "dynamic")
     local mesh_verts: {{number}} = {}
 
@@ -3361,6 +3363,8 @@ local function initRenderCode()
 
         local cmd = graphic_command_channel:demand()
 
+        print('cmd', cmd)
+
         -- Примеры последовательности данных в канале:
         -- имя команды, идентификатор объекта, вершины
         -- имя команды, идентификатор объекта 
@@ -3373,24 +3377,32 @@ local function initRenderCode()
         -- flush    - нарисовать все
 
         if cmd == "new" then
+            print('new')
             local id = graphic_command_channel:demand()
+            print('id', id)
             verts = graphic_command_channel:demand()
             hash[id] = verts
         elseif cmd == "draw" then
+            print('draw')
             local id = graphic_command_channel:demand()
+            print('id', id)
             verts = hash[id]
         elseif cmd == "remove" then
+            print('remove')
             local id = graphic_command_channel:demand()
             hash[id] = nil
         elseif cmd == 'flush' then
+            print('flush')
             love.graphics.draw(mesh)
         end
 
         --print('id', id)
         --print('cmd', cmd)
-        --print('verts', inspect(verts))
+        print('verts', inspect(verts))
 
-        --love.graphics.polygon('fill', verts)
+        if verts then
+            love.graphics.polygon('fill', verts)
+        end
 
         yield()
     end
@@ -3427,9 +3439,12 @@ local function eachShape_smart(b: Cm.cpBody, shape: Cm.cpShape)
 
         if tank.first_render then
             local verts = gather_verts(shape)
+
+            --print('init.tl - verts', inspect(verts))
+
             pipeline:push('new')
             pipeline:push(tank.id)
-            pipeline:push(verts)
+            --pipeline:push(verts)
 
             --tank.first_render = false
 
@@ -3439,14 +3454,18 @@ local function eachShape_smart(b: Cm.cpBody, shape: Cm.cpShape)
             -- сравнивать не только линейную скорость, но и угловую
             local len = vecl.len(b.v.x, b.v.y)
             local epsilon = 0.0001 
+
+            pipeline:push('draw')
+            pipeline:push(tank.id)
+
             if len < epsilon then
-                pipeline:push('draw')
-                pipeline:push(tank.id)
+                --pipeline:push('draw')
+                --pipeline:push(tank.id)
             else
-                local verts = gather_verts(shape)
-                pipeline:push('new')
-                pipeline:push(verts)
-                tank.first_render = true
+                --local verts = gather_verts(shape)
+                --pipeline:push('new')
+                --pipeline:push(verts)
+                --tank.first_render = true
             end
 
             --]]
