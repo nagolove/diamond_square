@@ -4,6 +4,7 @@ local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 th
 
 local dprint = require('debug_print')
 local debug_print = dprint.debug_print
+
 dprint.set_filter({
    [1] = { "joy" },
    [2] = { 'phys' },
@@ -54,6 +55,7 @@ require("love")
 
 
 
+local sformat = string.format
 local inspect = require("inspect")
 local serpent = require('serpent')
 local i18n = require("i18n")
@@ -665,6 +667,16 @@ local function gather_verts(shape)
       table.insert(verts, vert.y)
    end
    return verts
+end
+
+local function print_io_rate()
+   local bytes = pipeline:get_received_in_sec()
+   local msg = sformat("received_in_sec = %d", math.floor(bytes / 1024))
+   pipeline:open('formated_text')
+   pipeline:push(msg)
+   pipeline:push(0)
+   pipeline:push(140)
+   pipeline:close()
 end
 
 local function eachShape(b, shape)
@@ -2764,6 +2776,9 @@ local function renderScene()
 
       pipeline:openAndClose('pop_transform')
 
+      print_io_rate()
+
+
       pipeline:sync()
    end
 end
@@ -3262,7 +3277,26 @@ local function initRenderCode()
     end
     ]])
 
-   pipeline:pushCode("poly_shape_smart", [[
+   pipeline:pushCode('formated_text', [[
+    local font = love.graphics.newFont(24)
+    while true do
+        local old_font = love.graphics.getFont()
+
+        love.graphics.setColor{0, 0, 0}
+        love.graphics.setFont(font)
+
+        local msg = graphic_command_channel:demand()
+        local x = math.floor(graphic_command_channel:demand())
+        local y = math.floor(graphic_command_channel:demand())
+        love.graphics.print(msg, x, y)
+
+        love.graphics.setFont(old_font)
+
+        coroutine.yield()
+    end
+    ]])
+
+   pipeline:pushCode("poly_shape_smart_UNUSED", [[
     local inspect = require 'inspect'
     local serpent = require 'serpent'
     local col = {1, 0, 0, 1}
@@ -3327,10 +3361,10 @@ local function initRenderCode()
     local yield = coroutine.yield
     local color = {1, 1, 1, 1}
 
-    local texture_msg = graphic_command_channel:demand()
-    if type(texture_msg) ~= 'string' then
-        error('Wrong texture type')
-    end
+    --local texture_msg = graphic_command_channel:demand()
+    --if type(texture_msg) ~= 'string' then
+        --error('Wrong texture type')
+    --end
 
     local mesh_size = 1024
     -- TODO Использовать соединенные треугольники
@@ -3338,17 +3372,17 @@ local function initRenderCode()
     local mesh = love.graphics.newMesh(mesh_size * 6, "triangles", "dynamic")
     local mesh_verts: {{number}} = {}
 
-    local path = SCENE_PREFIX .. '/' .. texture_msg
-    print('path', path)
-    local texture = love.graphics.newImage(path)
+    --local path = SCENE_PREFIX .. '/' .. texture_msg
+    --print('path', path)
+    --local texture = love.graphics.newImage(path)
+    --mesh:setTexture(texture)
 
-    mesh:setTexture(texture)
     ---------------------------------------------------------------------
     ---------------------------------------------------------------------
     ---------------------------------------------------------------------
     ---------------------------------------------------------------------
 
-    yield()
+    --yield()
 
     ---------------------------------------------------------------------
     ---------------------------------------------------------------------
@@ -3361,9 +3395,7 @@ local function initRenderCode()
     while true do
         love.graphics.setColor {1, 1, 1, 1}
 
-        local cmd = graphic_command_channel:demand()
-
-        print('cmd', cmd)
+        local cmd
 
         -- Примеры последовательности данных в канале:
         -- имя команды, идентификатор объекта, вершины
@@ -3376,25 +3408,38 @@ local function initRenderCode()
         -- remove   - удалить объект
         -- flush    - нарисовать все
 
-        if cmd == "new" then
-            print('new')
-            local id = graphic_command_channel:demand()
-            print('id', id)
-            verts = graphic_command_channel:demand()
-            hash[id] = verts
-        elseif cmd == "draw" then
-            print('draw')
-            local id = graphic_command_channel:demand()
-            print('id', id)
-            verts = hash[id]
-        elseif cmd == "remove" then
-            print('remove')
-            local id = graphic_command_channel:demand()
-            hash[id] = nil
-        elseif cmd == 'flush' then
-            print('flush')
-            love.graphics.draw(mesh)
-        end
+        repeat
+            cmd = graphic_command_channel:demand()
+            --print('cmd', cmd)
+
+            if cmd == "new" then
+                local id = graphic_command_channel:demand()
+                verts = graphic_command_channel:demand()
+                hash[id] = verts
+
+                --print('new')
+                --print('id', id)
+
+            elseif cmd == "draw" then
+                local id = graphic_command_channel:demand()
+                verts = hash[id]
+
+                --print('draw')
+                --print('id', id)
+
+            elseif cmd == "remove" then
+                local id = graphic_command_channel:demand()
+                hash[id] = nil
+
+                --print('remove')
+
+            elseif cmd == 'flush' then
+                --love.graphics.draw(mesh)
+                --print('flush')
+                break
+            end
+
+        until not cmd
 
         --print('id', id)
         --print('cmd', cmd)
@@ -3444,7 +3489,7 @@ local function eachShape_smart(b, shape)
 
          pipeline:push('new')
          pipeline:push(tank.id)
-
+         pipeline:push(verts)
 
 
 
@@ -3491,7 +3536,7 @@ local function init()
 
    initJoy()
    initRenderCode()
-   initTextures()
+
    initPhysIterators()
 
 
@@ -3675,10 +3720,13 @@ local function spawnTanks()
       },
    }
 
-   local tanks_num = 500
 
-   local minx, maxx = 0, 4000
-   local miny, maxy = 0, 4000
+   local tanks_num = 10
+
+
+
+   local minx, maxx = 0, 1000
+   local miny, maxy = 0, 1000
 
    for _ = 1, tanks_num do
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
