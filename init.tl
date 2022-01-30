@@ -3439,15 +3439,15 @@ local function initRenderCode()
                 break
             end
 
-        until not cmd
-
         --print('id', id)
         --print('cmd', cmd)
-        print('verts', inspect(verts))
+        --print('verts', inspect(verts))
 
         if verts then
             love.graphics.polygon('fill', verts)
         end
+
+        until not cmd
 
         yield()
     end
@@ -3496,20 +3496,22 @@ local function eachShape_smart(b: Cm.cpBody, shape: Cm.cpShape)
             --tank.prev_posx = body_wrap.body.p.x
             --tank.prev_posy = body_wrap.body.p.y
         else
-            -- сравнивать не только линейную скорость, но и угловую
+            -- TODO сравнивать не только линейную скорость, но и угловую
             local len = vecl.len(b.v.x, b.v.y)
+            print('len', len)
             local epsilon = 0.0001 
 
             pipeline:push('draw')
             pipeline:push(tank.id)
 
             if len < epsilon then
-                --pipeline:push('draw')
-                --pipeline:push(tank.id)
+                pipeline:push('draw')
+                pipeline:push(tank.id)
             else
-                --local verts = gather_verts(shape)
-                --pipeline:push('new')
-                --pipeline:push(verts)
+                local verts = gather_verts(shape)
+                pipeline:push('new')
+                pipeline:push(tank.id)
+                pipeline:push(verts)
                 --tank.first_render = true
             end
 
@@ -3720,13 +3722,13 @@ local function spawnTanks()
         },
     }
 
-    --local tanks_num = 500
-    local tanks_num = 10
+    local tanks_num = 500
+    --local tanks_num = 10
 
-    --local minx, maxx = 0, 4000
-    --local miny, maxy = 0, 4000
-    local minx, maxx = 0, 1000
-    local miny, maxy = 0, 1000
+    local minx, maxx = 0, 4000
+    local miny, maxy = 0, 4000
+    --local minx, maxx = 0, 1000
+    --local miny, maxy = 0, 1000
 
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
@@ -3735,11 +3737,11 @@ local function spawnTanks()
     end
 end
 
--- применять dt с прошлого кадра или dt полученный из pipeline?
-local function cameraScale(j: joystick.Joystick)
+-- как лучше учитывать положение джойстика что-бы не было рывков?
+local function cameraScale(j: joystick.Joystick, dt: number)
     local axes = {j:getAxes()}
     local dy = axes[2]
-    local factor = 0.01
+    local factor = 1 * dt
     if dy > 0 then
         camera:scale(1 + factor, 1 + factor)
     elseif dy < 0 then
@@ -3747,12 +3749,13 @@ local function cameraScale(j: joystick.Joystick)
     end
 end
 
--- применять dt с прошлого кадра или dt полученный из pipeline?
-local function cameraMovement(j: joystick.Joystick)
+-- добавить инерцию к камере
+local function cameraMovement(j: joystick.Joystick, dt: number)
     local axes = {j:getAxes()}
     local dx, dy = axes[4], axes[5]
-    local amount_x, amount_y = 10, 10
-    local tx, ty = 0, 0
+    -- количество пикселей на которые передвигается камера
+    local amount_x, amount_y = 3000 * dt, 3000 * dt
+    local tx, ty = 0., 0.
     local changed = false
 
     if dx > 0 then
@@ -3795,8 +3798,8 @@ local stateCoro: thread = coroutine.create(function(dt: number)
             --updateCoroutines()
             --arena:update()
 
-            cameraScale(joy)
-            cameraMovement(joy)
+            cameraScale(joy, dt)
+            cameraMovement(joy, dt)
 
             moveCamera()
 
@@ -3818,6 +3821,7 @@ local function mainloop()
     while not is_stop do
         local now_time = love.timer.getTime()
         local dt = now_time - last_time
+        last_time = now_time
 
         local ok, errmsg = coroutine.resume(stateCoro, dt) as (boolean, string)
         if not ok then
