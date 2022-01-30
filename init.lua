@@ -3439,15 +3439,15 @@ local function initRenderCode()
                 break
             end
 
-        until not cmd
-
         --print('id', id)
         --print('cmd', cmd)
-        print('verts', inspect(verts))
+        --print('verts', inspect(verts))
 
         if verts then
             love.graphics.polygon('fill', verts)
         end
+
+        until not cmd
 
         yield()
     end
@@ -3498,18 +3498,20 @@ local function eachShape_smart(b, shape)
       else
 
          local len = vecl.len(b.v.x, b.v.y)
+         print('len', len)
          local epsilon = 0.0001
 
          pipeline:push('draw')
          pipeline:push(tank.id)
 
          if len < epsilon then
-
-
+            pipeline:push('draw')
+            pipeline:push(tank.id)
          else
-
-
-
+            local verts = gather_verts(shape)
+            pipeline:push('new')
+            pipeline:push(tank.id)
+            pipeline:push(verts)
 
          end
 
@@ -3720,13 +3722,13 @@ local function spawnTanks()
       },
    }
 
-
-   local tanks_num = 10
-
+   local tanks_num = 500
 
 
-   local minx, maxx = 0, 1000
-   local miny, maxy = 0, 1000
+   local minx, maxx = 0, 4000
+   local miny, maxy = 0, 4000
+
+
 
    for _ = 1, tanks_num do
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
@@ -3736,10 +3738,10 @@ local function spawnTanks()
 end
 
 
-local function cameraScale(j)
+local function cameraScale(j, dt)
    local axes = { j:getAxes() }
    local dy = axes[2]
-   local factor = 0.01
+   local factor = 1 * dt
    if dy > 0 then
       camera:scale(1 + factor, 1 + factor)
    elseif dy < 0 then
@@ -3748,11 +3750,12 @@ local function cameraScale(j)
 end
 
 
-local function cameraMovement(j)
+local function cameraMovement(j, dt)
    local axes = { j:getAxes() }
    local dx, dy = axes[4], axes[5]
-   local amount_x, amount_y = 10, 10
-   local tx, ty = 0, 0
+
+   local amount_x, amount_y = 3000 * dt, 3000 * dt
+   local tx, ty = 0., 0.
    local changed = false
 
    if dx > 0 then
@@ -3795,8 +3798,8 @@ local stateCoro = coroutine.create(function(dt)
 
 
 
-         cameraScale(joy)
-         cameraMovement(joy)
+         cameraScale(joy, dt)
+         cameraMovement(joy, dt)
 
          moveCamera()
 
@@ -3818,6 +3821,7 @@ local function mainloop()
    while not is_stop do
       local now_time = love.timer.getTime()
       local dt = now_time - last_time
+      last_time = now_time
 
       local ok, errmsg = coroutine.resume(stateCoro, dt)
       if not ok then
