@@ -3745,7 +3745,7 @@ local function process_events()
                 local msg = '%{green}keypressed '
                 debug_print('input', colorize(msg .. key .. ' ' .. scancode))
 
-                --dprint.keypressed(scancode)
+                dprint.keypressed(scancode)
 
                 if scancode == "escape" then
                     is_stop = true
@@ -3809,10 +3809,13 @@ local function cameraScale(j: joystick.Joystick, dt: number)
     local axes = {j:getAxes()}
     local dy = axes[2]
     local factor = 1 * dt
-    if dy > 0 then
+    print('dy', dy)
+    if dy == -1 then
         camera:scale(1 + factor, 1 + factor)
-    elseif dy < 0 then
+        print('camera:scale(1 + factor, 1 + factor)')
+    elseif dy == 1 then
         camera:scale(1 - factor, 1 - factor)
+        print('camera:scale(1 - factor, 1 - factor)')
     end
 end
 
