@@ -3562,12 +3562,16 @@ local function eachShape_smart(b: Cm.cpBody, shape: Cm.cpShape)
             -- TODO сравнивать не только линейную скорость, но и угловую
             local len = vecl.len(b.v.x, b.v.y)
             print('len', len)
-            local epsilon = 0.0001 
+            local angular_vel = b.w
+            print('angular_vel', angular_vel)
+
+            local epsilon_vel = 0.0001 
+            local epsilon_w = 0.00001
 
             pipeline:push('draw')
             pipeline:push(tank.id)
 
-            if len < epsilon then
+            if len < epsilon_vel and angular_vel < epsilon_w then
                 pipeline:push('draw')
                 pipeline:push(tank.id)
             else
