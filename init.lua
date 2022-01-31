@@ -2774,6 +2774,8 @@ local function renderScene()
       pipeline:push('flush')
       pipeline:close()
 
+      pipeline:openAndClose('chipmunk_vertex_order')
+
       pipeline:openAndClose('pop_transform')
 
       print_io_rate()
@@ -3396,8 +3398,13 @@ local function initRenderCode()
     local hash = {}
     local verts = nil
 
+    -- счетчик команд
+    local cmd_num = 0
+
     while true do
         local cmd
+
+        cmd_num = 0
 
         -- Примеры последовательности данных в канале:
         -- имя команды, идентификатор объекта, вершины
@@ -3449,7 +3456,7 @@ local function initRenderCode()
                 love.graphics.setColor {1, 1, 1, 1}
                 love.graphics.polygon('fill', verts)
 
-                love.graphics.setColor { 0, 0, 0, 0}
+                --love.graphics.setColor { 0, 0, 0, 0}
 
                 --print(verts[1], verts[2])
                 --print(verts[3], verts[4])
@@ -3458,24 +3465,62 @@ local function initRenderCode()
                 --print('---')
                 --print('font height', love.graphics.getFont():getHeight())
                 
-                local old_font = love.graphics.getFont()
-                love.graphics.setFont(old_font)
+                --local old_font = love.graphics.getFont()
+                --love.graphics.setFont(old_font)
 
-                love.graphics.print('x', 0, 0)
-                love.graphics.print('1', verts[1], verts[2])
-                love.graphics.print('2', verts[3], verts[4])
-                love.graphics.print('3', verts[5], verts[6])
-                love.graphics.print('4', verts[7], verts[8])
+                --if cmd_num == 10 or cmd_num == 1 then
+                    --local serpent = require 'serpent'
+                    ----love.filesystem.write("verts-order.txt", serpent.dump(verts))
+                    --local s = serpent.dump(verts) .. '\n'
+                    --love.filesystem.append("verts-order.txt", s)
+                    --print("os.exit(100)")
+                    --os.exit(100)
+                --end
 
-                love.graphics.setFont(old_font)
+                --love.graphics.print('x', 0, 0)
+                --love.graphics.print('1', verts[1], verts[2])
+                --love.graphics.print('2', verts[3], verts[4])
+                --love.graphics.print('3', verts[5], verts[6])
+                --love.graphics.print('4', verts[7], verts[8])
+
+                --love.graphics.setFont(old_font)
             end
 
+            cmd_num = cmd_num + 1
         until not cmd
 
         yield()
     end
     ]])
 
+
+   pipeline:pushCode('chipmunk_vertex_order', [[
+        local verts_mat = {
+            {2135,1982,2135,2238,1879,2238,1879,1982},
+            {2589,1642,2589,1898,2333,1898,2333,1642},
+            {2887,1937,2887,2193,2631,2193,2631,1937},
+        }
+        while true do
+            for _, verts in ipairs(verts_mat) do
+                local count = #verts
+                love.graphics.setColor {0, 1, 0}
+                love.graphics.polygon('fill', verts)
+                --for i = 1, count / 2 - 1 do
+                local i, j = 1, 1
+                while i <= count do
+                    love.graphics.setColor {0, 0, 1}
+                    local rad = 100
+                    love.graphics.circle('fill', verts[i], verts[i + 1], rad)
+                    love.graphics.setColor { 1, 0, 0, 1}
+                    --love.graphics.print(tostring(i), verts[i], verts[i + 1])
+                    love.graphics.print(tostring(j), verts[i], verts[i + 1])
+                    j = j + 1
+                    i = i + 2
+                end
+            end
+            coroutine.yield()
+        end
+    ]])
 end
 
 local function initTextures()
@@ -3522,12 +3567,16 @@ local function eachShape_smart(b, shape)
 
          local len = vecl.len(b.v.x, b.v.y)
          print('len', len)
-         local epsilon = 0.0001
+         local angular_vel = b.w
+         print('angular_vel', angular_vel)
+
+         local epsilon_vel = 0.0001
+         local epsilon_w = 0.00001
 
          pipeline:push('draw')
          pipeline:push(tank.id)
 
-         if len < epsilon then
+         if len < epsilon_vel and angular_vel < epsilon_w then
             pipeline:push('draw')
             pipeline:push(tank.id)
          else
@@ -3701,7 +3750,7 @@ local function process_events()
             local msg = '%{green}keypressed '
             debug_print('input', colorize(msg .. key .. ' ' .. scancode))
 
-
+            dprint.keypressed(scancode)
 
             if scancode == "escape" then
                is_stop = true
@@ -3765,10 +3814,13 @@ local function cameraScale(j, dt)
    local axes = { j:getAxes() }
    local dy = axes[2]
    local factor = 1 * dt
-   if dy > 0 then
+   print('dy', dy)
+   if dy == -1 then
       camera:scale(1 + factor, 1 + factor)
-   elseif dy < 0 then
+      print('camera:scale(1 + factor, 1 + factor)')
+   elseif dy == 1 then
       camera:scale(1 - factor, 1 - factor)
+      print('camera:scale(1 - factor, 1 - factor)')
    end
 end
 
