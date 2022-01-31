@@ -2774,6 +2774,8 @@ local function renderScene()
         pipeline:push('flush')
         pipeline:close()
 
+        --pipeline:openAndClose('chipmunk_vertex_order')
+
         pipeline:openAndClose('pop_transform')
 
         print_io_rate()
@@ -3458,24 +3460,62 @@ local function initRenderCode()
                 --print('---')
                 --print('font height', love.graphics.getFont():getHeight())
                 
-                local old_font = love.graphics.getFont()
-                love.graphics.setFont(old_font)
+                --local old_font = love.graphics.getFont()
+                --love.graphics.setFont(old_font)
 
-                love.graphics.print('x', 0, 0)
-                love.graphics.print('1', verts[1], verts[2])
-                love.graphics.print('2', verts[3], verts[4])
-                love.graphics.print('3', verts[5], verts[6])
-                love.graphics.print('4', verts[7], verts[8])
+                --if cmd_num == 10 or cmd_num == 1 then
+                    --local serpent = require 'serpent'
+                    ----love.filesystem.write("verts-order.txt", serpent.dump(verts))
+                    --local s = serpent.dump(verts) .. '\n'
+                    --love.filesystem.append("verts-order.txt", s)
+                    --print("os.exit(100)")
+                    --os.exit(100)
+                --end
 
-                love.graphics.setFont(old_font)
+                --love.graphics.print('x', 0, 0)
+                --love.graphics.print('1', verts[1], verts[2])
+                --love.graphics.print('2', verts[3], verts[4])
+                --love.graphics.print('3', verts[5], verts[6])
+                --love.graphics.print('4', verts[7], verts[8])
+
+                --love.graphics.setFont(old_font)
             end
 
+            cmd_num = cmd_num + 1
         until not cmd
 
         yield()
     end
     ]])
 
+
+    pipeline:pushCode('chipmunk_vertex_order', [[
+        local verts_mat = {
+            {2135,1982,2135,2238,1879,2238,1879,1982},
+            {2589,1642,2589,1898,2333,1898,2333,1642},
+            {2887,1937,2887,2193,2631,2193,2631,1937},
+        }
+        while true do
+            for _, verts in ipairs(verts_mat) do
+                local count = #verts
+                love.graphics.setColor {0, 1, 0}
+                love.graphics.polygon('fill', verts)
+                --for i = 1, count / 2 - 1 do
+                local i, j = 1, 1
+                while i <= count do
+                    love.graphics.setColor {0, 0, 1}
+                    local rad = 100
+                    love.graphics.circle('fill', verts[i], verts[i + 1], rad)
+                    love.graphics.setColor { 1, 0, 0, 1}
+                    --love.graphics.print(tostring(i), verts[i], verts[i + 1])
+                    love.graphics.print(tostring(j), verts[i], verts[i + 1])
+                    j = j + 1
+                    i = i + 2
+                end
+            end
+            coroutine.yield()
+        end
+    ]])
 end
 
 local function initTextures()
