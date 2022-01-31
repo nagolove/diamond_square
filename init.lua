@@ -2774,7 +2774,7 @@ local function renderScene()
       pipeline:push('flush')
       pipeline:close()
 
-      pipeline:openAndClose('chipmunk_vertex_order')
+
 
       pipeline:openAndClose('pop_transform')
 
