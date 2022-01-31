@@ -3398,8 +3398,13 @@ local function initRenderCode()
     local hash = {}
     local verts = nil
 
+    -- счетчик команд
+    local cmd_num = 0
+
     while true do
         local cmd
+
+        cmd_num = 0
 
         -- Примеры последовательности данных в канале:
         -- имя команды, идентификатор объекта, вершины
@@ -3451,7 +3456,7 @@ local function initRenderCode()
                 love.graphics.setColor {1, 1, 1, 1}
                 love.graphics.polygon('fill', verts)
 
-                love.graphics.setColor { 0, 0, 0, 0}
+                --love.graphics.setColor { 0, 0, 0, 0}
 
                 --print(verts[1], verts[2])
                 --print(verts[3], verts[4])
