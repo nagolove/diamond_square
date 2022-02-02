@@ -20,7 +20,7 @@ if type(texture_msg) ~= 'string' then
 end
 
 local slots_num = 4096
-local free_slots: {number} = ffi.new('uint16_t[?]', slots_num)
+local free_slots: {number} = ffi.new('uint16_t[?]', slots_num) as {number}
 
 -- TODO Использовать соединенные треугольники
 --local mesh = love.graphics.newMesh(mesh_size * 6, "strip", "dynamic")
