@@ -4,36 +4,52 @@
 
 --local inspect = require 'inspect'
 --local serpent = require 'serpent'
+local format = string.format
 local yield = coroutine.yield
---local color = {1, 1, 1, 1}
-local mesh_size = 1024
 
 require 'love'
+
+local C = require 'ffi'
 require 'ffi'
 
 global graphic_command_channel: love.thread.Channel
 global SCENE_PREFIX: string
 
 local texture_msg: string = graphic_command_channel:demand() as string
+local width = graphic_command_channel:demand() as number
+local height = graphic_command_channel:demand() as number
+
 if type(texture_msg) ~= 'string' then
     error('Wrong texture type')
 end
+if type(width) ~= 'number' then
+    error('Wrong width type')
+end
+if type(height) ~= 'number' then
+    error('Wrong height type')
+end
+
+local path = SCENE_PREFIX .. '/' .. texture_msg
+local texture = love.graphics.newImage(path) as love.graphics.Texture
+if texture then
+    local w, h = texture:getDimensions()
+    local msg = format('"%s" loaded %dx%d', path, w, h)
+    print(msg)
+else
+    error('Could not load texture:' .. path)
+end
+
+print('shape width, height:', width, height)
 
 --local slots_num = 4096
 --local free_slots: {number} = C.new('uint16_t[?]', slots_num) as {number}
 
-local C = require 'ffi'
+
 -- TODO Использовать соединенные треугольники
---local mesh = love.graphics.newMesh(mesh_size * 6, "strip", "dynamic")
-local mesh = love.graphics.newMesh(mesh_size * 6, "triangles", "dynamic")
+local mesh_size = 6
+local mesh = love.graphics.newMesh(mesh_size, "triangles", "static")
 --local mesh_verts: {{number}} = {}
 
-local path = SCENE_PREFIX .. '/' .. texture_msg
-print('path', path)
-local texture = love.graphics.newImage(path) as love.graphics.Texture
-if texture then
-    print('texture loaded', texture:getDimensions())
-end
 mesh:setTexture(texture)
 
 --local font = love.graphics.newFont(32)
@@ -88,8 +104,17 @@ while true do
             y = graphic_command_channel:demand() as number
             angle = graphic_command_channel:demand() as number
 
-            print('x, y', x, y)
-            print('angle', angle)
+            --print('x, y', x, y)
+            --print('angle', angle)
+            love.graphics.setColor {0, 0, 1, 1}
+            local rad = 20
+            love.graphics.circle('fill', x, y, rad)
+            love.graphics.setColor {0, 0.5, 1, 1}
+            love.graphics.push()
+            love.graphics.translate(x + width / 2, y + height / 2)
+            love.graphics.rotate(angle)
+            love.graphics.rectangle('fill', 0, 0, width, height)
+            love.graphics.pop()
             
             hash[id] = verts
 
