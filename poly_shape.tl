@@ -63,7 +63,7 @@ while true do
 
     -- команды cmd:
     -- new      - создать новый объект и рисовать
-    -- имя команды, идентификатор объекта, вершины
+    -- имя команды, идентификатор объекта, x, y, угол
 
     -- update   - обновить вершины объекта и рисовать
     -- имя команды, идентификатор объекта, вершины
@@ -82,8 +82,15 @@ while true do
         --print('cmd', cmd)
 
         if cmd == "new" then
+            local x, y, angle: number, number, number
             local id = graphic_command_channel:demand()
-            verts = graphic_command_channel:demand() as {number}
+            x = graphic_command_channel:demand() as number
+            y = graphic_command_channel:demand() as number
+            angle = graphic_command_channel:demand() as number
+
+            print('x, y', x, y)
+            print('angle', angle)
+            
             hash[id] = verts
 
             --print('new')
@@ -113,8 +120,8 @@ while true do
         --print('verts', inspect(verts))
 
         if verts then
-            love.graphics.setColor {1, 1, 1, 1}
-            love.graphics.polygon('fill', verts)
+            --love.graphics.setColor {1, 1, 1, 1}
+            --love.graphics.polygon('fill', verts)
 
             --love.graphics.setColor { 0, 0, 0, 0}
 
