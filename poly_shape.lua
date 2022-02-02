@@ -106,15 +106,20 @@ while true do
 
 
 
-         love.graphics.setColor({ 0, 0, 1, 1 })
          local rad = 20
-         love.graphics.circle('fill', x, y, rad)
-         love.graphics.setColor({ 0, 0.5, 1, 1 })
+
          love.graphics.push()
+         love.graphics.translate(x, y)
          love.graphics.rotate(angle)
-         love.graphics.translate(x + width / 2, y + height / 2)
+         love.graphics.translate(-width / 2, -height / 2)
+
+         love.graphics.setColor({ 0, 0.5, 1, 1 })
          love.graphics.rectangle('fill', 0, 0, width, height)
+
          love.graphics.pop()
+
+         love.graphics.setColor({ 0, 0, 1, 1 })
+         love.graphics.circle('fill', x, y, rad)
 
          hash[id] = verts
 
