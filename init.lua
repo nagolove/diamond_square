@@ -3362,16 +3362,16 @@ local function initRenderCode()
     local serpent = require 'serpent'
     local yield = coroutine.yield
     local color = {1, 1, 1, 1}
+    local mesh_size = 1024
 
     local texture_msg = graphic_command_channel:demand()
     if type(texture_msg) ~= 'string' then
         error('Wrong texture type')
     end
 
-    local mesh_size = 1024
     -- TODO Использовать соединенные треугольники
-    local mesh = love.graphics.newMesh(mesh_size * 6, "strip", "dynamic")
-    --local mesh = love.graphics.newMesh(mesh_size * 6, "triangles", "dynamic")
+    --local mesh = love.graphics.newMesh(mesh_size * 6, "strip", "dynamic")
+    local mesh = love.graphics.newMesh(mesh_size * 6, "triangles", "dynamic")
     local mesh_verts: {{number}} = {}
 
     local path = SCENE_PREFIX .. '/' .. texture_msg
@@ -3406,16 +3406,21 @@ local function initRenderCode()
 
         cmd_num = 0
 
-        -- Примеры последовательности данных в канале:
-        -- имя команды, идентификатор объекта, вершины
-        -- имя команды, идентификатор объекта 
-        -- имя команды
-
         -- команды cmd:
-        -- new      - создать новый объект
+        -- new      - создать новый объект и рисовать
+        -- имя команды, идентификатор объекта, вершины
+
+        -- update   - обновить вершины объекта и рисовать
+        -- имя команды, идентификатор объекта, вершины
+
         -- draw     - рисовать существущий
+        -- имя команды, идентификатор объекта 
+
         -- remove   - удалить объект
+        -- имя команды, идентификатор объекта 
+
         -- flush    - нарисовать все
+        -- имя команды
 
         repeat
             cmd = graphic_command_channel:demand()
@@ -3817,10 +3822,10 @@ local function cameraScale(j, dt)
    print('dy', dy)
    if dy == -1 then
       camera:scale(1 + factor, 1 + factor)
-      print('camera:scale(1 + factor, 1 + factor)')
+
    elseif dy == 1 then
       camera:scale(1 - factor, 1 - factor)
-      print('camera:scale(1 - factor, 1 - factor)')
+
    end
 end
 
