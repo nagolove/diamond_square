@@ -111,8 +111,8 @@ while true do
          love.graphics.circle('fill', x, y, rad)
          love.graphics.setColor({ 0, 0.5, 1, 1 })
          love.graphics.push()
-         love.graphics.translate(x + width / 2, y + height / 2)
          love.graphics.rotate(angle)
+         love.graphics.translate(x + width / 2, y + height / 2)
          love.graphics.rectangle('fill', 0, 0, width, height)
          love.graphics.pop()
 
