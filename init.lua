@@ -3298,9 +3298,9 @@ local function initRenderCode()
     ]])
 end
 
-local function initTextures()
+local function initPipelineObjects()
    pipeline:open('poly_shape')
-   pipeline:push(base_tex_fname)
+   pipeline:push(base_tex_fname, tank_width, tank_height)
    pipeline:close()
 
    pipeline:sync()
@@ -3394,7 +3394,7 @@ local function init()
 
    initJoy()
    initRenderCode()
-   initTextures()
+   initPipelineObjects()
    initPhysIterators()
 
 
