@@ -82,8 +82,15 @@ while true do
 
 
       if cmd == "new" then
+         local x, y, angle
          local id = graphic_command_channel:demand()
-         verts = graphic_command_channel:demand()
+         x = graphic_command_channel:demand()
+         y = graphic_command_channel:demand()
+         angle = graphic_command_channel:demand()
+
+         print('x, y', x, y)
+         print('angle', angle)
+
          hash[id] = verts
 
 
@@ -113,8 +120,8 @@ while true do
 
 
       if verts then
-         love.graphics.setColor({ 1, 1, 1, 1 })
-         love.graphics.polygon('fill', verts)
+
+
 
 
 

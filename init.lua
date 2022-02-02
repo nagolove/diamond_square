@@ -679,21 +679,6 @@ local function print_io_rate()
    pipeline:close()
 end
 
-local function eachShape(b, shape)
-   local shape_type = pw.polyShapeGetType(shape)
-   if shape_type == pw.CP_POLY_SHAPE then
-
-
-
-
-      pipeline:open('poly_shape')
-      local verts = gather_verts(shape)
-      pipeline:push(verts)
-      pipeline:close()
-   end
-end
-
-
 local function eachBody(b)
    local body = pw.cpBody2Body(b)
    if body then
@@ -2757,7 +2742,7 @@ end
 local function renderScene()
 
    local nt = love.timer.getTime()
-   local pause = 1. / 400.
+   local pause = 1. / 500.
    local diff = nt - last_render
 
    if diff >= pause then
@@ -2769,12 +2754,10 @@ local function renderScene()
       pipeline:push(camera)
       pipeline:close()
 
-      pipeline:open('poly_shape_smart_tex')
+      pipeline:open('poly_shape')
       pw.eachSpaceBody(bodyIter)
       pipeline:push('flush')
       pipeline:close()
-
-
 
       pipeline:openAndClose('pop_transform')
 
@@ -3238,22 +3221,6 @@ end
 
 local function initRenderCode()
 
-   pipeline:pushCode("poly_shape", [[
-    local col = {1, 0, 0, 1}
-    local inspect = require "inspect"
-
-    while true do
-        love.graphics.setColor(col)
-
-        local verts = graphic_command_channel:demand()
-        --local verts = graphic_command_channel:pop()
-        --print('verts', inspect(verts))
-        love.graphics.polygon('fill', verts)
-
-        coroutine.yield()
-    end
-    ]])
-
    pipeline:pushCode('clear', [[
     while true do
         love.graphics.clear{0.5, 0.5, 0.5}
@@ -3298,68 +3265,10 @@ local function initRenderCode()
     end
     ]])
 
-   pipeline:pushCode("poly_shape_smart_UNUSED", [[
-    local inspect = require 'inspect'
-    local serpent = require 'serpent'
-    local col = {1, 0, 0, 1}
-
-    local texture_msg = graphic_command_channel:demand()
-
-    --local struct
-    --local ok, errmsg = pcall(function()
-        --struct = load()
-    --end)
-    --if not ok then
-        --error('Could not load texture_msg', texture_msg)
-    --end
-    --if struct.check ~= 'texture' then
-        --error('Bad struct for texture loading')
-    --end
-
-    local path = SCENE_PREFIX .. '/' .. texture_msg
-    print('path', path)
-    local texture = love.graphics.newImage(path)
-    
-    local yield = coroutine.yield
-    yield()
-
-    local hash = {}
-    local verts = nil
-
-    while true do
-        love.graphics.setColor(col)
-
-        local id = graphic_command_channel:demand()
-        local cmd = graphic_command_channel:demand()
-
-        -- команды cmd:
-        -- new      - создать новый объект
-        -- draw     - рисовать существущий
-        -- ?????? draw_new - обновить координаты и рисовать ???????
-        -- remove   - удалить объект
-
-        if cmd == "new" then
-            verts = graphic_command_channel:demand()
-            hash[id] = verts
-        elseif cmd == "draw" then
-            verts = hash[id]
-        elseif cmd == "remove" then
-            hash[id] = nil
-        end
-
-        --print('id', id)
-        --print('cmd', cmd)
-        --print('verts', inspect(verts))
-
-        love.graphics.polygon('fill', verts)
-
-        yield()
-    end
-    ]])
-
-   pipeline:pushCodeFromFile("poly_shape_smart_tex", 'poly_shape.lua')
+   pipeline:pushCodeFromFile("poly_shape", 'poly_shape.lua')
 
    pipeline:pushCode('chipmunk_vertex_order', [[
+        -- {{{
         local verts_mat = {
             {2135,1982,2135,2238,1879,2238,1879,1982},
             {2589,1642,2589,1898,2333,1898,2333,1642},
@@ -3385,18 +3294,19 @@ local function initRenderCode()
             end
             coroutine.yield()
         end
+        -- }}}
     ]])
 end
 
 local function initTextures()
-   pipeline:open('poly_shape_smart_tex')
+   pipeline:open('poly_shape')
    pipeline:push(base_tex_fname)
    pipeline:close()
 
    pipeline:sync()
 end
 
-local function eachShape_smart(b, shape)
+local function eachShape(b, shape)
 
 
 
@@ -3415,14 +3325,23 @@ local function eachShape_smart(b, shape)
          error("tank is nil")
       end
 
+      local posx, posy
+      posx, posy = b.p.x, b.p.y
+      local angle = b.a
+
+
+
+
       if tank.first_render then
-         local verts = gather_verts(shape)
 
 
 
-         pipeline:push('new')
-         pipeline:push(tank.id)
-         pipeline:push(verts)
+
+
+
+
+
+         pipeline:push('new', tank.id, posx, posy, angle)
 
 
 
@@ -3438,17 +3357,17 @@ local function eachShape_smart(b, shape)
          local epsilon_vel = 0.0001
          local epsilon_w = 0.00001
 
-         pipeline:push('draw')
-         pipeline:push(tank.id)
+
+
 
          if len < epsilon_vel and angular_vel < epsilon_w then
-            pipeline:push('draw')
-            pipeline:push(tank.id)
+
+
          else
             local verts = gather_verts(shape)
-            pipeline:push('new')
-            pipeline:push(tank.id)
-            pipeline:push(verts)
+
+
+
 
          end
 
@@ -3462,7 +3381,7 @@ end
 local function initPhysIterators()
    bodyIter = pw.newEachSpaceBodyIter(eachBody)
 
-   shapeIter = pw.newEachBodyShapeIter(eachShape_smart)
+   shapeIter = pw.newEachBodyShapeIter(eachShape)
 end
 
 local function init()
@@ -3658,6 +3577,7 @@ local function spawnTanks()
          use_print = false,
       },
    }
+
 
    local tanks_num = 500
 
