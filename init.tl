@@ -468,6 +468,9 @@ end
 local bodyIter: pw.EachSpaceBodyIter
 local shapeIter: pw.EachBodyShapeIter
 
+local bodyIter_verts: pw.EachSpaceBodyIter
+local shapeIter_verts: pw.EachBodyShapeIter
+
 -- максимальное количество частиц
 global maxParticlesNumber = 512
 
@@ -679,14 +682,21 @@ local function print_io_rate()
     pipeline:close()
 end
 
+local function eachBody_verts(b: Cm.cpBody)
+    local body = pw.cpBody2Body(b)
+    if body then
+        pw.eachBodyShape(b, shapeIter_verts)
+    else
+        error('Body is nil:' .. debug.traceback())
+    end
+end
+
 local function eachBody(b: Cm.cpBody)
     local body = pw.cpBody2Body(b)
     if body then
-        --print(colorize('%{green}' .. inspect(body)))
-        --print(colorize('%{yellow}' .. body:getInfoStr()))
         pw.eachBodyShape(b, shapeIter)
     else
-        --print(colorize('%{red}body is nil ' .. debug.traceback()))
+        error('Body is nil:' .. debug.traceback())
     end
 end
 
@@ -1039,7 +1049,8 @@ function push2drawlistBottom(f: function, self: any)
 end
 --]]
 
-function Arena.new(fname: string): Arena
+--function Arena.new(fname: string): Arena
+function Arena.new(_: string): Arena
     local Arena_mt: metatable<Arena> = { __index = Arena }
     local self: Arena = setmetatable({} as Arena, Arena_mt)
 
@@ -2739,13 +2750,17 @@ local function drawCameraAxixes()
 end
 --]]
 
+local function render_shapes_by_verts()
+    pw.eachSpaceBody(bodyIter_verts)
+end
+
 local function renderScene()
     -- Ограничение кадров в секунду до 60
     local nt = love.timer.getTime()
-    local pause = 1. / 500.
+    local fps_limit = 1. / 300.
     local diff = nt - last_render
 
-    if diff >= pause then
+    if diff >= fps_limit then
         last_render = nt
 
         pipeline:openAndClose('clear')
@@ -2754,12 +2769,14 @@ local function renderScene()
         pipeline:push(camera)
         pipeline:close()
 
+        --render_shapes_by_verts()
+
         pipeline:open('poly_shape')
         pw.eachSpaceBody(bodyIter)
         pipeline:push('flush')
         pipeline:close()
 
-        pipeline:openAndClose('pop_transform')
+        --pipeline:openAndClose('origin_transform')
 
         print_io_rate()
 
@@ -3221,6 +3238,20 @@ end
 
 local function initRenderCode()
 
+    pipeline:pushCode("poly_shape_verts", [[
+    local col = {1, 0, 0, 1}
+    local inspect = require "inspect"
+
+    while true do
+        love.graphics.setColor(col)
+
+        local verts = graphic_command_channel:demand()
+        love.graphics.polygon('fill', verts)
+
+        coroutine.yield()
+    end
+    ]])
+
     pipeline:pushCode('clear', [[
     while true do
         love.graphics.clear{0.5, 0.5, 0.5}
@@ -3237,7 +3268,7 @@ local function initRenderCode()
     end
     ]])
 
-    pipeline:pushCode('pop_transform', [[
+    pipeline:pushCode('origin_transform', [[
     local gr = love.graphics
     local yield = coroutine.yield
     while true do
@@ -3304,6 +3335,16 @@ local function initPipelineObjects()
     pipeline:close()
 
     pipeline:sync()
+end
+
+local function eachShape_verts(_: Cm.cpBody, shape: Cm.cpShape)
+    local shape_type = pw.polyShapeGetType(shape)
+    if shape_type == pw.CP_POLY_SHAPE then
+        local verts = gather_verts(shape)
+        pipeline:open('poly_shape_verts')
+        pipeline:push(verts)
+        pipeline:close()
+    end
 end
 
 local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
@@ -3380,8 +3421,10 @@ end
 
 local function initPhysIterators()
     bodyIter = pw.newEachSpaceBodyIter(eachBody)
-    --shapeIter = pw.newEachBodyShapeIter(eachShape)
     shapeIter = pw.newEachBodyShapeIter(eachShape)
+    
+    bodyIter_verts = pw.newEachSpaceBodyIter(eachBody_verts)
+    shapeIter_verts = pw.newEachBodyShapeIter(eachShape_verts)
 end
 
 local function init()
