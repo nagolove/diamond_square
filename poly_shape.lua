@@ -19,9 +19,10 @@ if type(texture_msg) ~= 'string' then
    error('Wrong texture type')
 end
 
-local slots_num = 4096
-local free_slots = ffi.new('uint16_t[?]', slots_num)
 
+
+
+local C = require('ffi')
 
 
 local mesh = love.graphics.newMesh(mesh_size * 6, "triangles", "dynamic")
