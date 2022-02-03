@@ -3467,7 +3467,7 @@ local function init()
 
     initJoy()
     initRenderCode()
-    initPipelineObjects()
+    --initPipelineObjects()
     initPhysIterators()
 
     --setWindowMode()
@@ -3674,6 +3674,8 @@ local function cameraScale(j: joystick.Joystick, dt: number)
     local factor = 1 * dt
     --print('dy', dy)
     if dy == -1 then
+        -- TODO добавить смещение по осям что-бы приближение и удаление 
+        -- приходилось на центр экрана
         camera:scale(1 + factor, 1 + factor)
         --print('camera:scale(1 + factor, 1 + factor)')
     elseif dy == 1 then
