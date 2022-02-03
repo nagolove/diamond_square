@@ -15,9 +15,14 @@ require 'ffi'
 global graphic_command_channel: love.thread.Channel
 global SCENE_PREFIX: string
 
+--[[
 local texture_msg: string = graphic_command_channel:demand() as string
 local width = graphic_command_channel:demand() as number
 local height = graphic_command_channel:demand() as number
+--]]
+
+local texture_msg = 'tank_body.png'
+local width, height = 256, 256
 
 if type(texture_msg) ~= 'string' then
     error('Wrong texture type')
@@ -59,7 +64,7 @@ mesh:setTexture(texture)
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------
 
-yield()
+--yield()
 
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------
@@ -71,6 +76,32 @@ local verts: {number} = nil
 
 -- счетчик команд
 local cmd_num = 0
+
+local gr = love.graphics
+local quad = gr.newQuad(0, 0, 256, 256, texture)
+
+local function draw(x: number, y: number, angle: number)
+    local rad = 20
+
+    gr.push()
+    gr.translate(x, y)
+    gr.rotate(angle)
+    gr.translate(-width / 2, -height / 2)
+
+    --gr.setColor {0, 0.5, 1, 1}
+
+    gr.setColor {1, 1, 1, 1}
+
+    --gr.rectangle('fill', 0, 0, width, height)
+    --gr.draw(texture, quad, 0, 0, width, height)
+
+    gr.draw(texture, quad, 0, 0)
+
+    gr.pop()
+
+    gr.setColor {0, 0, 1, 1}
+    gr.circle('fill', x, y, rad)
+end
 
 while true do
     local cmd: string
@@ -104,34 +135,19 @@ while true do
             y = graphic_command_channel:demand() as number
             angle = graphic_command_channel:demand() as number
 
-            --print('x, y', x, y)
-            --print('angle', angle)
-            local rad = 20
+            draw(x, y, angle)
 
-            love.graphics.push()
-            love.graphics.translate(x, y)
-            love.graphics.rotate(angle)
-            love.graphics.translate(-width / 2, -height / 2)
-
-            love.graphics.setColor {0, 0.5, 1, 1}
-            love.graphics.rectangle('fill', 0, 0, width, height)
-
-            love.graphics.pop()
-            
-            love.graphics.setColor {0, 0, 1, 1}
-            love.graphics.circle('fill', x, y, rad)
-
-            hash[id] = verts
-
-            --print('new')
-            --print('id', id)
+            --[[
+            hash[id] = {
+                [1] = x,
+                [2] = y,
+                [3] = angle,
+            }
+            --]]
 
         elseif cmd == "draw" then
             local id = graphic_command_channel:demand()
-            verts = hash[id]
-
-            --print('draw')
-            --print('id', id)
+            --draw(hash[id][1], hash[id][2], hash[id][3])
 
         elseif cmd == "remove" then
             local id = graphic_command_channel:demand()
@@ -143,44 +159,6 @@ while true do
             --love.graphics.draw(mesh)
             --print('flush')
             break
-        end
-
-        --print('id', id)
-        --print('cmd', cmd)
-        --print('verts', inspect(verts))
-
-        if verts then
-            --love.graphics.setColor {1, 1, 1, 1}
-            --love.graphics.polygon('fill', verts)
-
-            --love.graphics.setColor { 0, 0, 0, 0}
-
-            --print(verts[1], verts[2])
-            --print(verts[3], verts[4])
-            --print(verts[5], verts[6])
-            --print(verts[7], verts[8])
-            --print('---')
-            --print('font height', love.graphics.getFont():getHeight())
-            
-            --local old_font = love.graphics.getFont()
-            --love.graphics.setFont(old_font)
-
-            --if cmd_num == 10 or cmd_num == 1 then
-                --local serpent = require 'serpent'
-                ----love.filesystem.write("verts-order.txt", serpent.dump(verts))
-                --local s = serpent.dump(verts) .. '\n'
-                --love.filesystem.append("verts-order.txt", s)
-                --print("os.exit(100)")
-                --os.exit(100)
-            --end
-
-            --love.graphics.print('x', 0, 0)
-            --love.graphics.print('1', verts[1], verts[2])
-            --love.graphics.print('2', verts[3], verts[4])
-            --love.graphics.print('3', verts[5], verts[6])
-            --love.graphics.print('4', verts[7], verts[8])
-
-            --love.graphics.setFont(old_font)
         end
 
         cmd_num = cmd_num + 1
