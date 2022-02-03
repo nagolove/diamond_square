@@ -227,6 +227,12 @@ local record Tank
 
     body: pw.Body
 
+    -- положение
+    px: number
+    py: number
+
+    angle: number
+
     -- пушка
     --turret: Turret
 
@@ -3384,34 +3390,58 @@ local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
 
             pipeline:push('new', tank.id, posx, posy, angle)
 
+            tank.px, tank.py = posx, posy
+            tank.angle = angle
             --tank.first_render = false
 
             --tank.prev_posx = body_wrap.body.p.x
             --tank.prev_posy = body_wrap.body.p.y
         else
             -- TODO сравнивать не только линейную скорость, но и угловую
-            local len = vecl.len(b.v.x, b.v.y)
-            print('len', len)
-            local angular_vel = b.w
-            print('angular_vel', angular_vel)
+            --local len = vecl.len(b.v.x, b.v.y)
+            local newx, newy = b.p.x, b.p.y
+            local new_angle = b.a
 
-            local epsilon_vel = 0.0001 
-            local epsilon_w = 0.00001
+            --if len ~= 0 then
+                --print('os.exit(100)')
+                --os.exit(100)
+            --end
+
+            --print('len', len)
+            --local angular_vel = b.w
+            --print('angular_vel', angular_vel)
+
+            --local epsilon_vel = 0.01 
+            --local epsilon_w = 0.001
 
             --pipeline:push('draw')
             --pipeline:push(tank.id)
 
-            if len < epsilon_vel and angular_vel < epsilon_w then
+            --if len < epsilon_vel and angular_vel < epsilon_w then
                 --pipeline:push('draw')
                 --pipeline:push(tank.id)
+                --print('using drawing cache')
+            --else
+                --pipeline:push('new', tank.id, posx, posy, angle)
+                ----tank.first_render = true
+            --end
+
+            --[[
+            local abs = math.abs
+            local px_diff, py_diff = abs(newx - tank.px), abs(newy - tank.py)
+            local angle_diff = abs(new_angle - tank.angle)
+
+            local epsilon = 0.1
+            -- как может накапливаться ошибка?
+            local pos_part = px_diff < epsilon and py_diff < epsilon 
+            if pos_part and angle_diff < epsilon then
+                pipeline:push('draw')
+                pipeline:push(tank.id)
+                print('using drawing cache')
             else
-                local verts = gather_verts(shape)
-                --pipeline:push('new')
-                --pipeline:push(tank.id)
-                --pipeline:push(verts)
+                pipeline:push('new', tank.id, posx, posy, angle)
                 --tank.first_render = true
             end
-
             --]]
 
         end
