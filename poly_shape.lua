@@ -15,9 +15,14 @@ require('ffi')
 
 
 
-local texture_msg = graphic_command_channel:demand()
-local width = graphic_command_channel:demand()
-local height = graphic_command_channel:demand()
+
+
+
+
+
+
+local texture_msg = 'tank_body.png'
+local width, height = 256, 256
 
 if type(texture_msg) ~= 'string' then
    error('Wrong texture type')
@@ -59,7 +64,7 @@ mesh:setTexture(texture)
 
 
 
-yield()
+
 
 
 
@@ -71,6 +76,32 @@ local verts = nil
 
 
 local cmd_num = 0
+
+local gr = love.graphics
+local quad = gr.newQuad(0, 0, 256, 256, texture)
+
+local function draw(x, y, angle)
+   local rad = 20
+
+   gr.push()
+   gr.translate(x, y)
+   gr.rotate(angle)
+   gr.translate(-width / 2, -height / 2)
+
+
+
+   gr.setColor({ 1, 1, 1, 1 })
+
+
+
+
+   gr.draw(texture, quad, 0, 0)
+
+   gr.pop()
+
+   gr.setColor({ 0, 0, 1, 1 })
+   gr.circle('fill', x, y, rad)
+end
 
 while true do
    local cmd
@@ -104,33 +135,18 @@ while true do
          y = graphic_command_channel:demand()
          angle = graphic_command_channel:demand()
 
+         draw(x, y, angle)
 
 
-         local rad = 20
 
-         love.graphics.push()
-         love.graphics.translate(x, y)
-         love.graphics.rotate(angle)
-         love.graphics.translate(-width / 2, -height / 2)
 
-         love.graphics.setColor({ 0, 0.5, 1, 1 })
-         love.graphics.rectangle('fill', 0, 0, width, height)
 
-         love.graphics.pop()
-
-         love.graphics.setColor({ 0, 0, 1, 1 })
-         love.graphics.circle('fill', x, y, rad)
-
-         hash[id] = verts
 
 
 
 
       elseif cmd == "draw" then
          local id = graphic_command_channel:demand()
-         verts = hash[id]
-
-
 
 
       elseif cmd == "remove" then
@@ -143,44 +159,6 @@ while true do
 
 
          break
-      end
-
-
-
-
-
-      if verts then
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
       end
 
       cmd_num = cmd_num + 1

@@ -260,6 +260,12 @@ local Tank = {Options = {}, }
 
 
 
+
+
+
+
+
+
 local Turret = {}
 
 
@@ -3384,33 +3390,57 @@ local function eachShape(b, shape)
 
          pipeline:push('new', tank.id, posx, posy, angle)
 
+         tank.px, tank.py = posx, posy
+         tank.angle = angle
 
 
 
 
       else
 
-         local len = vecl.len(b.v.x, b.v.y)
-         print('len', len)
-         local angular_vel = b.w
-         print('angular_vel', angular_vel)
 
-         local epsilon_vel = 0.0001
-         local epsilon_w = 0.00001
+         local newx, newy = b.p.x, b.p.y
+         local new_angle = b.a
 
 
 
 
-         if len < epsilon_vel and angular_vel < epsilon_w then
-
-
-         else
-            local verts = gather_verts(shape)
 
 
 
 
-         end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3437,7 +3467,7 @@ local function init()
 
    initJoy()
    initRenderCode()
-   initPipelineObjects()
+
    initPhysIterators()
 
 
@@ -3644,6 +3674,8 @@ local function cameraScale(j, dt)
    local factor = 1 * dt
 
    if dy == -1 then
+
+
       camera:scale(1 + factor, 1 + factor)
 
    elseif dy == 1 then
