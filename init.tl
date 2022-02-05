@@ -3392,7 +3392,7 @@ local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
 
             tank.px, tank.py = posx, posy
             tank.angle = angle
-            --tank.first_render = false
+            tank.first_render = false
 
             --tank.prev_posx = body_wrap.body.p.x
             --tank.prev_posy = body_wrap.body.p.y
@@ -3426,7 +3426,6 @@ local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
                 ----tank.first_render = true
             --end
 
-            --[[
             local abs = math.abs
             local px_diff, py_diff = abs(newx - tank.px), abs(newy - tank.py)
             local angle_diff = abs(new_angle - tank.angle)
@@ -3435,13 +3434,17 @@ local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
             -- как может накапливаться ошибка?
             local pos_part = px_diff < epsilon and py_diff < epsilon 
             if pos_part and angle_diff < epsilon then
-                pipeline:push('draw')
-                pipeline:push(tank.id)
-                print('using drawing cache')
+                --pipeline:push('draw', tank.id)
+                --print('using drawing cache')
             else
                 pipeline:push('new', tank.id, posx, posy, angle)
+                print('os.exit(100)')
+                os.exit(100)
                 --tank.first_render = true
             end
+
+            tank.px, tank.py = b.p.x, b.p.y
+            tank.angle = b.a
             --]]
 
         end
@@ -3467,7 +3470,7 @@ local function init()
 
     initJoy()
     initRenderCode()
-    --initPipelineObjects()
+    initPipelineObjects()
     initPhysIterators()
 
     --setWindowMode()
@@ -3644,6 +3647,11 @@ end
 
 local state: State = 'map'
 
+local function spawnTank(px: number, py: number, options: Tank.Options)
+    local tank = Tank.new(vec2(px, py), options)
+    table.insert(tanks, tank)
+end
+
 local function spawnTanks()
     local options: Tank.Options = {
         body_opts = {
@@ -3653,7 +3661,12 @@ local function spawnTanks()
 
     --local tanks_num = 1500
     local tanks_num = 500
-    --local tanks_num = 10
+    --[[
+    Если больше 150 объектов, то начинается периодическое мелькание.
+    Расчитать количество передаваемых данных за кадр и в среднем за секунду
+    которое приводит к мельканию.
+    --]]
+    --local tanks_num = 100
 
     local minx, maxx = 0, 4000
     local miny, maxy = 0, 4000
@@ -3662,8 +3675,7 @@ local function spawnTanks()
 
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-        local tank = Tank.new(vec2(px, py), options)
-        table.insert(tanks, tank)
+        spawnTank(px, py, options)
     end
 end
 
