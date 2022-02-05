@@ -15,14 +15,13 @@ require 'ffi'
 global graphic_command_channel: love.thread.Channel
 global SCENE_PREFIX: string
 
---[[
 local texture_msg: string = graphic_command_channel:demand() as string
 local width = graphic_command_channel:demand() as number
 local height = graphic_command_channel:demand() as number
 --]]
 
-local texture_msg = 'tank_body.png'
-local width, height = 256, 256
+--local texture_msg = 'tank_body.png'
+--local width, height = 256, 256
 
 if type(texture_msg) ~= 'string' then
     error('Wrong texture type')
@@ -64,15 +63,15 @@ mesh:setTexture(texture)
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------
 
---yield()
+yield()
 
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------
 
-local hash = {}
-local verts: {number} = nil
+local hash: {number: {number}} = {}
+--local verts: {number} = nil
 
 -- счетчик команд
 local cmd_num = 0
@@ -103,6 +102,16 @@ local function draw(x: number, y: number, angle: number)
     gr.circle('fill', x, y, rad)
 end
 
+local function get_id(): number
+    local id = graphic_command_channel:demand() as number
+
+    if type(id) ~= 'number' then
+        error('id type should be a number, not ' .. type(id))
+    end
+
+    return id
+end
+
 while true do
     local cmd: string
 
@@ -130,14 +139,13 @@ while true do
 
         if cmd == "new" then
             local x, y, angle: number, number, number
-            local id = graphic_command_channel:demand()
+            local id = get_id()
             x = graphic_command_channel:demand() as number
             y = graphic_command_channel:demand() as number
             angle = graphic_command_channel:demand() as number
 
-            draw(x, y, angle)
+            --draw(x, y, angle)
 
-            --[[
             hash[id] = {
                 [1] = x,
                 [2] = y,
@@ -145,12 +153,12 @@ while true do
             }
             --]]
 
-        elseif cmd == "draw" then
-            local id = graphic_command_channel:demand()
+        --elseif cmd == "draw" then
+            --local id = get_id()
             --draw(hash[id][1], hash[id][2], hash[id][3])
 
         elseif cmd == "remove" then
-            local id = graphic_command_channel:demand()
+            local id = get_id()
             hash[id] = nil
 
             --print('remove')
@@ -158,7 +166,12 @@ while true do
         elseif cmd == 'flush' then
             --love.graphics.draw(mesh)
             --print('flush')
+            for _, v in pairs(hash) do
+                draw(v[1], v[2], v[3])
+            end
             break
+        else
+            error('unkonwn command: ' .. cmd)
         end
 
         cmd_num = cmd_num + 1
