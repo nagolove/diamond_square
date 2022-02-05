@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local string = _tl_compat and _tl_compat.string or string
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local pairs = _tl_compat and _tl_compat.pairs or pairs; local string = _tl_compat and _tl_compat.string or string
 
 
 
@@ -15,14 +15,13 @@ require('ffi')
 
 
 
+local texture_msg = graphic_command_channel:demand()
+local width = graphic_command_channel:demand()
+local height = graphic_command_channel:demand()
 
 
 
 
-
-
-local texture_msg = 'tank_body.png'
-local width, height = 256, 256
 
 if type(texture_msg) ~= 'string' then
    error('Wrong texture type')
@@ -64,7 +63,7 @@ mesh:setTexture(texture)
 
 
 
-
+yield()
 
 
 
@@ -72,7 +71,7 @@ mesh:setTexture(texture)
 
 
 local hash = {}
-local verts = nil
+
 
 
 local cmd_num = 0
@@ -103,6 +102,16 @@ local function draw(x, y, angle)
    gr.circle('fill', x, y, rad)
 end
 
+local function get_id()
+   local id = graphic_command_channel:demand()
+
+   if type(id) ~= 'number' then
+      error('id type should be a number, not ' .. type(id))
+   end
+
+   return id
+end
+
 while true do
    local cmd
 
@@ -130,27 +139,26 @@ while true do
 
       if cmd == "new" then
          local x, y, angle
-         local id = graphic_command_channel:demand()
+         local id = get_id()
          x = graphic_command_channel:demand()
          y = graphic_command_channel:demand()
          angle = graphic_command_channel:demand()
 
-         draw(x, y, angle)
+
+
+         hash[id] = {
+            [1] = x,
+            [2] = y,
+            [3] = angle,
+         }
 
 
 
 
-
-
-
-
-
-      elseif cmd == "draw" then
-         local id = graphic_command_channel:demand()
 
 
       elseif cmd == "remove" then
-         local id = graphic_command_channel:demand()
+         local id = get_id()
          hash[id] = nil
 
 
@@ -158,7 +166,12 @@ while true do
       elseif cmd == 'flush' then
 
 
+         for _, v in pairs(hash) do
+            draw(v[1], v[2], v[3])
+         end
          break
+      else
+         error('unkonwn command: ' .. cmd)
       end
 
       cmd_num = cmd_num + 1

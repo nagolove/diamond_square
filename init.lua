@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local debug = _tl_compat and _tl_compat.debug or debug; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local debug = _tl_compat and _tl_compat.debug or debug; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local os = _tl_compat and _tl_compat.os or os; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -3392,7 +3392,7 @@ local function eachShape(b, shape)
 
          tank.px, tank.py = posx, posy
          tank.angle = angle
-
+         tank.first_render = false
 
 
 
@@ -3426,22 +3426,25 @@ local function eachShape(b, shape)
 
 
 
+         local abs = math.abs
+         local px_diff, py_diff = abs(newx - tank.px), abs(newy - tank.py)
+         local angle_diff = abs(new_angle - tank.angle)
+
+         local epsilon = 0.1
+
+         local pos_part = px_diff < epsilon and py_diff < epsilon
+         if pos_part and angle_diff < epsilon then
 
 
+         else
+            pipeline:push('new', tank.id, posx, posy, angle)
+            print('os.exit(100)')
+            os.exit(100)
 
+         end
 
-
-
-
-
-
-
-
-
-
-
-
-
+         tank.px, tank.py = b.p.x, b.p.y
+         tank.angle = b.a
 
 
       end
@@ -3467,7 +3470,7 @@ local function init()
 
    initJoy()
    initRenderCode()
-
+   initPipelineObjects()
    initPhysIterators()
 
 
@@ -3644,6 +3647,11 @@ local State = {}
 
 local state = 'map'
 
+local function spawnTank(px, py, options)
+   local tank = Tank.new(vec2(px, py), options)
+   table.insert(tanks, tank)
+end
+
 local function spawnTanks()
    local options = {
       body_opts = {
@@ -3655,6 +3663,11 @@ local function spawnTanks()
    local tanks_num = 500
 
 
+
+
+
+
+
    local minx, maxx = 0, 4000
    local miny, maxy = 0, 4000
 
@@ -3662,8 +3675,7 @@ local function spawnTanks()
 
    for _ = 1, tanks_num do
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-      local tank = Tank.new(vec2(px, py), options)
-      table.insert(tanks, tank)
+      spawnTank(px, py, options)
    end
 end
 
