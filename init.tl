@@ -2126,6 +2126,10 @@ local function spawnTanks()
     end
 end
 
+local function applyInput()
+
+end
+
 -- как лучше учитывать положение джойстика что-бы не было рывков?
 local function cameraScale(j: joystick.Joystick, dt: number)
     local axes = {j:getAxes()}
@@ -2199,7 +2203,8 @@ local stateCoro: thread = coroutine.create(function(dt: number)
 
             -- шаг физики
             pw.update(dt)
-
+    
+            applyInput()
             updateJoyState()
 
             dt = yield() as number
