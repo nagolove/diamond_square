@@ -112,6 +112,19 @@ local function get_id(): number
     return id
 end
 
+--ffi.cdef [[
+--typedef {
+    --double x, y, angle;
+--} Object;
+--]]
+
+--[[
+local max_count = 4096
+local buf: {number} = ffi.new('Object[?]', max_count)
+local last_buf_index = 0
+
+--]]
+
 while true do
     local cmd: string
 
