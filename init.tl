@@ -78,6 +78,7 @@ arrow.init(pipeline)
 local Shortcut = KeyConfig.Shortcut
 
 --local abs, pow, sqrt = math.abs, math.pow, math.sqrt
+local abs = math.abs
 --local yield, resume = coroutine.yield, coroutine.resume
 --local yield = coroutine.yield
 
@@ -227,11 +228,14 @@ local record Tank
 
     body: pw.Body
 
+    -- {{{ px, py, angle используются в eachShape для проверки на необходимсоть 
+    -- рисования
     -- положение
     px: number
     py: number
-
+    -- угол
     angle: number
+    -- }}}
 
     -- пушка
     --turret: Turret
@@ -3243,6 +3247,7 @@ local function bindFullscreenSwitcher()
 end
 
 local function initRenderCode()
+    -- {{{
 
     pipeline:pushCode("poly_shape_verts", [[
     local col = {1, 0, 0, 1}
@@ -3333,6 +3338,7 @@ local function initRenderCode()
         end
         -- }}}
     ]])
+    -- }}}
 end
 
 local function initPipelineObjects()
@@ -3361,10 +3367,6 @@ local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
 
     if shape_type == pw.CP_POLY_SHAPE then
 
-        -- Возможно стоит поместить формирование таблички в 
-        -- вспомогательную библиотеку или переписать с прямым доступом к
-        -- shape->planes[i].v0
-
         local body_wrap = pw.cpBody2Body(b)
         local tank = body_wrap.user_data as Tank
 
@@ -3376,75 +3378,57 @@ local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
         posx, posy = b.p.x, b.p.y
         local angle = b.a
 
-        --print('posx, posy', posx, posy)
-        --print('angle', b.a)
-
         if tank.first_render then
-            --local verts = gather_verts(shape)
-
-            --print('init.tl - verts', inspect(verts))
-
-            --pipeline:push('new')
-            --pipeline:push(tank.id)
-            --pipeline:push(verts)
-
             pipeline:push('new', tank.id, posx, posy, angle)
 
+            -- первоначальная установка значений положения и угла
             tank.px, tank.py = posx, posy
             tank.angle = angle
+
             tank.first_render = false
 
             --tank.prev_posx = body_wrap.body.p.x
             --tank.prev_posy = body_wrap.body.p.y
         else
-            -- TODO сравнивать не только линейную скорость, но и угловую
-            --local len = vecl.len(b.v.x, b.v.y)
             local newx, newy = b.p.x, b.p.y
             local new_angle = b.a
 
-            --if len ~= 0 then
-                --print('os.exit(100)')
-                --os.exit(100)
-            --end
-
-            --print('len', len)
-            --local angular_vel = b.w
-            --print('angular_vel', angular_vel)
-
-            --local epsilon_vel = 0.01 
-            --local epsilon_w = 0.001
-
-            --pipeline:push('draw')
-            --pipeline:push(tank.id)
-
-            --if len < epsilon_vel and angular_vel < epsilon_w then
-                --pipeline:push('draw')
-                --pipeline:push(tank.id)
-                --print('using drawing cache')
-            --else
-                --pipeline:push('new', tank.id, posx, posy, angle)
-                ----tank.first_render = true
-            --end
-
-            local abs = math.abs
             local px_diff, py_diff = abs(newx - tank.px), abs(newy - tank.py)
             local angle_diff = abs(new_angle - tank.angle)
 
-            local epsilon = 0.1
+            --print('px_diff, py_diff', px_diff, py_diff)
+            --print('angle_diff', angle_diff)
+
             -- как может накапливаться ошибка?
-            local pos_part = px_diff < epsilon and py_diff < epsilon 
-            if pos_part and angle_diff < epsilon then
+            local pos_epsilon, angle_epsilon = 0.05, 0.05
+
+            local pos_part = px_diff > pos_epsilon and py_diff > pos_epsilon 
+            local angle_part = angle_diff > angle_epsilon
+
+            --print('pos_part', pos_part)
+            --print('angle_part', angle_part)
+
+            if pos_part or angle_part then
+                pipeline:push('new', tank.id, posx, posy, angle)
+
+                --print('new')
+                --if pos_part and angle_diff < epsilon then
                 --pipeline:push('draw', tank.id)
                 --print('using drawing cache')
+
+                tank.px, tank.py = b.p.x, b.p.y
+                tank.angle = b.a
             else
-                pipeline:push('new', tank.id, posx, posy, angle)
-                print('os.exit(100)')
-                os.exit(100)
+                --print('none')
+
+                --print('os.exit(100)')
+                --os.exit(100)
                 --tank.first_render = true
+
             end
 
-            tank.px, tank.py = b.p.x, b.p.y
-            tank.angle = b.a
+            --tank.px, tank.py = b.p.x, b.p.y
+            --tank.angle = b.a
             --]]
 
         end
