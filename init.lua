@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local debug = _tl_compat and _tl_compat.debug or debug; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local os = _tl_compat and _tl_compat.os or os; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local debug = _tl_compat and _tl_compat.debug or debug; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -78,6 +78,7 @@ arrow.init(pipeline)
 local Shortcut = KeyConfig.Shortcut
 
 
+local abs = math.abs
 
 
 
@@ -204,6 +205,9 @@ local Hangar = {}
 
 
 local Tank = {Options = {}, }
+
+
+
 
 
 
@@ -3244,6 +3248,7 @@ end
 
 local function initRenderCode()
 
+
    pipeline:pushCode("poly_shape_verts", [[
     local col = {1, 0, 0, 1}
     local inspect = require "inspect"
@@ -3333,6 +3338,7 @@ local function initRenderCode()
         end
         -- }}}
     ]])
+
 end
 
 local function initPipelineObjects()
@@ -3361,10 +3367,6 @@ local function eachShape(b, shape)
 
    if shape_type == pw.CP_POLY_SHAPE then
 
-
-
-
-
       local body_wrap = pw.cpBody2Body(b)
       local tank = body_wrap.user_data
 
@@ -3376,75 +3378,57 @@ local function eachShape(b, shape)
       posx, posy = b.p.x, b.p.y
       local angle = b.a
 
-
-
-
       if tank.first_render then
-
-
-
-
-
-
-
-
          pipeline:push('new', tank.id, posx, posy, angle)
+
 
          tank.px, tank.py = posx, posy
          tank.angle = angle
+
          tank.first_render = false
 
 
 
       else
-
-
          local newx, newy = b.p.x, b.p.y
          local new_angle = b.a
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-         local abs = math.abs
          local px_diff, py_diff = abs(newx - tank.px), abs(newy - tank.py)
          local angle_diff = abs(new_angle - tank.angle)
 
-         local epsilon = 0.1
-
-         local pos_part = px_diff < epsilon and py_diff < epsilon
-         if pos_part and angle_diff < epsilon then
 
 
-         else
+
+
+         local pos_epsilon, angle_epsilon = 0.05, 0.05
+
+         local pos_part = px_diff > pos_epsilon and py_diff > pos_epsilon
+         local angle_part = angle_diff > angle_epsilon
+
+
+
+
+         if pos_part or angle_part then
             pipeline:push('new', tank.id, posx, posy, angle)
-            print('os.exit(100)')
-            os.exit(100)
+
+
+
+
+
+
+            tank.px, tank.py = b.p.x, b.p.y
+            tank.angle = b.a
+         else
+
+
+
+
+
 
          end
 
-         tank.px, tank.py = b.p.x, b.p.y
-         tank.angle = b.a
+
+
 
 
       end
