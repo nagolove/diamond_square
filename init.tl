@@ -1896,11 +1896,20 @@ end
 local function initPipelineObjects()
     pipeline:open('base_shape')
     pipeline:push(base_tex_fname, tank_width, tank_height)
+    --[[
+    82*108
+    86(?), 74
+    --]]
     pipeline:close()
 
     pipeline:open('turret_shape')
     pipeline:push(turret_text_fname, tank_width, tank_height)
+    --[[
+    52*159
+    102, 1
+    --]]
     pipeline:close()
+
 
     pipeline:sync()
 end
