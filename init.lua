@@ -38,6 +38,8 @@ require('konstants')
 require('joystate')
 require('pipeline')
 require("common")
+
+
 require("keyconfig")
 
 local IMGUI = false
@@ -46,11 +48,7 @@ if love.system.getOS() == 'Linux' then
    IMGUI = true
 end
 
-
-
 require("love")
-
-
 
 
 
@@ -79,8 +77,7 @@ local Shortcut = KeyConfig.Shortcut
 
 
 local abs = math.abs
-
-
+local yield, resume = coroutine.yield, coroutine.resume
 
 local Mode = {}
 
@@ -523,11 +520,6 @@ cursorpos = 1
 attachedVarsList = {}
 
 
-
-
-
-
-
 require("Timer")
 
 
@@ -565,15 +557,6 @@ hangars = {}
 require('logo')
 
 
-
-
-
-
-
-
-
-
-
 local tankCounter = 0
 
 local rng = love.math.newRandomGenerator()
@@ -599,6 +582,7 @@ local is_stop = false
 local last_render = love.timer.getTime()
 
 
+local Joystick = love.joystick.Joystick
 local joystick = love.joystick
 local joyState
 
@@ -616,25 +600,6 @@ local function initJoy()
    joyState = JoyState.new(joy)
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function Bullet.new(px, py, dirx, diry,
    tankId)
 
@@ -643,25 +608,10 @@ function Bullet.new(px, py, dirx, diry,
    }
    local self = setmetatable({}, Bullet_mt)
 
-
-
-
-
    self.timestamp = love.timer.getTime()
    self.died = false
    self.px = px
    self.py = py
-
-
-
-
-
-
-   self.physbody:setMass(1)
-   local impulse = 100
-   if dirx and diry then
-      self.physbody:applyLinearImpulse(dirx * impulse, diry * impulse)
-   end
 
    self.dir = vec2.new(dirx, diry)
    self.id = tankId or 0
@@ -710,117 +660,12 @@ local function eachBody(b)
    end
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function Hangar.new(pos)
    local Hangar_mt = {
       __index = Hangar,
    }
    local self = setmetatable({}, Hangar_mt)
    self.objectType = "Hangar"
-
-
-
 
    self.rectXY = { 0, 0 }
    self.rectWH = { 511, 511 }
@@ -839,12 +684,7 @@ function Hangar.new(pos)
       py + self.rectWH[2] / 2 * PIX2M,
    }
 
-
    self.vertices = vertices
-
-
-
-
    self.color = { 1, 1, 1, 1 }
    return self
 end
@@ -854,95 +694,13 @@ function Hangar:update()
 end
 
 function Hangar:present()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function Hit.new(x, y)
    local Hit_mt = {
       __index = Hit,
    }
    local self = setmetatable({}, Hit_mt)
-
-
-
-
 
    self.ps = nil
    error('self.ps = nil')
@@ -955,141 +713,12 @@ function Hit.new(x, y)
    return self
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function Turret:fire()
-
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function Arena.new(_)
    local Arena_mt = { __index = Arena }
    local self = setmetatable({}, Arena_mt)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
    self.objectType = "Arena"
 
@@ -1097,36 +726,12 @@ function Arena.new(_)
 end
 
 function Arena:mousemoved(_, _, _, _)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
 
 function Arena:update()
 end
 
 function Arena:mousepressed(x, y, _)
-
-
-
-
-
 
    x, y = x * PIX2M, y * PIX2M
    if self.mode then
@@ -1143,29 +748,10 @@ function Arena:mousepressed(x, y, _)
    end
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function Arena:ser()
-
 end
 
 function Arena:save2file(fname)
-
    local root = {
       rngSeed = rng:getSeed(),
       edges = self.edges,
@@ -1180,80 +766,27 @@ end
 
 function Arena:createFixtures()
    assert(self.edges)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
 
 
 
 function Tank:fire()
-
-
-
-
-
-end
-
-function Tank:circleMove()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
 
 function Base:left()
-
 end
 
 function Base:right()
-
 end
 
 function Base:forward()
-
    if self.tank.fuel > 0. then
-
-
    end
-
 end
 
 function Base:backward()
-
    if self.tank.fuel > 0. then
-
-
    end
-
 end
 
 
@@ -1294,9 +827,6 @@ function Tank.new(pos, options)
       __index = Tank,
    }
 
-
-
-
    local self = setmetatable({}, Tank_mt)
 
    tankCounter = tankCounter + 1
@@ -1307,24 +837,7 @@ function Tank.new(pos, options)
    self.id = tankCounter
    self.first_render = true
 
-
-
-
-
-
-
-
-
    self.color = { 1, 1, 1, 1 }
-
-
-
-
-
-
-
-
-
 
    local body_options = options and options.body_opts
    self.body = pw.newBoxBody(tank_width, tank_height, body_options)
@@ -1332,60 +845,22 @@ function Tank.new(pos, options)
    self.body.user_data = self
 
    return self
-
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function Base:drawDirectionVector()
    if self.dir then
       local x, y = 0, 0
-
       local scale = 100
       local color = { 0., 0.05, 0.99, 1 }
       x, y = x * M2PIX, y * M2PIX
-
       arrow.draw(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
    end
 end
 
 function Base:resetVelocities()
-
-
-
-
-
-
 end
 
 function Base:updateDir()
-
-
-
-
-
 end
 
 function Base:engineCycle()
@@ -1403,132 +878,22 @@ function Base:update()
    self:processTracks()
 end
 
-
 function Base:processTracks()
-
-
-
-
-
-
-
-
 end
-
-
-
-
-
-
-
-
-
-
-
-
 
 function Tank:update()
 
-
-
-
    if self.strength <= 0. then
-
-
-
-
-
-
-
-
-
-
-
-
       return self
    end
 
-
-
-
-
-
-
-
-
-
-
    return self
-
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function Tank:present()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
 
 function Turret.new(t)
-
    if not t then
       error("Could'not create Turret without Tank object")
    end
@@ -1541,213 +906,24 @@ function Turret.new(t)
    self.tank = t
    self.objectType = "Turret"
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    return self
-
 end
 
 
 
 function Turret:rotateToMouse()
-
    local mx, my = love.mouse.getPosition()
-
    mx, my = mx * PIX2M, my * PIX2M
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
 
 function Turret:update()
 
-
    if playerTank and self.tank == playerTank then
       self:rotateToMouse()
    end
-
-
-
-
-
-
-
-
-
-
-
-
 end
 
 function Turret:present()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
 
 function Base.new(t)
@@ -1769,79 +945,11 @@ function Base.new(t)
    self.rectXY = { 86, 72 }
    self.rectWH = { 84, 111 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    return self
-
 end
 
-
-
-
 function Base:present()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    self:drawTrack()
-
 end
 
 function Base:pushTrack()
@@ -1876,147 +984,10 @@ function Base:pushTrack()
 end
 
 function Base:drawTrack()
-
-
-
-
-
-
-
-
-
-
-
 end
-
-
-
-
-
 
 function Tank:damage(_)
-
-
-
-
-
-
-
-
-
-
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2084,58 +1055,7 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function getTerrainCorners()
-
 end
 
 local function bindDeveloperKeys()
@@ -2189,116 +1109,7 @@ local function bindTerrainControlKeys()
    end,
 
    'draw terrain or not')
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2390,70 +1201,11 @@ str = ""
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local function spawnHangar(pos)
    local hangar = Hangar.new(pos)
    table.insert(hangars, hangar)
    return hangar
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2586,29 +1338,6 @@ local function bindEscape()
 
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function printBody(body)
 
    print(">>>>>>>>")
@@ -2619,149 +1348,6 @@ function printBody(body)
    print("getAngle()", body:getAngle())
    print(">>>>>>>>")
 
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local function render_shapes_by_verts()
-   pw.eachSpaceBody(bodyIter_verts)
 end
 
 local function renderScene()
@@ -2785,6 +1371,15 @@ local function renderScene()
       pw.eachSpaceBody(bodyIter)
       pipeline:push('flush')
       pipeline:close()
+
+      if playerTank then
+         pipeline:open('selected_object')
+         local body = playerTank.body.body
+         pipeline:push(body.p.x, body.p.y, body.a)
+         pipeline:close()
+      else
+         error('Player should not be nil')
+      end
 
 
 
@@ -2818,36 +1413,10 @@ local lastPosX, lastPosY
 
 local function moveCamera()
    if playerTank then
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
       if not lastPosX then
-
       end
-
       if not lastPosY then
-
       end
-
-
-
-
-
-
-
    end
 end
 
@@ -2870,28 +1439,6 @@ end
 
 local function enterCommandMode()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
 
 local function leaveCommandMode()
@@ -2911,13 +1458,6 @@ function attach(varname)
             local l = (_G)[varname]
             local output = tabular.show2(l)
             if output then
-
-
-
-
-
-
-
 
             else
 
@@ -3058,17 +1598,6 @@ local function setNextCommand()
 end
 
 local function suggestCompletion()
-
-
-
-
-
-
-
-
-
-
-
 end
 
 local function processCommandModeKeys(key)
@@ -3218,14 +1747,6 @@ local function bindCameraZoomKeys()
 
 end
 
-
-
-
-
-
-
-
-
 local function bindFullscreenSwitcher()
 
    KeyConfig.bind(
@@ -3258,6 +1779,34 @@ local function initRenderCode()
 
         local verts = graphic_command_channel:demand()
         love.graphics.polygon('fill', verts)
+
+        coroutine.yield()
+    end
+    ]])
+
+   pipeline:pushCode('selected_object', [[
+    local width, height = 256, 256
+    local x, y, angle: number
+    local gr = love.graphics
+    while true do
+        x = graphic_command_channel:demand() as number
+        y = graphic_command_channel:demand() as number
+        angle = graphic_command_channel:demand() as number
+
+        gr.push()
+        gr.translate(x, y)
+        gr.rotate(angle)
+        gr.translate(-width / 2, -height / 2)
+
+        gr.setColor {0, 0.5, 1, 0.3}
+
+        --gr.setColor {1, 1, 1, 1}
+
+        gr.rectangle('fill', 0, 0, width, height)
+        --gr.draw(texture, quad, 0, 0, width, height)
+        --gr.draw(texture, quad, 0, 0)
+
+        gr.pop()
 
         coroutine.yield()
     end
@@ -3457,11 +2006,6 @@ local function init()
    initPipelineObjects()
    initPhysIterators()
 
-
-
-
-
-
    loadLocales()
 
 
@@ -3475,12 +2019,6 @@ local function init()
    bindTerrainControlKeys()
    bindDeveloperKeys()
 
-
-
-
-
-
-
    arena = Arena.new("arena.lua")
 
    local corners = getTerrainCorners()
@@ -3489,18 +2027,6 @@ local function init()
          spawnHangar(c)
       end
    end
-
-
-
-
-
-
-
-
-
-
-
-
 
 
    print('init finished')
@@ -3534,35 +2060,6 @@ local function mousepressed(x, y, btn)
    metrics.mousepressed(x, y, btn)
 
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 local function updateJoyState()
    joyState:update()
@@ -3634,6 +2131,11 @@ local state = 'map'
 local function spawnTank(px, py, options)
    local tank = Tank.new(vec2(px, py), options)
    table.insert(tanks, tank)
+   return tank
+end
+
+local function spawnPlayer()
+   playerTank = spawnTank(-20, -20)
 end
 
 local function spawnTanks()
@@ -3660,6 +2162,21 @@ local function spawnTanks()
    for _ = 1, tanks_num do
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
       spawnTank(px, py, options)
+   end
+end
+
+local function applyInput(j)
+   local left, right, up, down = 3, 2, 4, 1
+   if j then
+      if j:isDown(right) then
+         print('right')
+      elseif j:isDown(left) then
+         print('left')
+      elseif j:isDown(up) then
+         print('up')
+      elseif j:isDown(down) then
+         print('down')
+      end
    end
 end
 
@@ -3713,6 +2230,7 @@ end
 local stateCoro = coroutine.create(function(dt)
 
    spawnTanks()
+   spawnPlayer()
 
    while true do
       if state == 'map' then
@@ -3737,9 +2255,10 @@ local stateCoro = coroutine.create(function(dt)
 
          pw.update(dt)
 
+         applyInput(joy)
          updateJoyState()
 
-         dt = coroutine.yield()
+         dt = yield()
       elseif state == 'garage' then
 
       end
