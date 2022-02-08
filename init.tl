@@ -213,8 +213,14 @@ local record Tank
         body_opts: pw.Options
     end
 
+    enum Part
+        'base_first_render'
+        'turret_first_render'
+    end
+
     -- {{{
-    first_render: boolean
+    base_first_render: boolean
+    turret_first_render: boolean
 
     -- прочность танка от 1 до 0
     strength: number
@@ -229,7 +235,8 @@ local record Tank
     -- уникальное за сеанс игры число
     id: integer
 
-    body: pw.Body
+    base: pw.Body
+    turret: pw.Body
 
     -- {{{ px, py, angle используются в eachShape для проверки на необходимсоть 
     -- рисования
@@ -478,11 +485,16 @@ end
 -- Указатель на текущий подсвеченный навигатором танк.
 --local currentNavigator: Tank
 
-local bodyIter: pw.EachSpaceBodyIter
-local shapeIter: pw.EachBodyShapeIter
+local bodyIter_base: pw.EachSpaceBodyIter
+local shapeIter_base: pw.EachBodyShapeIter
+
+local bodyIter_turret: pw.EachSpaceBodyIter
+local shapeIter_turret: pw.EachBodyShapeIter
 
 local bodyIter_verts: pw.EachSpaceBodyIter
 local shapeIter_verts: pw.EachBodyShapeIter
+
+local current_part: Tank.Part
 
 local screenW, screenH: number, number
 
@@ -772,7 +784,8 @@ function Tank:backward()
     --self.base:backward()
 end
 
-local base_tex_fname = 'tank_body.png'
+local base_tex_fname = 'tank_body_small.png'
+local turret_text_fname = 'tank_tower.png'
 
 local function getTankSize(): integer, integer
     local path = SCENE_PREFIX .. '/' .. base_tex_fname
@@ -801,14 +814,21 @@ function Tank.new(pos: vector, options: Tank.Options): Tank
     self.strength = 1.
     self.fuel = 1.
     self.id = tankCounter
-    self.first_render = true
+    self.base_first_render = true
+    self.turret_first_render = true
 
     self.color = {1, 1, 1, 1}
 
     local body_options = options and options.body_opts
-    self.body = pw.newBoxBody(tank_width, tank_height, body_options)
-    self.body:bodySetPosition(pos.x, pos.y)
-    self.body.user_data = self
+
+    self.base = pw.newBoxBody(tank_width, tank_height, body_options)
+    self.base:bodySetPosition(pos.x, pos.y)
+    self.base.user_data = self
+
+    -- Задать меньшие размеры физического тела башни
+    self.turret = pw.newBoxBody(tank_width, tank_height, body_options)
+    self.turret:bodySetPosition(pos.x, pos.y)
+    self.turret.user_data = self
 
     return self
 end
@@ -1326,6 +1346,22 @@ function printBody(body: love.physics.Body)
     -- }}}
 end
 
+local function render_tank_base()
+    current_part = 'base_first_render'
+    pipeline:open('base_shape')
+    pw.eachSpaceBody(bodyIter)
+    pipeline:push('flush')
+    pipeline:close()
+end
+
+local function render_tank_turret()
+    current_part = 'base_first_render'
+    pipeline:open('base_shape')
+    pw.eachSpaceBody(bodyIter)
+    pipeline:push('flush')
+    pipeline:close()
+end
+
 local function renderScene()
     -- Ограничение кадров в секунду до 60
     local nt = love.timer.getTime()
@@ -1342,15 +1378,14 @@ local function renderScene()
         pipeline:close()
 
         --render_shapes_by_verts()
+        render_tank_base()
+        render_tank_turret()
 
-        pipeline:open('poly_shape')
-        pw.eachSpaceBody(bodyIter)
-        pipeline:push('flush')
-        pipeline:close()
+        pipeline:openAndClose('alpha_draw')
 
         if playerTank then
             pipeline:open('selected_object')
-            local body = playerTank.body.body
+            local body = playerTank.base.body
             pipeline:push(body.p.x, body.p.y, body.a)
             pipeline:close()
         else
@@ -1731,6 +1766,17 @@ local function initRenderCode()
     end
     ]])
 
+    pipeline:pushCode('alpha_draw', [[
+    local tex1 = love.graphics.newImage(SCENE_PREFIX .. '/tank_body_small.png')
+    local tex2 = love.graphics.newImage(SCENE_PREFIX .. '/tank_tower.png')
+    while true do
+        love.graphics.setColor {1, 1, 1, 1}
+        love.graphics.draw(tex1, 0, 0)
+        love.graphics.draw(tex2, 0, 0)
+        coroutine.yield()
+    end
+    ]])
+
     pipeline:pushCode('selected_object', [[
     local width, height = 256, 256
     local x, y, angle: number
@@ -1803,7 +1849,8 @@ local function initRenderCode()
     end
     ]])
 
-    pipeline:pushCodeFromFile("poly_shape", 'poly_shape.lua')
+    pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
+    pipeline:pushCodeFromFile("turret_shape", 'poly_shape.lua')
 
     pipeline:pushCode('chipmunk_vertex_order', [[
         -- {{{
@@ -1838,8 +1885,12 @@ local function initRenderCode()
 end
 
 local function initPipelineObjects()
-    pipeline:open('poly_shape')
+    pipeline:open('base_shape')
     pipeline:push(base_tex_fname, tank_width, tank_height)
+    pipeline:close()
+
+    pipeline:open('turret_shape')
+    pipeline:push(turret_text_fname, tank_width, tank_height)
     pipeline:close()
 
     pipeline:sync()
@@ -1870,21 +1921,21 @@ local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
             error("tank is nil")
         end
 
-        local posx, posy: number, number
-        posx, posy = b.p.x, b.p.y
+        local posx, posy = b.p.x, b.p.y
         local angle = b.a
 
-        if tank.first_render then
+        if tank[current_part] then
             pipeline:push('new', tank.id, posx, posy, angle)
 
             -- первоначальная установка значений положения и угла
             tank.px, tank.py = posx, posy
             tank.angle = angle
 
-            tank.first_render = false
+            tank[current_part] = false
 
             --tank.prev_posx = body_wrap.body.p.x
             --tank.prev_posy = body_wrap.body.p.y
+
         else
             local newx, newy = b.p.x, b.p.y
             local new_angle = b.a
@@ -1915,8 +1966,8 @@ local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
                 tank.px, tank.py = b.p.x, b.p.y
                 tank.angle = b.a
             else
-                --print('none')
 
+                --print('none')
                 --print('os.exit(100)')
                 --os.exit(100)
                 --tank.first_render = true
@@ -1929,7 +1980,6 @@ local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
 
         end
     end
-    --]]
 end
 
 local function initPhysIterators()
@@ -2096,13 +2146,14 @@ local function spawnTanks()
     }
 
     --local tanks_num = 1500
-    local tanks_num = 500
+    --local tanks_num = 500
+
     --[[
     Если больше 150 объектов, то начинается периодическое мелькание.
     Расчитать количество передаваемых данных за кадр и в среднем за секунду
     которое приводит к мельканию.
     --]]
-    --local tanks_num = 100
+    local tanks_num = 100
 
     local minx, maxx = 0, 4000
     local miny, maxy = 0, 4000
