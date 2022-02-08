@@ -279,6 +279,7 @@ local Tank = {Options = {}, }
 
 
 
+
 local Turret = {}
 
 
@@ -484,8 +485,11 @@ local Hit = {}
 
 
 
-local bodyIter
-local shapeIter
+local bodyIter_base
+local shapeIter_base
+
+local bodyIter_turret
+local shapeIter_turret
 
 local bodyIter_verts
 local shapeIter_verts
@@ -645,10 +649,19 @@ local function eachBody_verts(b)
    end
 end
 
-local function eachBody(b)
+local function eachBody_base(b)
    local body = pw.cpBody2Body(b)
    if body then
-      pw.eachBodyShape(b, shapeIter)
+      pw.eachBodyShape(b, shapeIter_base)
+   else
+      error('Body is nil:' .. debug.traceback())
+   end
+end
+
+local function eachBody_turret(b)
+   local body = pw.cpBody2Body(b)
+   if body then
+      pw.eachBodyShape(b, shapeIter_turret)
    else
       error('Body is nil:' .. debug.traceback())
    end
@@ -816,9 +829,15 @@ function Tank.new(pos, options)
    self.color = { 1, 1, 1, 1 }
 
    local body_options = options and options.body_opts
-   self.body = pw.newBoxBody(tank_width, tank_height, body_options)
-   self.body:bodySetPosition(pos.x, pos.y)
-   self.body.user_data = self
+
+   self.base = pw.newBoxBody(tank_width, tank_height, body_options)
+   self.base:bodySetPosition(pos.x, pos.y)
+   self.base.user_data = self
+
+
+   self.turret = pw.newBoxBody(tank_width, tank_height, body_options)
+   self.turret:bodySetPosition(pos.x, pos.y)
+   self.turret.user_data = self
 
    return self
 end
@@ -1336,6 +1355,22 @@ function printBody(body)
 
 end
 
+local function render_tank_base()
+   current_part = 'base_first_render'
+   pipeline:open('base_shape')
+   pw.eachSpaceBody(bodyIter_base)
+   pipeline:push('flush')
+   pipeline:close()
+end
+
+local function render_tank_turret()
+   current_part = 'base_first_render'
+   pipeline:open('base_shape')
+   pw.eachSpaceBody(bodyIter_turret)
+   pipeline:push('flush')
+   pipeline:close()
+end
+
 local function renderScene()
 
    local nt = love.timer.getTime()
@@ -1352,24 +1387,14 @@ local function renderScene()
       pipeline:close()
 
 
-
-      current_part = 'base_first_render'
-      pipeline:open('base_shape')
-      pw.eachSpaceBody(bodyIter)
-      pipeline:push('flush')
-      pipeline:close()
-
-      current_part = 'turret_first_render'
-      pipeline:open('turret_shape')
-      pw.eachSpaceBody(bodyIter)
-      pipeline:push('flush')
-      pipeline:close()
+      render_tank_base()
+      render_tank_turret()
 
       pipeline:openAndClose('alpha_draw')
 
       if playerTank then
          pipeline:open('selected_object')
-         local body = playerTank.body.body
+         local body = playerTank.base.body
          pipeline:push(body.p.x, body.p.y, body.a)
          pipeline:close()
       else
@@ -1890,7 +1915,7 @@ local function eachShape_verts(_, shape)
    end
 end
 
-local function eachShape(b, shape)
+local function eachShape_base(b, shape)
 
 
 
@@ -1966,9 +1991,87 @@ local function eachShape(b, shape)
    end
 end
 
+local function eachShape_turret(b, shape)
+
+
+
+   local shape_type = pw.polyShapeGetType(shape)
+
+   if shape_type == pw.CP_POLY_SHAPE then
+
+      local body_wrap = pw.cpBody2Body(b)
+      local tank = body_wrap.user_data
+
+      if not tank then
+         error("tank is nil")
+      end
+
+      local posx, posy = b.p.x, b.p.y
+      local angle = b.a
+
+      if tank[current_part] then
+         pipeline:push('new', tank.id, posx, posy, angle)
+
+
+         tank.px, tank.py = posx, posy
+         tank.angle = angle
+
+         tank[current_part] = false
+
+
+
+
+      else
+         local newx, newy = b.p.x, b.p.y
+         local new_angle = b.a
+
+         local px_diff, py_diff = abs(newx - tank.px), abs(newy - tank.py)
+         local angle_diff = abs(new_angle - tank.angle)
+
+
+
+
+
+         local pos_epsilon, angle_epsilon = 0.05, 0.05
+
+         local pos_part = px_diff > pos_epsilon and py_diff > pos_epsilon
+         local angle_part = angle_diff > angle_epsilon
+
+
+
+
+         if pos_part or angle_part then
+            pipeline:push('new', tank.id, posx, posy, angle)
+
+
+
+
+
+
+            tank.px, tank.py = b.p.x, b.p.y
+            tank.angle = b.a
+         else
+
+
+
+
+
+
+         end
+
+
+
+
+
+      end
+   end
+end
 local function initPhysIterators()
-   bodyIter = pw.newEachSpaceBodyIter(eachBody)
-   shapeIter = pw.newEachBodyShapeIter(eachShape)
+   bodyIter_base = pw.newEachSpaceBodyIter(eachBody_base)
+   shapeIter_base = pw.newEachBodyShapeIter(eachShape_base)
+
+   bodyIter_turret = pw.newEachSpaceBodyIter(eachBody_turret)
+   shapeIter_turret = pw.newEachBodyShapeIter(eachShape_turret)
 
    bodyIter_verts = pw.newEachSpaceBodyIter(eachBody_verts)
    shapeIter_verts = pw.newEachBodyShapeIter(eachShape_verts)
@@ -2153,7 +2256,7 @@ end
 local function applyInput(j)
    local left, right, up, down = 3, 2, 4, 1
    if j and playerTank then
-      local body = playerTank.body.body
+      local body = playerTank.base.body
 
 
 
