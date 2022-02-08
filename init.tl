@@ -649,10 +649,19 @@ local function eachBody_verts(b: Cm.cpBody)
     end
 end
 
-local function eachBody(b: Cm.cpBody)
+local function eachBody_base(b: Cm.cpBody)
     local body = pw.cpBody2Body(b)
     if body then
-        pw.eachBodyShape(b, shapeIter)
+        pw.eachBodyShape(b, shapeIter_base)
+    else
+        error('Body is nil:' .. debug.traceback())
+    end
+end
+
+local function eachBody_turret(b: Cm.cpBody)
+    local body = pw.cpBody2Body(b)
+    if body then
+        pw.eachBodyShape(b, shapeIter_turret)
     else
         error('Body is nil:' .. debug.traceback())
     end
@@ -1349,7 +1358,7 @@ end
 local function render_tank_base()
     current_part = 'base_first_render'
     pipeline:open('base_shape')
-    pw.eachSpaceBody(bodyIter)
+    pw.eachSpaceBody(bodyIter_base)
     pipeline:push('flush')
     pipeline:close()
 end
@@ -1357,7 +1366,7 @@ end
 local function render_tank_turret()
     current_part = 'base_first_render'
     pipeline:open('base_shape')
-    pw.eachSpaceBody(bodyIter)
+    pw.eachSpaceBody(bodyIter_turret)
     pipeline:push('flush')
     pipeline:close()
 end
@@ -1906,7 +1915,7 @@ local function eachShape_verts(_: Cm.cpBody, shape: Cm.cpShape)
     end
 end
 
-local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
+local function eachShape_base(b: Cm.cpBody, shape: Cm.cpShape)
     --debug_print('phys', 'eachShape call')
     --print('phys', 'eachShape call')
 
@@ -1982,9 +1991,87 @@ local function eachShape(b: Cm.cpBody, shape: Cm.cpShape)
     end
 end
 
+local function eachShape_turret(b: Cm.cpBody, shape: Cm.cpShape)
+    --debug_print('phys', 'eachShape call')
+    --print('phys', 'eachShape call')
+
+    local shape_type = pw.polyShapeGetType(shape)
+
+    if shape_type == pw.CP_POLY_SHAPE then
+
+        local body_wrap = pw.cpBody2Body(b)
+        local tank = body_wrap.user_data as Tank
+
+        if not tank then
+            error("tank is nil")
+        end
+
+        local posx, posy = b.p.x, b.p.y
+        local angle = b.a
+
+        if tank[current_part] then
+            pipeline:push('new', tank.id, posx, posy, angle)
+
+            -- первоначальная установка значений положения и угла
+            tank.px, tank.py = posx, posy
+            tank.angle = angle
+
+            tank[current_part] = false
+
+            --tank.prev_posx = body_wrap.body.p.x
+            --tank.prev_posy = body_wrap.body.p.y
+
+        else
+            local newx, newy = b.p.x, b.p.y
+            local new_angle = b.a
+
+            local px_diff, py_diff = abs(newx - tank.px), abs(newy - tank.py)
+            local angle_diff = abs(new_angle - tank.angle)
+
+            --print('px_diff, py_diff', px_diff, py_diff)
+            --print('angle_diff', angle_diff)
+
+            -- как может накапливаться ошибка?
+            local pos_epsilon, angle_epsilon = 0.05, 0.05
+
+            local pos_part = px_diff > pos_epsilon and py_diff > pos_epsilon 
+            local angle_part = angle_diff > angle_epsilon
+
+            --print('pos_part', pos_part)
+            --print('angle_part', angle_part)
+
+            if pos_part or angle_part then
+                pipeline:push('new', tank.id, posx, posy, angle)
+
+                --print('new')
+                --if pos_part and angle_diff < epsilon then
+                --pipeline:push('draw', tank.id)
+                --print('using drawing cache')
+
+                tank.px, tank.py = b.p.x, b.p.y
+                tank.angle = b.a
+            else
+
+                --print('none')
+                --print('os.exit(100)')
+                --os.exit(100)
+                --tank.first_render = true
+
+            end
+
+            --tank.px, tank.py = b.p.x, b.p.y
+            --tank.angle = b.a
+            --]]
+
+        end
+    end
+end
 local function initPhysIterators()
-    bodyIter = pw.newEachSpaceBodyIter(eachBody)
-    shapeIter = pw.newEachBodyShapeIter(eachShape)
+    bodyIter_base = pw.newEachSpaceBodyIter(eachBody_base)
+    shapeIter_base = pw.newEachBodyShapeIter(eachShape_base)
+
+    bodyIter_turret = pw.newEachSpaceBodyIter(eachBody_turret)
+    shapeIter_turret = pw.newEachBodyShapeIter(eachShape_turret)
     
     bodyIter_verts = pw.newEachSpaceBodyIter(eachBody_verts)
     shapeIter_verts = pw.newEachBodyShapeIter(eachShape_verts)
@@ -2169,7 +2256,7 @@ end
 local function applyInput(j: Joystick)
     local left, right, up, down = 3, 2, 4, 1
     if j and playerTank then
-        local body = playerTank.body.body
+        local body = playerTank.base.body
         --print('mass', Cm.cpBodyGetMass(body))
         --Cm.cpBodySetMass(body, 100)
         --print('tank_width, tank_height', tank_width, tank_height)
