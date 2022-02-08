@@ -494,7 +494,7 @@ local shapeIter_turret
 local bodyIter_verts
 local shapeIter_verts
 
-local current_part
+
 
 local screenW, screenH
 
@@ -1356,7 +1356,7 @@ function printBody(body)
 end
 
 local function render_tank_base()
-   current_part = 'base_first_render'
+
    pipeline:open('base_shape')
    pw.eachSpaceBody(bodyIter_base)
    pipeline:push('flush')
@@ -1364,8 +1364,8 @@ local function render_tank_base()
 end
 
 local function render_tank_turret()
-   current_part = 'base_first_render'
-   pipeline:open('base_shape')
+
+   pipeline:open('turret_shape')
    pw.eachSpaceBody(bodyIter_turret)
    pipeline:push('flush')
    pipeline:close()
@@ -1896,11 +1896,20 @@ end
 local function initPipelineObjects()
    pipeline:open('base_shape')
    pipeline:push(base_tex_fname, tank_width, tank_height)
+
+
+
+
    pipeline:close()
 
    pipeline:open('turret_shape')
    pipeline:push(turret_text_fname, tank_width, tank_height)
+
+
+
+
    pipeline:close()
+
 
    pipeline:sync()
 end
@@ -1933,14 +1942,14 @@ local function eachShape_base(b, shape)
       local posx, posy = b.p.x, b.p.y
       local angle = b.a
 
-      if tank[current_part] then
+      if tank.base_first_render then
          pipeline:push('new', tank.id, posx, posy, angle)
 
 
          tank.px, tank.py = posx, posy
          tank.angle = angle
 
-         tank[current_part] = false
+         tank.base_first_render = false
 
 
 
@@ -2009,17 +2018,14 @@ local function eachShape_turret(b, shape)
       local posx, posy = b.p.x, b.p.y
       local angle = b.a
 
-      if tank[current_part] then
+      if tank.turret_first_render then
          pipeline:push('new', tank.id, posx, posy, angle)
 
 
          tank.px, tank.py = posx, posy
          tank.angle = angle
 
-         tank[current_part] = false
-
-
-
+         tank.turret_first_render = false
 
       else
          local newx, newy = b.p.x, b.p.y
@@ -2029,39 +2035,19 @@ local function eachShape_turret(b, shape)
          local angle_diff = abs(new_angle - tank.angle)
 
 
-
-
-
          local pos_epsilon, angle_epsilon = 0.05, 0.05
 
          local pos_part = px_diff > pos_epsilon and py_diff > pos_epsilon
          local angle_part = angle_diff > angle_epsilon
 
-
-
-
          if pos_part or angle_part then
             pipeline:push('new', tank.id, posx, posy, angle)
-
-
-
-
-
 
             tank.px, tank.py = b.p.x, b.p.y
             tank.angle = b.a
          else
 
-
-
-
-
-
          end
-
-
-
-
 
       end
    end
