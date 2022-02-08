@@ -273,6 +273,12 @@ local Tank = {Options = {}, }
 
 
 
+
+
+
+
+
+
 local Turret = {}
 
 
@@ -483,6 +489,8 @@ local shapeIter
 
 local bodyIter_verts
 local shapeIter_verts
+
+local current_part
 
 local screenW, screenH
 
@@ -772,7 +780,8 @@ function Tank:backward()
 
 end
 
-local base_tex_fname = 'tank_body.png'
+local base_tex_fname = 'tank_body_small.png'
+local turret_text_fname = 'tank_tower.png'
 
 local function getTankSize()
    local path = SCENE_PREFIX .. '/' .. base_tex_fname
@@ -801,7 +810,8 @@ function Tank.new(pos, options)
    self.strength = 1.
    self.fuel = 1.
    self.id = tankCounter
-   self.first_render = true
+   self.base_first_render = true
+   self.turret_first_render = true
 
    self.color = { 1, 1, 1, 1 }
 
@@ -1343,10 +1353,19 @@ local function renderScene()
 
 
 
-      pipeline:open('poly_shape')
+      current_part = 'base_first_render'
+      pipeline:open('base_shape')
       pw.eachSpaceBody(bodyIter)
       pipeline:push('flush')
       pipeline:close()
+
+      current_part = 'turret_first_render'
+      pipeline:open('turret_shape')
+      pw.eachSpaceBody(bodyIter)
+      pipeline:push('flush')
+      pipeline:close()
+
+      pipeline:openAndClose('alpha_draw')
 
       if playerTank then
          pipeline:open('selected_object')
@@ -1731,6 +1750,17 @@ local function initRenderCode()
     end
     ]])
 
+   pipeline:pushCode('alpha_draw', [[
+    local tex1 = love.graphics.newImage(SCENE_PREFIX .. '/tank_body_small.png')
+    local tex2 = love.graphics.newImage(SCENE_PREFIX .. '/tank_tower.png')
+    while true do
+        love.graphics.setColor {1, 1, 1, 1}
+        love.graphics.draw(tex1, 0, 0)
+        love.graphics.draw(tex2, 0, 0)
+        coroutine.yield()
+    end
+    ]])
+
    pipeline:pushCode('selected_object', [[
     local width, height = 256, 256
     local x, y, angle: number
@@ -1803,7 +1833,8 @@ local function initRenderCode()
     end
     ]])
 
-   pipeline:pushCodeFromFile("poly_shape", 'poly_shape.lua')
+   pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
+   pipeline:pushCodeFromFile("turret_shape", 'poly_shape.lua')
 
    pipeline:pushCode('chipmunk_vertex_order', [[
         -- {{{
@@ -1838,8 +1869,12 @@ local function initRenderCode()
 end
 
 local function initPipelineObjects()
-   pipeline:open('poly_shape')
+   pipeline:open('base_shape')
    pipeline:push(base_tex_fname, tank_width, tank_height)
+   pipeline:close()
+
+   pipeline:open('turret_shape')
+   pipeline:push(turret_text_fname, tank_width, tank_height)
    pipeline:close()
 
    pipeline:sync()
@@ -1870,18 +1905,18 @@ local function eachShape(b, shape)
          error("tank is nil")
       end
 
-      local posx, posy
-      posx, posy = b.p.x, b.p.y
+      local posx, posy = b.p.x, b.p.y
       local angle = b.a
 
-      if tank.first_render then
+      if tank[current_part] then
          pipeline:push('new', tank.id, posx, posy, angle)
 
 
          tank.px, tank.py = posx, posy
          tank.angle = angle
 
-         tank.first_render = false
+         tank[current_part] = false
+
 
 
 
@@ -1929,7 +1964,6 @@ local function eachShape(b, shape)
 
       end
    end
-
 end
 
 local function initPhysIterators()
@@ -2096,13 +2130,14 @@ local function spawnTanks()
    }
 
 
-   local tanks_num = 500
 
 
 
 
 
 
+
+   local tanks_num = 100
 
    local minx, maxx = 0, 4000
    local miny, maxy = 0, 4000

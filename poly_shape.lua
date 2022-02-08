@@ -9,7 +9,7 @@ local yield = coroutine.yield
 
 require('love')
 
-local C = require('ffi')
+
 require('ffi')
 
 
