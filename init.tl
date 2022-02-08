@@ -379,7 +379,7 @@ end
 -- Основной боевой тип сняряда. Без фугасного воздействия.
 local record Bullet
     -- {{{
-    physbody: love.physics.Body
+    --physbody: love.physics.Body
     timestamp: number
     objectType: ObjectType
     id: integer
@@ -478,18 +478,11 @@ local shapeIter: pw.EachBodyShapeIter
 local bodyIter_verts: pw.EachSpaceBodyIter
 local shapeIter_verts: pw.EachBodyShapeIter
 
--- максимальное количество частиц
-global maxParticlesNumber = 512
-
-global notificationDelay = 2.5
-
--- Размеры экрана по-умолчанию(начальное положение)
---global DEFAULT_W, DEFAULT_H = 1024, 768
-global DEFAULT_W, DEFAULT_H = nil, nil
-
+-- XXX вызов pipeline:getDimensions() приводит к нарушению работы 
+-- pipeline:pushCode()
 -- Размеры экрана
-global screenW, screenH = pipeline:getDimensions()
-print('screenW, screenH', screenW, screenH)
+--global screenW, screenH = pipeline:getDimensions()
+--print('screenW, screenH', screenW, screenH)
 
 --[[ Танк длиной пять метров имеет отображаемый размер 50 пикселей
 коэффициент на который домножаю при переводе из метров в пиксели --]]
@@ -497,14 +490,6 @@ global M2PIX = 10
 
 -- коэффициент на который домножаю при переводе из пикселей в метры
 global PIX2M = 1 / 10
-
---local tankCollisionGroup = 1
---local bulletCollisionGroup = -1
--- Пули не сталкиваются с танками
---local bulletMask = 1
-
--- Множитель передачи импульса на шасси танка.
-global tankForceScale = 8
 
 -- {{{ Konsole editing
 local historyfname = "cmdhistory.txt"
@@ -580,10 +565,11 @@ local is_stop = false
 local last_render: number = love.timer.getTime()
 -- }}}
 
+local Joystick = love.joystick.Joystick
 local joystick = love.joystick
 local joyState: JoyState
 --local joys: {joystick.Joystick} = {}
-local joy: joystick.Joystick
+local joy: Joystick
 
 local function initJoy()
     for _, j in ipairs(joystick.getJoysticks()) do
@@ -609,12 +595,6 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number,
     self.died = false
     self.px = px
     self.py = py
-
-    self.physbody:setMass(1)
-    local impulse = 100
-    if dirx and diry then
-        self.physbody:applyLinearImpulse(dirx * impulse, diry * impulse)
-    end
 
     self.dir = vec2.new(dirx, diry)
     self.id = tankId or 0
@@ -663,32 +643,12 @@ local function eachBody(b: Cm.cpBody)
     end
 end
 
-function Hangar.new(pos: vector): Hangar
+function Hangar.new(_: vector): Hangar
     local Hangar_mt: metatable<Hangar> = {
         __index = Hangar,
     }
     local self = setmetatable({} as Hangar, Hangar_mt)
     self.objectType = "Hangar"
-
-    self.rectXY = {0, 0}
-    self.rectWH = {511, 511}
-    local px, py = pos.x, pos.y
-    local vertices = {
-        px - self.rectWH[1] / 2 * PIX2M, 
-        py - self.rectWH[2] / 2 * PIX2M,  
-
-        px + self.rectWH[1] / 2 * PIX2M, 
-        py - self.rectWH[2] / 2 * PIX2M,  
-
-        px + self.rectWH[1] / 2 * PIX2M, 
-        py + self.rectWH[2] / 2 * PIX2M,  
-
-        px - self.rectWH[1] / 2 * PIX2M,
-        py + self.rectWH[2] / 2 * PIX2M,
-    }
-
-    self.vertices = vertices
-    self.color = {1, 1, 1, 1}
     return self
 end
 
@@ -1375,6 +1335,15 @@ local function renderScene()
         pipeline:push('flush')
         pipeline:close()
 
+        if playerTank then
+            pipeline:open('selected_object')
+            local body = playerTank.body.body
+            pipeline:push(body.p.x, body.p.y, body.a)
+            pipeline:close()
+        else
+            error('Player should not be nil')
+        end
+
         --pipeline:openAndClose('origin_transform')
 
         print_io_rate()
@@ -1778,6 +1747,34 @@ local function initRenderCode()
     end
     ]])
 
+    pipeline:pushCode('selected_object', [[
+    local width, height = 256, 256
+    local x, y, angle: number
+    local gr = love.graphics
+    while true do
+        x = graphic_command_channel:demand() as number
+        y = graphic_command_channel:demand() as number
+        angle = graphic_command_channel:demand() as number
+
+        gr.push()
+        gr.translate(x, y)
+        gr.rotate(angle)
+        gr.translate(-width / 2, -height / 2)
+
+        gr.setColor {0, 0.5, 1, 0.3}
+
+        --gr.setColor {1, 1, 1, 1}
+
+        gr.rectangle('fill', 0, 0, width, height)
+        --gr.draw(texture, quad, 0, 0, width, height)
+        --gr.draw(texture, quad, 0, 0)
+
+        gr.pop()
+
+        coroutine.yield()
+    end
+    ]])
+
     pipeline:pushCode('clear', [[
     while true do
         love.graphics.clear{0.5, 0.5, 0.5}
@@ -2094,9 +2091,14 @@ end
 
 local state: State = 'map'
 
-local function spawnTank(px: number, py: number, options: Tank.Options)
+local function spawnTank(px: number, py: number, options: Tank.Options): Tank
     local tank = Tank.new(vec2(px, py), options)
     table.insert(tanks, tank)
+    return tank
+end
+
+local function spawnPlayer()
+    playerTank = spawnTank(-20, -20)
 end
 
 local function spawnTanks()
@@ -2126,8 +2128,20 @@ local function spawnTanks()
     end
 end
 
-local function applyInput()
+local function applyInput(j: Joystick)
+    local left, right, up, down = 3, 2, 4, 1
+    if j then
+        if j:isDown(right) then
 
+            print('right')
+        elseif j:isDown(left) then
+            print('left')
+        elseif j:isDown(up) then
+            print('up')
+        elseif j:isDown(down) then
+            print('down')
+        end
+    end
 end
 
 -- как лучше учитывать положение джойстика что-бы не было рывков?
@@ -2180,6 +2194,7 @@ end
 local stateCoro: thread = coroutine.create(function(dt: number)
 
     spawnTanks()
+    spawnPlayer()
 
     while true do
         if state == 'map' then
@@ -2204,7 +2219,7 @@ local stateCoro: thread = coroutine.create(function(dt: number)
             -- шаг физики
             pw.update(dt)
     
-            applyInput()
+            applyInput(joy)
             updateJoyState()
 
             dt = yield() as number
@@ -2222,7 +2237,7 @@ local function mainloop()
         local dt = now_time - last_time
         last_time = now_time
 
-        local ok, errmsg = coroutine.resume(stateCoro, dt) as (boolean, string)
+        local ok, errmsg = resume(stateCoro, dt) as (boolean, string)
         if not ok then
             error('stateCoro: ' .. errmsg)
         end
