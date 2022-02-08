@@ -9,7 +9,7 @@ local yield = coroutine.yield
 
 require 'love'
 
-local C = require 'ffi'
+--local C = require 'ffi'
 require 'ffi'
 
 global graphic_command_channel: love.thread.Channel
