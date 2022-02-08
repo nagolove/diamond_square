@@ -38,6 +38,7 @@ require 'konstants'
 require 'joystate'
 require 'pipeline'
 require "common"
+require 'ffi'
 
 -- Доработка keyconfig для джойстика
 require "keyconfig"
@@ -60,10 +61,15 @@ local i18n = require "i18n"
 local metrics = require "metrics"
 local vec2 = require "vector"
 local vecl = require "vector-light"
-local tabular = require "tabular"
+--local tabular = require "tabular"
 local pw = require "physics_wrapper"
 local Cm = require 'chipmunk'
+local C = require 'ffi'
 -- }}}
+
+local impulse: Cm.cpVect = C.new('cpVect') as Cm.cpVect
+--local force: Cm.cpVect = C.new('cpVect') as Cm.cpVect
+local point: Cm.cpVect = C.new('cpVect') as Cm.cpVect
 
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
@@ -71,19 +77,19 @@ local pipeline = Pipeline.new(SCENE_PREFIX)
 local arrow = require 'arrow'
 arrow.init(pipeline)
 
---print('love.graphics', inspect(love.graphics))
-
-local Shortcut = KeyConfig.Shortcut
+--local Shortcut = KeyConfig.Shortcut
 
 --local abs, pow, sqrt = math.abs, math.pow, math.sqrt
 local abs = math.abs
 local yield, resume = coroutine.yield, coroutine.resume
 
+--[[
 local enum Mode
     "normal"
     "command"
     "editor"
 end
+--]]
 
 --[[
 local enum Brush
@@ -478,11 +484,7 @@ local shapeIter: pw.EachBodyShapeIter
 local bodyIter_verts: pw.EachSpaceBodyIter
 local shapeIter_verts: pw.EachBodyShapeIter
 
--- XXX вызов pipeline:getDimensions() приводит к нарушению работы 
--- pipeline:pushCode()
--- Размеры экрана
---global screenW, screenH = pipeline:getDimensions()
---print('screenW, screenH', screenW, screenH)
+local screenW, screenH: number, number
 
 --[[ Танк длиной пять метров имеет отображаемый размер 50 пикселей
 коэффициент на который домножаю при переводе из метров в пиксели --]]
@@ -492,8 +494,9 @@ global M2PIX = 10
 global PIX2M = 1 / 10
 
 -- {{{ Konsole editing
-local historyfname = "cmdhistory.txt"
+--local historyfname = "cmdhistory.txt"
 
+--[[
 global mode: Mode = "normal"
 global cmdline: string = ""
 local cmdhistory: {string} = {}
@@ -501,7 +504,7 @@ global cursorpos: integer = 1
 --global suggestList: List = List.new()
 -- список имен переменных для отображения в консоли
 global attachedVarsList: {string: function} = {}
--- }}}
+--]]
 
 require "Timer"
 
@@ -552,7 +555,7 @@ require 'diamondsquare'
 --local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 --local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
 
-local drawTerrain = true
+--local drawTerrain = true
 
 global maxTrackCount = 128
 global hits: {Hit} = {}
@@ -1021,6 +1024,7 @@ end
 function getTerrainCorners(): {vector}
 end
 
+--[[
 local function bindDeveloperKeys()
     local kc = KeyConfig
     kc.bind(
@@ -1057,7 +1061,9 @@ local function bindDeveloperKeys()
         --i18n("mt" .. "right"))
         'spawn Hit')
 end
+--]]
 
+--[[
 local function bindTerrainControlKeys()
     local kc = KeyConfig
     kc.bind(
@@ -1073,6 +1079,7 @@ local function bindTerrainControlKeys()
         --i18n("mt" .. "right"))
         'draw terrain or not')
 end
+--]]
 
 --[[
 local function buildParticlesNames(): {string}
@@ -1211,6 +1218,7 @@ local function drawArenaPallete()
 end
 --]]
 
+--[[
 local function bindCameraControl()
     -- {{{
     -- не прямой а квадратичный зум?
@@ -1266,7 +1274,9 @@ local function bindCameraControl()
         i18n("cam2tank"), "cam2tank")
     -- }}}
 end
+--]]
 
+--[[
 local function bindKonsole()
     -- {{{
     KeyConfig.bind("keypressed", { key = "`" }, 
@@ -1280,7 +1290,9 @@ local function bindKonsole()
     )
     -- }}}
 end
+--]]
 
+--[[
 -- Сомнительная функция, не работает наверное.
 local function bindEscape()
     -- {{{
@@ -1300,6 +1312,7 @@ local function bindEscape()
     )
     -- }}}
 end
+--]]
 
 function printBody(body: love.physics.Body)
     -- {{{
@@ -1383,6 +1396,7 @@ local function moveCamera()
     end
 end
 
+--[[
 local function backspaceCmdLine()
     -- {{{
     local u8 = require "utf8"
@@ -1399,11 +1413,12 @@ local function backspaceCmdLine()
     end
     -- }}}
 end
+--]]
 
-local function enterCommandMode()
+--local function enterCommandMode()
+--end
 
-end
-
+--[[
 local function leaveCommandMode()
     -- {{{
     print("command mode disabled.")
@@ -1413,7 +1428,9 @@ local function leaveCommandMode()
     cmdline = ""
     -- }}}
 end
+--]]
 
+--[[
 function attach(varname: string)
     if type(varname) == "string" then
         attachedVarsList[varname] = function()
@@ -1434,73 +1451,28 @@ function attach(varname: string)
         end
     end
 end
+--]]
 
+--[[
 function detach(varname: string)
     if type(varname) == "string" then
         attachedVarsList[varname] = nil
     end
 end
+--]]
 
+--[[
 local function evalCommand()
     -- {{{
 
     -- {{{ preload
-    local preload = [[
-function ptabular(ref)
-    print(tabular(ref, nil, "cyan"))
-end
-
-function pinspect(ref)
-    print(inspect(ref))
-end
-
-function help()
-    print('Добро пожаловать в консоль цикла разработки.')
-    print('Список команд:')
-    print('pinspect(_G)')
-    print('ptabular(playerTank) для отображения значения переменной.')
-    print('binds() все задействованные на данный момент клавиатурные сочетания')
-end
-
-function binds()
-    print(tabular(KeyConfig.getShortcutsDown()))
-    print(tabular(KeyConfig.getShortcutsPressed()))
-end
-
-function vars(pattern)
-    for k, v in pairs(_G) do
-        local ok, errmsg = pcall(function()
-            local line = string.format("%s: %s", tostring(k), inspect(v))
-            if suggestList then
-                -- обязательно вызывать метод :clear()?
-                --suggestList:clear()
-                suggestList:add(line)
-            end
-            if pattern and #line ~= 0 then
-                if string.match(line, pattern) then
-                    print(line)
-                end
-            else
-                print(line)
-            end
-        end)
-        if not ok then
-            print('Error in listing occured:', errmsg)
-        end
+    local path = SCENE_PREFIX .. '/eval_preload.lua'
+    local content = love.filesystem.read(path)
+    if not content then
+        error('Could not load: ' .. path)
     end
-end
 
-function detach(name)
-    attachedVarsList[name] = nil
-end
-
-if not __ATTACH_ONCE__ then
-    print('before')
-    __ATTACH_ONCE__ = true
-    attach('mode')
-    attach("tankCounter")
-end
-    ]]
+    local preload = content
     -- }}}
 
     cmdline = trim(cmdline)
@@ -1526,12 +1498,13 @@ end
         love.filesystem.append(historyfname, cmdline .. "\n")
     end
     --suggestList = nil
-
     -- }}}
 end
+--]]
 
-local cmdhistoryIndex = 0
+--local cmdhistoryIndex = 0
 
+--[[
 local function setPreviousCommand()
     -- {{{
     if #cmdhistory ~= 0 then
@@ -1545,7 +1518,9 @@ local function setPreviousCommand()
     end
     -- }}}
 end
+--]]
 
+--[[
 local function setNextCommand()
     -- {{{
     if #cmdhistory ~= 0 then
@@ -1559,10 +1534,9 @@ local function setNextCommand()
     end
     -- }}}
 end
+--]]
 
-local function suggestCompletion()
-end
-
+--[[
 local function processCommandModeKeys(key: string)
     -- {{{
     if key == "backspace" then
@@ -1597,9 +1571,13 @@ local function processCommandModeKeys(key: string)
     end
     -- }}}
 end
+--]]
 
 local function keypressed(key: string)
     -- {{{
+    print('keypressed', key)
+
+    --[[
     if showLogo then
         showLogo = false
         print("showLogo", showLogo)
@@ -1612,11 +1590,14 @@ local function keypressed(key: string)
             enterCommandMode()
         end
     end
+    --]]
+
     -- }}}
 end
 
 global cameraKeyConfigIds: {integer} = {}
 
+--[[
 local function bindKonsoleCameraZoomKeys()
     -- {{{
     local ids = {
@@ -1663,7 +1644,9 @@ local function bindKonsoleCameraZoomKeys()
     print('bindKonsoleCameraZoomKeys')
     -- }}}
 end
+--]]
 
+--[[
 local function bindCameraZoomKeys()
     -- {{{
     local ids = {
@@ -1709,6 +1692,7 @@ local function bindCameraZoomKeys()
     print('bindCameraZoomKeys')
     -- }}}
 end
+--]]
 
 local function bindFullscreenSwitcher()
     -- {{{
@@ -1973,15 +1957,18 @@ local function init()
 
     --logo = Logo.new()
 
-    bindCameraZoomKeys()
-    bindKonsoleCameraZoomKeys()
-    bindCameraControl()
+    --bindCameraZoomKeys()
+    --bindKonsoleCameraZoomKeys()
+    --bindCameraControl()
     bindFullscreenSwitcher()
-    bindEscape()
-    bindKonsole()
-    bindTerrainControlKeys()
-    bindDeveloperKeys()
+    --bindEscape()
+    --bindKonsole()
+    --bindTerrainControlKeys()
+    --bindDeveloperKeys()
 
+    screenW, screenH = pipeline:getDimensions()
+    print('screenW, screenH', screenW, screenH)
+ 
     arena = Arena.new("arena.lua")
     --terrain()
     local corners = getTerrainCorners()
@@ -2006,9 +1993,9 @@ end
 
 local function mousemoved(x: number, y: number, dx: number, dy: number)
     metrics.mousemoved(x, y, dx, dy)
-    if mode == 'editor' then
-        arena:mousemoved(x, y, dx, dy)
-    end
+    --if mode == 'editor' then
+        --arena:mousemoved(x, y, dx, dy)
+    --end
 end
 
 local function wheelmoved(x: number, y: number)
@@ -2130,17 +2117,55 @@ end
 
 local function applyInput(j: Joystick)
     local left, right, up, down = 3, 2, 4, 1
-    if j then
-        if j:isDown(right) then
+    if j and playerTank then
+        local body = playerTank.body.body
+        --print('mass', Cm.cpBodyGetMass(body))
+        --Cm.cpBodySetMass(body, 100)
+        --print('tank_width, tank_height', tank_width, tank_height)
+        --point.x, point.y = tank_width / 2, tank_height / 2
+        point.x, point.y = 0, 0
+        --print('point.x, point.y', point.x, point.y)
+        local amount = 100
 
-            print('right')
+        if j:isDown(right) then
+            impulse.x, impulse.y = amount, 0
+            Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+            --print('right')
         elseif j:isDown(left) then
-            print('left')
+            impulse.x, impulse.y = -amount, 0
+            Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+            --print('left')
         elseif j:isDown(up) then
-            print('up')
+            impulse.x, impulse.y = 0, -amount
+            Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+            --print('up')
         elseif j:isDown(down) then
-            print('down')
+            impulse.x, impulse.y = 0, amount
+            Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+            --print('down')
         end
+        --]]
+
+        --[[
+        if j:isDown(right) then
+            impulse.x, impulse.y = amount, 0
+            Cm.cpBodyApplyImpulseAtWorldPoint(body, impulse, point)
+            --print('right')
+        elseif j:isDown(left) then
+            impulse.x, impulse.y = -amount, 0
+            Cm.cpBodyApplyImpulseAtWorldPoint(body, impulse, point)
+            --print('left')
+        elseif j:isDown(up) then
+            impulse.x, impulse.y = 0, -amount
+            Cm.cpBodyApplyImpulseAtWorldPoint(body, impulse, point)
+            --print('up')
+        elseif j:isDown(down) then
+            impulse.x, impulse.y = 0, amount
+            Cm.cpBodyApplyImpulseAtWorldPoint(body, impulse, point)
+            --print('down')
+        end
+        --]]
+
     end
 end
 
