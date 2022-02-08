@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local debug = _tl_compat and _tl_compat.debug or debug; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local debug = _tl_compat and _tl_compat.debug or debug; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -38,6 +38,7 @@ require('konstants')
 require('joystate')
 require('pipeline')
 require("common")
+require('ffi')
 
 
 require("keyconfig")
@@ -60,10 +61,15 @@ local i18n = require("i18n")
 local metrics = require("metrics")
 local vec2 = require("vector")
 local vecl = require("vector-light")
-local tabular = require("tabular")
+
 local pw = require("physics_wrapper")
 local Cm = require('chipmunk')
+local C = require('ffi')
 
+
+local impulse = C.new('cpVect')
+
+local point = C.new('cpVect')
 
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
@@ -73,13 +79,13 @@ arrow.init(pipeline)
 
 
 
-local Shortcut = KeyConfig.Shortcut
-
 
 local abs = math.abs
 local yield, resume = coroutine.yield, coroutine.resume
 
-local Mode = {}
+
+
+
 
 
 
@@ -478,20 +484,7 @@ local shapeIter
 local bodyIter_verts
 local shapeIter_verts
 
-
-maxParticlesNumber = 512
-
-notificationDelay = 2.5
-
-
-
-DEFAULT_W, DEFAULT_H = nil, nil
-
-
-
-
-
-
+local screenW, screenH
 
 
 
@@ -506,18 +499,11 @@ PIX2M = 1 / 10
 
 
 
-tankForceScale = 8
 
 
-local historyfname = "cmdhistory.txt"
-
-mode = "normal"
-cmdline = ""
-local cmdhistory = {}
-cursorpos = 1
 
 
-attachedVarsList = {}
+
 
 
 require("Timer")
@@ -569,7 +555,7 @@ require('diamondsquare')
 
 
 
-local drawTerrain = true
+
 
 maxTrackCount = 128
 hits = {}
@@ -660,32 +646,12 @@ local function eachBody(b)
    end
 end
 
-function Hangar.new(pos)
+function Hangar.new(_)
    local Hangar_mt = {
       __index = Hangar,
    }
    local self = setmetatable({}, Hangar_mt)
    self.objectType = "Hangar"
-
-   self.rectXY = { 0, 0 }
-   self.rectWH = { 511, 511 }
-   local px, py = pos.x, pos.y
-   local vertices = {
-      px - self.rectWH[1] / 2 * PIX2M,
-      py - self.rectWH[2] / 2 * PIX2M,
-
-      px + self.rectWH[1] / 2 * PIX2M,
-      py - self.rectWH[2] / 2 * PIX2M,
-
-      px + self.rectWH[1] / 2 * PIX2M,
-      py + self.rectWH[2] / 2 * PIX2M,
-
-      px - self.rectWH[1] / 2 * PIX2M,
-      py + self.rectWH[2] / 2 * PIX2M,
-   }
-
-   self.vertices = vertices
-   self.color = { 1, 1, 1, 1 }
    return self
 end
 
@@ -1058,58 +1024,62 @@ end
 function getTerrainCorners()
 end
 
-local function bindDeveloperKeys()
-   local kc = KeyConfig
-   kc.bind(
-
-   'isdown', { key = "p" },
-   function(sc)
-      if mode ~= "normal" then
-         return false, sc
-      end
-
-      print('works')
-      if playerTank then
 
 
 
-      end
-
-      return false, sc
-   end,
-
-   'spawn Hit')
-   kc.bind(
-
-   'keypressed', { key = "r" },
-   function(sc)
-      if mode ~= "normal" then
-         return false, sc
-      end
 
 
 
-      return false, sc
-   end,
 
-   'spawn Hit')
-end
 
-local function bindTerrainControlKeys()
-   local kc = KeyConfig
-   kc.bind(
-   'keypressed', { key = "t" },
-   function(sc)
-      if mode ~= "normal" then
-         return false, sc
-      end
-      print('drawTerrain', drawTerrain)
-      drawTerrain = not drawTerrain
-      return false, sc
-   end,
 
-   'draw terrain or not')
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1248,95 +1218,101 @@ end
 
 
 
-local function bindCameraControl()
-
-
-   local cameraAnimationDuration = 0.2
-
-   local Return = {}
-
-   local function makeMoveFunction(_, _)
-
-      return function(sc)
-         if mode ~= "normal" then
-            return false, sc
-         end
-
-
-
-         camTimer:during(cameraAnimationDuration,
-
-         function(_, _, _)
 
 
 
 
 
-         end,
-         function()
-
-         end)
-         return true, sc
-
-      end
-
-   end
-
-   local bindMode = "isdown"
-   KeyConfig.bind(bindMode, { key = "left" }, makeMoveFunction(1., 0),
-   i18n("mcleft"), "camleft")
-   KeyConfig.bind(bindMode, { key = "right" }, makeMoveFunction(-1.0, 0.),
-   i18n("mcright"), "camright")
-   KeyConfig.bind(bindMode, { key = "up" }, makeMoveFunction(0., 1.),
-   i18n("mcup"), "camup")
-   KeyConfig.bind(bindMode, { key = "down" }, makeMoveFunction(0., -1.),
-   i18n("mcdown"), "camdown")
-
-   KeyConfig.bind("keypressed", { key = "c" },
-   function(sc)
-      if mode ~= "normal" then
-         return false, sc
-      end
-
-      return false, sc
-   end,
-   i18n("cam2tank"), "cam2tank")
-
-end
-
-local function bindKonsole()
-
-   KeyConfig.bind("keypressed", { key = "`" },
-   function(sc)
-      if mode ~= "normal" then
-         return false, sc
-      end
-
-      return false, sc
-   end)
 
 
-end
 
 
-local function bindEscape()
-
-   KeyConfig.bind("keypressed", { key = "escape" },
-   function(sc)
-      if mode ~= "normal" then
-         return false, sc
-      end
-      if showLogo == true then
-         print('your pressed Escape. exit to system')
-         love.event.quit()
-      else
-         showLogo = true
-      end
-      return false, sc
-   end)
 
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function printBody(body)
 
@@ -1420,332 +1396,303 @@ local function moveCamera()
    end
 end
 
-local function backspaceCmdLine()
-
-   local u8 = require("utf8")
-
-   local byteoffset = u8.offset(cmdline, -1)
-   if byteoffset then
 
 
 
-      cmdline = string.sub(cmdline, 1, byteoffset - 1)
-      if cursorpos - 1 >= 1 then
-         cursorpos = cursorpos - 1
-      end
-   end
-
-end
-
-local function enterCommandMode()
-
-end
-
-local function leaveCommandMode()
-
-   print("command mode disabled.")
-   mode = "normal"
-   love.keyboard.setKeyRepeat(false)
-   love.keyboard.setTextInput(false)
-   cmdline = ""
-
-end
-
-function attach(varname)
-   if type(varname) == "string" then
-      attachedVarsList[varname] = function()
-         local ok, errmsg = pcall(function()
-            local l = (_G)[varname]
-            local output = tabular.show2(l)
-            if output then
-
-            else
-
-            end
-         end)
-         if not ok then
-            print("attach callback error:", errmsg)
-            print('attach removed')
-            attachedVarsList[varname] = nil
-         end
-      end
-   end
-end
-
-function detach(varname)
-   if type(varname) == "string" then
-      attachedVarsList[varname] = nil
-   end
-end
-
-local function evalCommand()
 
 
 
-   local preload = [[
-function ptabular(ref)
-    print(tabular(ref, nil, "cyan"))
-end
-
-function pinspect(ref)
-    print(inspect(ref))
-end
-
-function help()
-    print('Добро пожаловать в консоль цикла разработки.')
-    print('Список команд:')
-    print('pinspect(_G)')
-    print('ptabular(playerTank) для отображения значения переменной.')
-    print('binds() все задействованные на данный момент клавиатурные сочетания')
-end
-
-function binds()
-    print(tabular(KeyConfig.getShortcutsDown()))
-    print(tabular(KeyConfig.getShortcutsPressed()))
-end
-
-function vars(pattern)
-    for k, v in pairs(_G) do
-        local ok, errmsg = pcall(function()
-            local line = string.format("%s: %s", tostring(k), inspect(v))
-            if suggestList then
-                -- обязательно вызывать метод :clear()?
-                --suggestList:clear()
-                suggestList:add(line)
-            end
-            if pattern and #line ~= 0 then
-                if string.match(line, pattern) then
-                    print(line)
-                end
-            else
-                print(line)
-            end
-        end)
-        if not ok then
-            print('Error in listing occured:', errmsg)
-        end
-    end
-end
-
-function detach(name)
-    attachedVarsList[name] = nil
-end
-
-if not __ATTACH_ONCE__ then
-    print('before')
-    __ATTACH_ONCE__ = true
-    attach('mode')
-    attach("tankCounter")
-end
-    ]]
-
-
-   cmdline = trim(cmdline)
-   local func, loaderrmsg = load(preload .. cmdline)
 
 
 
-   if not func then
-
-      print("load() errmsg:|" .. loaderrmsg .. "|")
-   else
-      local ok, pcallerrmsg = pcall(function()
-         func()
-      end)
-      if not ok then
-
-         print("pcall() errmsg:|" .. pcallerrmsg .. "|")
-      end
-   end
-
-   if #cmdline ~= 0 then
-      table.insert(cmdhistory, cmdline)
-      love.filesystem.append(historyfname, cmdline .. "\n")
-   end
 
 
 
-end
 
-local cmdhistoryIndex = 0
 
-local function setPreviousCommand()
 
-   if #cmdhistory ~= 0 then
-      if cmdhistoryIndex - 1 < 1 then
-         cmdhistoryIndex = #cmdhistory
-      else
-         cmdhistoryIndex = cmdhistoryIndex - 1
-      end
-      cmdline = cmdhistory[cmdhistoryIndex]
-      cursorpos = #cmdline + 1
-   end
 
-end
 
-local function setNextCommand()
 
-   if #cmdhistory ~= 0 then
-      if cmdhistoryIndex + 1 > #cmdhistory then
-         cmdhistoryIndex = 1
-      else
-         cmdhistoryIndex = cmdhistoryIndex + 1
-      end
-      cmdline = cmdhistory[cmdhistoryIndex]
-      cursorpos = #cmdline + 1
-   end
 
-end
 
-local function suggestCompletion()
-end
 
-local function processCommandModeKeys(key)
 
-   if key == "backspace" then
-      backspaceCmdLine()
-   elseif key == "tab" then
-      print('tab pressed.')
-      suggestCompletion()
-   elseif key == "escape" then
-      leaveCommandMode()
-   elseif key == "return" then
-      evalCommand()
-   elseif key == "up" then
-      setPreviousCommand()
-   elseif key == "down" then
-      setNextCommand()
-   elseif key == "left" then
-      if cursorpos - 1 >= 1 then
-         cursorpos = cursorpos - 1
-      end
-      print('left')
-   elseif key == "right" then
-      if cursorpos <= #cmdline then
-         cursorpos = cursorpos + 1
-      end
-      print('right')
-   elseif key == "home" then
-      cursorpos = 1
-      print('home')
-   elseif key == "end" then
-      cursorpos = #cmdline
-      print('end')
-   end
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function keypressed(key)
 
-   if showLogo then
-      showLogo = false
-      print("showLogo", showLogo)
-   end
+   print('keypressed', key)
 
-   if mode == "command" then
-      processCommandModeKeys(key)
-   else
-      if key == ";" and love.keyboard.isDown("lctrl") then
-         enterCommandMode()
-      end
-   end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 end
 
 cameraKeyConfigIds = {}
 
-local function bindKonsoleCameraZoomKeys()
-
-   local ids = {
-      KeyConfig.bind(
-      "isdown",
-      { mod = { "lshift" },
-key = "z", },
-      function(sc)
-         if mode ~= "normal" then
-            return false, sc
-         end
 
 
 
 
 
-         return false, sc
-      end,
-      "zoom camera in",
-      "zoomin"),
-
-      KeyConfig.bind(
-      "isdown",
-      { key = "x" },
-      function(sc)
-         if mode ~= "normal" then
-            return false, sc
-         end
 
 
 
 
 
-         return false, sc
-      end,
-      "zoom camera out",
-      "zoomout"),
-
-   }
-   cameraKeyConfigIds = {}
-   for _, v in ipairs(ids) do
-      table.insert(cameraKeyConfigIds, v)
-   end
-   print('bindKonsoleCameraZoomKeys')
-
-end
-
-local function bindCameraZoomKeys()
-
-   local ids = {
-      KeyConfig.bind(
-      "isdown",
-      { key = "z" },
-      function(sc)
-         if mode ~= "normal" then
-            return false, sc
-         end
 
 
 
 
 
-         return false, sc
-      end,
-      "zoom camera in",
-      "zoomin"),
-
-      KeyConfig.bind(
-      "isdown",
-      { key = "x" },
-      function(sc)
-         if mode ~= "normal" then
-            return false, sc
-         end
 
 
 
 
 
-         return false, sc
-      end,
-      "zoom camera out",
-      "zoomout"),
 
-   }
-   cameraKeyConfigIds = {}
-   for _, v in ipairs(ids) do
-      table.insert(cameraKeyConfigIds, v)
-   end
-   print('bindCameraZoomKeys')
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function bindFullscreenSwitcher()
 
@@ -2010,14 +1957,17 @@ local function init()
 
 
 
-   bindCameraZoomKeys()
-   bindKonsoleCameraZoomKeys()
-   bindCameraControl()
+
+
+
    bindFullscreenSwitcher()
-   bindEscape()
-   bindKonsole()
-   bindTerrainControlKeys()
-   bindDeveloperKeys()
+
+
+
+
+
+   screenW, screenH = pipeline:getDimensions()
+   print('screenW, screenH', screenW, screenH)
 
    arena = Arena.new("arena.lua")
 
@@ -2043,9 +1993,9 @@ end
 
 local function mousemoved(x, y, dx, dy)
    metrics.mousemoved(x, y, dx, dy)
-   if mode == 'editor' then
-      arena:mousemoved(x, y, dx, dy)
-   end
+
+
+
 end
 
 local function wheelmoved(x, y)
@@ -2167,16 +2117,55 @@ end
 
 local function applyInput(j)
    local left, right, up, down = 3, 2, 4, 1
-   if j then
+   if j and playerTank then
+      local body = playerTank.body.body
+
+
+
+
+      point.x, point.y = 0, 0
+
+      local amount = 100
+
       if j:isDown(right) then
-         print('right')
+         impulse.x, impulse.y = amount, 0
+         Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+
       elseif j:isDown(left) then
-         print('left')
+         impulse.x, impulse.y = -amount, 0
+         Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+
       elseif j:isDown(up) then
-         print('up')
+         impulse.x, impulse.y = 0, -amount
+         Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+
       elseif j:isDown(down) then
-         print('down')
+         impulse.x, impulse.y = 0, amount
+         Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+
       end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
    end
 end
 
@@ -2273,7 +2262,7 @@ local function mainloop()
       local dt = now_time - last_time
       last_time = now_time
 
-      local ok, errmsg = coroutine.resume(stateCoro, dt)
+      local ok, errmsg = resume(stateCoro, dt)
       if not ok then
          error('stateCoro: ' .. errmsg)
       end
