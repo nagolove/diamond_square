@@ -63,8 +63,8 @@ local metrics = require "metrics"
 local vec2 = require "vector"
 local vecl = require "vector-light"
 local tabular = require "tabular"
-local pw = require "physics_wrapper"
-local Cm = require 'chipmunk'
+--local pw = require "physics_wrapper"
+local cm = require 'chipmunk'
 -- }}}
 
 local pipeline = Pipeline.new(SCENE_PREFIX)
@@ -206,7 +206,7 @@ end
 local record Tank
 
     record Options
-        body_opts: pw.Options
+        --body_opts: pw.Options
     end
 
     -- {{{
@@ -225,7 +225,7 @@ local record Tank
     -- уникальное за сеанс игры число
     id: integer
 
-    body: pw.Body
+    body: cm.cpBody
 
     -- пушка
     --turret: Turret
@@ -465,8 +465,8 @@ end
 -- Указатель на текущий подсвеченный навигатором танк.
 --local currentNavigator: Tank
 
-local bodyIter: pw.EachSpaceBodyIter
-local shapeIter: pw.EachBodyShapeIter
+--local bodyIter: pw.EachSpaceBodyIter
+--local shapeIter: pw.EachBodyShapeIter
 
 -- максимальное количество частиц
 global maxParticlesNumber = 512
