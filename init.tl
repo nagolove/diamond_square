@@ -61,7 +61,7 @@ local i18n = require "i18n"
 local metrics = require "metrics"
 local vec2 = require "vector"
 local vecl = require "vector-light"
-local tabular = require "tabular"
+--local tabular = require "tabular"
 --local pw = require "physics_wrapper"
 local cm = require 'chipmunk'
 --local tabular = require "tabular"
@@ -69,9 +69,16 @@ local C = require 'ffi'
 
 -- }}}
 
-local impulse: Cm.cpVect = C.new('cpVect') as Cm.cpVect
---local force: Cm.cpVect = C.new('cpVect') as Cm.cpVect
-local point: Cm.cpVect = C.new('cpVect') as Cm.cpVect
+local function newVec(): cm.cpVect
+    local v: cm.cpVect = C.new('cpVect') as cm.cpVect
+    v.x, v.y = 0., 0.
+    return v
+end
+
+local impulse: cm.cpVect = newVec()
+--local force: Cm.cpVect = newVec()
+local point: cm.cpVect = newVec()
+local position: cm.cpVect = newVec()
 
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
@@ -487,10 +494,8 @@ end
 -- Указатель на текущий подсвеченный навигатором танк.
 --local currentNavigator: Tank
 
-local type Callback = function()
-
-local bodyIter_base: Callback
-local shapeIter_base: cm.cpBodyShapeIteratorFunc
+local bodyIter_base: cm.cpSpaceBodyIteratorFunc
+local shapeIter_base: cm.cpSpaceShapeIteratorFunc
 
 --local bodyIter_turret: pw.EachSpaceBodyIter
 --local shapeIter_turret: pw.EachBodyShapeIter
@@ -623,6 +628,7 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number,
     -- }}}
 end
 
+--[[
 local function gather_verts(shape: cm.cpShape): {number}
     local num = cm.cpPolyShapeGetCount(shape)
     local verts = {}
@@ -633,6 +639,7 @@ local function gather_verts(shape: cm.cpShape): {number}
     end
     return verts
 end
+--]]
 
 local function print_io_rate()
     local bytes = pipeline:get_received_in_sec()
@@ -672,7 +679,10 @@ local function eachBody_base(b: cm.cpBody)
     if not b then
         error('There is no body')
     end
-    cm.cpBodyEachShape(b, shapeIter_base)
+
+    -- XXX
+    --cm.cpBodyEachShape(b, shapeIter_base)
+
 end
 
 --[[
@@ -832,8 +842,16 @@ local DENSITY = (1.0/10000.0)
 local cur_space: cm.cpSpace
 
 -- Сюда должны отображаться данные пользователя из поля userData физического
--- тела.
-local cp_user_data: {any}
+-- тела. 
+-- integer -> table
+-- делать хэш-таблицу или массив? ffi массив?
+local cm_user_data: {any} = {}
+local cm_user_data_counter = 1
+
+-- попробовать заменить на другой тип, скажем 32 бита
+local indexType = 'uint64_t'
+
+local ptrType = 'cpDataPointer'
 
 -- self - табличка объекта. Может быть типа Tank или другого.
 local function newBoxBody(width: integer, height: integer, self: any): cm.cpBody
@@ -862,25 +880,28 @@ local function newBoxBody(width: integer, height: integer, self: any): cm.cpBody
     body.userData = 
 
     cm.cpSpaceAddBody(cur_space, body)
+
     --if use_print then
         --print('self.body', self.body)
     --end
 
-    local index = #bodies
-    self.body.userData = ffi.cast(ptrType, index)
-    if use_print then
-        print('index', index)
-    end
+    local index = cm_user_data_counter
+    cm_user_data_counter = cm_user_data_counter + 1
+    cm_user_data[index] = self
+    body.userData = C.cast(ptrType, index)
+    --if use_print then
+        --print('index', index)
+    --end
 
     -- box is PolyShape
-    local shape = C.cpBoxShapeNew(self.body, width, height, 0.)
-    C.cpSpaceAddShape(cur_space, shape)
+    local shape = cm.cpBoxShapeNew(body, width, height, 0.)
+    cm.cpSpaceAddShape(cur_space, shape)
 
     --C.cpSpaceAddBody(cur_space, body)
 
-    self.impulse = ffi.new('cpVect')
-    self.point = ffi.new('cpVect')
-    self.pos = ffi.new('cpVect')
+    --self.impulse = ffi.new('cpVect')
+    --self.point = ffi.new('cpVect')
+    --self.pos = ffi.new('cpVect')
 
     --[[
     local force = ffi.new('cpVect')
@@ -892,13 +913,13 @@ local function newBoxBody(width: integer, height: integer, self: any): cm.cpBody
     C.cpBodyApplyForceAtLocalPoint(body, force, r)
     --]]
 
-    return self
+    return body
 end
 
 
 -- местоположение передавать в метрах
 -- направление шасси - нормализованный вектор
-function Tank.new(pos: vector, options: Tank.Options): Tank
+function Tank.new(pos: vector, _: Tank.Options): Tank
     -- {{{
     local Tank_mt: metatable<Tank> = {
         __index = Tank,
@@ -919,14 +940,16 @@ function Tank.new(pos: vector, options: Tank.Options): Tank
 
     --local body_options = options and options.body_opts
 
-    self.base = pw.newBoxBody(tank_width, tank_height, body_options)
-    self.base:bodySetPosition(pos.x, pos.y)
-    self.base.user_data = self
+    self.base = newBoxBody(tank_width, tank_height, self)
+    --self.base:bodySetPosition(pos.x, pos.y)
+    position.x, position.y = pos.x, pos.y
+    cm.cpBodySetPosition(self.base, position)
 
     -- Задать меньшие размеры физического тела башни
-    self.turret = pw.newBoxBody(tank_width, tank_height, body_options)
-    self.turret:bodySetPosition(pos.x, pos.y)
-    self.turret.user_data = self
+    self.turret = newBoxBody(tank_width, tank_height, self)
+    position.x, position.y = pos.x, pos.y
+    cm.cpBodySetPosition(self.turret, position)
+    --self.turret.user_data = self
 
     return self
 end
@@ -1446,19 +1469,26 @@ end
 
 local function render_tank_base()
     --current_part = 'base_first_render'
-    pipeline:open('base_shape')
-    pw.eachSpaceBody(bodyIter_base)
-    pipeline:push('flush')
-    pipeline:close()
+
+    --cm.eachSpaceBody(bodyIter_base)
+
+    --eachBody_base(nil)
+    --cm.cpSpaceEachBody(cur_space, bodyIter_base, nil)
+
+    --pipeline:open('base_shape')
+    --pipeline:push('flush')
+    --pipeline:close()
 end
 
+--[[
 local function render_tank_turret()
     --current_part = 'base_first_render'
     pipeline:open('turret_shape')
-    pw.eachSpaceBody(bodyIter_turret)
+    --cm.eachSpaceBody(bodyIter_turret)
     pipeline:push('flush')
     pipeline:close()
 end
+--]]
 
 local function renderScene()
     -- Ограничение кадров в секунду до 60
@@ -1477,13 +1507,13 @@ local function renderScene()
 
         --render_shapes_by_verts()
         render_tank_base()
-        render_tank_turret()
+        --render_tank_turret()
 
         pipeline:openAndClose('alpha_draw')
 
         if playerTank then
             pipeline:open('selected_object')
-            local body = playerTank.base.body
+            local body = playerTank.base
             pipeline:push(body.p.x, body.p.y, body.a)
             pipeline:close()
         else
@@ -2003,6 +2033,7 @@ local function initPipelineObjects()
     pipeline:sync()
 end
 
+--[[
 local function eachShape_verts(_: Cm.cpBody, shape: Cm.cpShape)
     local shape_type = pw.polyShapeGetType(shape)
     if shape_type == pw.CP_POLY_SHAPE then
@@ -2012,17 +2043,28 @@ local function eachShape_verts(_: Cm.cpBody, shape: Cm.cpShape)
         pipeline:close()
     end
 end
+--]]
 
-local function eachShape_base(b: Cm.cpBody, shape: Cm.cpShape)
+local function getShapeType(shape: cm.cpShape): integer
+    return shape.klass_private.type
+end
+
+local function getUserData(b: cm.cpBody): any
+    --local user_data = ffi.cast(indexType, b.userData as any)
+    local user_data = C.cast(indexType, b.userData) as integer
+    return cm_user_data[user_data]
+end
+
+local function eachShape_base(b: cm.cpBody, shape: cm.cpShape)
     --debug_print('phys', 'eachShape call')
     --print('phys', 'eachShape call')
 
-    local shape_type = pw.polyShapeGetType(shape)
+    local shape_type = getShapeType(shape)
 
-    if shape_type == pw.CP_POLY_SHAPE then
+    if shape_type == cm.CP_POLY_SHAPE then
 
-        local body_wrap = pw.cpBody2Body(b)
-        local tank = body_wrap.user_data as Tank
+        --local body_wrap = pw.cpBody2Body(b)
+        local tank = getUserData(b) as Tank
 
         if not tank then
             error("tank is nil")
@@ -2089,6 +2131,7 @@ local function eachShape_base(b: Cm.cpBody, shape: Cm.cpShape)
     end
 end
 
+--[[
 local function eachShape_turret(b: Cm.cpBody, shape: Cm.cpShape)
     --debug_print('phys', 'eachShape call')
     --print('phys', 'eachShape call')
@@ -2141,15 +2184,19 @@ local function eachShape_turret(b: Cm.cpBody, shape: Cm.cpShape)
         end
     end
 end
-local function initPhysIterators()
-    bodyIter_base = pw.newEachSpaceBodyIter(eachBody_base)
-    shapeIter_base = pw.newEachBodyShapeIter(eachShape_base)
+--]]
 
-    bodyIter_turret = pw.newEachSpaceBodyIter(eachBody_turret)
-    shapeIter_turret = pw.newEachBodyShapeIter(eachShape_turret)
+local function initPhysIterators()
+    --bodyIter_base = cm.newEachSpaceBodyIter(eachBody_base)
+    bodyIter_base = C.cast("cpSpaceBodyIteratorFunc", eachBody_base) as cm.cpSpaceBodyIteratorFunc
+    --shapeIter_base = cm.newEachBodyShapeIter(eachShape_base)
+    shapeIter_base = C.cast('cpSpaceShapeIteratorFunc', eachShape_base) as cm.cpSpaceShapeIteratorFunc
+
+    --bodyIter_turret = pw.newEachSpaceBodyIter(eachBody_turret)
+    --shapeIter_turret = pw.newEachBodyShapeIter(eachShape_turret)
     
-    bodyIter_verts = pw.newEachSpaceBodyIter(eachBody_verts)
-    shapeIter_verts = pw.newEachBodyShapeIter(eachShape_verts)
+    --bodyIter_verts = pw.newEachSpaceBodyIter(eachBody_verts)
+    --shapeIter_verts = pw.newEachBodyShapeIter(eachShape_verts)
 end
 
 local function init()
@@ -2158,7 +2205,8 @@ local function init()
 
     metrics.init()
 
-    pw.init(pipeline)
+    --pw.init(pipeline)
+    cur_space = cm.cpSpaceNew()
 
     initJoy()
     initRenderCode()
@@ -2302,9 +2350,9 @@ end
 
 local function spawnTanks()
     local options: Tank.Options = {
-        body_opts = {
-            use_print = false,
-        },
+        --body_opts = {
+            --use_print = false,
+        --},
     }
 
     --local tanks_num = 1500
@@ -2315,7 +2363,7 @@ local function spawnTanks()
     Расчитать количество передаваемых данных за кадр и в среднем за секунду
     которое приводит к мельканию.
     --]]
-    local tanks_num = 100
+    local tanks_num = 5
 
     local minx, maxx = 0, 4000
     local miny, maxy = 0, 4000
@@ -2331,7 +2379,7 @@ end
 local function applyInput(j: Joystick)
     local left, right, up, down = 3, 2, 4, 1
     if j and playerTank then
-        local body = playerTank.base.body
+        local body = playerTank.base
         --print('mass', Cm.cpBodyGetMass(body))
         --Cm.cpBodySetMass(body, 100)
         --print('tank_width, tank_height', tank_width, tank_height)
@@ -2342,19 +2390,19 @@ local function applyInput(j: Joystick)
 
         if j:isDown(right) then
             impulse.x, impulse.y = amount, 0
-            Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+            cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
             --print('right')
         elseif j:isDown(left) then
             impulse.x, impulse.y = -amount, 0
-            Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+            cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
             --print('left')
         elseif j:isDown(up) then
             impulse.x, impulse.y = 0, -amount
-            Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+            cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
             --print('up')
         elseif j:isDown(down) then
             impulse.x, impulse.y = 0, amount
-            Cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+            cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
             --print('down')
         end
         --]]
@@ -2455,7 +2503,9 @@ local stateCoro: thread = coroutine.create(function(dt: number)
             moveCamera()
 
             -- шаг физики
-            pw.update(dt)
+            --pw.update(dt)
+
+            --cm.cpSpaceStep(cur_space, dt);
     
             applyInput(joy)
             updateJoyState()
@@ -2507,7 +2557,8 @@ mainloop()
 
 if is_stop then
     quit()
-    pw.free()
+    --pw.free()
+    cm.cpSpaceFree(cur_space)
     main_channel:push('quit')
     debug_print('thread', 'Thread resources are freed')
 end
