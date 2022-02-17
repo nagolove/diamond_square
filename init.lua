@@ -1467,6 +1467,19 @@ function printBody(body)
 
 end
 
+
+local FUNC = C.cast('void(*)(cpBody *body, void *data)',
+function(b, data)
+   print('hi')
+end)
+
+local pw = require('physics_wrapper')
+
+local call_counter = 0
+
+local jitoptions = require('jitoptions')
+jitoptions.off()
+
 local function render_tank_base()
 
 
@@ -1475,10 +1488,18 @@ local function render_tank_base()
 
 
 
+   call_counter = call_counter + 1
+   print('call_counter', call_counter)
+
+   cm.cpSpaceEachBody(cur_space, FUNC)
+
+
 
 
 
 end
+
+
 
 
 
