@@ -1467,18 +1467,39 @@ function printBody(body: love.physics.Body)
     -- }}}
 end
 
+--local FUNC = C.cast('cpSpaceBodyIteratorFunc',
+local FUNC = C.cast('void(*)(cpBody *body, void *data)',
+function(b: cm.cpBody, data: any)
+    print('hi')
+end) as cm.cpSpaceBodyIteratorFunc
+
+local pw = require 'physics_wrapper'
+
+local call_counter = 0
+
+local jitoptions = require 'jitoptions'
+jitoptions.off()
+
 local function render_tank_base()
     --current_part = 'base_first_render'
 
     --cm.eachSpaceBody(bodyIter_base)
 
     --eachBody_base(nil)
+
     --cm.cpSpaceEachBody(cur_space, bodyIter_base, nil)
+    call_counter = call_counter + 1
+    print('call_counter', call_counter)
+
+    cm.cpSpaceEachBody(cur_space, FUNC)
+    --pw.for_each_body(cur_space, bodyIter_base)
 
     --pipeline:open('base_shape')
     --pipeline:push('flush')
     --pipeline:close()
 end
+
+--jitoptions.on()
 
 --[[
 local function render_tank_turret()
