@@ -31,6 +31,9 @@ local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
 print('require_path', require_path)
 love.filesystem.setRequirePath(require_path)
 
+love.filesystem.setCRequirePath(love.filesystem.getCRequirePath() .. ";scenes/t80/?.so")
+print('getCRequirePath()', love.filesystem.getCRequirePath())
+
 print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
 
@@ -1473,12 +1476,18 @@ function(b, data)
    print('hi')
 end)
 
-local pw = require('physics_wrapper')
+
 
 local call_counter = 0
+require('wrapper')
+local avg = (love.filesystem.load('wrapper')).average
+print('1')
+print(avg(1, 2, 3))
+local average = require("wrapper").average
+print('2')
+print("average", average(1, 2, 3, 4))
 
-local jitoptions = require('jitoptions')
-jitoptions.off()
+
 
 local function render_tank_base()
 
