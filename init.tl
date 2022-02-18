@@ -1479,13 +1479,20 @@ end) as cm.cpSpaceBodyIteratorFunc
 --local pw = require 'physics_wrapper'
 
 local call_counter = 0
-require 'wrapper'
-local avg = (love.filesystem.load('wrapper') as Wrapper).average
-print('1')
-print(avg(1, 2, 3))
-local average = require "wrapper".average
-print('2')
-print("average", average(1, 2, 3, 4))
+--require 'wrapper'
+--local avg = (love.filesystem.load('wrapper') as Wrapper).average
+--print('1')
+--print(avg(1, 2, 3))
+local wrp = require "wrapper"
+
+print('wrp', inspect(wrp))
+
+wrp.each_body(function(i: integer)
+    print(colorize('%{red}' .. i))
+end, 10)
+
+--print('2')
+--print("average", average(1, 2, 3, 4))
 --local jitoptions = require 'jitoptions'
 --jitoptions.off()
 
@@ -2237,6 +2244,8 @@ local function init()
 
     --pw.init(pipeline)
     cur_space = cm.cpSpaceNew()
+    print('cur_space', cur_space)
+    wrp.init_space(cur_space)
 
     initJoy()
     initRenderCode()

@@ -1479,13 +1479,20 @@ end)
 
 
 local call_counter = 0
-require('wrapper')
-local avg = (love.filesystem.load('wrapper')).average
-print('1')
-print(avg(1, 2, 3))
-local average = require("wrapper").average
-print('2')
-print("average", average(1, 2, 3, 4))
+
+
+
+
+local wrp = require("wrapper")
+
+print('wrp', inspect(wrp))
+
+wrp.each_body(function(i)
+   print(colorize('%{red}' .. i))
+end, 10)
+
+
+
 
 
 
@@ -2237,6 +2244,8 @@ local function init()
 
 
    cur_space = cm.cpSpaceNew()
+   print('cur_space', cur_space)
+   wrp.init_space(cur_space)
 
    initJoy()
    initRenderCode()

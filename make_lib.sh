@@ -6,4 +6,5 @@ gcc -shared -o wrapper.so wrapper.c \
     -I ~/projects/Chipmunk2D/include/chipmunk \
     -I /usr/include/lua5.1/ \
     -L ~/projects/Chipmunk2D/src \
-    -lchipmunk 
+    -lchipmunk \
+    -lluajit-5.1 
