@@ -1474,7 +1474,7 @@ end
 
 --local FUNC = C.cast('cpSpaceBodyIteratorFunc',
 local FUNC = C.cast('void(*)(cpBody *body, void *data)',
-function(b: cm.cpBody, data: any)
+function(_: cm.cpBody, _: any)
     print('hi')
 end) as cm.cpSpaceBodyIteratorFunc
 
@@ -2247,7 +2247,34 @@ local function init()
     --pw.init(pipeline)
     cur_space = cm.cpSpaceNew()
     print('cur_space', cur_space)
+    wrp.init_space(C.cast("void*", cur_space))
+    wrp.init_space(C.cast("cpSpace*", cur_space))
     wrp.init_space(cur_space)
+    --print('ffi.string', C.string(cur_space))
+
+    C.cdef [[
+typedef struct {
+    int i1, i2, i3;
+    double d4;
+    int8_t b5;
+} Combo;
+    ]]
+    local record Combo
+        i1: number
+        i2: number
+        i3: number
+        d4: number
+        b5: number
+    end
+    local combo = C.new("Combo") as Combo
+
+    combo.i1 = 111
+    combo.i2 = 77
+    combo.i3 = 8
+    combo.d4 = 9
+    combo.b5 = 255
+
+    wrp.pass_combo(combo)
 
     initJoy()
     initRenderCode()
