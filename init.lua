@@ -60,7 +60,7 @@ require("love")
 local sformat = string.format
 local inspect = require("inspect")
 local serpent = require('serpent')
-local i18n = require("i18n")
+
 local metrics = require("metrics")
 local vec2 = require("vector")
 local vecl = require("vector-light")
@@ -1143,25 +1143,27 @@ local function unbindPlayerTankKeys()
    end
 end
 
-local function loadLocales()
-
-   local localePath = SCENE_PREFIX .. "/locales"
-   local files = love.filesystem.getDirectoryItems(localePath)
-   print("locale files", inspect(files))
-   for _, v in ipairs(files) do
-      i18n.loadFile(localePath .. "/" .. v, function(path)
-         local chunk, errmsg = love.filesystem.load(path)
-         if not chunk then
-            error(errmsg)
-         end
-         return chunk
-      end)
-   end
-
-   i18n.setLocale('ru')
 
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1472,7 +1474,7 @@ end
 
 
 local FUNC = C.cast('void(*)(cpBody *body, void *data)',
-function(b, data)
+function(_, _)
    print('hi')
 end)
 
@@ -2245,14 +2247,41 @@ local function init()
 
    cur_space = cm.cpSpaceNew()
    print('cur_space', cur_space)
+   wrp.init_space(C.cast("void*", cur_space))
+   wrp.init_space(C.cast("cpSpace*", cur_space))
    wrp.init_space(cur_space)
+
+
+   C.cdef([[
+typedef struct {
+    int i1, i2, i3;
+    double d4;
+    int8_t b5;
+} Combo;
+    ]])
+   local Combo = {}
+
+
+
+
+
+
+   local combo = C.new("Combo")
+
+   combo.i1 = 111
+   combo.i2 = 77
+   combo.i3 = 8
+   combo.d4 = 9
+   combo.b5 = 255
+
+   wrp.pass_combo(combo)
 
    initJoy()
    initRenderCode()
    initPipelineObjects()
    initPhysIterators()
 
-   loadLocales()
+
 
 
 
