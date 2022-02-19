@@ -60,7 +60,7 @@ require "love"
 local sformat = string.format
 local inspect = require "inspect"
 local serpent = require 'serpent'
-local i18n = require "i18n"
+--local i18n = require "i18n"
 local metrics = require "metrics"
 local vec2 = require "vector"
 local vecl = require "vector-light"
@@ -1143,6 +1143,7 @@ local function unbindPlayerTankKeys()
     end
 end
 
+--[[
 local function loadLocales()
     -- {{{
     local localePath = SCENE_PREFIX .. "/locales"
@@ -1162,6 +1163,7 @@ local function loadLocales()
     --print("i18n", inspect(i18n))
     -- }}}
 end
+--]]
 
 -- возвращает массив со значениями координат углов ландшафта в метрах по часовой
 -- стрелке от левого верхнего угла.
@@ -2252,7 +2254,7 @@ local function init()
     initPipelineObjects()
     initPhysIterators()
 
-    loadLocales()
+    --loadLocales()
 
     --logo = Logo.new()
 
