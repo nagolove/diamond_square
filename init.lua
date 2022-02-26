@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local package = _tl_compat and _tl_compat.package or package; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -31,8 +31,11 @@ local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
 print('require_path', require_path)
 love.filesystem.setRequirePath(require_path)
 
-love.filesystem.setCRequirePath(love.filesystem.getCRequirePath() .. ";scenes/t80/?.so")
+love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
+
 print('getCRequirePath()', love.filesystem.getCRequirePath())
+
+package.cpath = package.cpath .. ";./scenes/t80/?.so"
 
 print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
@@ -66,22 +69,14 @@ local vec2 = require("vector")
 local vecl = require("vector-light")
 
 
-local cm = require('chipmunk')
-
-local C = require('ffi')
 
 
 
-local function newVec()
-   local v = C.new('cpVect')
-   v.x, v.y = 0., 0.
-   return v
-end
 
-local impulse = newVec()
+local wrp = require("wrapper")
+print('wrp', inspect(wrp))
 
-local point = newVec()
-local position = newVec()
+
 
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
@@ -92,7 +87,7 @@ arrow.init(pipeline)
 
 
 
-local abs = math.abs
+
 local yield, resume = coroutine.yield, coroutine.resume
 
 
@@ -497,8 +492,8 @@ local Hit = {}
 
 
 
-local bodyIter_base
-local shapeIter_base
+
+
 
 
 
@@ -678,15 +673,17 @@ end
 
 
 
-local function eachBody_base(b)
-   if not b then
-      error('There is no body')
-   end
 
 
 
 
-end
+
+
+
+
+
+
+
 
 
 
@@ -840,21 +837,19 @@ end
 local tank_width, tank_height = getTankSize()
 
 
-local DENSITY = (1.0 / 10000.0)
-
-local cur_space
 
 
 
 
 
-local cm_user_data = {}
-local cm_user_data_counter = 1
 
 
-local indexType = 'uint64_t'
 
-local ptrType = 'cpDataPointer'
+
+
+
+
+
 
 
 local function newBoxBody(width, height, self)
@@ -867,38 +862,6 @@ local function newBoxBody(width, height, self)
 
 
 
-   local mass = width * height * DENSITY;
-
-   print('mass', mass)
-
-
-
-   local moment = cm.cpMomentForBox(mass, width, height);
-
-
-   print('moment', moment)
-
-
-   local body = cm.cpBodyNew(mass, moment)
-   body.userData = 
-
-   cm.cpSpaceAddBody(cur_space, body)
-
-
-
-
-
-   local index = cm_user_data_counter
-   cm_user_data_counter = cm_user_data_counter + 1
-   cm_user_data[index] = self
-   body.userData = C.cast(ptrType, index)
-
-
-
-
-
-   local shape = cm.cpBoxShapeNew(body, width, height, 0.)
-   cm.cpSpaceAddShape(cur_space, shape)
 
 
 
@@ -907,14 +870,7 @@ local function newBoxBody(width, height, self)
 
 
 
-
-
-
-
-
-
-
-
+   local body = wrp.new_box_body(width, height, self)
 
    return body
 end
@@ -945,13 +901,11 @@ function Tank.new(pos, _)
 
    self.base = newBoxBody(tank_width, tank_height, self)
 
-   position.x, position.y = pos.x, pos.y
-   cm.cpBodySetPosition(self.base, position)
+   wrp.set_position(self.base, pos.x, pos.y)
 
 
    self.turret = newBoxBody(tank_width, tank_height, self)
-   position.x, position.y = pos.x, pos.y
-   cm.cpBodySetPosition(self.turret, position)
+   wrp.set_position(self.turret, pos.x, pos.y)
 
 
    return self
@@ -1473,32 +1427,6 @@ function printBody(body)
 end
 
 
-local FUNC = C.cast('void(*)(cpBody *body, void *data)',
-function(_, _)
-   print('hi')
-end)
-
-
-
-local call_counter = 0
-
-
-
-
-local wrp = require("wrapper")
-
-print('wrp', inspect(wrp))
-
-wrp.each_body(function(i)
-   print(colorize('%{red}' .. i))
-end, 10)
-
-
-
-
-
-
-local function render_tank_base()
 
 
 
@@ -1506,28 +1434,60 @@ local function render_tank_base()
 
 
 
-   call_counter = call_counter + 1
-   print('call_counter', call_counter)
-
-   cm.cpSpaceEachBody(cur_space, FUNC)
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local function on_each_shape(x, y, angle, obj)
+   local tank = obj
+   print('on_each_shape')
+   print('x, y, angle', x, y, angle)
+   print('tank.id', tank.id)
 end
-
-
-
-
-
-
-
-
-
-
-
-
 
 local function renderScene()
 
@@ -1545,19 +1505,27 @@ local function renderScene()
       pipeline:close()
 
 
-      render_tank_base()
 
 
-      pipeline:openAndClose('alpha_draw')
 
-      if playerTank then
-         pipeline:open('selected_object')
-         local body = playerTank.base
-         pipeline:push(body.p.x, body.p.y, body.a)
-         pipeline:close()
-      else
-         error('Player should not be nil')
-      end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2084,91 +2052,53 @@ end
 
 
 
-local function getShapeType(shape)
-   return shape.klass_private.type
-end
 
-local function getUserData(b)
 
-   local user_data = C.cast(indexType, b.userData)
-   return cm_user_data[user_data]
-end
 
-local function eachShape_base(b, shape)
 
 
 
-   local shape_type = getShapeType(shape)
 
-   if shape_type == cm.CP_POLY_SHAPE then
 
 
-      local tank = getUserData(b)
 
-      if not tank then
-         error("tank is nil")
-      end
 
-      local posx, posy = b.p.x, b.p.y
-      local angle = b.a
 
-      if tank.base_first_render then
-         pipeline:push('new', tank.id, posx, posy, angle)
 
 
-         tank.px, tank.py = posx, posy
-         tank.angle = angle
 
-         tank.base_first_render = false
 
 
 
 
-      else
-         local newx, newy = b.p.x, b.p.y
-         local new_angle = b.a
 
-         local px_diff, py_diff = abs(newx - tank.px), abs(newy - tank.py)
-         local angle_diff = abs(new_angle - tank.angle)
 
 
 
 
 
-         local pos_epsilon, angle_epsilon = 0.05, 0.05
 
-         local pos_part = px_diff > pos_epsilon and py_diff > pos_epsilon
-         local angle_part = angle_diff > angle_epsilon
 
 
 
 
-         if pos_part or angle_part then
-            pipeline:push('new', tank.id, posx, posy, angle)
 
 
 
 
 
 
-            tank.px, tank.py = b.p.x, b.p.y
-            tank.angle = b.a
-         else
 
 
 
 
 
 
-         end
 
 
 
 
 
-      end
-   end
-end
 
 
 
@@ -2225,18 +2155,50 @@ end
 
 
 
-local function initPhysIterators()
 
-   bodyIter_base = C.cast("cpSpaceBodyIteratorFunc", eachBody_base)
 
-   shapeIter_base = C.cast('cpSpaceShapeIteratorFunc', eachShape_base)
 
 
 
 
 
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local space
 
 local function init()
 
@@ -2245,41 +2207,12 @@ local function init()
    metrics.init()
 
 
-   cur_space = cm.cpSpaceNew()
-   print('cur_space', cur_space)
-   wrp.init_space(C.cast("void*", cur_space))
-   wrp.init_space(C.cast("cpSpace*", cur_space))
-   wrp.init_space(cur_space)
 
-
-   C.cdef([[
-typedef struct {
-    int i1, i2, i3;
-    double d4;
-    int8_t b5;
-} Combo;
-    ]])
-   local Combo = {}
-
-
-
-
-
-
-   local combo = C.new("Combo")
-
-   combo.i1 = 111
-   combo.i2 = 77
-   combo.i3 = 8
-   combo.d4 = 9
-   combo.b5 = 255
-
-   wrp.pass_combo(combo)
+   space = wrp.init_space()
 
    initJoy()
    initRenderCode()
    initPipelineObjects()
-   initPhysIterators()
 
 
 
@@ -2452,25 +2385,22 @@ local function applyInput(j)
 
 
 
-      point.x, point.y = 0, 0
+
+      local px, py = 0, 0
 
       local amount = 100
 
       if j:isDown(right) then
-         impulse.x, impulse.y = amount, 0
-         cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+         wrp.apply_impulse(body, amount, 0, px, py);
 
       elseif j:isDown(left) then
-         impulse.x, impulse.y = -amount, 0
-         cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+         wrp.apply_impulse(body, -amount, 0, px, py);
 
       elseif j:isDown(up) then
-         impulse.x, impulse.y = 0, -amount
-         cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+         wrp.apply_impulse(body, 0, -amount, px, py);
 
       elseif j:isDown(down) then
-         impulse.x, impulse.y = 0, amount
-         cm.cpBodyApplyImpulseAtLocalPoint(body, impulse, point)
+         wrp.apply_impulse(body, 0, amount, px, py);
 
       end
 
@@ -2553,8 +2483,8 @@ local stateCoro = coroutine.create(function(dt)
    while true do
       if state == 'map' then
          process_events()
-         renderScene()
-         updateTanks()
+
+
 
 
          camTimer:update(dt)
@@ -2575,8 +2505,10 @@ local stateCoro = coroutine.create(function(dt)
 
 
 
-         applyInput(joy)
-         updateJoyState()
+
+
+
+
 
          dt = yield()
       elseif state == 'garage' then
@@ -2625,8 +2557,7 @@ mainloop()
 
 if is_stop then
    quit()
-
-   cm.cpSpaceFree(cur_space)
+   wrp.free_space(space)
    main_channel:push('quit')
    debug_print('thread', 'Thread resources are freed')
 end
