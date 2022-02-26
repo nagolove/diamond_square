@@ -31,13 +31,25 @@ local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
 print('require_path', require_path)
 love.filesystem.setRequirePath(require_path)
 
-love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
+
+
+
 
 print('getCRequirePath()', love.filesystem.getCRequirePath())
 
-package.cpath = package.cpath .. ";./scenes/t80/?.so"
+love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
 
-print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
+
+
+
+
+print("package.cpath", package.cpath)
+
+
+print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
+
+local wrp = require("wrp")
+
 
 
 require('konstants')
@@ -72,9 +84,6 @@ local vecl = require("vector-light")
 
 
 
-
-local wrp = require("wrapper")
-print('wrp', inspect(wrp))
 
 
 
@@ -1500,9 +1509,9 @@ local function renderScene()
 
       pipeline:openAndClose('clear')
 
-      pipeline:open('set_transform')
-      pipeline:push(camera)
-      pipeline:close()
+
+
+
 
 
 
@@ -2209,6 +2218,7 @@ local function init()
 
 
    space = wrp.init_space()
+   print('space', space)
 
    initJoy()
    initRenderCode()
@@ -2240,6 +2250,7 @@ local function init()
    end
 
 
+   last_render = love.timer.getTime()
    print('init finished')
 end
 
@@ -2483,15 +2494,11 @@ local stateCoro = coroutine.create(function(dt)
    while true do
       if state == 'map' then
          process_events()
-
-
+         renderScene()
+         updateTanks()
 
 
          camTimer:update(dt)
-
-
-
-
 
 
 
@@ -2501,14 +2508,10 @@ local stateCoro = coroutine.create(function(dt)
          moveCamera()
 
 
+         wrp.step(dt);
 
-
-
-
-
-
-
-
+         applyInput(joy)
+         updateJoyState()
 
          dt = yield()
       elseif state == 'garage' then
@@ -2557,6 +2560,7 @@ mainloop()
 
 if is_stop then
    quit()
+   print('space', space)
    wrp.free_space(space)
    main_channel:push('quit')
    debug_print('thread', 'Thread resources are freed')
