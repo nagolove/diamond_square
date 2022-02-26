@@ -31,13 +31,25 @@ local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
 print('require_path', require_path)
 love.filesystem.setRequirePath(require_path)
 
-love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
+--love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
+--love.filesystem.setCRequirePath("?.so;scenes/t80/?.so")
+--love.filesystem.setCRequirePath("?.so;/home/nagolove/myprojects/xcaustic/scenes/t80/?.so")
 --love.filesystem.setCRequirePath(love.filesystem.getCRequirePath() .. ";scenes/t80/?.so")
 print('getCRequirePath()', love.filesystem.getCRequirePath())
 
-package.cpath = package.cpath .. ";./scenes/t80/?.so"
+love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
 
-print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
+--package.cpath = package.cpath .. ";./scenes/t80/?.so"
+--package.cpath = "?.so;scenes/t80/?.so"
+--package.cpath = "./scenes/t80/?.so;?.so"
+--package.cpath = "/home/nagolove/myprojects/xcaustic/scenes/t80/?.so;?.so"
+print("package.cpath", package.cpath)
+--print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
+
+print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
+
+local wrp = require "wrp"
+--print('wrp', inspect(wrp))
 
 -- {{{ require
 require 'konstants'
@@ -72,9 +84,6 @@ local vecl = require "vector-light"
 --local cm = require 'chipmunk'
 --local tabular = require "tabular"
 --local C = require 'ffi'
-
-local wrp = require "wrapper"
-print('wrp', inspect(wrp))
 
 -- }}}
 
@@ -1500,9 +1509,9 @@ local function renderScene()
 
         pipeline:openAndClose('clear')
 
-        pipeline:open('set_transform')
-        pipeline:push(camera)
-        pipeline:close()
+        --pipeline:open('set_transform')
+        --pipeline:push(camera)
+        --pipeline:close()
 
         --render_shapes_by_verts()
         --render_tank_base()
@@ -2209,6 +2218,7 @@ local function init()
     --pw.init(pipeline)
     --cur_space = cm.cpSpaceNew()
     space = wrp.init_space()
+    print('space', space)
 
     initJoy()
     initRenderCode()
@@ -2240,6 +2250,7 @@ local function init()
     end
 
     -- }}}
+    last_render = love.timer.getTime()
     print('init finished')
 end
 
@@ -2483,16 +2494,12 @@ local stateCoro: thread = coroutine.create(function(dt: number)
     while true do
         if state == 'map' then
             process_events()
-            --renderScene()
-            --updateTanks()
+            renderScene()
+            updateTanks()
 
             ------------ UPDATE HERE PLEASE ------------ 
             camTimer:update(dt)
 
-            --updateBullets()
-            --updateHangars()
-            --updateHits(dt)
-            --updateCoroutines()
             --arena:update()
 
             cameraScale(joy, dt)
@@ -2501,14 +2508,10 @@ local stateCoro: thread = coroutine.create(function(dt: number)
             moveCamera()
 
             -- шаг физики
-            --pw.update(dt)
-
-            --cm.cpSpaceStep(cur_space, dt);
-
-            --wrp.step(dt);
+            wrp.step(dt);
     
-            --applyInput(joy)
-            --updateJoyState()
+            applyInput(joy)
+            updateJoyState()
 
             dt = yield() as number
         elseif state == 'garage' then
@@ -2557,6 +2560,7 @@ mainloop()
 
 if is_stop then
     quit()
+    print('space', space)
     wrp.free_space(space)
     main_channel:push('quit')
     debug_print('thread', 'Thread resources are freed')
