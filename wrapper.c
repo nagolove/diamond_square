@@ -56,7 +56,7 @@ static int init_space(lua_State *lua) {
     /*cur_space = (cpSpace*)lua_topointer(lua, 1);*/
     cur_space = cpSpaceNew();
     lua_pushlightuserdata(lua, cur_space);
-    return 0;
+    return 1;
 }
 
 static int free_space(lua_State *lua) {
@@ -96,7 +96,7 @@ static int new_box_body(lua_State *lua) {
 
     // ссылка на табличку, связанную с телом
     int reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
-    b->userData = (void*)reg_index;
+    b->userData = (void*)(uint64_t)reg_index;
 
     lua_pushlightuserdata(lua, b);
 
@@ -149,21 +149,20 @@ static int step(lua_State *lua) {
 
 static int set_position(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 2, LUA_TNUMBER);
+    luaL_checktype(lua, 3, LUA_TNUMBER);
 
     int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expect 1 argument.\n");
+    if (top != 3) {
+        lua_pushstring(lua, "Function expect 3 argument.\n");
         lua_error(lua);
     }
 
     cpBody *b = (cpBody*)lua_topointer(lua, 1);
-    /*b->p.x = lua_tonumber(lua, 1);*/
-    /*b->p.y = lua_tonumber(lua, 2);*/
     double x = lua_tonumber(lua, 1);
     double y = lua_tonumber(lua, 2);
     cpVect pos = { .x = x, .y = y};
     cpBodySetPosition(b, pos);
-    /*cpBodySetPosition(b, { .x = x, .y = y });*/
     
     return 0;
 }
@@ -197,7 +196,7 @@ static int apply_impulse(lua_State *lua) {
     return 0;
 }
 
-extern int luaopen_wrapper(lua_State *lua) {
+extern int luaopen_wrp(lua_State *lua) {
     /*cpSpace *space = cpSpaceNew();*/
     static const struct luaL_Reg functions[] =
     {
