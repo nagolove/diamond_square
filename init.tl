@@ -909,7 +909,6 @@ function Tank.new(pos: vector, _: Tank.Options): Tank
     --local body_options = options and options.body_opts
 
     self.base = newBoxBody(tank_width, tank_height, self as table)
-    --self.base:bodySetPosition(pos.x, pos.y)
     wrp.set_position(self.base, pos.x, pos.y)
 
     -- Задать меньшие размеры физического тела башни
@@ -1491,11 +1490,12 @@ local function render_tank_turret()
 end
 --]]
 
-local function on_each_shape(x: number, y: number, angle: number, obj: any)
+local function on_each_body(x: number, y: number, angle: number, obj: any)
     local tank = obj as Tank
-    print('on_each_shape')
-    print('x, y, angle', x, y, angle)
-    print('tank.id', tank.id)
+    pipeline:push('new', tank.id, x, y, angle)
+    --print('lua: on_each_body')
+    print('id, x, y, angle', tank.id, x, y, angle)
+    --print('tank.id', tank.id)
 end
 
 local function renderScene()
@@ -1509,15 +1509,20 @@ local function renderScene()
 
         pipeline:openAndClose('clear')
 
-        --pipeline:open('set_transform')
-        --pipeline:push(camera)
-        --pipeline:close()
+        pipeline:open('set_transform')
+        pipeline:push(camera)
+        pipeline:close()
 
         --render_shapes_by_verts()
         --render_tank_base()
         --render_tank_turret()
 
-        --wrp.query_all_shapes(on_each_shape)
+        --print("------ query ---------")
+        pipeline:open('base_shape')
+        wrp.query_all_shapes(on_each_body)
+        pipeline:push('flush')
+        pipeline:close()
+        --print("--------------------------")
 
         --wrp.query_all_shapes()
 
@@ -1525,18 +1530,17 @@ local function renderScene()
 
         --pipeline:openAndClose('alpha_draw')
 
-        --[[
         if playerTank then
             pipeline:open('selected_object')
             local body = playerTank.base
-            pipeline:push(body.p.x, body.p.y, body.a)
+            pipeline:push(wrp.get_position(body))
             pipeline:close()
         else
             error('Player should not be nil')
         end
         --]]
 
-        --pipeline:openAndClose('origin_transform')
+        pipeline:openAndClose('origin_transform')
 
         print_io_rate()
 
@@ -1922,7 +1926,10 @@ local function initRenderCode()
     ]])
 
     pipeline:pushCode('selected_object', [[
+    -- жесткие значения ширины и высоты, как проверить что они соответствуют
+    -- действительным?
     local width, height = 256, 256
+
     local x, y, angle: number
     local gr = love.graphics
     while true do
@@ -2375,7 +2382,7 @@ local function spawnTanks()
     Расчитать количество передаваемых данных за кадр и в среднем за секунду
     которое приводит к мельканию.
     --]]
-    local tanks_num = 5
+    local tanks_num = 500
 
     local minx, maxx = 0, 4000
     local miny, maxy = 0, 4000
@@ -2384,6 +2391,7 @@ local function spawnTanks()
 
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
+        --print('px, py', px, py)
         spawnTank(px, py, options)
     end
 end
@@ -2392,13 +2400,8 @@ local function applyInput(j: Joystick)
     local left, right, up, down = 3, 2, 4, 1
     if j and playerTank then
         local body = playerTank.base
-        --print('mass', Cm.cpBodyGetMass(body))
-        --Cm.cpBodySetMass(body, 100)
-        --print('tank_width, tank_height', tank_width, tank_height)
-        --point.x, point.y = tank_width / 2, tank_height / 2
-        --point.x, point.y = 0, 0
+
         local px, py = 0, 0
-        --print('point.x, point.y', point.x, point.y)
         local amount = 100
 
         if j:isDown(right) then
@@ -2509,6 +2512,11 @@ local stateCoro: thread = coroutine.create(function(dt: number)
 
             -- шаг физики
             wrp.step(dt);
+
+            --[[
+            Почему тела не расталкиваются?
+            Мигания рендера
+            --]]
     
             applyInput(joy)
             updateJoyState()
