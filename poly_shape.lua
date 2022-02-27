@@ -98,8 +98,8 @@ local function draw(x, y, angle)
 
    gr.pop()
 
-   gr.setColor({ 0, 0, 1, 1 })
-   gr.circle('fill', x, y, rad)
+
+
 end
 
 local function get_id()
@@ -182,6 +182,7 @@ while true do
          for _, v in pairs(hash) do
             draw(v[1], v[2], v[3])
          end
+         hash = {}
          break
       else
          error('unkonwn command: ' .. cmd)

@@ -909,7 +909,6 @@ function Tank.new(pos, _)
 
 
    self.base = newBoxBody(tank_width, tank_height, self)
-
    wrp.set_position(self.base, pos.x, pos.y)
 
 
@@ -1491,11 +1490,12 @@ end
 
 
 
-local function on_each_shape(x, y, angle, obj)
+local function on_each_body(x, y, angle, obj)
    local tank = obj
-   print('on_each_shape')
-   print('x, y, angle', x, y, angle)
-   print('tank.id', tank.id)
+   pipeline:push('new', tank.id, x, y, angle)
+
+   print('id, x, y, angle', tank.id, x, y, angle)
+
 end
 
 local function renderScene()
@@ -1509,6 +1509,19 @@ local function renderScene()
 
       pipeline:openAndClose('clear')
 
+      pipeline:open('set_transform')
+      pipeline:push(camera)
+      pipeline:close()
+
+
+
+
+
+
+      pipeline:open('base_shape')
+      wrp.query_all_shapes(on_each_body)
+      pipeline:push('flush')
+      pipeline:close()
 
 
 
@@ -1517,26 +1530,17 @@ local function renderScene()
 
 
 
+      if playerTank then
+         pipeline:open('selected_object')
+         local body = playerTank.base
+         pipeline:push(wrp.get_position(body))
+         pipeline:close()
+      else
+         error('Player should not be nil')
+      end
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      pipeline:openAndClose('origin_transform')
 
       print_io_rate()
 
@@ -1922,7 +1926,10 @@ local function initRenderCode()
     ]])
 
    pipeline:pushCode('selected_object', [[
+    -- жесткие значения ширины и высоты, как проверить что они соответствуют
+    -- действительным?
     local width, height = 256, 256
+
     local x, y, angle: number
     local gr = love.graphics
     while true do
@@ -2375,7 +2382,7 @@ local function spawnTanks()
 
 
 
-   local tanks_num = 5
+   local tanks_num = 500
 
    local minx, maxx = 0, 4000
    local miny, maxy = 0, 4000
@@ -2384,6 +2391,7 @@ local function spawnTanks()
 
    for _ = 1, tanks_num do
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
+
       spawnTank(px, py, options)
    end
 end
@@ -2393,12 +2401,7 @@ local function applyInput(j)
    if j and playerTank then
       local body = playerTank.base
 
-
-
-
-
       local px, py = 0, 0
-
       local amount = 100
 
       if j:isDown(right) then
@@ -2509,6 +2512,11 @@ local stateCoro = coroutine.create(function(dt)
 
 
          wrp.step(dt);
+
+
+
+
+
 
          applyInput(joy)
          updateJoyState()
