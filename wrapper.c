@@ -104,7 +104,17 @@ static int new_box_body(lua_State *lua) {
 }
 
 void on_each_body(cpBody *body, void *data) {
-    printf("on_each_body\n");
+    lua_State *lua = (lua_State*)data;
+
+    lua_pushvalue(lua, 1); // callback function
+    lua_pushnumber(lua, body->p.x);
+    lua_pushnumber(lua, body->p.y);
+    lua_pushnumber(lua, body->a);
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)body->userData);
+    /*stackDump(lua);*/
+    lua_call(lua, 4, 0);
+
+    /*printf("on_each_body\n");*/
 }
 
 void print_space_info(cpSpace *space) {
@@ -116,18 +126,24 @@ void print_space_info(cpSpace *space) {
 }
 
 static int query_all_shapes(lua_State *lua) {
-    printf("cur_space %p\n", cur_space);
-    print_space_info(cur_space);
-    assert(cur_space);
-
-    printf("C: query_all_shapes\n");
-
     luaL_checktype(lua, 1, LUA_TFUNCTION);
 
-    cpSpaceEachBody(cur_space, on_each_body, NULL);
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Space pointer is null.\n");
+        lua_error(lua);
+    }
+
+    /*printf("cur_space %p\n", cur_space);*/
+    /*print_space_info(cur_space);*/
+    assert(cur_space && "space is NULL");
+
+    /*printf("C: query_all_shapes\n");*/
+
+    cpSpaceEachBody(cur_space, on_each_body, lua);
     /*cpSpaceEachBody(cur_space, NULL, NULL);*/
 
-    printf("C: query_all_shapes after\n");
+    /*printf("C: query_all_shapes after\n");*/
     /*printf("C: query_all_shapes after\n");*/
 
     return 0;
@@ -142,9 +158,27 @@ static int step(lua_State *lua) {
     }
 
     double dt = lua_tonumber(lua, 1);
+    /*printf("dt %f\n", dt);*/
     cpSpaceStep(cur_space, dt);
 
     return 0;
+}
+
+static int get_position(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expect 1 argument.\n");
+        lua_error(lua);
+    }
+
+    cpBody *b = (cpBody*)lua_topointer(lua, 1);
+    lua_pushnumber(lua, b->p.x);
+    lua_pushnumber(lua, b->p.y);
+    lua_pushnumber(lua, b->a);
+
+    return 3;
 }
 
 static int set_position(lua_State *lua) {
@@ -154,14 +188,15 @@ static int set_position(lua_State *lua) {
 
     int top = lua_gettop(lua);
     if (top != 3) {
-        lua_pushstring(lua, "Function expect 3 argument.\n");
+        lua_pushstring(lua, "Function expect 3 arguments.\n");
         lua_error(lua);
     }
 
     cpBody *b = (cpBody*)lua_topointer(lua, 1);
-    double x = lua_tonumber(lua, 1);
-    double y = lua_tonumber(lua, 2);
+    double x = lua_tonumber(lua, 2);
+    double y = lua_tonumber(lua, 3);
     cpVect pos = { .x = x, .y = y};
+    /*printf("pos %f, %f\n", pos.x, pos.y);*/
     cpBodySetPosition(b, pos);
     
     return 0;
@@ -191,13 +226,23 @@ static int apply_impulse(lua_State *lua) {
     }
 
     cpBody *b = (cpBody*)lua_topointer(lua, 1);
+
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);
+    stackDump(lua);
+    printf("-----------------------\n");
+    lua_pushstring(lua, "id");
+    lua_gettable(lua, 6);
+    stackDump(lua);
+    luaL_checktype(lua, 7, LUA_TNUMBER);
+    int id = (int)lua_tonumber(lua, 7);
+    printf("id = %d\n", id);
+
     cpBodyApplyImpulseAtLocalPoint(b, impulse, point);
 
     return 0;
 }
 
 extern int luaopen_wrp(lua_State *lua) {
-    /*cpSpace *space = cpSpaceNew();*/
     static const struct luaL_Reg functions[] =
     {
          {"init_space", init_space},
@@ -208,14 +253,12 @@ extern int luaopen_wrp(lua_State *lua) {
 
          {"new_box_body", new_box_body},
          {"set_position", set_position},
+         {"get_position", get_position},
          {"apply_impulse", apply_impulse},
 
          {NULL, NULL}
     };
-    /*luaL_newlib(lua, functions);*/
-    /*luaL_newlib(lua, functions);*/
-    /*lua_register(lua, "wrapper", functions);*/
     luaL_register(lua, "wrapper", functions);
-    printf("hello from C\n");
+    printf("wrp module opened\n");
     return 1;
 }
