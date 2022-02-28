@@ -20,6 +20,7 @@ global record Wrapper
     get_position: function(b: Body): number, number, number
     apply_impulse: function(b: Body, ix: number, iy: number, px: number, py: number)
 
+    new_static_segment: function(x1: number, y1: number, x2: number, y2: number)
     --pass_combo: function(cdata: any)
 end
 
