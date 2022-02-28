@@ -912,8 +912,8 @@ function Tank.new(pos: vector, _: Tank.Options): Tank
     wrp.set_position(self.base, pos.x, pos.y)
 
     -- Задать меньшие размеры физического тела башни
-    self.turret = newBoxBody(tank_width, tank_height, self as table)
-    wrp.set_position(self.turret, pos.x, pos.y)
+    --self.turret = newBoxBody(tank_width, tank_height, self as table)
+    --wrp.set_position(self.turret, pos.x, pos.y)
     --self.turret.user_data = self
 
     return self
@@ -1494,7 +1494,7 @@ local function on_each_body(x: number, y: number, angle: number, obj: any)
     local tank = obj as Tank
     pipeline:push('new', tank.id, x, y, angle)
     --print('lua: on_each_body')
-    print('id, x, y, angle', tank.id, x, y, angle)
+    --print('id, x, y, angle', tank.id, x, y, angle)
     --print('tank.id', tank.id)
 end
 
@@ -2367,6 +2367,16 @@ local function spawnPlayer()
     playerTank = spawnTank(-20, -20)
 end
 
+local record Borders
+    x1: number
+    y1: number
+    x2: number
+    y2: number
+end
+
+-- границы в которых создаются танки
+local borders: Borders = {}
+
 local function spawnTanks()
     local options: Tank.Options = {
         --body_opts = {
@@ -2386,12 +2396,12 @@ local function spawnTanks()
 
     local minx, maxx = 0, 4000
     local miny, maxy = 0, 4000
-    --local minx, maxx = 0, 1000
-    --local miny, maxy = 0, 1000
+
+    borders.x1, borders.y1 = minx, miny
+    borders.x2, borders.y2 = maxx, maxy
 
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-        --print('px, py', px, py)
         spawnTank(px, py, options)
     end
 end
@@ -2406,38 +2416,13 @@ local function applyInput(j: Joystick)
 
         if j:isDown(right) then
             wrp.apply_impulse(body, amount, 0, px, py);
-            --print('right')
         elseif j:isDown(left) then
             wrp.apply_impulse(body, -amount, 0, px, py);
-            --print('left')
         elseif j:isDown(up) then
             wrp.apply_impulse(body, 0, -amount, px, py);
-            --print('up')
         elseif j:isDown(down) then
             wrp.apply_impulse(body, 0, amount, px, py);
-            --print('down')
         end
-        --]]
-
-        --[[
-        if j:isDown(right) then
-            impulse.x, impulse.y = amount, 0
-            Cm.cpBodyApplyImpulseAtWorldPoint(body, impulse, point)
-            --print('right')
-        elseif j:isDown(left) then
-            impulse.x, impulse.y = -amount, 0
-            Cm.cpBodyApplyImpulseAtWorldPoint(body, impulse, point)
-            --print('left')
-        elseif j:isDown(up) then
-            impulse.x, impulse.y = 0, -amount
-            Cm.cpBodyApplyImpulseAtWorldPoint(body, impulse, point)
-            --print('up')
-        elseif j:isDown(down) then
-            impulse.x, impulse.y = 0, amount
-            Cm.cpBodyApplyImpulseAtWorldPoint(body, impulse, point)
-            --print('down')
-        end
-        --]]
 
     end
 end
@@ -2489,9 +2474,18 @@ local function cameraMovement(j: joystick.Joystick, dt: number)
     end
 end
 
+local function spawnBorders()
+    local b = borders
+    wrp.new_static_segment(b.x1, b.y1, b.x2, b.y1)
+    wrp.new_static_segment(b.x2, b.y1, b.x2, b.y2)
+    wrp.new_static_segment(b.x2, b.y2, b.x1, b.y2)
+    wrp.new_static_segment(b.x1, b.y2, b.x1, b.y1)
+end
+
 local stateCoro: thread = coroutine.create(function(dt: number)
 
     spawnTanks()
+    spawnBorders()
     spawnPlayer()
 
     while true do
