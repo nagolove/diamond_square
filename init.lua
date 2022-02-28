@@ -1498,6 +1498,48 @@ local function on_each_body(x, y, angle, obj)
 
 end
 
+local function renderInternal()
+   pipeline:openAndClose('clear')
+
+   pipeline:open('set_transform')
+   pipeline:push(camera)
+   pipeline:close()
+
+
+   pipeline:open('base_shape')
+   wrp.query_all_shapes(on_each_body)
+   pipeline:push('flush')
+   pipeline:close()
+
+
+   pipeline:open('border_segments')
+
+
+
+
+
+   wrp.draw_static_segments(function(x1, y1, x2, y2)
+
+      pipeline:push('draw', x1, y1, x2, y2)
+   end)
+   pipeline:push('flush')
+   pipeline:close()
+
+   if playerTank then
+      pipeline:open('selected_object')
+      local body = playerTank.base
+      pipeline:push(wrp.get_position(body))
+      pipeline:close()
+   else
+      error('Player should not be nil')
+   end
+
+
+   pipeline:openAndClose('origin_transform')
+
+   print_io_rate()
+end
+
 local function renderScene()
 
    local nt = love.timer.getTime()
@@ -1506,45 +1548,7 @@ local function renderScene()
 
    if diff >= fps_limit then
       last_render = nt
-
-      pipeline:openAndClose('clear')
-
-      pipeline:open('set_transform')
-      pipeline:push(camera)
-      pipeline:close()
-
-
-
-
-
-
-      pipeline:open('base_shape')
-      wrp.query_all_shapes(on_each_body)
-      pipeline:push('flush')
-      pipeline:close()
-
-
-
-
-
-
-
-
-      if playerTank then
-         pipeline:open('selected_object')
-         local body = playerTank.base
-         pipeline:push(wrp.get_position(body))
-         pipeline:close()
-      else
-         error('Player should not be nil')
-      end
-
-
-      pipeline:openAndClose('origin_transform')
-
-      print_io_rate()
-
-
+      renderInternal()
       pipeline:sync()
    end
 end
@@ -2002,6 +2006,42 @@ local function initRenderCode()
 
    pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
    pipeline:pushCodeFromFile("turret_shape", 'poly_shape.lua')
+
+   pipeline:pushCode('border_segments', [[
+    local yield = coroutine.yield
+    local linew = 6
+    while true do
+        local cmd: string
+        cmd_num = 0
+        
+        local oldlw = love.graphics.getLineWidth()
+        love.graphics.setLineWidth(linew)
+        repeat
+            cmd = graphic_command_channel:demand() as string
+
+            if cmd == "draw" then
+                local x1, y1, x2, y2: number, number, number, number
+                x1 = graphic_command_channel:demand() as number
+                y1 = graphic_command_channel:demand() as number
+                x2 = graphic_command_channel:demand() as number
+                y2 = graphic_command_channel:demand() as number
+
+                love.graphics.setColor {0, 0, 0, 1}
+                love.graphics.line(x1, y1, x2, y2)
+                --print(x1, y1, x2, y2)
+
+            elseif cmd == 'flush' then
+                break
+            else
+                error('unkonwn command: ' .. cmd)
+            end
+
+        until not cmd
+        love.graphics.setLineWidth(oldlw)
+
+        yield()
+    end
+    ]])
 
    pipeline:pushCode('chipmunk_vertex_order', [[
         -- {{{
@@ -2476,10 +2516,11 @@ end
 
 local function spawnBorders()
    local b = borders
-   wrp.new_static_segment(b.x1, b.y1, b.x2, b.y1)
-   wrp.new_static_segment(b.x2, b.y1, b.x2, b.y2)
-   wrp.new_static_segment(b.x2, b.y2, b.x1, b.y2)
-   wrp.new_static_segment(b.x1, b.y2, b.x1, b.y1)
+   local space = 100
+   wrp.new_static_segment(b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space)
+   wrp.new_static_segment(b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space)
+   wrp.new_static_segment(b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space)
+   wrp.new_static_segment(b.x1 - space, b.y2 + space, b.x1 - space, b.y1 - space)
 end
 
 local stateCoro = coroutine.create(function(dt)
