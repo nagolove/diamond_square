@@ -293,9 +293,42 @@ static int new_static_segment(lua_State *lua) {
             cur_space, 
             cpSegmentShapeNew(static_body, p1, p2, 0.0f)
         );
-	cpShapeSetElasticity(shape, 1.0f);
-	cpShapeSetFriction(shape, 1.0f);
-	cpShapeSetFilter(shape, NOT_GRABBABLE_FILTER);
+	/*cpShapeSetElasticity(shape, 1.0f);*/
+	/*cpShapeSetFriction(shape, 1.0f);*/
+
+    // что дает установка следующего фильтра?
+	/*cpShapeSetFilter(shape, NOT_GRABBABLE_FILTER);*/
+
+    return 0;
+}
+
+void on_segment_shape(cpBody *body, cpShape *shape, void *data) {
+    lua_State *lua = (lua_State*)data;
+    /*printf("on_segment_shape\n");*/
+    /*printf("shape->klass = %d\n", shape->klass);*/
+    if (shape->klass->type == CP_SEGMENT_SHAPE) {
+        cpSegmentShape *seg = (cpSegmentShape*)shape;
+
+        lua_pushvalue(lua, 1); // callback function
+        lua_pushnumber(lua, seg->a.x);
+        lua_pushnumber(lua, seg->a.y);
+        lua_pushnumber(lua, seg->b.x);
+        lua_pushnumber(lua, seg->b.y);
+        lua_call(lua, 4, 0);
+    }
+}
+
+static int draw_static_segments(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TFUNCTION);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expect 1 argument.\n");
+        lua_error(lua);
+    }
+
+    assert(cur_space && "space is NULL");
+    cpBodyEachShape(cpSpaceGetStaticBody(cur_space), on_segment_shape, lua);
 
     return 0;
 }
@@ -315,6 +348,7 @@ extern int luaopen_wrp(lua_State *lua) {
          {"apply_impulse", apply_impulse},
 
          {"new_static_segment", new_static_segment},
+         {"draw_static_segments", draw_static_segments},
 
          {NULL, NULL}
     };
