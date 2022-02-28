@@ -7,6 +7,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define GRABBABLE_MASK_BIT (1<<31)
+cpShapeFilter GRAB_FILTER = {CP_NO_GROUP, GRABBABLE_MASK_BIT, GRABBABLE_MASK_BIT};
+cpShapeFilter NOT_GRABBABLE_FILTER = {CP_NO_GROUP, ~GRABBABLE_MASK_BIT, ~GRABBABLE_MASK_BIT};
+
+
 static void stackDump (lua_State *L) {
     int i;
     int top = lua_gettop(L);
@@ -59,9 +64,31 @@ static int init_space(lua_State *lua) {
     return 1;
 }
 
+static void ConstraintFreeWrap(cpSpace *space, cpConstraint *constraint, void *unused){
+    cpSpaceRemoveConstraint(space, constraint);
+    cpConstraintFree(constraint);
+}
+
+static void PostConstraintFree(cpConstraint *constraint, cpSpace *space){
+    cpSpaceAddPostStepCallback(space, (cpPostStepFunc)ConstraintFreeWrap, constraint, NULL);
+}
+
+static void ShapeFreeWrap(cpSpace *space, cpShape *shape, void *unused){
+	cpSpaceRemoveShape(space, shape);
+	cpShapeFree(shape);
+}
+
+static void PostShapeFree(cpShape *shape, cpSpace *space){
+    cpSpaceAddPostStepCallback(space, (cpPostStepFunc)ShapeFreeWrap, shape, NULL);
+}
+
 static int free_space(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
     cpSpace *space = (cpSpace*)lua_topointer(lua, 1);
+
+    cpSpaceEachShape(space, (cpSpaceShapeIteratorFunc)PostShapeFree, space);
+    cpSpaceEachConstraint(space, (cpSpaceConstraintIteratorFunc)PostConstraintFree, space);
+
     cpSpaceFree(space);
 }
 
@@ -85,6 +112,8 @@ static int new_box_body(lua_State *lua) {
 
     cpFloat mass = w * h * DENSITY;
     cpFloat moment = cpMomentForBox(mass, w, h);
+    printf("new_box_body\n");
+    printf("mass %f moment %f\n", mass, moment);
     cpBody *b = cpBodyNew(mass, moment);
 
     if (!cur_space) {
@@ -221,7 +250,7 @@ static int apply_impulse(lua_State *lua) {
 
     int top = lua_gettop(lua);
     if (top != 5) {
-        lua_pushstring(lua, "Function expect 5 argument.\n");
+        lua_pushstring(lua, "Function expect 5 arguments.\n");
         lua_error(lua);
     }
 
@@ -242,6 +271,35 @@ static int apply_impulse(lua_State *lua) {
     return 0;
 }
 
+static int new_static_segment(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TNUMBER);
+    luaL_checktype(lua, 2, LUA_TNUMBER);
+    luaL_checktype(lua, 3, LUA_TNUMBER);
+    luaL_checktype(lua, 4, LUA_TNUMBER);
+
+    int top = lua_gettop(lua);
+    if (top != 4) {
+        lua_pushstring(lua, "Function expect 4 arguments.\n");
+        lua_error(lua);
+    }
+
+    assert(cur_space && "space is NULL");
+
+    cpVect p1 = { .x = lua_tonumber(lua, 1), .y = lua_tonumber(lua, 2), };
+    cpVect p2 = { .x = lua_tonumber(lua, 3), .y = lua_tonumber(lua, 4), };
+
+    cpBody *static_body = cpSpaceGetStaticBody(cur_space);
+    cpShape *shape = cpSpaceAddShape(
+            cur_space, 
+            cpSegmentShapeNew(static_body, p1, p2, 0.0f)
+        );
+	cpShapeSetElasticity(shape, 1.0f);
+	cpShapeSetFriction(shape, 1.0f);
+	cpShapeSetFilter(shape, NOT_GRABBABLE_FILTER);
+
+    return 0;
+}
+
 extern int luaopen_wrp(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
@@ -255,6 +313,8 @@ extern int luaopen_wrp(lua_State *lua) {
          {"set_position", set_position},
          {"get_position", get_position},
          {"apply_impulse", apply_impulse},
+
+         {"new_static_segment", new_static_segment},
 
          {NULL, NULL}
     };
