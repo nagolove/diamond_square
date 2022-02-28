@@ -182,7 +182,7 @@ while true do
          for _, v in pairs(hash) do
             draw(v[1], v[2], v[3])
          end
-         hash = {}
+
          break
       else
          error('unkonwn command: ' .. cmd)

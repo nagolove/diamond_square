@@ -912,8 +912,8 @@ function Tank.new(pos, _)
    wrp.set_position(self.base, pos.x, pos.y)
 
 
-   self.turret = newBoxBody(tank_width, tank_height, self)
-   wrp.set_position(self.turret, pos.x, pos.y)
+
+
 
 
    return self
@@ -1494,7 +1494,7 @@ local function on_each_body(x, y, angle, obj)
    local tank = obj
    pipeline:push('new', tank.id, x, y, angle)
 
-   print('id, x, y, angle', tank.id, x, y, angle)
+
 
 end
 
@@ -2367,6 +2367,16 @@ local function spawnPlayer()
    playerTank = spawnTank(-20, -20)
 end
 
+local Borders = {}
+
+
+
+
+
+
+
+local borders = {}
+
 local function spawnTanks()
    local options = {}
 
@@ -2387,11 +2397,11 @@ local function spawnTanks()
    local minx, maxx = 0, 4000
    local miny, maxy = 0, 4000
 
-
+   borders.x1, borders.y1 = minx, miny
+   borders.x2, borders.y2 = maxx, maxy
 
    for _ = 1, tanks_num do
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-
       spawnTank(px, py, options)
    end
 end
@@ -2406,38 +2416,13 @@ local function applyInput(j)
 
       if j:isDown(right) then
          wrp.apply_impulse(body, amount, 0, px, py);
-
       elseif j:isDown(left) then
          wrp.apply_impulse(body, -amount, 0, px, py);
-
       elseif j:isDown(up) then
          wrp.apply_impulse(body, 0, -amount, px, py);
-
       elseif j:isDown(down) then
          wrp.apply_impulse(body, 0, amount, px, py);
-
       end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
    end
 end
@@ -2489,9 +2474,18 @@ local function cameraMovement(j, dt)
    end
 end
 
+local function spawnBorders()
+   local b = borders
+   wrp.new_static_segment(b.x1, b.y1, b.x2, b.y1)
+   wrp.new_static_segment(b.x2, b.y1, b.x2, b.y2)
+   wrp.new_static_segment(b.x2, b.y2, b.x1, b.y2)
+   wrp.new_static_segment(b.x1, b.y2, b.x1, b.y1)
+end
+
 local stateCoro = coroutine.create(function(dt)
 
    spawnTanks()
+   spawnBorders()
    spawnPlayer()
 
    while true do
