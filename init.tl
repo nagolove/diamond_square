@@ -518,7 +518,6 @@ require "Timer"
 
 -- используется для анимации масштабирования камеры
 local camTimer: Timer = require "Timer".new()
-local camera: love.math.Transform = love.math.newTransform()
 
 --local drawCoro: thread = nil
 global showLogo = true
@@ -563,12 +562,6 @@ require 'diamondsquare'
 --local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 --local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
 
---local drawTerrain = true
-
-global maxTrackCount = 128
-global hits: {Hit} = {}
---local coroutines: {thread} = {}
-
 local event_channel = love.thread.getChannel("event_channel")
 local main_channel = love.thread.getChannel("main_channel")
 
@@ -581,6 +574,111 @@ local joystick = love.joystick
 local joyState: JoyState
 --local joys: {joystick.Joystick} = {}
 local joy: Joystick
+
+-- TODO добавить инерцию к камере
+local record Camera
+    -- public
+    new: function(): Camera
+    setTransform: function(Camera)
+    setOrigin: function(Camera)
+    checkInput: function(Camera)
+    update: function(Camera, dt: number)
+    moveToPlayer: function(Camera)
+
+    -- private
+    checkMovement: function(Camera, j: Joystick)
+    checkScale: function(Camera, j: Joystick)
+
+    x: number
+    y: number
+    dt: number
+    transform: love.math.Transform
+end
+
+local Camera_mt: metatable<Camera> = {
+    __index = Camera,
+}
+
+function Camera:setTransform()
+    pipeline:open('set_transform')
+    pipeline:push(self.transform)
+    pipeline:close()
+end
+
+function Camera:setOrigin()
+    pipeline:openAndClose('origin_transform')
+end
+
+function Camera.new(): Camera
+    local self: Camera = setmetatable({} as Camera, Camera_mt)
+    self.x, self.y = 0, 0
+    self.dt = 0
+    self.transform = love.math.newTransform()
+    return self
+end
+
+function Camera:checkInput(j: Joystick)
+    self:checkMovement(j)
+    self:checkScale(j)
+end
+
+function Camera:update(dt: number)
+    self.dt = dt
+end
+
+function Camera:checkMovement(j: Joystick)
+    local axes = {j:getAxes()}
+    local dx, dy = axes[4], axes[5]
+    -- количество пикселей на которые передвигается камера
+    local amount_x, amount_y = 3000 * self.dt, 3000 * self.dt
+    local tx, ty = 0., 0.
+    local changed = false
+
+    -- проверка наклона стика геймпада
+    if dx > 0 then
+        changed = true
+        tx = -amount_x
+    elseif dx < 0 then
+        changed = true
+        tx = amount_x
+    end
+
+    -- проверка наклона стика геймпада
+    if dy > 0 then
+        changed = true
+        ty = -amount_y
+    elseif dy < 0 then
+        changed = true
+        ty = amount_y
+    end
+
+    if changed then
+        self.transform:translate(tx, ty)
+    end
+end
+
+-- как лучше учитывать положение джойстика что-бы не было рывков?
+function Camera:checkScale(j: joystick.Joystick)
+    local axes = {j:getAxes()}
+    local dy = axes[2]
+    local factor = 1 * self.dt
+    --print('dy', dy)
+    if dy == -1 then
+        -- TODO добавить смещение по осям что-бы приближение и удаление 
+        -- приходилось на центр экрана
+        self.transform:scale(1 + factor, 1 + factor)
+        --print('camera:scale(1 + factor, 1 + factor)')
+    elseif dy == 1 then
+        self.transform:scale(1 - factor, 1 - factor)
+        --print('camera:scale(1 - factor, 1 - factor)')
+    end
+end
+
+function Camera:moveToPlayer()
+end
+
+local camera = Camera.new()
+
 
 local function initJoy()
     for _, j in ipairs(joystick.getJoysticks()) do
@@ -956,6 +1054,7 @@ function Base:present()
 end
 
 function Base:pushTrack()
+    --[[
     if self.x4 and self.y4 and self.x1 and self.y1 then
         local trackNode = {}
         local len = 15
@@ -984,6 +1083,7 @@ function Base:pushTrack()
             table.remove(self.track, 1)
         end
     end
+    --]]
 end
 
 function Base:drawTrack()
@@ -1434,9 +1534,7 @@ end
 local function renderInternal()
     pipeline:openAndClose('clear')
 
-    pipeline:open('set_transform')
-    pipeline:push(camera)
-    pipeline:close()
+    camera:setTransform()
 
     --print("------ query ---------")
     pipeline:open('base_shape')
@@ -1467,7 +1565,7 @@ local function renderInternal()
     end
     --]]
 
-    pipeline:openAndClose('origin_transform')
+    camera:setOrigin()
 
     print_io_rate()
 end
@@ -2373,8 +2471,14 @@ local function spawnTanks()
     end
 end
 
+-- камера перемещается на танк игрока
+local function moveCameraToTank()
+    local x, y, _ = wrp.get_position(playerTank.base)
+end
+
 local function applyInput(j: Joystick)
     local left, right, up, down = 3, 2, 4, 1
+    local left_shift = 5
     if j and playerTank then
         local body = playerTank.base
 
@@ -2391,53 +2495,9 @@ local function applyInput(j: Joystick)
             wrp.apply_impulse(body, 0, amount, px, py);
         end
 
-    end
-end
-
--- как лучше учитывать положение джойстика что-бы не было рывков?
-local function cameraScale(j: joystick.Joystick, dt: number)
-    local axes = {j:getAxes()}
-    local dy = axes[2]
-    local factor = 1 * dt
-    --print('dy', dy)
-    if dy == -1 then
-        -- TODO добавить смещение по осям что-бы приближение и удаление 
-        -- приходилось на центр экрана
-        camera:scale(1 + factor, 1 + factor)
-        --print('camera:scale(1 + factor, 1 + factor)')
-    elseif dy == 1 then
-        camera:scale(1 - factor, 1 - factor)
-        --print('camera:scale(1 - factor, 1 - factor)')
-    end
-end
-
--- добавить инерцию к камере
-local function cameraMovement(j: joystick.Joystick, dt: number)
-    local axes = {j:getAxes()}
-    local dx, dy = axes[4], axes[5]
-    -- количество пикселей на которые передвигается камера
-    local amount_x, amount_y = 3000 * dt, 3000 * dt
-    local tx, ty = 0., 0.
-    local changed = false
-
-    if dx > 0 then
-        changed = true
-        tx = -amount_x
-    elseif dx < 0 then
-        changed = true
-        tx = amount_x
-    end
-
-    if dy > 0 then
-        changed = true
-        ty = -amount_y
-    elseif dy < 0 then
-        changed = true
-        ty = amount_y
-    end
-
-    if changed then
-        camera:translate(tx, ty)
+        if j:isDown(left_shift) then
+            moveCameraToTank()
+        end
     end
 end
 
@@ -2467,8 +2527,8 @@ local stateCoro: thread = coroutine.create(function(dt: number)
 
             --arena:update()
 
-            cameraScale(joy, dt)
-            cameraMovement(joy, dt)
+            camera:checkInput(joy)
+            camera:update(dt)
 
             moveCamera()
 
