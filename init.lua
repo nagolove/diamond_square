@@ -72,6 +72,11 @@ require("love")
 
 
 
+local ObjectType = {}
+
+
+
+
 local sformat = string.format
 local inspect = require("inspect")
 local serpent = require('serpent')
@@ -79,10 +84,6 @@ local serpent = require('serpent')
 local metrics = require("metrics")
 local vec2 = require("vector")
 local vecl = require("vector-light")
-
-
-
-
 
 
 
@@ -107,14 +108,6 @@ local yield, resume = coroutine.yield, coroutine.resume
 
 
 
-
-
-
-
-
-
-
-local ObjectType = {}
 
 
 
@@ -189,9 +182,6 @@ local Arena = {}
 
 
 
-
-
-
 local FilterData = {}
 
 
@@ -223,17 +213,7 @@ local Hangar = {}
 
 
 
-local Tank = {Options = {}, }
-
-
-
-
-
-
-
-
-
-
+local Tank = {}
 
 
 
@@ -629,7 +609,7 @@ function Bullet.new(px, py, dirx, diry,
 
    self.dir = vec2.new(dirx, diry)
    self.id = tankId or 0
-   self.objectType = 'Bullet'
+
 
    return self
 
@@ -710,7 +690,7 @@ function Hangar.new(_)
       __index = Hangar,
    }
    local self = setmetatable({}, Hangar_mt)
-   self.objectType = "Hangar"
+
    return self
 end
 
@@ -745,7 +725,7 @@ function Arena.new(_)
    local Arena_mt = { __index = Arena }
    local self = setmetatable({}, Arena_mt)
 
-   self.objectType = "Arena"
+
 
    return self
 end
@@ -847,47 +827,7 @@ local tank_width, tank_height = getTankSize()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local function newBoxBody(width, height, self)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   local body = wrp.new_box_body(width, height, self)
-
-   return body
-end
-
-
-
-
-function Tank.new(pos, _)
+function Tank.new(pos)
 
    local Tank_mt = {
       __index = Tank,
@@ -901,20 +841,12 @@ function Tank.new(pos, _)
    self.strength = 1.
    self.fuel = 1.
    self.id = tankCounter
-   self.base_first_render = true
-   self.turret_first_render = true
 
    self.color = { 1, 1, 1, 1 }
 
-
-
-   self.base = newBoxBody(tank_width, tank_height, self)
+   self.type = "Base"
+   self.base = wrp.new_body("tank", tank_width, tank_height, self)
    wrp.set_position(self.base, pos.x, pos.y)
-
-
-
-
-
 
    return self
 end
@@ -976,7 +908,6 @@ function Turret.new(t)
 
    local self = setmetatable({}, Turret_mt)
    self.tank = t
-   self.objectType = "Turret"
 
    return self
 end
@@ -1492,7 +1423,9 @@ end
 
 local function on_each_body(x, y, angle, obj)
    local tank = obj
-   pipeline:push('new', tank.id, x, y, angle)
+   if tank then
+      pipeline:push('new', tank.id, x, y, angle)
+   end
 
 
 
@@ -1519,7 +1452,6 @@ local function renderInternal()
 
 
    wrp.draw_static_segments(function(x1, y1, x2, y2)
-
       pipeline:push('draw', x1, y1, x2, y2)
    end)
    pipeline:push('flush')
@@ -2397,8 +2329,8 @@ local State = {}
 
 local state = 'map'
 
-local function spawnTank(px, py, options)
-   local tank = Tank.new(vec2(px, py), options)
+local function spawnTank(px, py)
+   local tank = Tank.new(vec2(px, py))
    table.insert(tanks, tank)
    return tank
 end
@@ -2418,11 +2350,6 @@ local Borders = {}
 local borders = {}
 
 local function spawnTanks()
-   local options = {}
-
-
-
-
 
 
 
@@ -2442,7 +2369,7 @@ local function spawnTanks()
 
    for _ = 1, tanks_num do
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-      spawnTank(px, py, options)
+      spawnTank(px, py)
    end
 end
 
@@ -2516,7 +2443,7 @@ end
 
 local function spawnBorders()
    local b = borders
-   local space = 100
+   local space = 5000
    wrp.new_static_segment(b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space)
    wrp.new_static_segment(b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space)
    wrp.new_static_segment(b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space)
