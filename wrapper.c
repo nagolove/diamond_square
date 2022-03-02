@@ -283,14 +283,15 @@ static int apply_impulse(lua_State *lua) {
     cpBody *b = (cpBody*)lua_topointer(lua, 1);
 
     lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);
-    stackDump(lua);
-    printf("-----------------------\n");
-    lua_pushstring(lua, "id");
-    lua_gettable(lua, 6);
-    stackDump(lua);
-    luaL_checktype(lua, 7, LUA_TNUMBER);
-    int id = (int)lua_tonumber(lua, 7);
-    printf("id = %d\n", id);
+    /*stackDump(lua);*/
+    /*printf("-----------------------\n");*/
+    /*lua_pushstring(lua, "id");*/
+    /*lua_gettable(lua, 6);*/
+    /*stackDump(lua);*/
+    /*luaL_checktype(lua, 7, LUA_TNUMBER);*/
+    /*int id = (int)lua_tonumber(lua, 7);*/
+    // печатать порядковый номер объекта
+    /*printf("id = %d\n", id);*/
 
     cpBodyApplyImpulseAtLocalPoint(b, impulse, point);
 
