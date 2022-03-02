@@ -72,6 +72,11 @@ require "love"
 --local tween = require 'tween'
 --local camMoveTween = tween.new()
 
+local enum ObjectType
+    "Base"
+    "Turret"
+end
+
 local sformat = string.format
 local inspect = require "inspect"
 local serpent = require 'serpent'
@@ -80,10 +85,6 @@ local metrics = require "metrics"
 local vec2 = require "vector"
 local vecl = require "vector-light"
 --local tabular = require "tabular"
---local pw = require "physics_wrapper"
---local cm = require 'chipmunk'
---local tabular = require "tabular"
---local C = require 'ffi'
 
 -- }}}
 
@@ -113,14 +114,6 @@ local enum Brush
     "Hangar"
 end
 --]]
-
-local enum ObjectType
-    "Arena"
-    "Base"
-    "Bullet"
-    "Hangar"
-    "Turret"
-end
 
 --local record DrawNode
     --f: function
@@ -171,9 +164,6 @@ local record Arena
     mode: Mode
     edges: {Edge}
 
-    --physbody: lp.Body
-    objectType: ObjectType
-
     -- interface
 
     new: function(fname: string): Arena
@@ -209,7 +199,7 @@ end
 local record Hangar
     vertices: {number}
     id: integer
-    objectType: ObjectType
+    --objectType: ObjectType
     color: {number}
     --physbody: Physics.Body
     --polyshape: lp.PolygonShape
@@ -225,18 +215,7 @@ end
 -- Класс основного боевого танка.
 local record Tank
 
-    record Options
-        --body_opts: pw.Options
-    end
-
-    enum Part
-        'base_first_render'
-        'turret_first_render'
-    end
-
     -- {{{
-    base_first_render: boolean
-    turret_first_render: boolean
 
     -- прочность танка от 1 до 0
     strength: number
@@ -251,6 +230,7 @@ local record Tank
     -- уникальное за сеанс игры число
     id: integer
 
+    type: ObjectType
     base: wrp.Body
     turret: wrp.Body
 
@@ -270,7 +250,7 @@ local record Tank
     --base: Base
 
     -- абсолютные координаты в пикселях
-    new: function(pos: vector, options: Options): Tank
+    new: function(pos: vector): Tank
 
     -- рисовать
     present: function(Tank)
@@ -306,12 +286,12 @@ local record Turret
     --fireCoro: thread
 
     -- категории, маски и группы столконовений box2d
-    barrelCategories: integer
-    barrelMask: integer
-    barrelGroup: integer
-    towerCategories: integer
-    towerMask: integer
-    towerGroup: integer
+    --barrelCategories: integer
+    --barrelMask: integer
+    --barrelGroup: integer
+    --towerCategories: integer
+    --towerMask: integer
+    --towerGroup: integer
 
     filterdata: {FilterData}
     --physbody: love.physics.Body
@@ -322,7 +302,7 @@ local record Turret
     --barrelShape: lp.PolygonShape
     --towerShape: lp.PolygonShape
 
-    objectType: ObjectType
+    type: ObjectType
     --image: love.graphics.Image
     angle: number
     tank: Tank
@@ -629,7 +609,7 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number,
 
     self.dir = vec2.new(dirx, diry)
     self.id = tankId or 0
-    self.objectType = 'Bullet'
+    --self.objectType = 'Bullet'
 
     return self
     -- }}}
@@ -710,7 +690,7 @@ function Hangar.new(_: vector): Hangar
         __index = Hangar,
     }
     local self = setmetatable({} as Hangar, Hangar_mt)
-    self.objectType = "Hangar"
+    --self.objectType = "Hangar"
     return self
 end
 
@@ -745,7 +725,7 @@ function Arena.new(_: string): Arena
     local Arena_mt: metatable<Arena> = { __index = Arena }
     local self: Arena = setmetatable({} as Arena, Arena_mt)
 
-    self.objectType = "Arena"
+    --self.objectType = "Arena"
 
     return self
 end
@@ -845,49 +825,9 @@ end
 
 local tank_width, tank_height = getTankSize()
 
---[[
--- плотность
-local DENSITY = (1.0/10000.0)
-local cur_space: cm.cpSpace
--- Сюда должны отображаться данные пользователя из поля userData физического
--- тела. 
--- integer -> table
--- делать хэш-таблицу или массив? ffi массив?
-local cm_user_data: {any} = {}
-local cm_user_data_counter = 1
--- попробовать заменить на другой тип, скажем 32 бита
-local indexType = 'uint64_t'
-local ptrType = 'cpDataPointer'
---]]
-
--- self - табличка объекта. Может быть типа Tank или другого.
-local function newBoxBody(width: integer, height: integer, self: table): wrp.Body
-    --local use_print = params and params.use_print
-
-    --print('use_print', use_print)
-    --print('params', inspect(params))
-    --os.exit(-1)
-
-    --local self = setmetatable({}, Body_mt)
-    --table.insert(cp_bodies, self)
-
-    --local mass = width * height * DENSITY;
-    --if use_print then
-    --print('mass', mass)
-    --end
-
-    -- Что такое момент?
-    --local moment = cm.cpMomentForBox(mass, width, height);
-
-    local body = wrp.new_box_body(width, height, self)
-
-    return body
-end
-
-
 -- местоположение передавать в метрах
 -- направление шасси - нормализованный вектор
-function Tank.new(pos: vector, _: Tank.Options): Tank
+function Tank.new(pos: vector): Tank
     -- {{{
     local Tank_mt: metatable<Tank> = {
         __index = Tank,
@@ -901,20 +841,12 @@ function Tank.new(pos: vector, _: Tank.Options): Tank
     self.strength = 1.
     self.fuel = 1.
     self.id = tankCounter
-    self.base_first_render = true
-    self.turret_first_render = true
 
     self.color = {1, 1, 1, 1}
 
-    --local body_options = options and options.body_opts
-
-    self.base = newBoxBody(tank_width, tank_height, self as table)
+    self.type = "Base"
+    self.base = wrp.new_body("tank", tank_width, tank_height, self as table)
     wrp.set_position(self.base, pos.x, pos.y)
-
-    -- Задать меньшие размеры физического тела башни
-    --self.turret = newBoxBody(tank_width, tank_height, self as table)
-    --wrp.set_position(self.turret, pos.x, pos.y)
-    --self.turret.user_data = self
 
     return self
 end
@@ -976,7 +908,6 @@ function Turret.new(t: Tank): Turret
 
     local self: Turret = setmetatable({} as Turret, Turret_mt)
     self.tank = t
-    self.objectType = "Turret"
 
     return self
 end
@@ -1492,7 +1423,9 @@ end
 
 local function on_each_body(x: number, y: number, angle: number, obj: any)
     local tank = obj as Tank
-    pipeline:push('new', tank.id, x, y, angle)
+    if tank then
+        pipeline:push('new', tank.id, x, y, angle)
+    end
     --print('lua: on_each_body')
     --print('id, x, y, angle', tank.id, x, y, angle)
     --print('tank.id', tank.id)
@@ -1519,7 +1452,6 @@ local function renderInternal()
     --pipeline:push("draw", 400, 1100, 1000, 1000)
 
     wrp.draw_static_segments(function(x1: number, y1: number, x2: number, y2:number)
-        --print('on draw_static_segments')
         pipeline:push('draw', x1, y1, x2, y2)
     end)
     pipeline:push('flush')
@@ -2397,8 +2329,8 @@ end
 
 local state: State = 'map'
 
-local function spawnTank(px: number, py: number, options: Tank.Options): Tank
-    local tank = Tank.new(vec2(px, py), options)
+local function spawnTank(px: number, py: number): Tank
+    local tank = Tank.new(vec2(px, py))
     table.insert(tanks, tank)
     return tank
 end
@@ -2418,11 +2350,6 @@ end
 local borders: Borders = {}
 
 local function spawnTanks()
-    local options: Tank.Options = {
-        --body_opts = {
-            --use_print = false,
-        --},
-    }
 
     --local tanks_num = 1500
     --local tanks_num = 500
@@ -2442,7 +2369,7 @@ local function spawnTanks()
 
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-        spawnTank(px, py, options)
+        spawnTank(px, py)
     end
 end
 
@@ -2516,7 +2443,7 @@ end
 
 local function spawnBorders()
     local b = borders
-    local space = 100
+    local space = 5000
     wrp.new_static_segment(b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space)
     wrp.new_static_segment(b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space)
     wrp.new_static_segment(b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space)
