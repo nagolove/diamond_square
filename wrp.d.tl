@@ -14,8 +14,12 @@ global record Wrapper
     type EachBodyCallback = function(x: number, y: number, angle: number, obj: any)
     --query_all_shapes: function(space: cm.cpSpace, EachShapeCallback)
 
+    enum ObjectType
+        "Tank"
+    end
+
     query_all_shapes: function(EachBodyCallback)
-    new_box_body: function(w: number, h: number, self: table): Body
+    new_body: function(type: string, w: number, h: number, self: table): Body
     set_position: function(b: Body, x: number, y: number)
     get_position: function(b: Body): number, number, number
     apply_impulse: function(b: Body, ix: number, iy: number, px: number, py: number)

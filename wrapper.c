@@ -1,11 +1,13 @@
 #include "chipmunk/chipmunk.h"
 #include "chipmunk/chipmunk_structs.h"
+
 #include <assert.h>
-#include <lua.h>
 #include <lauxlib.h>
+#include <lua.h>
 #include <lualib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #define GRABBABLE_MASK_BIT (1<<31)
 cpShapeFilter GRAB_FILTER = {CP_NO_GROUP, GRABBABLE_MASK_BIT, GRABBABLE_MASK_BIT};
@@ -61,6 +63,12 @@ static int init_space(lua_State *lua) {
     /*cur_space = (cpSpace*)lua_topointer(lua, 1);*/
     cur_space = cpSpaceNew();
     lua_pushlightuserdata(lua, cur_space);
+
+	/*cpSpaceSetIterations(space, 30);*/
+	/*cpSpaceSetGravity(space, cpv(0, -500));*/
+	/*cpSpaceSetSleepTimeThreshold(space, 0.5f);*/
+	/*cpSpaceSetCollisionSlop(space, 0.5f);*/
+
     return 1;
 }
 
@@ -94,21 +102,37 @@ static int free_space(lua_State *lua) {
 
 #define DENSITY (1.0/10000.0)
 
-static int new_box_body(lua_State *lua) {
+// добавить трения для тел так, что-бы они останавливались после приложения
+// импульса
+static int new_body(lua_State *lua) {
     // in: ширина, высота, таблица с инфой
 
     int top = lua_gettop(lua);
-    if (top != 3) {
+    if (top != 4) {
         lua_pushstring(lua, "Function should receive only 3 arguments.\n");
         lua_error(lua);
     }
 
-    luaL_checktype(lua, 1, LUA_TNUMBER);
+    luaL_checktype(lua, 1, LUA_TSTRING);
     luaL_checktype(lua, 2, LUA_TNUMBER);
-    luaL_checktype(lua, 3, LUA_TTABLE);
+    luaL_checktype(lua, 3, LUA_TNUMBER);
+    luaL_checktype(lua, 4, LUA_TTABLE);
 
-    int w = (int)lua_tonumber(lua, 1);
-    int h = (int)lua_tonumber(lua, 2);
+    const char *object_type = lua_tostring(lua, 1);
+    if (strcmp(object_type, "tank") == 0) {
+        printf("new tank\n");
+    } else {
+        char buf[64];
+        snprintf(buf, 
+                sizeof(buf), 
+                "Unknown object type literal '%s'\n", 
+                object_type);
+        lua_pushstring(lua, buf);
+        lua_error(lua);
+    }
+
+    int w = (int)lua_tonumber(lua, 2);
+    int h = (int)lua_tonumber(lua, 3);
 
     cpFloat mass = w * h * DENSITY;
     cpFloat moment = cpMomentForBox(mass, w, h);
@@ -122,6 +146,8 @@ static int new_box_body(lua_State *lua) {
     }
 
     cpSpaceAddBody(cur_space, b);
+    cpShape *shape = cpBoxShapeNew(b, w, h, 0.f);
+    cpSpaceAddShape(cur_space, shape);
 
     // ссылка на табличку, связанную с телом
     int reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
@@ -289,15 +315,18 @@ static int new_static_segment(lua_State *lua) {
     cpVect p2 = { .x = lua_tonumber(lua, 3), .y = lua_tonumber(lua, 4), };
 
     cpBody *static_body = cpSpaceGetStaticBody(cur_space);
+
+    /*cpBody *static_body = cpBodyNew(10000.f, 1.);*/
+    /*cpSpaceAddBody(cur_space, static_body);*/
+
     cpShape *shape = cpSpaceAddShape(
             cur_space, 
             cpSegmentShapeNew(static_body, p1, p2, 0.0f)
         );
-	/*cpShapeSetElasticity(shape, 1.0f);*/
-	/*cpShapeSetFriction(shape, 1.0f);*/
-
+    cpShapeSetElasticity(shape, 1.0f);
+    cpShapeSetFriction(shape, 1.0f);
     // что дает установка следующего фильтра?
-	/*cpShapeSetFilter(shape, NOT_GRABBABLE_FILTER);*/
+    cpShapeSetFilter(shape, NOT_GRABBABLE_FILTER);
 
     return 0;
 }
@@ -342,7 +371,7 @@ extern int luaopen_wrp(lua_State *lua) {
 
          {"query_all_shapes", query_all_shapes},
 
-         {"new_box_body", new_box_body},
+         {"new_body", new_body},
          {"set_position", set_position},
          {"get_position", get_position},
          {"apply_impulse", apply_impulse},
