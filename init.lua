@@ -517,32 +517,10 @@ PIX2M = 1 / 10
 require("Timer")
 
 
-local camTimer = require("Timer").new()
-local camera = love.math.newTransform()
+local tanks = {}
+local hangars = {}
 
-
-showLogo = true
-
-playerTankKeyconfigIds = {}
-
-angularImpulseScale = 5 * math.pi / 4
-
-camZoomLower, camZoomHigher = 0.075, 3.5
-
-
-
-
-
-
-
-
-
-
-
-tanks = {}
-hangars = {}
-
-
+local playerTank
 
 
 
@@ -563,12 +541,6 @@ require('diamondsquare')
 
 
 
-
-
-maxTrackCount = 128
-hits = {}
-
-
 local event_channel = love.thread.getChannel("event_channel")
 local main_channel = love.thread.getChannel("main_channel")
 
@@ -581,6 +553,134 @@ local joystick = love.joystick
 local joyState
 
 local joy
+
+
+local Camera = {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local Camera_mt = {
+   __index = Camera,
+}
+
+function Camera:setTransform()
+   pipeline:open('set_transform')
+   pipeline:push(self.transform)
+   pipeline:close()
+end
+
+function Camera:setOrigin()
+   pipeline:openAndClose('origin_transform')
+end
+
+function Camera.new()
+   local self = setmetatable({}, Camera_mt)
+   self.x, self.y = 0, 0
+   self.scale = 1.
+   self.dt = 0
+   self.transform = love.math.newTransform()
+   return self
+end
+
+function Camera:checkInput(j)
+   self:checkMovement(j)
+   self:checkScale(j)
+end
+
+function Camera:update(dt)
+   self.dt = dt
+end
+
+function Camera:checkMovement(j)
+   local axes = { j:getAxes() }
+   local dx, dy = axes[4], axes[5]
+
+   local amount_x, amount_y = 3000 * self.dt, 3000 * self.dt
+   local tx, ty = 0., 0.
+   local changed = false
+
+
+   if dx > 0 then
+      changed = true
+      tx = -amount_x
+   elseif dx < 0 then
+      changed = true
+      tx = amount_x
+   end
+
+
+   if dy > 0 then
+      changed = true
+      ty = -amount_y
+   elseif dy < 0 then
+      changed = true
+      ty = amount_y
+   end
+
+   if changed then
+      self.x = self.x + tx
+      self.y = self.y + ty
+      self.transform:translate(tx, ty)
+   end
+end
+
+
+function Camera:checkScale(j)
+   local axes = { j:getAxes() }
+   local dy = axes[2]
+   local factor = 1 * self.dt
+
+   if dy == -1 then
+
+
+      self.scale = 1 + factor
+      self.transform:scale(1 + factor, 1 + factor)
+
+   elseif dy == 1 then
+      self.scale = 1 - factor
+      self.transform:scale(1 - factor, 1 - factor)
+
+   end
+end
+
+
+function Camera:moveToPlayer()
+   if not playerTank and playerTank.base then
+      return
+   end
+
+   local x, y, _ = wrp.get_position(playerTank.base)
+   print("camera x, y, scale", self.x, self.y, self.scale)
+   print("tank x, y", x, y)
+   self.x, self.y = x, y
+   self.transform:translate(x, y)
+end
+
+function Camera:moveToOrigin()
+   self.x, self.y = 0, 0
+   self.scale = 1,
+   self.transform:translate(self.x, self.y)
+   self.transform:scale(self.scale, self.scale)
+end
+
+local camera = Camera.new()
 
 local function initJoy()
    for _, j in ipairs(joystick.getJoysticks()) do
@@ -956,34 +1056,36 @@ function Base:present()
 end
 
 function Base:pushTrack()
-   if self.x4 and self.y4 and self.x1 and self.y1 then
-      local trackNode = {}
-      local len = 15
-      local deltalen = 3
-      local dx1, dx2 = vecl.normalize(self.x4 - self.x1, self.y4 - self.y1)
-      local deltax, deltay = dx1 * deltalen, dx2 * deltalen
-      local x1, y1, x4, y4
-      dx1, dx2 = dx1 * len, dx2 * len
-      x4, y4 = self.x4 - deltax, self.y4 - deltay
 
-      table.insert(trackNode, x4)
-      table.insert(trackNode, y4)
-      table.insert(trackNode, x4 - dx1)
-      table.insert(trackNode, y4 - dx2)
 
-      x1, y1 = self.x1 + deltax, self.y1 + deltay
 
-      table.insert(trackNode, x1)
-      table.insert(trackNode, y1)
-      table.insert(trackNode, x1 + dx1)
-      table.insert(trackNode, y1 + dx2)
 
-      table.insert(self.track, trackNode)
 
-      if #self.track > maxTrackCount then
-         table.remove(self.track, 1)
-      end
-   end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 end
 
 function Base:drawTrack()
@@ -1025,16 +1127,6 @@ end
 
 
 
-
-local function unbindPlayerTankKeys()
-   if #playerTankKeyconfigIds ~= 0 then
-      for id in ipairs(playerTankKeyconfigIds) do
-         KeyConfig.unbindid(id)
-      end
-      playerTankKeyconfigIds = {}
-      collectgarbage("collect")
-   end
-end
 
 
 
@@ -1434,9 +1526,7 @@ end
 local function renderInternal()
    pipeline:openAndClose('clear')
 
-   pipeline:open('set_transform')
-   pipeline:push(camera)
-   pipeline:close()
+   camera:setTransform()
 
 
    pipeline:open('base_shape')
@@ -1446,6 +1536,8 @@ local function renderInternal()
 
 
    pipeline:open('border_segments')
+
+   pipeline:open()
 
 
 
@@ -1467,7 +1559,7 @@ local function renderInternal()
    end
 
 
-   pipeline:openAndClose('origin_transform')
+   camera:setOrigin()
 
    print_io_rate()
 end
@@ -1850,6 +1942,67 @@ local function initRenderCode()
     end
     ]])
 
+   pipeline:pushCode('lines_buf', [[
+    global SCENE_PREFIX: string
+    local yield = coroutine.yield
+
+    local font_name = graphic_command_channel:demand() as string
+    if type(font_name) ~= "string" then
+        error("Incorrect font name variable type.")
+    end
+    local font = love.graphics.newFont(SCENE_PREFIX .. '/' .. "VeraMono.ttf")
+    local oldfont: love.graphics.Font
+    local buffer: {string: string} = {}
+
+    yield()
+
+    while true do
+        local cmd: string
+        
+        local oldfont = love.graphics.getFont()
+        repeat
+            cmd = graphic_command_channel:demand() as string
+
+            if cmd == "add" then
+                local id = graphic_command_channel:demand() as string
+                local message = graphic_command_channel:demand() as string
+
+                if type(id) ~= 'string' then
+                    error('id in lines_buf should be a string')
+                end
+                if type(message) ~= 'string' then
+                    error('message in lines_buf should be a string')
+                end
+
+                buffer[id] = message
+
+            elseif cmd == 'remove' then
+                local id = graphic_command_channel:demand() as string
+                buffer[id] = nil
+            elseif cmd == 'clear' then
+                buffer = {}
+            elseif cmd == 'flush' then
+                love.graphics.setFont(font)
+                love.graphics.setColor {0, 0, 0, 1}
+                local y = 0
+
+                for k, v in pairs(font) do
+                    love.graphics.print(v, 0, y)
+                    y = y + font:getHeight()
+                end
+
+                break
+            else
+                error('unkonwn command: ' .. cmd)
+            end
+
+        until not cmd
+        love.graphics.setFont(oldfont)
+
+        yield()
+    end
+    ]])
+
    pipeline:pushCode('alpha_draw', [[
     local tex1 = love.graphics.newImage(SCENE_PREFIX .. '/tank_body_small.png')
     local tex2 = love.graphics.newImage(SCENE_PREFIX .. '/tank_tower.png')
@@ -1944,7 +2097,6 @@ local function initRenderCode()
     local linew = 6
     while true do
         local cmd: string
-        cmd_num = 0
         
         local oldlw = love.graphics.getLineWidth()
         love.graphics.setLineWidth(linew)
@@ -2014,6 +2166,7 @@ local function initPipelineObjects()
 
 
 
+
    pipeline:close()
 
    pipeline:open('turret_shape')
@@ -2022,8 +2175,10 @@ local function initPipelineObjects()
 
 
 
+
    pipeline:close()
 
+   pipeline:openPushAndClose('lines_buf', "VeraMono.ttf")
 
    pipeline:sync()
 end
@@ -2236,7 +2391,6 @@ end
 local function quit()
 
    metrics.quit()
-   unbindPlayerTankKeys()
    tanks = {}
 
 
@@ -2375,6 +2529,9 @@ end
 
 local function applyInput(j)
    local left, right, up, down = 3, 2, 4, 1
+   local left_shift = 5
+   local right_shift = 6
+
    if j and playerTank then
       local body = playerTank.base
 
@@ -2391,53 +2548,13 @@ local function applyInput(j)
          wrp.apply_impulse(body, 0, amount, px, py);
       end
 
-   end
-end
-
-
-local function cameraScale(j, dt)
-   local axes = { j:getAxes() }
-   local dy = axes[2]
-   local factor = 1 * dt
-
-   if dy == -1 then
-
-
-      camera:scale(1 + factor, 1 + factor)
-
-   elseif dy == 1 then
-      camera:scale(1 - factor, 1 - factor)
-
-   end
-end
-
-
-local function cameraMovement(j, dt)
-   local axes = { j:getAxes() }
-   local dx, dy = axes[4], axes[5]
-
-   local amount_x, amount_y = 3000 * dt, 3000 * dt
-   local tx, ty = 0., 0.
-   local changed = false
-
-   if dx > 0 then
-      changed = true
-      tx = -amount_x
-   elseif dx < 0 then
-      changed = true
-      tx = amount_x
-   end
-
-   if dy > 0 then
-      changed = true
-      ty = -amount_y
-   elseif dy < 0 then
-      changed = true
-      ty = amount_y
-   end
-
-   if changed then
-      camera:translate(tx, ty)
+      if j:isDown(left_shift) then
+         camera:moveToPlayer()
+      end
+      if j:isDown(right_shift) then
+         print("moveToOrigin()")
+         camera:moveToOrigin()
+      end
    end
 end
 
@@ -2463,12 +2580,10 @@ local stateCoro = coroutine.create(function(dt)
          updateTanks()
 
 
-         camTimer:update(dt)
 
 
-
-         cameraScale(joy, dt)
-         cameraMovement(joy, dt)
+         camera:checkInput(joy)
+         camera:update(dt)
 
          moveCamera()
 

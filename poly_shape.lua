@@ -15,13 +15,19 @@ require('ffi')
 
 
 
-local texture_msg = graphic_command_channel:demand()
-local width = graphic_command_channel:demand()
-local height = graphic_command_channel:demand()
+local timeout = 0.5
+local texture_msg = graphic_command_channel:demand(timeout)
+local width = graphic_command_channel:demand(timeout)
+local height = graphic_command_channel:demand(timeout)
 
 
 
 
+
+if not texture_msg or not width or not height then
+   print("texture_msg, width, height", texture_msg, width, height)
+   error("Not enough data received to initializate poly_shape renderer.")
+end
 
 if type(texture_msg) ~= 'string' then
    error('Wrong texture type')
