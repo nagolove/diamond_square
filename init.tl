@@ -2097,7 +2097,6 @@ local function initRenderCode()
     local linew = 6
     while true do
         local cmd: string
-        cmd_num = 0
         
         local oldlw = love.graphics.getLineWidth()
         love.graphics.setLineWidth(linew)
@@ -2164,6 +2163,7 @@ local function initPipelineObjects()
     pipeline:open('base_shape')
     pipeline:push(base_tex_fname, tank_width, tank_height)
     --[[
+    Пиксели для вырезки
     82*108
     86(?), 74
     --]]
@@ -2580,8 +2580,6 @@ local stateCoro: thread = coroutine.create(function(dt: number)
             updateTanks()
 
             ------------ UPDATE HERE PLEASE ------------ 
-            camTimer:update(dt)
-
             --arena:update()
 
             camera:checkInput(joy)
