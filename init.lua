@@ -730,12 +730,13 @@ end
 
 local function print_io_rate()
    local bytes = pipeline:get_received_in_sec()
-   local msg = sformat("received_in_sec = %d", math.floor(bytes / 1024))
-   pipeline:open('formated_text')
-   pipeline:push(msg)
-   pipeline:push(0)
-   pipeline:push(140)
-   pipeline:close()
+   local msg = sformat("передано за секунду Килобайт = %d", math.floor(bytes / 1024))
+   pipeline:push('add', 'data_received', msg)
+
+
+
+
+
 end
 
 
@@ -1537,9 +1538,6 @@ local function renderInternal()
 
    pipeline:open('border_segments')
 
-   pipeline:open()
-
-
 
 
 
@@ -1561,7 +1559,11 @@ local function renderInternal()
 
    camera:setOrigin()
 
+   pipeline:open('lines_buf')
    print_io_rate()
+   pipeline:push('flush')
+   pipeline:close()
+
 end
 
 local function renderScene()
@@ -1942,66 +1944,7 @@ local function initRenderCode()
     end
     ]])
 
-   pipeline:pushCode('lines_buf', [[
-    global SCENE_PREFIX: string
-    local yield = coroutine.yield
-
-    local font_name = graphic_command_channel:demand() as string
-    if type(font_name) ~= "string" then
-        error("Incorrect font name variable type.")
-    end
-    local font = love.graphics.newFont(SCENE_PREFIX .. '/' .. "VeraMono.ttf")
-    local oldfont: love.graphics.Font
-    local buffer: {string: string} = {}
-
-    yield()
-
-    while true do
-        local cmd: string
-        
-        local oldfont = love.graphics.getFont()
-        repeat
-            cmd = graphic_command_channel:demand() as string
-
-            if cmd == "add" then
-                local id = graphic_command_channel:demand() as string
-                local message = graphic_command_channel:demand() as string
-
-                if type(id) ~= 'string' then
-                    error('id in lines_buf should be a string')
-                end
-                if type(message) ~= 'string' then
-                    error('message in lines_buf should be a string')
-                end
-
-                buffer[id] = message
-
-            elseif cmd == 'remove' then
-                local id = graphic_command_channel:demand() as string
-                buffer[id] = nil
-            elseif cmd == 'clear' then
-                buffer = {}
-            elseif cmd == 'flush' then
-                love.graphics.setFont(font)
-                love.graphics.setColor {0, 0, 0, 1}
-                local y = 0
-
-                for k, v in pairs(font) do
-                    love.graphics.print(v, 0, y)
-                    y = y + font:getHeight()
-                end
-
-                break
-            else
-                error('unkonwn command: ' .. cmd)
-            end
-
-        until not cmd
-        love.graphics.setFont(oldfont)
-
-        yield()
-    end
-    ]])
+   pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
 
    pipeline:pushCode('alpha_draw', [[
     local tex1 = love.graphics.newImage(SCENE_PREFIX .. '/tank_body_small.png')
@@ -2178,9 +2121,17 @@ local function initPipelineObjects()
 
    pipeline:close()
 
-   pipeline:openPushAndClose('lines_buf', "VeraMono.ttf")
+   pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 40)
 
    pipeline:sync()
+
+   pipeline:openPushAndClose(
+   'lines_buf',
+   "add",
+   'hi',
+   "привет из недр движка",
+   "flush")
+
 end
 
 

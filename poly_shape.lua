@@ -191,7 +191,7 @@ while true do
 
          break
       else
-         error('unkonwn command: ' .. cmd)
+         error('poly_shape unkonwn command: ' .. cmd)
       end
 
       cmd_num = cmd_num + 1

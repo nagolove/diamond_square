@@ -32,7 +32,7 @@ yield()
 
 while true do
    local cmd
-   print('lines_buf: cmd', cmd)
+
 
    local oldfont = love.graphics.getFont()
    repeat
