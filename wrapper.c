@@ -136,8 +136,7 @@ static int new_body(lua_State *lua) {
 
     cpFloat mass = w * h * DENSITY;
     cpFloat moment = cpMomentForBox(mass, w, h);
-    printf("new_box_body\n");
-    printf("mass %f moment %f\n", mass, moment);
+    /*printf("mass %f moment %f\n", mass, moment);*/
     cpBody *b = cpBodyNew(mass, moment);
 
     if (!cur_space) {
