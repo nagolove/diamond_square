@@ -563,6 +563,7 @@ local record Camera
     checkInput: function(Camera)
     update: function(Camera, dt: number)
     moveToPlayer: function(Camera)
+    moveToOrigin: function(Camera)
 
     -- private
     checkMovement: function(Camera, j: Joystick)
@@ -570,6 +571,7 @@ local record Camera
 
     x: number
     y: number
+    scale: number
     dt: number
     transform: love.math.Transform
 end
@@ -591,6 +593,7 @@ end
 function Camera.new(): Camera
     local self: Camera = setmetatable({} as Camera, Camera_mt)
     self.x, self.y = 0, 0
+    self.scale = 1.
     self.dt = 0
     self.transform = love.math.newTransform()
     return self
@@ -632,6 +635,8 @@ function Camera:checkMovement(j: Joystick)
     end
 
     if changed then
+        self.x = self.x + tx
+        self.y = self.y + ty
         self.transform:translate(tx, ty)
     end
 end
@@ -645,19 +650,37 @@ function Camera:checkScale(j: joystick.Joystick)
     if dy == -1 then
         -- TODO добавить смещение по осям что-бы приближение и удаление 
         -- приходилось на центр экрана
+        self.scale = 1 + factor
         self.transform:scale(1 + factor, 1 + factor)
         --print('camera:scale(1 + factor, 1 + factor)')
     elseif dy == 1 then
+        self.scale = 1 - factor
         self.transform:scale(1 - factor, 1 - factor)
         --print('camera:scale(1 - factor, 1 - factor)')
     end
 end
 
+-- камера перемещается на танк игрока
 function Camera:moveToPlayer()
+    if not playerTank and playerTank.base then
+        return
+    end
+
+    local x, y, _ = wrp.get_position(playerTank.base)
+    print("camera x, y, scale", self.x, self.y, self.scale)
+    print("tank x, y", x, y)
+    self.x, self.y = x, y
+    self.transform:translate(x, y)
+end
+
+function Camera:moveToOrigin()
+    self.x, self.y = 0, 0
+    self.scale = 1,
+    self.transform:translate(self.x, self.y)
+    self.transform:scale(self.scale, self.scale)
 end
 
 local camera = Camera.new()
-
 
 local function initJoy()
     for _, j in ipairs(joystick.getJoysticks()) do
@@ -1513,6 +1536,8 @@ local function renderInternal()
     --print("--------------------------")
 
     pipeline:open('border_segments')
+
+    pipeline:open()
 
     --pipeline:push("draw", 0, 100, 1000, 1000)
     --pipeline:push("draw", 0, 0, 2000, 4000)
@@ -2439,14 +2464,11 @@ local function spawnTanks()
     end
 end
 
--- камера перемещается на танк игрока
-local function moveCameraToTank()
-    local x, y, _ = wrp.get_position(playerTank.base)
-end
-
 local function applyInput(j: Joystick)
     local left, right, up, down = 3, 2, 4, 1
     local left_shift = 5
+    local right_shift = 6
+
     if j and playerTank then
         local body = playerTank.base
 
@@ -2464,7 +2486,11 @@ local function applyInput(j: Joystick)
         end
 
         if j:isDown(left_shift) then
-            moveCameraToTank()
+            camera:moveToPlayer()
+        end
+        if j:isDown(right_shift) then
+            print("moveToOrigin()")
+            camera:moveToOrigin()
         end
     end
 end
