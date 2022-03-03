@@ -517,10 +517,10 @@ global attachedVarsList: {string: function} = {}
 require "Timer"
 
 -- Все танки, в том числе и тот, которым управляет игрок.
-global tanks: {Tank} = {}
-global hangars: {Hangar} = {}
+local tanks: {Tank} = {}
+local hangars: {Hangar} = {}
 -- Танк, которым управляет игрок
-global playerTank: Tank
+local playerTank: Tank
 
 -- Подложка
 --global background: Background
