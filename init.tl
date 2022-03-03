@@ -516,27 +516,6 @@ global attachedVarsList: {string: function} = {}
 
 require "Timer"
 
--- используется для анимации масштабирования камеры
-local camTimer: Timer = require "Timer".new()
-
---local drawCoro: thread = nil
-global showLogo = true
--- идентификаторы клавиш управления танком игрока
-global playerTankKeyconfigIds: {integer} = {}
--- множитель углового импулься
-global angularImpulseScale = 5 * math.pi / 4
--- минимальный и максимальные порог масштаба камеры
-global camZoomLower, camZoomHigher = 0.075, 3.5
-
--- скорость изменения масштаба камеры
---[[
-local zoomSpeed = 0.01
-local cameraSettings: CameraSettings = {
-    -- значение в пикселях
-    dx = 2000, dy = 2000,
-}
---]]
-
 -- Все танки, в том числе и тот, которым управляет игрок.
 global tanks: {Tank} = {}
 global hangars: {Hangar} = {}
