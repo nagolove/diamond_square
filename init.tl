@@ -1105,16 +1105,6 @@ local contactMap = {
 }
 -]]
 
-local function unbindPlayerTankKeys()
-    if #playerTankKeyconfigIds ~= 0 then
-        for id in ipairs(playerTankKeyconfigIds) do
-            KeyConfig.unbindid(id)
-        end
-        playerTankKeyconfigIds = {}
-        collectgarbage("collect")
-    end
-end
-
 --[[
 local function loadLocales()
     -- {{{
@@ -2313,7 +2303,6 @@ end
 local function quit()
     -- {{{
     metrics.quit()
-    unbindPlayerTankKeys()
     tanks = {}
     --writeParticles(particlesfname)
     -- }}}
