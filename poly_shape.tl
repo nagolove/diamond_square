@@ -15,13 +15,19 @@ require 'ffi'
 global graphic_command_channel: love.thread.Channel
 global SCENE_PREFIX: string
 
-local texture_msg: string = graphic_command_channel:demand() as string
-local width = graphic_command_channel:demand() as number
-local height = graphic_command_channel:demand() as number
+local timeout = 0.5
+local texture_msg: string = graphic_command_channel:demand(timeout) as string
+local width = graphic_command_channel:demand(timeout) as number
+local height = graphic_command_channel:demand(timeout) as number
 --]]
 
 --local texture_msg = 'tank_body.png'
 --local width, height = 256, 256
+
+if not texture_msg or not width or not height then
+    print("texture_msg, width, height", texture_msg, width, height)
+    error("Not enough data received to initializate poly_shape renderer.")
+end
 
 if type(texture_msg) ~= 'string' then
     error('Wrong texture type')
