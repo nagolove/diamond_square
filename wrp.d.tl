@@ -1,9 +1,5 @@
---local cm = require 'chipmunk'
 
 global record Wrapper
-    --average: function(...:any): number
-    --each_body: function(function(iter_num: integer), call_count: integer)
-    --init_space: function(space: cm.cpSpace)
     record Space end
     record Body end
 
@@ -11,23 +7,24 @@ global record Wrapper
     free_space: function(Space)
     step: function(dt: number)
 
+    type EachSegmentCallback = function(x1: number, y1: number, x2: number, y2: number)
     type EachBodyCallback = function(x: number, y: number, angle: number, obj: any)
-    --query_all_shapes: function(space: cm.cpSpace, EachShapeCallback)
 
     enum ObjectType
-        "Tank"
+        "tank"
     end
 
     query_all_shapes: function(EachBodyCallback)
-    new_body: function(type: string, w: number, h: number, self: table): Body
+    query_all_tanks: function(EachBodyCallback)
+
+    new_body: function(type: ObjectType, w: number, h: number, self: table): Body
+
     set_position: function(b: Body, x: number, y: number)
     get_position: function(b: Body): number, number, number
     apply_impulse: function(b: Body, ix: number, iy: number, px: number, py: number)
 
     new_static_segment: function(x1: number, y1: number, x2: number, y2: number)
-    type EachSegmentCallback = function(x1: number, y1: number, x2: number, y2: number)
     draw_static_segments: function(EachBodyCallback)
-    --pass_combo: function(cdata: any)
 end
 
 return Wrapper
