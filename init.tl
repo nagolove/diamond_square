@@ -718,11 +718,14 @@ function Camera:moveToPlayer()
     local px, py, _ = wrp.get_position(playerTank.base)
     print("camera x, y, scale", self.x, self.y, self.scale)
     print("tank x, y", px, py)
-    local dx, dy = -px + screenW / 2, -py + screenH / 2
-    self.x, self.y = self.x + dx, self.y + dy
-    self.transform:scale(1)
-    --self.transform:translate(-x, -y)
-    self.transform:translate(dx, dy)
+    local dx, dy = self.x + -px + screenW / 2, self.y + -py + screenH / 2
+    --self.x, self.y = self.x + dx, self.y + dy
+    if self.x ~= dx or self.y ~= dy then
+        --self.x, self.y = 0, 0
+        self.transform:scale(1)
+        --self.transform:translate(-x, -y)
+        self.transform:translate(dx, dy)
+    end
 end
 
 function Camera:moveToOrigin()
