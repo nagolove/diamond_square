@@ -558,6 +558,13 @@ local record Camera
     moveToPlayer: function(Camera)
     moveToOrigin: function(Camera)
 
+    -- разместить строку информациии в текстовом буфере lines_buf
+    -- секция должна быть октрыта
+    push2lines_buf: function(Camera)
+
+    -- нарисовать оси координат, проходящие через центр экрана
+    draw_axises: function(Camera)
+
     -- private
     checkMovement: function(Camera, j: Joystick)
     checkScale: function(Camera, j: Joystick)
@@ -589,12 +596,59 @@ function Camera.new(): Camera
     self.scale = 1.
     self.dt = 0
     self.transform = love.math.newTransform()
+    pipeline:pushCode("camera_axises", [[
+    local yield = coroutine.yield
+    local linew = 1.
+    local color = {0, 0, 0, 1}
+    while true do
+        local oldlw = love.graphics.getLineWidth()
+        local w, h = love.graphics.getDimensions()
+        love.graphics.setLineWidth(linew)
+        love.graphics.setColor(color)
+        love.graphics.line(w / 2, 0, w / 2, h)
+        love.graphics.line(0, h / 2, w, h / 2)
+        love.graphics.setLineWidth(oldlw)
+        yield()
+    end
+    ]])
     return self
 end
 
 function Camera:checkInput(j: Joystick)
     self:checkMovement(j)
     self:checkScale(j)
+end
+
+function Camera:draw_axises()
+    pipeline:openAndClose("camera_axises")
+end
+
+function Camera:push2lines_buf()
+    local msg = sformat("camera: (%.3f, %.3f, %.4f)", self.x, self.y, self.scale)
+    pipeline:push("add", "camera", msg)
+    local mat = {self.transform:getMatrix()}
+    local fmt1 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f,"
+    local fmt2 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f"
+    local msg = sformat(
+        "camera mat: (" .. fmt1 .. fmt2 .. ")",
+        mat[1],
+        mat[2],
+        mat[3],
+        mat[4],
+        mat[5],
+        mat[6],
+        mat[7],
+        mat[8],
+        mat[9],
+        mat[10],
+        mat[11],
+        mat[12],
+        mat[13],
+        mat[14],
+        mat[15],
+        mat[16]
+    )
+    pipeline:push("add", "camera_mat", msg)
 end
 
 function Camera:update(dt: number)
@@ -654,26 +708,32 @@ function Camera:checkScale(j: joystick.Joystick)
 end
 
 -- камера перемещается на танк игрока
+-- при многократном применении без изменения местоположения игрока камера не
+-- должна сдвигаться
 function Camera:moveToPlayer()
     if not playerTank and playerTank.base then
         return
     end
 
-    local x, y, _ = wrp.get_position(playerTank.base)
+    local px, py, _ = wrp.get_position(playerTank.base)
     print("camera x, y, scale", self.x, self.y, self.scale)
-    print("tank x, y", x, y)
-    self.x, self.y = x, y
-    self.transform:translate(x, y)
+    print("tank x, y", px, py)
+    local dx, dy = -px + screenW / 2, -py + screenH / 2
+    self.x, self.y = self.x + dx, self.y + dy
+    self.transform:scale(1)
+    --self.transform:translate(-x, -y)
+    self.transform:translate(dx, dy)
 end
 
 function Camera:moveToOrigin()
     self.x, self.y = 0, 0
     self.scale = 1,
     self.transform:translate(self.x, self.y)
+    self.transform:reset()
     self.transform:scale(self.scale, self.scale)
 end
 
-local camera = Camera.new()
+local camera: Camera
 
 local function initJoy()
     for _, j in ipairs(joystick.getJoysticks()) do
@@ -1520,6 +1580,7 @@ end
 local function renderInternal()
     pipeline:openAndClose('clear')
 
+    -- установка камеры
     camera:setTransform()
 
     --print("------ query ---------")
@@ -1540,9 +1601,13 @@ local function renderInternal()
     pipeline:push('flush')
     pipeline:close()
 
+    local player_x, player_y: number, number
+
     if playerTank then
         pipeline:open('selected_object')
         local body = playerTank.base
+        player_x, player_y = wrp.get_position(body)
+        --print('selected object:', player_x, player_y)
         pipeline:push(wrp.get_position(body))
         pipeline:close()
     else
@@ -1550,13 +1615,20 @@ local function renderInternal()
     end
     --]]
 
+    pipeline:openAndClose('main_axises')
+
+    -- сброс трансформации камеры
     camera:setOrigin()
 
     pipeline:open('lines_buf')
     print_io_rate()
+    camera:push2lines_buf()
+    local msg = sformat("player pos (%.3f, %.3f)", player_x, player_y)
+    pipeline:push("add", "player_pos", msg)
     pipeline:push('flush')
     pipeline:close()
 
+    camera:draw_axises()
 end
 
 local function renderScene()
@@ -1922,6 +1994,20 @@ local function initRenderCode()
     end
     ]])
 
+    pipeline:pushCode("main_axises", [[
+    local col = {0.3, 0.5, 1, 1}
+    while true do
+        local size = 1000
+        --love.graphics.setColor(col)
+        love.graphics.setColor {0, 0, 0, 1}
+        local rad = 100
+        love.graphics.circle("line", 0, 0, rad)
+        love.graphics.line(0, size, 0, -size)
+        love.graphics.line(-size, 0, size, 0)
+        coroutine.yield()
+    end
+    ]])
+
     pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
 
     pipeline:pushCode('alpha_draw', [[
@@ -2099,7 +2185,8 @@ local function initPipelineObjects()
     --]]
     pipeline:close()
 
-    pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 40)
+    --pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 40)
+    pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 24)
 
     pipeline:sync()
 
@@ -2287,6 +2374,9 @@ local function init()
     initRenderCode()
     initPipelineObjects()
 
+    -- требует инициализации после создания объекта pipeline
+    camera = Camera.new()
+
     --loadLocales()
 
     --logo = Logo.new()
@@ -2400,6 +2490,25 @@ local function process_events()
                 local btn = (e as {integer})[4]
                 mousepressed(x, y, btn)
 
+            elseif evtype == "joystickpressed" then
+                local joystick = (e as {number})[2] as Joystick
+                local button = (e as {number})[3]
+
+                print('joystick', inspect(joystick))
+                print('button', inspect(button))
+
+                local left_shift = 5
+                local right_shift = 6
+
+                --if joystick:isDown(right_shift) then
+                if button == left_shift then
+                    print("moveToOrigin()")
+                    camera:moveToOrigin()
+                end
+                if button == right_shift then
+                    print("moveToPlayer()")
+                    camera:moveToPlayer()
+                end
             end
         end
     end
@@ -2458,8 +2567,6 @@ end
 
 local function applyInput(j: Joystick)
     local left, right, up, down = 3, 2, 4, 1
-    local left_shift = 5
-    local right_shift = 6
 
     if j and playerTank then
         local body = playerTank.base
@@ -2477,13 +2584,6 @@ local function applyInput(j: Joystick)
             wrp.apply_impulse(body, 0, amount, px, py);
         end
 
-        if j:isDown(left_shift) then
-            camera:moveToPlayer()
-        end
-        if j:isDown(right_shift) then
-            print("moveToOrigin()")
-            camera:moveToOrigin()
-        end
     end
 end
 
@@ -2513,8 +2613,6 @@ local stateCoro: thread = coroutine.create(function(dt: number)
 
             camera:checkInput(joy)
             camera:update(dt)
-
-            moveCamera()
 
             -- шаг физики
             wrp.step(dt);
