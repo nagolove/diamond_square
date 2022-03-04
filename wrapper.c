@@ -157,6 +157,76 @@ static int new_body(lua_State *lua) {
     return 1;
 }
 
+// Как обеспечить более быструю рисовку?
+// Вариант решения - вызывать функцию обратного вызова только если с момента
+// прошлого рисования произошло изменению положения, более чем на 0.5px
+// Как хранить данные о прошлом положении?
+void on_each_tank(cpBody *body, void *data) {
+    lua_State *lua = (lua_State*)data;
+
+    // TODO Убрать лишние операции со стеком, получать таблицу связанную с 
+    // телом один раз.
+
+    /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)body->userData);*/
+    /*lua_pushstring(lua, "id");*/
+    /*lua_gettable(lua, -2);*/
+    /*const char *id = lua_tostring(lua, -1);*/
+    /*lua_remove(lua, -1);*/
+    /*lua_remove(lua, -1);*/
+    /*printf("tank id = %s\n", id);*/
+
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)body->userData);
+
+    lua_pushstring(lua, "_prev_x");
+    lua_gettable(lua, -2);
+    double prev_x = lua_tonumber(lua, -1);
+    lua_remove(lua, -1); // remove last result
+
+    /*stackDump(lua);*/
+
+    lua_pushstring(lua, "_prev_y");
+    lua_gettable(lua, -2);
+    double prev_y = lua_tonumber(lua, -1);
+    lua_remove(lua, -1); // remove last result
+
+    lua_remove(lua, -1); // body->userData table
+
+    /*printf("prev_x, prev_y %.3f, %.3f \n", prev_x, prev_y);*/
+
+    double epsilon = 0.001;
+    double dx = fabs(prev_x - body->p.x);
+    double dy = fabs(prev_y - body->p.y);
+
+    if (dx > epsilon && dy > epsilon) {
+        lua_pushvalue(lua, 1); // callback function
+        lua_pushnumber(lua, body->p.x);
+        lua_pushnumber(lua, body->p.y);
+        lua_pushnumber(lua, body->a);
+        lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)body->userData);
+        lua_call(lua, 4, 0);
+    }
+
+    /*stackDump(lua);*/
+    /*printf("---------------------------\n");*/
+
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)body->userData);
+
+    lua_pushstring(lua, "_prev_x"); //key
+    lua_pushnumber(lua, body->p.x); //value
+    lua_settable(lua, -3);
+
+    lua_pushstring(lua, "_prev_y"); //key
+    lua_pushnumber(lua, body->p.y); //value
+    lua_settable(lua, -3);
+
+    lua_remove(lua, -1);
+
+    /*stackDump(lua);*/
+    /*printf("||||||||||||||||||||||||||||||||\n");*/
+
+    /*printf("on_each_body\n");*/
+}
+
 void on_each_body(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
@@ -177,6 +247,22 @@ void print_space_info(cpSpace *space) {
     printf("data %p\n", space->userData);
     printf("curr_dt %f\n", space->curr_dt);
     printf("stamp %d\n", space->stamp);
+}
+
+static int query_all_tanks(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TFUNCTION);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Space pointer is null.\n");
+        lua_error(lua);
+    }
+
+    assert(cur_space && "space is NULL");
+
+    cpSpaceEachBody(cur_space, on_each_tank, lua);
+
+    return 0;
 }
 
 static int query_all_shapes(lua_State *lua) {
@@ -374,6 +460,9 @@ extern int luaopen_wrp(lua_State *lua) {
 
         // вызов функции для всех тел в текущем пространстве
         {"query_all_shapes", query_all_shapes},
+
+        // вызов функции для всех тел в текущем пространстве
+        {"query_all_tanks", query_all_tanks},
 
         // новое тело
         {"new_body", new_body},
