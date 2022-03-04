@@ -133,42 +133,33 @@ while true do
     -- remove   - удалить объект
     -- имя команды, идентификатор объекта 
 
-    -- flush    - нарисовать все
+    -- flush    - нарисовать все, выйти из цикла приема сообщений
     -- имя команды
+
+    -- enough   - выйти из цикла приема сообщений, ничего не рисовать
 
     repeat
         cmd = graphic_command_channel:demand() as string
         --print('cmd', cmd)
 
         if cmd == "new" then
-            local x, y, angle: number, number, number
             local id = get_id()
-            x = graphic_command_channel:demand() as number
-            y = graphic_command_channel:demand() as number
-            angle = graphic_command_channel:demand() as number
-
+            local x = graphic_command_channel:demand() as number
+            local y = graphic_command_channel:demand() as number
+            local angle = graphic_command_channel:demand() as number
             --draw(x, y, angle)
-
-            hash[id] = {
-                [1] = x,
-                [2] = y,
-                [3] = angle,
-            }
-            --]]
-
+            hash[id] = {[1] = x, [2] = y, [3] = angle, }
         elseif cmd == "remove" then
             local id = get_id()
             hash[id] = nil
-
             --print('remove')
-
         elseif cmd == 'flush' then
-            --love.graphics.draw(mesh)
-            --print('flush')
             for _, v in pairs(hash) do
                 draw(v[1], v[2], v[3])
             end
             --hash = {}
+            break
+        elseif cmd == 'enough' then
             break
         else
             error('poly_shape unkonwn command: ' .. cmd)
