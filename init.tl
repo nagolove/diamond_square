@@ -216,6 +216,11 @@ local record Tank
 
     -- {{{
 
+    -- _ префикс нижнего подчеркивания означает, что переменные могут быть
+    -- изменены со стороны Lua C API
+    _prev_x: number
+    _prev_y: number
+
     -- прочность танка от 1 до 0
     strength: number
     -- запас топлива от 1 до 0
@@ -1586,8 +1591,22 @@ local function renderInternal()
     camera:setTransform()
 
     --print("------ query ---------")
+    --pipeline:open('base_shape')
+
+    --wrp.query_all_tanks(
+        --function(x: number, y: number, angle: number, obj: any)
+            --local tank = obj as Tank
+            --print('processed', tank.id)
+        --end
+    --)
+    --pipeline:push('flush')
+    --pipeline:close()
+    --print("--------------------------")
+
+    --print("------ query ---------")
     pipeline:open('base_shape')
-    wrp.query_all_shapes(on_each_body)
+    --wrp.query_all_shapes(on_each_body)
+    wrp.query_all_tanks(on_each_body)
     pipeline:push('flush')
     pipeline:close()
     --print("--------------------------")
@@ -1597,9 +1616,11 @@ local function renderInternal()
     --pipeline:push("draw", 0, 0, 2000, 4000)
     --pipeline:push("draw", 400, 1100, 1000, 1000)
 
-    wrp.draw_static_segments(function(x1: number, y1: number, x2: number, y2:number)
-        pipeline:push('draw', x1, y1, x2, y2)
-    end)
+    wrp.draw_static_segments(
+        function(x1: number, y1: number, x2: number, y2:number)
+            pipeline:push('draw', x1, y1, x2, y2)
+        end
+    )
     pipeline:push('flush')
     pipeline:close()
 
@@ -2523,9 +2544,12 @@ end
 
 local state: State = 'map'
 
+-- не добавляет в таблицу рисовки на стороне потока рендера
 local function spawnTank(px: number, py: number): Tank
     local tank = Tank.new(vec2(px, py))
     table.insert(tanks, tank)
+    local px, py, angle = wrp.get_position(tank.base)
+    tank._prev_x, tank._prev_y = px, py
     return tank
 end
 
@@ -2545,15 +2569,13 @@ local borders: Borders = {}
 
 local function spawnTanks()
 
-    --local tanks_num = 1500
-    --local tanks_num = 500
-
     --[[
     Если больше 150 объектов, то начинается периодическое мелькание.
     Расчитать количество передаваемых данных за кадр и в среднем за секунду
     которое приводит к мельканию.
     --]]
     local tanks_num = 500
+    --local tanks_num = 10
 
     local minx, maxx = 0, 4000
     local miny, maxy = 0, 4000
@@ -2561,10 +2583,17 @@ local function spawnTanks()
     borders.x1, borders.y1 = minx, miny
     borders.x2, borders.y2 = maxx, maxy
 
+    -- информация о танчиках записывается в таблицу на стороне потока рисования
+    -- что-бы позже передавать данные только от изменивших положение объектах
+    pipeline:open('base_shape')
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-        spawnTank(px, py)
+        local tank = spawnTank(px, py)
+        local px, py, angle = wrp.get_position(tank.base)
+        pipeline:push('new', tank.id, px, py, angle)
     end
+    pipeline:push('enough')
+    pipeline:close()
 end
 
 local function applyInput(j: Joystick)
