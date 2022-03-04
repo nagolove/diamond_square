@@ -130,9 +130,6 @@ while true do
     -- update   - обновить вершины объекта и рисовать
     -- имя команды, идентификатор объекта, вершины
 
-    -- draw     - рисовать существущий
-    -- имя команды, идентификатор объекта 
-
     -- remove   - удалить объект
     -- имя команды, идентификатор объекта 
 
@@ -158,10 +155,6 @@ while true do
                 [3] = angle,
             }
             --]]
-
-        --elseif cmd == "draw" then
-            --local id = get_id()
-            --draw(hash[id][1], hash[id][2], hash[id][3])
 
         elseif cmd == "remove" then
             local id = get_id()
