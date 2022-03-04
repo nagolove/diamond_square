@@ -76,7 +76,6 @@ local ObjectType = {}
 
 
 
-
 local sformat = string.format
 local inspect = require("inspect")
 local serpent = require('serpent')
@@ -214,6 +213,11 @@ local Hangar = {}
 
 
 local Tank = {}
+
+
+
+
+
 
 
 
@@ -496,13 +500,6 @@ local screenW, screenH
 
 
 
-M2PIX = 10
-
-
-PIX2M = 1 / 10
-
-
-
 
 
 
@@ -576,6 +573,13 @@ local Camera = {}
 
 
 
+
+
+
+
+
+
+
 local Camera_mt = {
    __index = Camera,
 }
@@ -596,12 +600,59 @@ function Camera.new()
    self.scale = 1.
    self.dt = 0
    self.transform = love.math.newTransform()
+   pipeline:pushCode("camera_axises", [[
+    local yield = coroutine.yield
+    local linew = 1.
+    local color = {0, 0, 0, 1}
+    while true do
+        local oldlw = love.graphics.getLineWidth()
+        local w, h = love.graphics.getDimensions()
+        love.graphics.setLineWidth(linew)
+        love.graphics.setColor(color)
+        love.graphics.line(w / 2, 0, w / 2, h)
+        love.graphics.line(0, h / 2, w, h / 2)
+        love.graphics.setLineWidth(oldlw)
+        yield()
+    end
+    ]])
    return self
 end
 
 function Camera:checkInput(j)
    self:checkMovement(j)
    self:checkScale(j)
+end
+
+function Camera:draw_axises()
+   pipeline:openAndClose("camera_axises")
+end
+
+function Camera:push2lines_buf()
+   local msg = sformat("camera: (%.3f, %.3f, %.4f)", self.x, self.y, self.scale)
+   pipeline:push("add", "camera", msg)
+   local mat = { self.transform:getMatrix() }
+   local fmt1 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f,"
+   local fmt2 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f"
+   local msg = sformat(
+   "camera mat: (" .. fmt1 .. fmt2 .. ")",
+   mat[1],
+   mat[2],
+   mat[3],
+   mat[4],
+   mat[5],
+   mat[6],
+   mat[7],
+   mat[8],
+   mat[9],
+   mat[10],
+   mat[11],
+   mat[12],
+   mat[13],
+   mat[14],
+   mat[15],
+   mat[16])
+
+   pipeline:push("add", "camera_mat", msg)
 end
 
 function Camera:update(dt)
@@ -661,26 +712,35 @@ function Camera:checkScale(j)
 end
 
 
+
+
 function Camera:moveToPlayer()
    if not playerTank and playerTank.base then
       return
    end
 
-   local x, y, _ = wrp.get_position(playerTank.base)
+   local px, py, _ = wrp.get_position(playerTank.base)
    print("camera x, y, scale", self.x, self.y, self.scale)
-   print("tank x, y", x, y)
-   self.x, self.y = x, y
-   self.transform:translate(x, y)
+   print("tank x, y", px, py)
+   local dx, dy = self.x + -px + screenW / 2, self.y + -py + screenH / 2
+
+   if self.x ~= dx or self.y ~= dy then
+
+      self.transform:scale(1)
+
+      self.transform:translate(dx, dy)
+   end
 end
 
 function Camera:moveToOrigin()
    self.x, self.y = 0, 0
    self.scale = 1,
    self.transform:translate(self.x, self.y)
+   self.transform:reset()
    self.transform:scale(self.scale, self.scale)
 end
 
-local camera = Camera.new()
+local camera
 
 local function initJoy()
    for _, j in ipairs(joystick.getJoysticks()) do
@@ -945,8 +1005,8 @@ function Tank.new(pos)
 
    self.color = { 1, 1, 1, 1 }
 
-   self.type = "Base"
-   self.base = wrp.new_body("tank", tank_width, tank_height, self)
+   self.type = "tank"
+   self.base = wrp.new_body(self.type, tank_width, tank_height, self)
    wrp.set_position(self.base, pos.x, pos.y)
 
    return self
@@ -1041,7 +1101,7 @@ function Base.new(t)
    end
 
    local self = setmetatable({}, Base_mt)
-   self.objectType = "Base"
+
    self.tank = t
    self.track = {}
 
@@ -1527,11 +1587,26 @@ end
 local function renderInternal()
    pipeline:openAndClose('clear')
 
+
    camera:setTransform()
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
    pipeline:open('base_shape')
-   wrp.query_all_shapes(on_each_body)
+
+   wrp.query_all_tanks(on_each_body)
    pipeline:push('flush')
    pipeline:close()
 
@@ -1541,15 +1616,21 @@ local function renderInternal()
 
 
 
-   wrp.draw_static_segments(function(x1, y1, x2, y2)
+   wrp.draw_static_segments(
+   function(x1, y1, x2, y2)
       pipeline:push('draw', x1, y1, x2, y2)
    end)
+
    pipeline:push('flush')
    pipeline:close()
+
+   local player_x, player_y
 
    if playerTank then
       pipeline:open('selected_object')
       local body = playerTank.base
+      player_x, player_y = wrp.get_position(body)
+
       pipeline:push(wrp.get_position(body))
       pipeline:close()
    else
@@ -1557,13 +1638,20 @@ local function renderInternal()
    end
 
 
+   pipeline:openAndClose('main_axises')
+
+
    camera:setOrigin()
 
    pipeline:open('lines_buf')
    print_io_rate()
+   camera:push2lines_buf()
+   local msg = sformat("player pos (%.3f, %.3f)", player_x, player_y)
+   pipeline:push("add", "player_pos", msg)
    pipeline:push('flush')
    pipeline:close()
 
+   camera:draw_axises()
 end
 
 local function renderScene()
@@ -1595,19 +1683,6 @@ local function updateTanks()
 end
 
 local lastPosX, lastPosY
-
-
-
-
-
-local function moveCamera()
-   if playerTank then
-      if not lastPosX then
-      end
-      if not lastPosY then
-      end
-   end
-end
 
 
 
@@ -1808,8 +1883,6 @@ local function keypressed(key)
 
 end
 
-cameraKeyConfigIds = {}
-
 
 
 
@@ -1940,6 +2013,20 @@ local function initRenderCode()
         local verts = graphic_command_channel:demand()
         love.graphics.polygon('fill', verts)
 
+        coroutine.yield()
+    end
+    ]])
+
+   pipeline:pushCode("main_axises", [[
+    local col = {0.3, 0.5, 1, 1}
+    while true do
+        local size = 1000
+        --love.graphics.setColor(col)
+        love.graphics.setColor {0, 0, 0, 1}
+        local rad = 100
+        love.graphics.circle("line", 0, 0, rad)
+        love.graphics.line(0, size, 0, -size)
+        love.graphics.line(-size, 0, size, 0)
         coroutine.yield()
     end
     ]])
@@ -2121,7 +2208,8 @@ local function initPipelineObjects()
 
    pipeline:close()
 
-   pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 40)
+
+   pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 24)
 
    pipeline:sync()
 
@@ -2310,6 +2398,9 @@ local function init()
    initPipelineObjects()
 
 
+   camera = Camera.new()
+
+
 
 
 
@@ -2422,6 +2513,25 @@ local function process_events()
             local btn = (e)[4]
             mousepressed(x, y, btn)
 
+         elseif evtype == "joystickpressed" then
+            local joystick = (e)[2]
+            local button = (e)[3]
+
+            print('joystick', inspect(joystick))
+            print('button', inspect(button))
+
+            local left_shift = 5
+            local right_shift = 6
+
+
+            if button == left_shift then
+               print("moveToOrigin()")
+               camera:moveToOrigin()
+            end
+            if button == right_shift then
+               print("moveToPlayer()")
+               camera:moveToPlayer()
+            end
          end
       end
    end
@@ -2434,9 +2544,12 @@ local State = {}
 
 local state = 'map'
 
+
 local function spawnTank(px, py)
    local tank = Tank.new(vec2(px, py))
    table.insert(tanks, tank)
+   local px, py, angle = wrp.get_position(tank.base)
+   tank._prev_x, tank._prev_y = px, py
    return tank
 end
 
@@ -2461,10 +2574,8 @@ local function spawnTanks()
 
 
 
-
-
-
    local tanks_num = 500
+
 
    local minx, maxx = 0, 4000
    local miny, maxy = 0, 4000
@@ -2472,16 +2583,21 @@ local function spawnTanks()
    borders.x1, borders.y1 = minx, miny
    borders.x2, borders.y2 = maxx, maxy
 
+
+
+   pipeline:open('base_shape')
    for _ = 1, tanks_num do
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-      spawnTank(px, py)
+      local tank = spawnTank(px, py)
+      local px, py, angle = wrp.get_position(tank.base)
+      pipeline:push('new', tank.id, px, py, angle)
    end
+   pipeline:push('enough')
+   pipeline:close()
 end
 
 local function applyInput(j)
    local left, right, up, down = 3, 2, 4, 1
-   local left_shift = 5
-   local right_shift = 6
 
    if j and playerTank then
       local body = playerTank.base
@@ -2499,13 +2615,6 @@ local function applyInput(j)
          wrp.apply_impulse(body, 0, amount, px, py);
       end
 
-      if j:isDown(left_shift) then
-         camera:moveToPlayer()
-      end
-      if j:isDown(right_shift) then
-         print("moveToOrigin()")
-         camera:moveToOrigin()
-      end
    end
 end
 
@@ -2535,8 +2644,6 @@ local stateCoro = coroutine.create(function(dt)
 
          camera:checkInput(joy)
          camera:update(dt)
-
-         moveCamera()
 
 
          wrp.step(dt);

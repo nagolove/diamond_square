@@ -118,24 +118,10 @@ local function get_id()
    return id
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 while true do
    local cmd
 
    cmd_num = 0
-
 
 
 
@@ -157,38 +143,23 @@ while true do
 
 
       if cmd == "new" then
-         local x, y, angle
          local id = get_id()
-         x = graphic_command_channel:demand()
-         y = graphic_command_channel:demand()
-         angle = graphic_command_channel:demand()
+         local x = graphic_command_channel:demand()
+         local y = graphic_command_channel:demand()
+         local angle = graphic_command_channel:demand()
 
-
-
-         hash[id] = {
-            [1] = x,
-            [2] = y,
-            [3] = angle,
-         }
-
-
-
-
-
-
+         hash[id] = { [1] = x, [2] = y, [3] = angle }
       elseif cmd == "remove" then
          local id = get_id()
          hash[id] = nil
 
-
-
       elseif cmd == 'flush' then
-
-
          for _, v in pairs(hash) do
             draw(v[1], v[2], v[3])
          end
 
+         break
+      elseif cmd == 'enough' then
          break
       else
          error('poly_shape unkonwn command: ' .. cmd)
