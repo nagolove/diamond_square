@@ -73,8 +73,7 @@ require "love"
 --local camMoveTween = tween.new()
 
 local enum ObjectType
-    "Base"
-    "Turret"
+    "tank"
 end
 
 local sformat = string.format
@@ -1001,8 +1000,8 @@ function Tank.new(pos: vector): Tank
 
     self.color = {1, 1, 1, 1}
 
-    self.type = "Base"
-    self.base = wrp.new_body("tank", tank_width, tank_height, self as table)
+    self.type = "tank"
+    self.base = wrp.new_body(self.type, tank_width, tank_height, self as table)
     wrp.set_position(self.base, pos.x, pos.y)
 
     return self
@@ -1097,7 +1096,7 @@ function Base.new(t: Tank): Base
     end
 
     local self: Base = setmetatable({} as Base, Base_mt)
-    self.objectType = "Base"
+    --self.objectType = "Base"
     self.tank = t
     self.track = {}
 
