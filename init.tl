@@ -494,13 +494,6 @@ end
 
 local screenW, screenH: number, number
 
---[[ Танк длиной пять метров имеет отображаемый размер 50 пикселей
-коэффициент на который домножаю при переводе из метров в пиксели --]]
-global M2PIX = 10
-
--- коэффициент на который домножаю при переводе из пикселей в метры
-global PIX2M = 1 / 10
-
 -- {{{ Konsole editing
 --local historyfname = "cmdhistory.txt"
 
@@ -1596,19 +1589,6 @@ end
 
 local lastPosX, lastPosY: number, number
 
---[[ 
-Функция двигает камеру если координаты центра масс танка игрока выходят за
-радиус камеры.
---]]
-local function moveCamera()
-    if playerTank then
-        if not lastPosX then
-        end
-        if not lastPosY then
-        end
-    end
-end
-
 --[[
 local function backspaceCmdLine()
     -- {{{
@@ -1807,8 +1787,6 @@ local function keypressed(key: string)
 
     -- }}}
 end
-
-global cameraKeyConfigIds: {integer} = {}
 
 --[[
 local function bindKonsoleCameraZoomKeys()
