@@ -365,21 +365,31 @@ static int draw_static_segments(lua_State *lua) {
 extern int luaopen_wrp(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
-         {"init_space", init_space},
-         {"free_space", free_space},
-         {"step", step},
+        // создать пространство
+        {"init_space", init_space},
+        // удалить пространство и все тела на нем
+        {"free_space", free_space},
+        // шаг симуляции
+        {"step", step},
 
-         {"query_all_shapes", query_all_shapes},
+        // вызов функции для всех тел в текущем пространстве
+        {"query_all_shapes", query_all_shapes},
 
-         {"new_body", new_body},
-         {"set_position", set_position},
-         {"get_position", get_position},
-         {"apply_impulse", apply_impulse},
+        // новое тело
+        {"new_body", new_body},
+        // установить положение тела
+        {"set_position", set_position},
+        // получить положение тела и угол поворота
+        {"get_position", get_position},
+        // придать импульс телу
+        {"apply_impulse", apply_impulse},
 
-         {"new_static_segment", new_static_segment},
-         {"draw_static_segments", draw_static_segments},
+        // добавить к статическому телу форму - отрезок
+        {"new_static_segment", new_static_segment},
+        // обратный вызов функции для рисования всех сегментов
+        {"draw_static_segments", draw_static_segments},
 
-         {NULL, NULL}
+        {NULL, NULL}
     };
     luaL_register(lua, "wrapper", functions);
     printf("wrp module opened\n");
