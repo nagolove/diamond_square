@@ -82,7 +82,7 @@ local serpent = require 'serpent'
 --local i18n = require "i18n"
 local metrics = require "metrics"
 local vec2 = require "vector"
-local vecl = require "vector-light"
+--local vecl = require "vector-light"
 --local tabular = require "tabular"
 
 -- }}}
@@ -515,12 +515,12 @@ require "Timer"
 
 -- Все танки, в том числе и тот, которым управляет игрок.
 local tanks: {Tank} = {}
+
+-- Ангары(точки для ремонта, также точки появления техники
 local hangars: {Hangar} = {}
+
 -- Танк, которым управляет игрок
 local playerTank: Tank
-
--- Подложка
---global background: Background
 
 -- Логотип, картинка или главное меню?
 require 'logo'
@@ -530,10 +530,13 @@ local tankCounter = 0
 
 local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
---rng:setSeed(os.time())
+rng:setSeed(os.time())
 
 require 'diamondsquare'
---local diamondSquare: DiamonAndSquare
+require 'diamondsquare-render'
+
+local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng)
+local dsRender: DSRender = DSRender.new(32, diamondSquare, pipeline)
 
 --local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 --local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
@@ -722,11 +725,14 @@ function Camera:moveToPlayer()
     local px, py, _ = wrp.get_position(playerTank.base)
     print("camera x, y, scale", self.x, self.y, self.scale)
     print("tank x, y", px, py)
+    self.x, self.y = 0, 0
+    self.scale = 1.
     local dx, dy = self.x + -px + screenW / 2, self.y + -py + screenH / 2
     --self.x, self.y = self.x + dx, self.y + dy
     if self.x ~= dx or self.y ~= dy then
         --self.x, self.y = 0, 0
-        self.transform:scale(1)
+        self.transform:reset()
+        self.transform:scale(self.scale)
         --self.transform:translate(-x, -y)
         self.transform:translate(dx, dy)
     end
@@ -2566,6 +2572,14 @@ end
 
 -- границы в которых создаются танки
 local borders: Borders = {}
+
+--[[
+Задача: написать модуль, встроенный в бинарный файл love, для замены
+pipeline.tl
+--]]
+--local pp = require "mtpipeline"
+--pp.init()
+--pp.free()
 
 local function spawnTanks()
 
