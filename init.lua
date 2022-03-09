@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local package = _tl_compat and _tl_compat.package or package; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local os = _tl_compat and _tl_compat.os or os; local package = _tl_compat and _tl_compat.package or package; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -82,7 +82,7 @@ local serpent = require('serpent')
 
 local metrics = require("metrics")
 local vec2 = require("vector")
-local vecl = require("vector-light")
+
 
 
 
@@ -515,12 +515,12 @@ require("Timer")
 
 
 local tanks = {}
+
+
 local hangars = {}
 
+
 local playerTank
-
-
-
 
 
 require('logo')
@@ -530,10 +530,13 @@ local tankCounter = 0
 
 local rng = love.math.newRandomGenerator()
 
-
+rng:setSeed(os.time())
 
 require('diamondsquare')
+require('diamondsquare-render')
 
+local diamondSquare = DiamonAndSquare.new(8, rng)
+local dsRender = DSRender.new(32, diamondSquare, pipeline)
 
 
 
@@ -722,11 +725,14 @@ function Camera:moveToPlayer()
    local px, py, _ = wrp.get_position(playerTank.base)
    print("camera x, y, scale", self.x, self.y, self.scale)
    print("tank x, y", px, py)
+   self.x, self.y = 0, 0
+   self.scale = 1.
    local dx, dy = self.x + -px + screenW / 2, self.y + -py + screenH / 2
 
    if self.x ~= dx or self.y ~= dy then
 
-      self.transform:scale(1)
+      self.transform:reset()
+      self.transform:scale(self.scale)
 
       self.transform:translate(dx, dy)
    end
@@ -2566,6 +2572,14 @@ local Borders = {}
 
 
 local borders = {}
+
+
+
+
+
+
+
+
 
 local function spawnTanks()
 
