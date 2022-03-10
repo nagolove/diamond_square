@@ -56,11 +56,10 @@ print('shape width, height:', width, height)
 
 
 -- TODO Использовать соединенные треугольники
-local mesh_size = 6
-local mesh = love.graphics.newMesh(mesh_size, "triangles", "static")
+--local mesh_size = 6
+--local mesh = love.graphics.newMesh(mesh_size, "triangles", "static")
 --local mesh_verts: {{number}} = {}
-
-mesh:setTexture(texture)
+--mesh:setTexture(texture)
 
 --local font = love.graphics.newFont(32)
 
@@ -86,7 +85,7 @@ local gr = love.graphics
 local quad = gr.newQuad(0, 0, 256, 256, texture)
 
 local function draw(x: number, y: number, angle: number)
-    local rad = 20
+    --local rad = 20
 
     gr.push()
     gr.translate(x, y)

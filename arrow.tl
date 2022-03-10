@@ -1,4 +1,4 @@
-require 'pipeline'
+local Pipeline = require 'pipeline'
 
 local pipeline: Pipeline
 

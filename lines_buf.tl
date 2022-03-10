@@ -25,7 +25,7 @@ print("SCENE_PREFIX", SCENE_PREFIX)
 local path = SCENE_PREFIX .. "/" .. font_name
 local font = love.graphics.newFont(path, font_size)
 
-local oldfont: love.graphics.Font
+--local oldfont: love.graphics.Font
 local buffer: {string: string} = {}
 
 yield()
@@ -61,7 +61,7 @@ while true do
             love.graphics.setColor {0, 0, 0, 1}
             local y = 0.
 
-            for k, v in pairs(buffer) do
+            for _, v in pairs(buffer) do
                 love.graphics.print(v, 0, y)
                 y = y + font:getHeight()
             end
