@@ -56,7 +56,7 @@ require 'konstants'
 require 'joystate'
 require 'pipeline'
 require "common"
-require 'ffi'
+--require 'ffi'
 
 -- Доработка keyconfig для джойстика
 require "keyconfig"
@@ -87,6 +87,7 @@ local vec2 = require "vector"
 
 -- }}}
 
+local Pipeline = require 'pipeline'
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
 -- рисование стрелочек
@@ -532,11 +533,10 @@ local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
 rng:setSeed(os.time())
 
-require 'diamondsquare'
-require 'diamondsquare-render'
+local DiamonAndSquare = require 'diamondsquare'
 
-local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng)
-local dsRender: DSRender = DSRender.new(32, diamondSquare, pipeline)
+local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
+--local diamondSquare: DiamonAndSquare = nil
 
 --local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 --local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
@@ -562,6 +562,7 @@ local record Camera
     setOrigin: function(Camera)
     checkInput: function(Camera)
     update: function(Camera, dt: number)
+    checkPlayerInCircle: function(Camera)
     moveToPlayer: function(Camera)
     moveToOrigin: function(Camera)
 
@@ -714,9 +715,15 @@ function Camera:checkScale(j: joystick.Joystick)
     end
 end
 
+-- Проверяет, находится-ли центр танка игрока в пределах окружности 
+-- определенного радиуса. Если танк выезжает за пределы, то камера сдвигается.
+-- * Обеспечить плавность движения камеры.
+-- * Камера должна сохранять какие-то абсолютные координаты?
+function Camera:checkPlayerInCircle()
+    local rad = 300
+end
+
 -- камера перемещается на танк игрока
--- при многократном применении без изменения местоположения игрока камера не
--- должна сдвигаться
 function Camera:moveToPlayer()
     if not playerTank and playerTank.base then
         return
@@ -978,7 +985,8 @@ function Tank:backward()
     --self.base:backward()
 end
 
-local base_tex_fname = 'tank_body_small.png'
+--local base_tex_fname = 'tank_body_small.png'
+local base_tex_fname = 'tank_body.cut.png'
 local turret_text_fname = 'tank_tower.png'
 
 local function getTankSize(): integer, integer
@@ -2588,7 +2596,7 @@ local function spawnTanks()
     Расчитать количество передаваемых данных за кадр и в среднем за секунду
     которое приводит к мельканию.
     --]]
-    local tanks_num = 500
+    local tanks_num = 5
     --local tanks_num = 10
 
     local minx, maxx = 0, 4000
