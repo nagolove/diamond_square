@@ -56,7 +56,7 @@ require('konstants')
 require('joystate')
 require('pipeline')
 require("common")
-require('ffi')
+
 
 
 require("keyconfig")
@@ -87,6 +87,7 @@ local vec2 = require("vector")
 
 
 
+local Pipeline = require('pipeline')
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
 
@@ -532,11 +533,10 @@ local rng = love.math.newRandomGenerator()
 
 rng:setSeed(os.time())
 
-require('diamondsquare')
-require('diamondsquare-render')
+local DiamonAndSquare = require('diamondsquare')
 
-local diamondSquare = DiamonAndSquare.new(8, rng)
-local dsRender = DSRender.new(32, diamondSquare, pipeline)
+local diamondSquare = DiamonAndSquare.new(8, rng, pipeline)
+
 
 
 
@@ -556,6 +556,7 @@ local joy
 
 
 local Camera = {}
+
 
 
 
@@ -715,6 +716,12 @@ function Camera:checkScale(j)
 end
 
 
+
+
+
+function Camera:checkPlayerInCircle()
+   local rad = 300
+end
 
 
 function Camera:moveToPlayer()
@@ -978,7 +985,8 @@ function Tank:backward()
 
 end
 
-local base_tex_fname = 'tank_body_small.png'
+
+local base_tex_fname = 'tank_body.cut.png'
 local turret_text_fname = 'tank_tower.png'
 
 local function getTankSize()
@@ -2588,7 +2596,7 @@ local function spawnTanks()
 
 
 
-   local tanks_num = 500
+   local tanks_num = 5
 
 
    local minx, maxx = 0, 4000

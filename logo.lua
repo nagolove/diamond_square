@@ -1,5 +1,5 @@
 require('konstants')
-require('pipeline')
+local Pipeline = require('pipeline')
 
 
  Logo = {}

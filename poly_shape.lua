@@ -56,11 +56,10 @@ print('shape width, height:', width, height)
 
 
 
-local mesh_size = 6
-local mesh = love.graphics.newMesh(mesh_size, "triangles", "static")
 
 
-mesh:setTexture(texture)
+
+
 
 
 
@@ -86,7 +85,7 @@ local gr = love.graphics
 local quad = gr.newQuad(0, 0, 256, 256, texture)
 
 local function draw(x, y, angle)
-   local rad = 20
+
 
    gr.push()
    gr.translate(x, y)
