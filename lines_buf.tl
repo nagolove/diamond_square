@@ -1,3 +1,12 @@
+--[[
+record LinesBuffer
+    add: function(id: string, message: string)
+    remove: function(id: string, message: string)
+    clear: function()
+    flush: function()
+end
+--]]
+    
 global SCENE_PREFIX: string
 global graphic_command_channel: love.thread.Channel
 local yield = coroutine.yield
@@ -33,7 +42,7 @@ yield()
 while true do
     local cmd: string
     --print('lines_buf: cmd', cmd)
-    
+
     local oldfont = love.graphics.getFont()
     repeat
         cmd = graphic_command_channel:demand() as string
