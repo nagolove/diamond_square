@@ -534,7 +534,6 @@ local rng = love.math.newRandomGenerator()
 rng:setSeed(os.time())
 
 local DiamonAndSquare = require('diamondsquare')
-
 local diamondSquare = DiamonAndSquare.new(8, rng, pipeline)
 
 
@@ -2046,6 +2045,7 @@ local function initRenderCode()
     ]])
 
    pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
+   pipeline:pushCodeFromFile('phys_object_lines_buf', 'lines_buf.lua')
 
    pipeline:pushCode('alpha_draw', [[
     local tex1 = love.graphics.newImage(SCENE_PREFIX .. '/tank_body_small.png')
@@ -2224,6 +2224,7 @@ local function initPipelineObjects()
 
 
    pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 24)
+   pipeline:openPushAndClose('phys_object_lines_buf', "DejaVuSansMono.ttf", 24)
 
    pipeline:sync()
 
@@ -2454,6 +2455,35 @@ end
 
 local function mousemoved(x, y, dx, dy)
    metrics.mousemoved(x, y, dx, dy)
+
+   wrp.get_shape_under_point(x, y,
+   function(
+      shape,
+      x,
+      y,
+      distance,
+      gradx,
+      grady)
+
+
+      print('on get_shape_under_point()')
+      print('shape', shape)
+      print('point', x, y)
+      print('distance', distance)
+      print('gradient', gradx, grady)
+
+
+
+
+
+
+
+
+
+
+
+   end)
+
 
 
 
