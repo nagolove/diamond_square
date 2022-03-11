@@ -1,5 +1,6 @@
 
 global record Wrapper
+    record Shape end
     record Space end
     record Body end
 
@@ -25,6 +26,17 @@ global record Wrapper
 
     new_static_segment: function(x1: number, y1: number, x2: number, y2: number)
     draw_static_segments: function(EachBodyCallback)
+
+    type EachShape = function(
+        shape: Shape, 
+        px: number, 
+        py: number, 
+        distance: number,
+        gradx: number,
+        grady: number)
+
+    get_shape_under_point: function(x: number, y: number, cb: EachShape)
+    get_shape_body: function(Shape): Body
 end
 
 return Wrapper

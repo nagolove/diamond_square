@@ -9,10 +9,12 @@
 #include <stdio.h>
 #include <string.h>
 
+cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
+
+// Что делает этот фильтр?
 #define GRABBABLE_MASK_BIT (1<<31)
 cpShapeFilter GRAB_FILTER = {CP_NO_GROUP, GRABBABLE_MASK_BIT, GRABBABLE_MASK_BIT};
 cpShapeFilter NOT_GRABBABLE_FILTER = {CP_NO_GROUP, ~GRABBABLE_MASK_BIT, ~GRABBABLE_MASK_BIT};
-
 
 static void stackDump (lua_State *L) {
     int i;
@@ -448,6 +450,62 @@ static int draw_static_segments(lua_State *lua) {
     return 0;
 }
 
+void on_point_query(cpShape *shape, cpVect point, cpFloat distance, cpVect gradient, void *data) {
+    lua_State *lua = (lua_State*)data;
+
+    lua_pushlightuserdata(lua, shape);
+    lua_pushnumber(lua, point.x);
+    lua_pushnumber(lua, point.y);
+    lua_pushnumber(lua, distance);
+    lua_pushnumber(lua, gradient.x);
+    lua_pushnumber(lua, gradient.x);
+
+    stackDump(lua);
+    printf("1111111111111111111");
+
+    lua_call(lua, 6, 0);
+
+    stackDump(lua);
+    printf("222222222222222");
+}
+
+// Вызывает функцию обратного вызова для фигур под данной точно.
+// Не учитывает фильтры.
+static int get_shape_under_point(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TNUMBER);
+    luaL_checktype(lua, 2, LUA_TNUMBER);
+    luaL_checktype(lua, 3, LUA_TFUNCTION);
+
+    int top = lua_gettop(lua);
+    if (top != 3) {
+        lua_pushstring(lua, "Function expect 3 arguments.\n");
+        lua_error(lua);
+    }
+
+    cpVect point = { 
+        .x = lua_tonumber(lua, 1),
+        .y = lua_tonumber(lua, 2),
+    };
+
+    assert(cur_space && "space is NULL");
+
+    cpSpacePointQuery(cur_space, point, 0, ALL_FILTER, on_point_query, lua);
+
+    return 0;
+}
+
+static int get_shape_body(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expect 1 argument.\n");
+        lua_error(lua);
+    }
+
+    return 1;
+}
+
 extern int luaopen_wrp(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
@@ -478,8 +536,14 @@ extern int luaopen_wrp(lua_State *lua) {
         // обратный вызов функции для рисования всех сегментов
         {"draw_static_segments", draw_static_segments},
 
+        // вызвать коллббэк для всех фигур под данной точкой
+        {"get_shape_under_point", get_shape_under_point},
+        // возвращает тело относящееся к фигуре
+        {"get_shape_body", get_shape_body},
+
         {NULL, NULL}
     };
+
     luaL_register(lua, "wrapper", functions);
     printf("wrp module opened\n");
     return 1;
