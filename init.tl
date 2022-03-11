@@ -2456,7 +2456,9 @@ end
 local function mousemoved(x: number, y: number, dx: number, dy: number)
     metrics.mousemoved(x, y, dx, dy)
 
-    wrp.get_shape_under_point(x, y, 
+    local absx, absy = camera.x, camera.y
+    print('absx, absy', absx, absy)
+    wrp.get_shape_under_point(x + absx, y + absy, 
         function(
             shape: Wrapper.Shape,
             x: number,
@@ -2594,6 +2596,13 @@ local function spawnTank(px: number, py: number): Tank
     table.insert(tanks, tank)
     local px, py, angle = wrp.get_position(tank.base)
     tank._prev_x, tank._prev_y = px, py
+    pipeline:openPushAndClose(
+        'base_shape',
+        'new', 
+        tank.id, 
+        px, py, angle, 
+        "flush"
+    )
     return tank
 end
 
@@ -2637,15 +2646,13 @@ local function spawnTanks()
 
     -- информация о танчиках записывается в таблицу на стороне потока рисования
     -- что-бы позже передавать данные только от изменивших положение объектах
-    pipeline:open('base_shape')
+    --pipeline:open('base_shape')
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
         local tank = spawnTank(px, py)
-        local px, py, angle = wrp.get_position(tank.base)
-        pipeline:push('new', tank.id, px, py, angle)
     end
-    pipeline:push('enough')
-    pipeline:close()
+    --pipeline:push('enough')
+    --pipeline:close()
 end
 
 local function applyInput(j: Joystick)
@@ -2657,6 +2664,8 @@ local function applyInput(j: Joystick)
         local px, py = 0, 0
         local amount = 100
 
+        -- FIXME Если прикладывать слишком большой импульс, то объект пролетает
+        -- за заграждение в виде EdgeShape
         if j:isDown(right) then
             wrp.apply_impulse(body, amount, 0, px, py);
         elseif j:isDown(left) then
