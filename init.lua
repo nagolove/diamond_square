@@ -2456,7 +2456,9 @@ end
 local function mousemoved(x, y, dx, dy)
    metrics.mousemoved(x, y, dx, dy)
 
-   wrp.get_shape_under_point(x, y,
+   local absx, absy = camera.x, camera.y
+   print('absx, absy', absx, absy)
+   wrp.get_shape_under_point(x + absx, y + absy,
    function(
       shape,
       x,
@@ -2594,6 +2596,13 @@ local function spawnTank(px, py)
    table.insert(tanks, tank)
    local px, py, angle = wrp.get_position(tank.base)
    tank._prev_x, tank._prev_y = px, py
+   pipeline:openPushAndClose(
+   'base_shape',
+   'new',
+   tank.id,
+   px, py, angle,
+   "flush")
+
    return tank
 end
 
@@ -2637,15 +2646,13 @@ local function spawnTanks()
 
 
 
-   pipeline:open('base_shape')
+
    for _ = 1, tanks_num do
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
       local tank = spawnTank(px, py)
-      local px, py, angle = wrp.get_position(tank.base)
-      pipeline:push('new', tank.id, px, py, angle)
    end
-   pipeline:push('enough')
-   pipeline:close()
+
+
 end
 
 local function applyInput(j)
