@@ -787,76 +787,11 @@ function Bullet.new(px: number, py: number, dirx: number, diry: number,
     -- }}}
 end
 
---[[
-local function gather_verts(shape: cm.cpShape): {number}
-    local num = cm.cpPolyShapeGetCount(shape)
-    local verts = {}
-    for i = 0, num - 1 do
-        local vert = cm.cpPolyShapeGetVert(shape, i)
-        table.insert(verts, vert.x)
-        table.insert(verts, vert.y)
-    end
-    return verts
-end
---]]
-
 local function print_io_rate()
     local bytes = pipeline:get_received_in_sec()
     local msg = sformat("передано за секунду Килобайт = %d", math.floor(bytes / 1024))
     pipeline:push('add', 'data_received', msg)
-    --pipeline:open('formated_text')
-    --pipeline:push(msg)
-    --pipeline:push(0)
-    --pipeline:push(140)
-    --pipeline:close()
 end
-
---[[
-local cp_bodies = {}
-local indexType = 'uint64_t'
-
-local function cpBody2Body(cpbody: cm.cpBody):
-    local index = ffi.cast(indexType, cpbody.userData)
-    index = tonumber(index)
-    --print('cpBody2Body')
-    --print('index', index)
-    return cp_bodies[index]
-end
---]]
-
---[[
-local function eachBody_verts(b: cm.cpBody)
-    local body = cm.cpBody2Body(b)
-    if body then
-        pw.eachBodyShape(b, shapeIter_verts)
-    else
-        error('Body is nil:' .. debug.traceback())
-    end
-end
---]]
-
---[[
-local function eachBody_base(b: cm.cpBody)
-    if not b then
-        error('There is no body')
-    end
-
-    -- XXX
-    --cm.cpBodyEachShape(b, shapeIter_base)
-
-end
---]]
-
---[[
-local function eachBody_turret(b: Cm.cpBody)
-    local body = pw.cpBody2Body(b)
-    if body then
-        pw.eachBodyShape(b, shapeIter_turret)
-    else
-        error('Body is nil:' .. debug.traceback())
-    end
-end
---]]
 
 function Hangar.new(_: vector): Hangar
     local Hangar_mt: metatable<Hangar> = {
