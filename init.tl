@@ -31,20 +31,11 @@ local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
 print('require_path', require_path)
 love.filesystem.setRequirePath(require_path)
 
---love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
---love.filesystem.setCRequirePath("?.so;scenes/t80/?.so")
---love.filesystem.setCRequirePath("?.so;/home/nagolove/myprojects/xcaustic/scenes/t80/?.so")
---love.filesystem.setCRequirePath(love.filesystem.getCRequirePath() .. ";scenes/t80/?.so")
 print('getCRequirePath()', love.filesystem.getCRequirePath())
 
 love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
 
---package.cpath = package.cpath .. ";./scenes/t80/?.so"
---package.cpath = "?.so;scenes/t80/?.so"
---package.cpath = "./scenes/t80/?.so;?.so"
---package.cpath = "/home/nagolove/myprojects/xcaustic/scenes/t80/?.so;?.so"
 print("package.cpath", package.cpath)
---print('love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
@@ -56,7 +47,6 @@ require 'konstants'
 require 'joystate'
 require 'pipeline'
 require "common"
---require 'ffi'
 
 -- Доработка keyconfig для джойстика
 require "keyconfig"
@@ -471,15 +461,6 @@ local record Hit
     new: function(x: number, y: number): Hit
     -- }}}
 end
-
---[[
-local type CameraSettings = record
-    -- {{{
-    dx: number
-    dy: number
-    -- }}}
-end
---]]
 
 -- {{{ Global and local variables.
 
@@ -1465,29 +1446,6 @@ function printBody(body: love.physics.Body)
     print(">>>>>>>>")
     -- }}}
 end
-
---local FUNC = C.cast('cpSpaceBodyIteratorFunc',
---local FUNC = C.cast('void(*)(cpBody *body, void *data)',
---function(_: cm.cpBody, _: any)
-    --print('hi')
---end) as cm.cpSpaceBodyIteratorFunc
-
---local pw = require 'physics_wrapper'
-
---local call_counter = 0
---require 'wrapper'
---local avg = (love.filesystem.load('wrapper') as Wrapper).average
---print('1')
---print(avg(1, 2, 3))
-
---wrp.each_body(function(i: integer)
-    --print(colorize('%{red}' .. i))
---end, 10)
-
---print('2')
---print("average", average(1, 2, 3, 4))
---local jitoptions = require 'jitoptions'
---jitoptions.off()
 
     --[[
 local function render_tank_base()
