@@ -2664,6 +2664,8 @@ local function applyInput(j)
       local px, py = 0, 0
       local amount = 100
 
+
+
       if j:isDown(right) then
          wrp.apply_impulse(body, amount, 0, px, py);
       elseif j:isDown(left) then
