@@ -1447,39 +1447,6 @@ function printBody(body: love.physics.Body)
     -- }}}
 end
 
-    --[[
-local function render_tank_base()
-    --current_part = 'base_first_render'
-
-    --cm.eachSpaceBody(bodyIter_base)
-
-    --eachBody_base(nil)
-
-    --cm.cpSpaceEachBody(cur_space, bodyIter_base, nil)
-    call_counter = call_counter + 1
-    print('call_counter', call_counter)
-
-    --cm.cpSpaceEachBody(cur_space, FUNC)
-    --pw.for_each_body(cur_space, bodyIter_base)
-
-    --pipeline:open('base_shape')
-    --pipeline:push('flush')
-    --pipeline:close()
-end
---]]
-
---jitoptions.on()
-
---[[
-local function render_tank_turret()
-    --current_part = 'base_first_render'
-    pipeline:open('turret_shape')
-    --cm.eachSpaceBody(bodyIter_turret)
-    pipeline:push('flush')
-    pipeline:close()
-end
---]]
-
 local function on_each_body(x: number, y: number, angle: number, obj: any)
     local tank = obj as Tank
     if tank then
