@@ -2176,6 +2176,34 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
         pipeline:push('add', 4, 'distance ' .. distance)
         pipeline:push('add', 5, sformat('gradient (%.3f, %.3f)', gradx, grady))
 
+        pipeline:push('add', 6, "----------")
+
+        local body = wrp.get_shape_body(shape)
+        local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
+            force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
+
+        local msg = ""
+        msg = sformat('mass, inertia: %.3f, %.3f', mass, inertia)
+        pipeline:push('add', 7, msg)
+
+        msg = sformat('cog (%.3f, %.3f)', cog_x, cog_y)
+        pipeline:push('add', 8, msg)
+
+        msg = sformat('position (%.3f, %.3f)', pos_x, pos_y)
+        pipeline:push('add', 9, msg)
+
+        msg = sformat('velocity (%.3f, %.3f)', v_x, v_y)
+        pipeline:push('add', 10, msg)
+
+        msg = sformat('force (%.3f, %.3f)', force_x, force_y)
+        pipeline:push('add', 11, msg)
+
+        msg = sformat('angle, ang. vel.: %.3f, %.3f)', angle, w)
+        pipeline:push('add', 12, msg)
+
+        msg = sformat('torque: %.3f', torque)
+        pipeline:push('add', 13, msg)
+
         pipeline:push('enough')
         pipeline:close()
         --]]
