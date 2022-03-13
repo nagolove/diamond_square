@@ -351,17 +351,6 @@ local Hit = {}
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 local screenW, screenH
 
 
@@ -595,10 +584,10 @@ function Camera:moveToPlayer()
    local px, py, _ = wrp.get_position(playerTank.base)
    print("camera x, y, scale", self.x, self.y, self.scale)
    print("tank x, y", px, py)
-   self.x, self.y = 0, 0
+
    self.scale = 1.
    local dx, dy = self.x + -px + screenW / 2, self.y + -py + screenH / 2
-
+   self.x, self.y = self.x + dx, self.y + dy
    if self.x ~= dx or self.y ~= dy then
 
       self.transform:reset()
@@ -790,18 +779,6 @@ function Base:update()
 end
 
 function Base:processTracks()
-end
-
-function Tank:update()
-
-   if self.strength <= 0. then
-      return self
-   end
-
-   return self
-end
-
-function Tank:present()
 end
 
 function Turret.new(t)

@@ -68,8 +68,6 @@ local Tank = {}
 
 
 
-
-
 function Tank:fire()
 end
 
@@ -118,5 +116,13 @@ function Tank.new(pos, w, h)
    return self
 end
 
+function Tank:update()
+
+   if self.strength <= 0. then
+      return nil
+   end
+
+   return self
+end
 
 return Tank
