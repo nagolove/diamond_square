@@ -472,6 +472,8 @@ global attachedVarsList: {string: function} = {}
 
 require "Timer"
 
+local physics_pause = false
+
 -- Все танки, в том числе и тот, которым управляет игрок.
 local tanks: {Tank} = {}
 
@@ -1717,6 +1719,10 @@ local function keypressed(key: string)
     -- {{{
     print('keypressed', key)
 
+    if key == "p" then
+        physics_pause = not physics_pause
+    end
+
     --[[
     if showLogo then
         showLogo = false
@@ -2438,7 +2444,9 @@ local stateCoro: thread = coroutine.create(function(dt: number)
             camera:update(dt)
 
             -- шаг физики
-            wrp.step(dt);
+            if not physics_pause then
+                wrp.step(dt);
+            end
 
             --[[
             Почему тела не расталкиваются?
