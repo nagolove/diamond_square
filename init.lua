@@ -31,20 +31,11 @@ local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
 print('require_path', require_path)
 love.filesystem.setRequirePath(require_path)
 
-
-
-
-
 print('getCRequirePath()', love.filesystem.getCRequirePath())
 
 love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
 
-
-
-
-
 print("package.cpath", package.cpath)
-
 
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
@@ -56,7 +47,6 @@ require('konstants')
 require('joystate')
 require('pipeline')
 require("common")
-
 
 
 require("keyconfig")
@@ -488,15 +478,6 @@ local Hit = {}
 
 
 
-
-
-
-
-
-
-
-
-
 local screenW, screenH
 
 
@@ -787,76 +768,11 @@ function Bullet.new(px, py, dirx, diry,
 
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 local function print_io_rate()
    local bytes = pipeline:get_received_in_sec()
    local msg = sformat("передано за секунду Килобайт = %d", math.floor(bytes / 1024))
    pipeline:push('add', 'data_received', msg)
-
-
-
-
-
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function Hangar.new(_)
    local Hangar_mt = {
@@ -1531,62 +1447,6 @@ function printBody(body)
 
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local function on_each_body(x, y, angle, obj)
    local tank = obj
    if tank then
@@ -2016,19 +1876,6 @@ end
 local function initRenderCode()
 
 
-   pipeline:pushCode("poly_shape_verts", [[
-    local col = {1, 0, 0, 1}
-    local inspect = require "inspect"
-
-    while true do
-        love.graphics.setColor(col)
-
-        local verts = graphic_command_channel:demand()
-        love.graphics.polygon('fill', verts)
-
-        coroutine.yield()
-    end
-    ]])
 
    pipeline:pushCode("main_axises", [[
     local col = {0.3, 0.5, 1, 1}
@@ -2044,19 +1891,11 @@ local function initRenderCode()
     end
     ]])
 
+
    pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
+
    pipeline:pushCodeFromFile('phys_object_lines_buf', 'lines_buf.lua')
 
-   pipeline:pushCode('alpha_draw', [[
-    local tex1 = love.graphics.newImage(SCENE_PREFIX .. '/tank_body_small.png')
-    local tex2 = love.graphics.newImage(SCENE_PREFIX .. '/tank_tower.png')
-    while true do
-        love.graphics.setColor {1, 1, 1, 1}
-        love.graphics.draw(tex1, 0, 0)
-        love.graphics.draw(tex2, 0, 0)
-        coroutine.yield()
-    end
-    ]])
 
    pipeline:pushCode('selected_object', [[
     -- жесткие значения ширины и высоты, как проверить что они соответствуют
@@ -2089,12 +1928,14 @@ local function initRenderCode()
     end
     ]])
 
+
    pipeline:pushCode('clear', [[
     while true do
         love.graphics.clear{0.5, 0.5, 0.5}
         coroutine.yield()
     end
     ]])
+
 
    pipeline:pushCode('set_transform', [[
     local gr = love.graphics
@@ -2105,6 +1946,7 @@ local function initRenderCode()
     end
     ]])
 
+
    pipeline:pushCode('origin_transform', [[
     local gr = love.graphics
     local yield = coroutine.yield
@@ -2114,27 +1956,12 @@ local function initRenderCode()
     end
     ]])
 
-   pipeline:pushCode('formated_text', [[
-    local font = love.graphics.newFont(24)
-    while true do
-        local old_font = love.graphics.getFont()
-
-        love.graphics.setColor{0, 0, 0}
-        love.graphics.setFont(font)
-
-        local msg = graphic_command_channel:demand()
-        local x = math.floor(graphic_command_channel:demand())
-        local y = math.floor(graphic_command_channel:demand())
-        love.graphics.print(msg, x, y)
-
-        love.graphics.setFont(old_font)
-
-        coroutine.yield()
-    end
-    ]])
 
    pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
+
    pipeline:pushCodeFromFile("turret_shape", 'poly_shape.lua')
+
+
 
    pipeline:pushCode('border_segments', [[
     local yield = coroutine.yield
@@ -2171,37 +1998,9 @@ local function initRenderCode()
     end
     ]])
 
-   pipeline:pushCode('chipmunk_vertex_order', [[
-        -- {{{
-        local verts_mat = {
-            {2135,1982,2135,2238,1879,2238,1879,1982},
-            {2589,1642,2589,1898,2333,1898,2333,1642},
-            {2887,1937,2887,2193,2631,2193,2631,1937},
-        }
-        while true do
-            for _, verts in ipairs(verts_mat) do
-                local count = #verts
-                love.graphics.setColor {0, 1, 0}
-                love.graphics.polygon('fill', verts)
-                --for i = 1, count / 2 - 1 do
-                local i, j = 1, 1
-                while i <= count do
-                    love.graphics.setColor {0, 0, 1}
-                    local rad = 100
-                    love.graphics.circle('fill', verts[i], verts[i + 1], rad)
-                    love.graphics.setColor { 1, 0, 0, 1}
-                    --love.graphics.print(tostring(i), verts[i], verts[i + 1])
-                    love.graphics.print(tostring(j), verts[i], verts[i + 1])
-                    j = j + 1
-                    i = i + 2
-                end
-            end
-            coroutine.yield()
-        end
-        -- }}}
-    ]])
 
 end
+
 
 local function initPipelineObjects()
    pipeline:open('base_shape')
@@ -2236,87 +2035,6 @@ local function initPipelineObjects()
    "flush")
 
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
