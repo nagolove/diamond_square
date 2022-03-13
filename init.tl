@@ -1501,6 +1501,8 @@ local function renderInternal()
     pipeline:push('flush')
     pipeline:close()
 
+    pipeline:openPushAndClose('object_lines_buf', 'flush')
+
     camera:draw_axises()
 end
 
@@ -1871,7 +1873,7 @@ local function initRenderCode()
     -- Буфер для вывода отладочной информации в левом верхнем углу экрана.
     pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
     -- Буфер для вывода отладочной информации при наведении на физическое тело.
-    pipeline:pushCodeFromFile('phys_object_lines_buf', 'lines_buf.lua')
+    pipeline:pushCodeFromFile('object_lines_buf', 'lines_buf.lua')
 
     -- Рисование прозрачного прямоугольника над определенным телом.
     pipeline:pushCode('selected_object', [[
@@ -2000,7 +2002,7 @@ local function initPipelineObjects()
 
     --pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 40)
     pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 24)
-    pipeline:openPushAndClose('phys_object_lines_buf', "DejaVuSansMono.ttf", 24)
+    pipeline:openPushAndClose('object_lines_buf', "DejaVuSansMono.ttf", 24)
 
     pipeline:sync()
 
@@ -2153,6 +2155,7 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
 
     local absx, absy = camera.x, camera.y
     print('absx, absy', absx, absy)
+    local counter = 0
     wrp.get_shape_under_point(x + absx, y + absy, 
         function(
             shape: Wrapper.Shape,
@@ -2163,23 +2166,25 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
             grady: number
         )
 
-        print('on get_shape_under_point()')
-        print('shape', shape)
-        print('point', x, y)
-        print('distance', distance)
-        print('gradient', gradx, grady)
+        counter = counter + 1
+        pipeline:open('object_lines_buf')
+        pipeline:push('pos', x, y)
+        --pipeline:push("add", 1, tostring(shape))
+        --pipeline:push('add', 1, 'on get_shape_under_point()')
+        pipeline:push('add', 2, 'shape ' .. tostring(shape))
+        pipeline:push('add', 3, sformat('point (%.3f, %.3f)', x, y))
+        pipeline:push('add', 4, 'distance ' .. distance)
+        pipeline:push('add', 5, sformat('gradient (%.3f, %.3f)', gradx, grady))
 
-        --[[
-        pipeline:openPushAndClose(
-            'phys_object_lines_buf',
-            "add",
-            1,
-            tostring(shape),
-            "flush"
-        )
+        pipeline:push('enough')
+        pipeline:close()
         --]]
 
     end)
+
+    if counter == 0 then
+        pipeline:openPushAndClose('object_lines_buf', 'clear', 'enough')
+    end
 
     --if mode == 'editor' then
         --arena:mousemoved(x, y, dx, dy)
@@ -2346,6 +2351,9 @@ local function spawnTanks()
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
         local tank = spawnTank(px, py)
     end
+
+    spawnTank(100, 100)
+    spawnTank(screenW / 2, screenH / 2)
     --pipeline:push('enough')
     --pipeline:close()
 end
