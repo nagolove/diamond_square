@@ -40,6 +40,7 @@ print("package.cpath", package.cpath)
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
 local wrp = require("wrp")
+local Wrapper = wrp
 
 
 require("love")
@@ -60,10 +61,6 @@ local serpent = require('serpent')
 
 local metrics = require("metrics")
 local vec2 = require("vector")
-
-
-
-local ObjectType = {}
 
 
 
@@ -195,73 +192,7 @@ local Hangar = {}
 
 
 
-
-local Tank = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+local Tank = require('tank')
 
 
 local Turret = {}
@@ -335,30 +266,6 @@ local Base = {}
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local Bullet = {}
 
 
 
@@ -472,6 +379,8 @@ local screenW, screenH
 
 require("Timer")
 
+local physics_pause = false
+
 
 local tanks = {}
 
@@ -483,9 +392,6 @@ local playerTank
 
 
 require('logo')
-
-
-local tankCounter = 0
 
 local rng = love.math.newRandomGenerator()
 
@@ -724,27 +630,6 @@ local function initJoy()
    joyState = JoyState.new(joy)
 end
 
-function Bullet.new(px, py, dirx, diry,
-   tankId)
-
-   local Bullet_mt = {
-      __index = Bullet,
-   }
-   local self = setmetatable({}, Bullet_mt)
-
-   self.timestamp = love.timer.getTime()
-   self.died = false
-   self.px = px
-   self.py = py
-
-   self.dir = vec2.new(dirx, diry)
-   self.id = tankId or 0
-
-
-   return self
-
-end
-
 local function print_io_rate()
    local bytes = pipeline:get_received_in_sec()
    local msg = sformat("передано за секунду Килобайт = %d", math.floor(bytes / 1024))
@@ -841,9 +726,6 @@ end
 
 
 
-function Tank:fire()
-end
-
 function Base:left()
 end
 
@@ -861,22 +743,6 @@ function Base:backward()
 end
 
 
-function Tank:left()
-
-end
-
-function Tank:right()
-
-end
-
-function Tank:forward()
-
-end
-
-function Tank:backward()
-
-end
-
 
 local base_tex_fname = 'tank_body.cut.png'
 local turret_text_fname = 'tank_tower.png'
@@ -891,32 +757,6 @@ local function getTankSize()
 end
 
 local tank_width, tank_height = getTankSize()
-
-
-
-function Tank.new(pos)
-
-   local Tank_mt = {
-      __index = Tank,
-   }
-
-   local self = setmetatable({}, Tank_mt)
-
-   tankCounter = tankCounter + 1
-
-
-   self.strength = 1.
-   self.fuel = 1.
-   self.id = tankCounter
-
-   self.color = { 1, 1, 1, 1 }
-
-   self.type = "tank"
-   self.base = wrp.new_body(self.type, tank_width, tank_height, self)
-   wrp.set_position(self.base, pos.x, pos.y)
-
-   return self
-end
 
 function Base:drawDirectionVector()
    if self.dir then
@@ -1056,9 +896,6 @@ function Base:pushTrack()
 end
 
 function Base:drawTrack()
-end
-
-function Tank:damage(_)
 end
 
 
@@ -1717,6 +1554,10 @@ local function keypressed(key)
 
    print('keypressed', key)
 
+   if key == "p" then
+      physics_pause = not physics_pause
+   end
+
 
 
 
@@ -2320,7 +2161,7 @@ local state = 'map'
 
 
 local function spawnTank(px, py)
-   local tank = Tank.new(vec2(px, py))
+   local tank = Tank.new(vec2(px, py), tank_width, tank_height)
    table.insert(tanks, tank)
    local px, py, angle = wrp.get_position(tank.base)
    tank._prev_x, tank._prev_y = px, py
@@ -2438,7 +2279,9 @@ local stateCoro = coroutine.create(function(dt)
          camera:update(dt)
 
 
-         wrp.step(dt);
+         if not physics_pause then
+            wrp.step(dt);
+         end
 
 
 
