@@ -42,7 +42,7 @@ print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 local wrp = require("wrp")
 
 
-
+require("love")
 require('konstants')
 require('joystate')
 require('pipeline')
@@ -51,18 +51,6 @@ require("common")
 
 require("keyconfig")
 
-local IMGUI = false
-if love.system.getOS() == 'Linux' then
-   require("imgui")
-   IMGUI = true
-end
-
-require("love")
-
-
-
-
-local ObjectType = {}
 
 
 
@@ -74,6 +62,8 @@ local metrics = require("metrics")
 local vec2 = require("vector")
 
 
+
+local ObjectType = {}
 
 
 
@@ -173,6 +163,9 @@ local Arena = {}
 
 
 local FilterData = {}
+
+
+
 
 
 
@@ -303,24 +296,8 @@ local Turret = {}
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local Base = {}
+
 
 
 
@@ -1524,6 +1501,8 @@ local function renderInternal()
    pipeline:push('flush')
    pipeline:close()
 
+   pipeline:openPushAndClose('object_lines_buf', 'flush')
+
    camera:draw_axises()
 end
 
@@ -1894,7 +1873,7 @@ local function initRenderCode()
 
    pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
 
-   pipeline:pushCodeFromFile('phys_object_lines_buf', 'lines_buf.lua')
+   pipeline:pushCodeFromFile('object_lines_buf', 'lines_buf.lua')
 
 
    pipeline:pushCode('selected_object', [[
@@ -2023,7 +2002,7 @@ local function initPipelineObjects()
 
 
    pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 24)
-   pipeline:openPushAndClose('phys_object_lines_buf', "DejaVuSansMono.ttf", 24)
+   pipeline:openPushAndClose('object_lines_buf', "DejaVuSansMono.ttf", 24)
 
    pipeline:sync()
 
@@ -2176,6 +2155,7 @@ local function mousemoved(x, y, dx, dy)
 
    local absx, absy = camera.x, camera.y
    print('absx, absy', absx, absy)
+   local counter = 0
    wrp.get_shape_under_point(x + absx, y + absy,
    function(
       shape,
@@ -2186,23 +2166,25 @@ local function mousemoved(x, y, dx, dy)
       grady)
 
 
-      print('on get_shape_under_point()')
-      print('shape', shape)
-      print('point', x, y)
-      print('distance', distance)
-      print('gradient', gradx, grady)
+      counter = counter + 1
+      pipeline:open('object_lines_buf')
+      pipeline:push('pos', x, y)
 
 
+      pipeline:push('add', 2, 'shape ' .. tostring(shape))
+      pipeline:push('add', 3, sformat('point (%.3f, %.3f)', x, y))
+      pipeline:push('add', 4, 'distance ' .. distance)
+      pipeline:push('add', 5, sformat('gradient (%.3f, %.3f)', gradx, grady))
 
-
-
-
-
-
-
+      pipeline:push('enough')
+      pipeline:close()
 
 
    end)
+
+   if counter == 0 then
+      pipeline:openPushAndClose('object_lines_buf', 'clear', 'enough')
+   end
 
 
 
@@ -2369,6 +2351,9 @@ local function spawnTanks()
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
       local tank = spawnTank(px, py)
    end
+
+   spawnTank(100, 100)
+   spawnTank(screenW / 2, screenH / 2)
 
 
 end

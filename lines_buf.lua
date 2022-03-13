@@ -9,6 +9,10 @@ local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 th
 
 
 
+
+
+
+
 local yield = coroutine.yield
 
 local timeout = 0.5
@@ -39,6 +43,8 @@ local buffer = {}
 
 yield()
 
+local posx, posy = 0., 0.
+
 while true do
    local cmd
 
@@ -51,8 +57,9 @@ while true do
          local id = graphic_command_channel:demand()
          local message = graphic_command_channel:demand()
 
-         if type(id) ~= 'string' then
-            error('id in lines_buf should be a string')
+         if type(id) ~= 'string' and type(id) ~= 'number' then
+            print('id, type(id)', id, type(id))
+            error('id in lines_buf should be a string or number')
          end
          if type(message) ~= 'string' then
             error('message in lines_buf should be a string')
@@ -60,21 +67,33 @@ while true do
 
          buffer[id] = message
 
+      elseif cmd == 'pos' then
+         local x = graphic_command_channel:demand()
+         local y = graphic_command_channel:demand()
+
+         if type(x) ~= 'number' then
+            error('x should be a number in lines_buf->add')
+         end
+         if type(y) ~= 'number' then
+            error('y should be a number in lines_buf->add')
+         end
+
+         posx, posy = x, y
       elseif cmd == 'remove' then
          local id = graphic_command_channel:demand()
          buffer[id] = nil
       elseif cmd == 'clear' then
          buffer = {}
+      elseif cmd == 'enough' then
+         break
       elseif cmd == 'flush' then
          love.graphics.setFont(font)
          love.graphics.setColor({ 0, 0, 0, 1 })
-         local y = 0.
-
+         local y = posy
          for _, v in pairs(buffer) do
-            love.graphics.print(v, 0, y)
+            love.graphics.print(v, posx, y)
             y = y + font:getHeight()
          end
-
          break
       else
          error('lines_buf unkonwn command: ' .. cmd)
