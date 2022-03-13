@@ -1,5 +1,5 @@
 
-global record Wrapper
+local record Wrapper
     record Shape end
     record Space end
     record Body end
