@@ -506,6 +506,48 @@ static int get_shape_body(lua_State *lua) {
     return 1;
 }
 
+int get_body_stat(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expect 1 argument.\n");
+        lua_error(lua);
+    }
+
+    cpBody *b = (cpBody*)lua_topointer(lua, 1);
+
+    // масса
+    lua_pushnumber(lua, b->m);
+    // момент инерции
+    lua_pushnumber(lua, b->i);
+
+    // центр гравитации
+    lua_pushnumber(lua, b->cog.x);
+    lua_pushnumber(lua, b->cog.y);
+
+    // положение
+    lua_pushnumber(lua, b->p.x);
+    lua_pushnumber(lua, b->p.y);
+
+    // скорость
+    lua_pushnumber(lua, b->v.x);
+    lua_pushnumber(lua, b->v.y);
+
+    // сила
+    lua_pushnumber(lua, b->f.x);
+    lua_pushnumber(lua, b->f.y);
+
+    // угол
+    lua_pushnumber(lua, b->a);
+    // угловая скорость
+    lua_pushnumber(lua, b->w);
+    // крутящий момент
+    lua_pushnumber(lua, b->t);
+
+    return 13;
+}
+
 extern int luaopen_wrp(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
@@ -540,6 +582,10 @@ extern int luaopen_wrp(lua_State *lua) {
         {"get_shape_under_point", get_shape_under_point},
         // возвращает тело относящееся к фигуре
         {"get_shape_body", get_shape_body},
+
+        // получить разную информацию по телу
+        // используется для отладки
+        {"get_body_stat", get_body_stat},
 
         {NULL, NULL}
     };
