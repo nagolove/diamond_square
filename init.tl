@@ -40,6 +40,7 @@ print("package.cpath", package.cpath)
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
 local wrp = require "wrp"
+local Wrapper = wrp
 --print('wrp', inspect(wrp))
 
 require "love"
@@ -62,10 +63,6 @@ local metrics = require "metrics"
 local vec2 = require "vector"
 --local vecl = require "vector-light"
 --local tabular = require "tabular"
-
-local enum ObjectType
-    "tank"
-end
 
 local Pipeline = require 'pipeline'
 local pipeline = Pipeline.new(SCENE_PREFIX)
@@ -195,73 +192,7 @@ local record Hangar
     present: function(Hangar)
 end
 
--- Класс основного боевого танка.
-local record Tank
-
-    -- {{{
-
-    -- _ префикс нижнего подчеркивания означает, что переменные могут быть
-    -- изменены со стороны Lua C API
-    _prev_x: number
-    _prev_y: number
-
-    -- прочность танка от 1 до 0
-    strength: number
-    -- запас топлива от 1 до 0
-    fuel: number
-    -- цвет
-    color: {number}
-
-    -- нормализованный вектор направления движения
-    --dir: vector
-
-    -- уникальное за сеанс игры число
-    id: integer
-
-    type: ObjectType
-    base: wrp.Body
-    turret: wrp.Body
-
-    -- {{{ px, py, angle используются в eachShape для проверки на необходимсоть 
-    -- рисования
-    -- положение
-    px: number
-    py: number
-    -- угол
-    angle: number
-    -- }}}
-
-    -- пушка
-    --turret: Turret
-
-    -- ходовая часть
-    --base: Base
-
-    -- абсолютные координаты в пикселях
-    new: function(pos: vector): Tank
-
-    -- рисовать
-    present: function(Tank)
-
-    -- обновить логику, не физику
-    update: function(Tank): Tank
-
-    -- сбросить скорость до нуля
-    resetVelocities: function(Tank)
-
-    -- движение
-    left: function(Tank)
-    right: function(Tank)
-
-    forward: function(Tank)
-    backward: function(Tank)
-
-    fire: function(Tank)
-
-    -- запустить сопрограмму движения по кругу
-    --circleMove: function(Tank)
-    -- }}}
-end
+local Tank = require 'tank'
 
 -- Пушка вместе с башней
 local record Turret
@@ -357,30 +288,6 @@ local record Base
     -- }}}
 end
 
--- Основной боевой тип сняряда. Без фугасного воздействия.
-local record Bullet
-    -- {{{
-    --physbody: love.physics.Body
-    timestamp: number
-    objectType: ObjectType
-    id: integer
-    dir: vector
-    died: boolean
-    px: number
-    py: number
-
-    -- START OF DEBUG STUFF
-    velx: number
-    vely: number
-    mass: number
-    -- END OF DEBUG STUFF
-    -- }}}
-
-    new: function(px: number, py: number, dirx: number, diry: number, 
-                  tankId: integer): Bullet
-    update: function()
-end
-
 -- информация о наборе частиц
 local record ParticleSystemDefinition
     -- режим смешивания
@@ -444,17 +351,6 @@ end
 -- Указатель на текущий подсвеченный навигатором танк.
 --local currentNavigator: Tank
 
---local bodyIter_base: cm.cpSpaceBodyIteratorFunc
---local shapeIter_base: cm.cpSpaceShapeIteratorFunc
-
---local bodyIter_turret: pw.EachSpaceBodyIter
---local shapeIter_turret: pw.EachBodyShapeIter
-
---local bodyIter_verts: pw.EachSpaceBodyIter
---local shapeIter_verts: pw.EachBodyShapeIter
-
---local current_part: Tank.Part
-
 local screenW, screenH: number, number
 
 -- {{{ Konsole editing
@@ -485,9 +381,6 @@ local playerTank: Tank
 
 -- Логотип, картинка или главное меню?
 require 'logo'
-
--- Счетчик живый танков
-local tankCounter = 0
 
 local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
@@ -726,27 +619,6 @@ local function initJoy()
     joyState = JoyState.new(joy)
 end
 
-function Bullet.new(px: number, py: number, dirx: number, diry: number, 
-    tankId: integer): Bullet
-    -- {{{
-    local Bullet_mt: metatable<Bullet> = {
-        __index = Bullet,
-    }
-    local self: Bullet = setmetatable({} as Bullet, Bullet_mt)
-
-    self.timestamp = love.timer.getTime()
-    self.died = false
-    self.px = px
-    self.py = py
-
-    self.dir = vec2.new(dirx, diry)
-    self.id = tankId or 0
-    --self.objectType = 'Bullet'
-
-    return self
-    -- }}}
-end
-
 local function print_io_rate()
     local bytes = pipeline:get_received_in_sec()
     local msg = sformat("передано за секунду Килобайт = %d", math.floor(bytes / 1024))
@@ -843,9 +715,6 @@ end
 
 global arena: Arena
 
-function Tank:fire()
-end
-
 function Base:left()
 end
 
@@ -863,22 +732,6 @@ function Base:backward()
 end
 --]]
 
-function Tank:left()
-    --self.base:left()
-end
-
-function Tank:right()
-    --self.base:right()
-end
-
-function Tank:forward()
-    --self.base:forward()
-end
-
-function Tank:backward()
-    --self.base:backward()
-end
-
 --local base_tex_fname = 'tank_body_small.png'
 local base_tex_fname = 'tank_body.cut.png'
 local turret_text_fname = 'tank_tower.png'
@@ -893,32 +746,6 @@ local function getTankSize(): integer, integer
 end
 
 local tank_width, tank_height = getTankSize()
-
--- местоположение передавать в метрах
--- направление шасси - нормализованный вектор
-function Tank.new(pos: vector): Tank
-    -- {{{
-    local Tank_mt: metatable<Tank> = {
-        __index = Tank,
-    }
-
-    local self: Tank = setmetatable({} as Tank, Tank_mt)
-
-    tankCounter = tankCounter + 1
-
-    --local w, h = 
-    self.strength = 1.
-    self.fuel = 1.
-    self.id = tankCounter
-
-    self.color = {1, 1, 1, 1}
-
-    self.type = "tank"
-    self.base = wrp.new_body(self.type, tank_width, tank_height, self as table)
-    wrp.set_position(self.base, pos.x, pos.y)
-
-    return self
-end
 
 function Base:drawDirectionVector()
     if self.dir then
@@ -952,18 +779,6 @@ function Base:update()
 end
 
 function Base:processTracks()
-end
-
-function Tank:update(): Tank
-
-    if self.strength <= 0. then
-        return self
-    end
-
-    return self
-end
-
-function Tank:present()
 end
 
 function Turret.new(t: Tank): Turret
@@ -1058,9 +873,6 @@ function Base:pushTrack()
 end
 
 function Base:drawTrack()
-end
-
-function Tank:damage(_: Bullet)
 end
 
 --[[
@@ -2326,7 +2138,7 @@ local state: State = 'map'
 
 -- не добавляет в таблицу рисовки на стороне потока рендера
 local function spawnTank(px: number, py: number): Tank
-    local tank = Tank.new(vec2(px, py))
+    local tank = Tank.new(vec2(px, py), tank_width, tank_height)
     table.insert(tanks, tank)
     local px, py, angle = wrp.get_position(tank.base)
     tank._prev_x, tank._prev_y = px, py
