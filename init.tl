@@ -42,7 +42,7 @@ print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 local wrp = require "wrp"
 --print('wrp', inspect(wrp))
 
--- {{{ require
+require "love"
 require 'konstants'
 require 'joystate'
 require 'pipeline'
@@ -51,20 +51,8 @@ require "common"
 -- Доработка keyconfig для джойстика
 require "keyconfig"
 
-local IMGUI = false
-if love.system.getOS() == 'Linux' then
-    require "imgui"
-    IMGUI = true
-end
-
-require "love"
-
 --local tween = require 'tween'
 --local camMoveTween = tween.new()
-
-local enum ObjectType
-    "tank"
-end
 
 local sformat = string.format
 local inspect = require "inspect"
@@ -75,12 +63,14 @@ local vec2 = require "vector"
 --local vecl = require "vector-light"
 --local tabular = require "tabular"
 
--- }}}
+local enum ObjectType
+    "tank"
+end
 
 local Pipeline = require 'pipeline'
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
--- рисование стрелочек
+-- рисование стрелочек векторов
 local arrow = require 'arrow'
 arrow.init(pipeline)
 
@@ -186,6 +176,9 @@ local enum Particles
 end
 --]]
 
+--[[
+Ангар - место порождения техники и ее ремонта.
+--]]
 local record Hangar
     vertices: {number}
     id: integer
@@ -277,25 +270,8 @@ local record Turret
     rectWH: {number}
 
     id: integer
-    --joint: lp.WeldJoint
-    --fireCoro: thread
-
-    -- категории, маски и группы столконовений box2d
-    --barrelCategories: integer
-    --barrelMask: integer
-    --barrelGroup: integer
-    --towerCategories: integer
-    --towerMask: integer
-    --towerGroup: integer
 
     filterdata: {FilterData}
-    --physbody: love.physics.Body
-    --tankphysbody: lp.Body
-    --fixtureBarrel: love.physics.Fixture
-    --fixtureTower: love.physics.Fixture
-
-    --barrelShape: lp.PolygonShape
-    --towerShape: lp.PolygonShape
 
     type: ObjectType
     --image: love.graphics.Image
