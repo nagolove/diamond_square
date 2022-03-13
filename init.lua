@@ -2164,6 +2164,7 @@ local Borders = {}
 
 
 
+
 local borders = {}
 
 
@@ -2242,6 +2243,25 @@ local stateCoro = coroutine.create(function(dt)
    spawnTanks()
    spawnBorders()
    spawnPlayer()
+
+   diamondSquare:eval()
+
+   local dump = serpent.dump(diamondSquare.map)
+
+   local compressed
+
+   compressed = love.data.compress("string", 'lz4', dump, 9)
+   love.filesystem.write("diamondSquare.map.c.lz4", compressed)
+
+   compressed = love.data.compress("string", 'zlib', dump, 9)
+   love.filesystem.write("diamondSquare.map.c.zlib", compressed)
+
+   compressed = love.data.compress("string", 'gzip', dump, 9)
+   love.filesystem.write("diamondSquare.map.c.gzip", compressed)
+
+   love.filesystem.write("diamondSquare.map", dump)
+
+
 
    while true do
       if state == 'map' then
