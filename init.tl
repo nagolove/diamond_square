@@ -2163,7 +2163,8 @@ local record Borders
     y2: number
 end
 
--- границы в которых создаются танки
+-- Границы в которых создаются танки
+-- Сделать сохраняемыми и загружаемыми из файла.
 local borders: Borders = {}
 
 --[[
@@ -2242,6 +2243,29 @@ local stateCoro: thread = coroutine.create(function(dt: number)
     spawnTanks()
     spawnBorders()
     spawnPlayer()
+
+    --[[
+    -- Проверка качества сжатия данных карты.
+
+    diamondSquare:eval()
+
+    local dump = serpent.dump(diamondSquare.map)
+
+    local compressed: string
+
+    compressed = love.data.compress("string", 'lz4', dump, 9) as string
+    love.filesystem.write("diamondSquare.map.c.lz4", compressed as string)
+
+    compressed = love.data.compress("string", 'zlib', dump, 9) as string
+    love.filesystem.write("diamondSquare.map.c.zlib", compressed as string)
+
+    compressed = love.data.compress("string", 'gzip', dump, 9) as string
+    love.filesystem.write("diamondSquare.map.c.gzip", compressed as string)
+
+    love.filesystem.write("diamondSquare.map", dump)
+
+    --print('diamondSquare.map', inspect(diamondSquare.map))
+    --]]
 
     while true do
         if state == 'map' then
