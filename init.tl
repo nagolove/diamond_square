@@ -367,13 +367,14 @@ local record Base
 
     -- один такт движения
     engineCycle: function(Base)
-    -- продвинуть треки
-    processTracks: function(Base)
 
-    -- добавить трек в список
+    -- добавить один след от гусениц в список
     pushTrack: function(Base)
     -- рисовать весь след
     drawTrack: function(Base)
+    -- продвинуть следы - удалить старые
+    processTracks: function(Base)
+
 
     resetVelocities: function(Base)
     drawDirectionVector: function(Base)
