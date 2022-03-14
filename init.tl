@@ -544,17 +544,24 @@ function Camera:checkScale(j: joystick.Joystick)
     local axes = {j:getAxes()}
     local dy = axes[2]
     local factor = 1 * self.dt
+    local px, py = screenW * factor / 2, screenH * factor / 2
     --print('dy', dy)
     if dy == -1 then
         -- TODO добавить смещение по осям что-бы приближение и удаление 
         -- приходилось на центр экрана
         self.scale = 1 + factor
         self.transform:scale(1 + factor, 1 + factor)
+
+        self.transform:translate(-px, -py)
+
         --print('camera:scale(1 + factor, 1 + factor)')
     elseif dy == 1 then
         self.scale = 1 - factor
         self.transform:scale(1 - factor, 1 - factor)
         --print('camera:scale(1 - factor, 1 - factor)')
+
+        --self.transform:translate(self.scale, self.scale)
+        self.transform:translate(px, py)
     end
 end
 
