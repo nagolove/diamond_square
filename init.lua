@@ -1248,38 +1248,8 @@ local function on_each_body(x, y, angle, obj)
 
 end
 
-local function renderInternal()
-   pipeline:openAndClose('clear')
-
-
-   camera:setTransform()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   pipeline:open('base_shape')
-
-   wrp.query_all_tanks(on_each_body)
-   pipeline:push('flush')
-   pipeline:close()
-
-
+local function renderSegments()
    pipeline:open('border_segments')
-
-
-
-
    wrp.draw_static_segments(
    function(x1, y1, x2, y2)
       pipeline:push('draw', x1, y1, x2, y2)
@@ -1287,26 +1257,30 @@ local function renderInternal()
 
    pipeline:push('flush')
    pipeline:close()
+end
 
+local function renderTanks()
+   pipeline:open('base_shape')
+   wrp.query_all_tanks(on_each_body)
+   pipeline:push('flush')
+   pipeline:close()
+end
+
+local function renderSelectedObject()
    local player_x, player_y
-
    if playerTank then
       pipeline:open('selected_object')
       local body = playerTank.base
       player_x, player_y = wrp.get_position(body)
-
       pipeline:push(wrp.get_position(body))
       pipeline:close()
    else
       error('Player should not be nil')
    end
+   return player_x, player_y
+end
 
-
-   pipeline:openAndClose('main_axises')
-
-
-   camera:setOrigin()
-
+local function renderLinesBuf(player_x, player_y)
    pipeline:open('lines_buf')
    print_io_rate()
    camera:push2lines_buf()
@@ -1314,15 +1288,46 @@ local function renderInternal()
    pipeline:push("add", "player_pos", msg)
    pipeline:push('flush')
    pipeline:close()
+end
 
-   pipeline:openPushAndClose('object_lines_buf', 'flush')
+local function renderInternal()
+   pipeline:openAndClose('clear')
 
-   camera:draw_axises()
+
+   camera:setTransform()
+
+
+   diamondSquare:render()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 end
 
 local function renderScene()
-
    local nt = love.timer.getTime()
+
    local fps_limit = 1. / 300.
    local diff = nt - last_render
 
@@ -2232,10 +2237,15 @@ end
 local function spawnBorders()
    local b = borders
    local space = 5000
-   wrp.new_static_segment(b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space)
-   wrp.new_static_segment(b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space)
-   wrp.new_static_segment(b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space)
-   wrp.new_static_segment(b.x1 - space, b.y2 + space, b.x1 - space, b.y1 - space)
+   local p1, p2, p3, p4
+   p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
+   wrp.new_static_segment(p1, p2, p3, p4)
+   p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
+   wrp.new_static_segment(p1, p2, p3, p4)
+   p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+   wrp.new_static_segment(p1, p2, p3, p4)
+   p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+   wrp.new_static_segment(p1, p2, p3, p4)
 end
 
 local stateCoro = coroutine.create(function(dt)
@@ -2244,22 +2254,26 @@ local stateCoro = coroutine.create(function(dt)
    spawnBorders()
    spawnPlayer()
 
-   diamondSquare:eval()
 
-   local dump = serpent.dump(diamondSquare.map)
 
-   local compressed
 
-   compressed = love.data.compress("string", 'lz4', dump, 9)
-   love.filesystem.write("diamondSquare.map.c.lz4", compressed)
 
-   compressed = love.data.compress("string", 'zlib', dump, 9)
-   love.filesystem.write("diamondSquare.map.c.zlib", compressed)
 
-   compressed = love.data.compress("string", 'gzip', dump, 9)
-   love.filesystem.write("diamondSquare.map.c.gzip", compressed)
 
-   love.filesystem.write("diamondSquare.map", dump)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
