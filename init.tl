@@ -329,6 +329,8 @@ end
 
 local screenW, screenH: number, number
 
+local space: Wrapper.Space
+
 -- {{{ Konsole editing
 --local historyfname = "cmdhistory.txt"
 
@@ -358,6 +360,13 @@ local playerTank: Tank
 -- Логотип, картинка или главное меню?
 require 'logo'
 
+local record Borders
+    x1: number
+    y1: number
+    x2: number
+    y2: number
+end
+
 local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
 rng:setSeed(300 * 123414)
@@ -376,12 +385,16 @@ local main_channel = love.thread.getChannel("main_channel")
 
 local is_stop = false
 local last_render: number = love.timer.getTime()
--- }}}
+
+local camera: Camera
+
+-- Границы в которых создаются танки
+-- Сделать сохраняемыми и загружаемыми из файла.
+local borders: Borders = {}
 
 local Joystick = love.joystick.Joystick
 local joystick = love.joystick
 local joyState: JoyState
---local joys: {joystick.Joystick} = {}
 local joy: Joystick
 
 -- TODO добавить инерцию к камере
@@ -582,8 +595,6 @@ function Camera:moveToOrigin()
     self.transform:reset()
     self.transform:scale(self.scale, self.scale)
 end
-
-local camera: Camera
 
 local function initJoy()
     for _, j in ipairs(joystick.getJoysticks()) do
@@ -1237,9 +1248,9 @@ local function renderInternal()
     diamondSquare:render()
 
     -- Танки
-    --renderTanks()
+    renderTanks()
     -- Ограничители уровня, преграды в виде отрезков.
-    --renderSegments()
+    renderSegments()
 
     -- Выделенный объект - управляемый игроком
     local player_x, player_y = renderSelectedObject()
@@ -1466,6 +1477,53 @@ local function processCommandModeKeys(key: string)
 end
 --]]
 
+-- не добавляет в таблицу рисовки на стороне потока рендера
+local function spawnTank(px: number, py: number): Tank
+    local tank = Tank.new(vec2(px, py), tank_width, tank_height)
+    table.insert(tanks, tank)
+    local px, py, angle = wrp.get_position(tank.base)
+    tank._prev_x, tank._prev_y = px, py
+    pipeline:openPushAndClose(
+        'base_shape',
+        'new', 
+        tank.id, 
+        px, py, angle, 
+        "flush"
+    )
+    return tank
+end
+
+local function spawnTanks()
+
+    --[[
+    Если больше 150 объектов, то начинается периодическое мелькание.
+    Расчитать количество передаваемых данных за кадр и в среднем за секунду
+    которое приводит к мельканию.
+    --]]
+    local tanks_num = 5
+    --local tanks_num = 10
+
+    local minx, maxx = 0, 4000
+    local miny, maxy = 0, 4000
+
+    borders.x1, borders.y1 = minx, miny
+    borders.x2, borders.y2 = maxx, maxy
+
+    -- информация о танчиках записывается в таблицу на стороне потока рисования
+    -- что-бы позже передавать данные только от изменивших положение объектах
+    --pipeline:open('base_shape')
+    for _ = 1, tanks_num do
+        local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
+        local tank = spawnTank(px, py)
+    end
+
+    spawnTank(100, 100)
+    spawnTank(screenW / 2, screenH / 2)
+    --pipeline:push('enough')
+    --pipeline:close()
+end
+
+-- Нарисовать параметр размера карты в буфер отладочных строк.
 local function lines_buf_push_mapn()
     if not diamondSquare then
         return
@@ -1509,12 +1567,55 @@ local function processLandscape(key: string)
     end
 end
 
+-- Сброс физики - удаление пространства, всех тел и фигур
+local function physics_reset()
+    wrp.free_space(space)
+    space = wrp.init_space()
+    print(colorize("%{blue}physics reseted"))
+end
+
+-- Сброс состояния рендера. 
+-- Посылаются сообщения всем используемым объектам об очистке текущего 
+-- состояния в начальное.
+local function render_reset_state()
+    pipeline:openPushAndClose('base_shape', 'clear')
+end
+
+-- Создать сегменты ограничивающие карту
+local function spawnBorders()
+    local b = borders
+    local space = 5000
+    local p1, p2, p3, p4: number, number, number, number
+    p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
+    wrp.new_static_segment(p1, p2, p3, p4)
+    p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
+    wrp.new_static_segment(p1, p2, p3, p4)
+    p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+    wrp.new_static_segment(p1, p2, p3, p4)
+    p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+    wrp.new_static_segment(p1, p2, p3, p4)
+end
+
+local function spawnPlayer()
+    local px, py = screenW / 3, screenH / 2
+    playerTank = spawnTank(px, py)
+end
+
 local function keypressed(key: string)
     -- {{{
     print('keypressed', key)
 
     if key == "p" then
         physics_pause = not physics_pause
+    end
+
+    if physics_pause and key == 'q' then
+        physics_reset()
+        render_reset_state()
+
+        spawnTanks()
+        spawnBorders()
+        spawnPlayer()
     end
 
     processLandscape(key)
@@ -1894,8 +1995,6 @@ local function eachShape_base(b: cm.cpBody, shape: cm.cpShape)
 end
 --]]
 
-local space: Wrapper.Space
-
 local function init()
     -- {{{
     print('init started')
@@ -2120,37 +2219,6 @@ end
 
 local state: State = 'map'
 
--- не добавляет в таблицу рисовки на стороне потока рендера
-local function spawnTank(px: number, py: number): Tank
-    local tank = Tank.new(vec2(px, py), tank_width, tank_height)
-    table.insert(tanks, tank)
-    local px, py, angle = wrp.get_position(tank.base)
-    tank._prev_x, tank._prev_y = px, py
-    pipeline:openPushAndClose(
-        'base_shape',
-        'new', 
-        tank.id, 
-        px, py, angle, 
-        "flush"
-    )
-    return tank
-end
-
-local function spawnPlayer()
-    playerTank = spawnTank(-20, -20)
-end
-
-local record Borders
-    x1: number
-    y1: number
-    x2: number
-    y2: number
-end
-
--- Границы в которых создаются танки
--- Сделать сохраняемыми и загружаемыми из файла.
-local borders: Borders = {}
-
 --[[
 Задача: написать модуль, встроенный в бинарный файл love, для замены
 pipeline.tl
@@ -2158,36 +2226,6 @@ pipeline.tl
 --local pp = require "mtpipeline"
 --pp.init()
 --pp.free()
-
-local function spawnTanks()
-
-    --[[
-    Если больше 150 объектов, то начинается периодическое мелькание.
-    Расчитать количество передаваемых данных за кадр и в среднем за секунду
-    которое приводит к мельканию.
-    --]]
-    local tanks_num = 5
-    --local tanks_num = 10
-
-    local minx, maxx = 0, 4000
-    local miny, maxy = 0, 4000
-
-    borders.x1, borders.y1 = minx, miny
-    borders.x2, borders.y2 = maxx, maxy
-
-    -- информация о танчиках записывается в таблицу на стороне потока рисования
-    -- что-бы позже передавать данные только от изменивших положение объектах
-    --pipeline:open('base_shape')
-    for _ = 1, tanks_num do
-        local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-        local tank = spawnTank(px, py)
-    end
-
-    spawnTank(100, 100)
-    spawnTank(screenW / 2, screenH / 2)
-    --pipeline:push('enough')
-    --pipeline:close()
-end
 
 local function applyInput(j: Joystick)
     local left, right, up, down = 3, 2, 4, 1
@@ -2211,20 +2249,6 @@ local function applyInput(j: Joystick)
         end
 
     end
-end
-
-local function spawnBorders()
-    local b = borders
-    local space = 5000
-    local p1, p2, p3, p4: number, number, number, number
-    p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
-    wrp.new_static_segment(p1, p2, p3, p4)
-    p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
-    wrp.new_static_segment(p1, p2, p3, p4)
-    p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
-    wrp.new_static_segment(p1, p2, p3, p4)
-    p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
-    wrp.new_static_segment(p1, p2, p3, p4)
 end
 
 local stateCoro: thread = coroutine.create(function(dt: number)
