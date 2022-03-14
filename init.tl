@@ -1248,38 +1248,8 @@ local function on_each_body(x: number, y: number, angle: number, obj: any)
     --print('tank.id', tank.id)
 end
 
-local function renderInternal()
-    pipeline:openAndClose('clear')
-
-    -- установка камеры
-    camera:setTransform()
-
-    --print("------ query ---------")
-    --pipeline:open('base_shape')
-
-    --wrp.query_all_tanks(
-        --function(x: number, y: number, angle: number, obj: any)
-            --local tank = obj as Tank
-            --print('processed', tank.id)
-        --end
-    --)
-    --pipeline:push('flush')
-    --pipeline:close()
-    --print("--------------------------")
-
-    --print("------ query ---------")
-    pipeline:open('base_shape')
-    --wrp.query_all_shapes(on_each_body)
-    wrp.query_all_tanks(on_each_body)
-    pipeline:push('flush')
-    pipeline:close()
-    --print("--------------------------")
-
+local function renderSegments()
     pipeline:open('border_segments')
-    --pipeline:push("draw", 0, 100, 1000, 1000)
-    --pipeline:push("draw", 0, 0, 2000, 4000)
-    --pipeline:push("draw", 400, 1100, 1000, 1000)
-
     wrp.draw_static_segments(
         function(x1: number, y1: number, x2: number, y2:number)
             pipeline:push('draw', x1, y1, x2, y2)
@@ -1287,26 +1257,30 @@ local function renderInternal()
     )
     pipeline:push('flush')
     pipeline:close()
+end
 
+local function renderTanks()
+    pipeline:open('base_shape')
+    wrp.query_all_tanks(on_each_body)
+    pipeline:push('flush')
+    pipeline:close()
+end
+
+local function renderSelectedObject(): number, number
     local player_x, player_y: number, number
-
     if playerTank then
         pipeline:open('selected_object')
         local body = playerTank.base
         player_x, player_y = wrp.get_position(body)
-        --print('selected object:', player_x, player_y)
         pipeline:push(wrp.get_position(body))
         pipeline:close()
     else
         error('Player should not be nil')
     end
-    --]]
+    return player_x, player_y
+end
 
-    pipeline:openAndClose('main_axises')
-
-    -- сброс трансформации камеры
-    camera:setOrigin()
-
+local function renderLinesBuf(player_x: number, player_y: number)
     pipeline:open('lines_buf')
     print_io_rate()
     camera:push2lines_buf()
@@ -1314,15 +1288,46 @@ local function renderInternal()
     pipeline:push("add", "player_pos", msg)
     pipeline:push('flush')
     pipeline:close()
+end
 
+local function renderInternal()
+    pipeline:openAndClose('clear')
+
+    -- Установка камеры
+    camera:setTransform()
+
+    -- Ландшафт
+    diamondSquare:render()
+    --[[
+
+    -- Танки
+    renderTanks()
+    -- Ограничители уровня, преграды в виде отрезков.
+    renderSegments()
+
+    -- Выделенный объект - управляемый игроком
+    local player_x, player_y = renderSelectedObject()
+
+    -- Оси на экране из (0, 0)
+    pipeline:openAndClose('main_axises')
+
+    -- Сброс трансформации камеры
+    camera:setOrigin()
+
+    -- Строчки с отладочной инфой.
+    renderLinesBuf(player_x, player_y)
+
+    -- Инфа об объекте под мышкой
     pipeline:openPushAndClose('object_lines_buf', 'flush')
 
+    -- Оси через центр экрана
     camera:draw_axises()
+    --]]
 end
 
 local function renderScene()
-    -- Ограничение кадров в секунду до 60
     local nt = love.timer.getTime()
+    -- Ограничение кадров в секунду до 300
     local fps_limit = 1. / 300.
     local diff = nt - last_render
 
@@ -2232,10 +2237,15 @@ end
 local function spawnBorders()
     local b = borders
     local space = 5000
-    wrp.new_static_segment(b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space)
-    wrp.new_static_segment(b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space)
-    wrp.new_static_segment(b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space)
-    wrp.new_static_segment(b.x1 - space, b.y2 + space, b.x1 - space, b.y1 - space)
+    local p1, p2, p3, p4: number, number, number, number
+    p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
+    wrp.new_static_segment(p1, p2, p3, p4)
+    p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
+    wrp.new_static_segment(p1, p2, p3, p4)
+    p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+    wrp.new_static_segment(p1, p2, p3, p4)
+    p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+    wrp.new_static_segment(p1, p2, p3, p4)
 end
 
 local stateCoro: thread = coroutine.create(function(dt: number)
