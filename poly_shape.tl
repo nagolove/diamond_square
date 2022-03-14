@@ -85,26 +85,13 @@ local gr = love.graphics
 local quad = gr.newQuad(0, 0, 256, 256, texture)
 
 local function draw(x: number, y: number, angle: number)
-    --local rad = 20
-
     gr.push()
     gr.translate(x, y)
     gr.rotate(angle)
     gr.translate(-width / 2, -height / 2)
-
-    --gr.setColor {0, 0.5, 1, 1}
-
     gr.setColor {1, 1, 1, 1}
-
-    --gr.rectangle('fill', 0, 0, width, height)
-    --gr.draw(texture, quad, 0, 0, width, height)
-
     gr.draw(texture, quad, 0, 0)
-
     gr.pop()
-
-    --gr.setColor {0, 0, 1, 1}
-    --gr.circle('fill', x, y, rad)
 end
 
 local function get_id(): number
@@ -152,6 +139,9 @@ while true do
             local id = get_id()
             hash[id] = nil
             --print('remove')
+        elseif cmd == 'clear' then
+            hash = {}
+            break
         elseif cmd == 'flush' then
             for _, v in pairs(hash) do
                 draw(v[1], v[2], v[3])
