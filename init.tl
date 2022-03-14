@@ -57,7 +57,7 @@ require "keyconfig"
 
 local sformat = string.format
 local inspect = require "inspect"
---local serpent = require 'serpent'
+local serpent = require 'serpent'
 --local i18n = require "i18n"
 local metrics = require "metrics"
 local vec2 = require "vector"
@@ -390,7 +390,8 @@ local camera: Camera
 
 -- Границы в которых создаются танки
 -- Сделать сохраняемыми и загружаемыми из файла.
-local borders: Borders = {}
+local bordersArea: Borders = {}
+local borders: {Borders} = {}
 
 local Joystick = love.joystick.Joystick
 local joystick = love.joystick
@@ -1513,8 +1514,8 @@ local function spawnTanks()
     local minx, maxx = 0, 4000
     local miny, maxy = 0, 4000
 
-    borders.x1, borders.y1 = minx, miny
-    borders.x2, borders.y2 = maxx, maxy
+    bordersArea.x1, bordersArea.y1 = minx, miny
+    bordersArea.x2, bordersArea.y2 = maxx, maxy
 
     -- информация о танчиках записывается в таблицу на стороне потока рисования
     -- что-бы позже передавать данные только от изменивших положение объектах
@@ -1589,18 +1590,79 @@ local function render_reset_state()
 end
 
 -- Создать сегменты ограничивающие карту
-local function spawnBorders()
-    local b = borders
-    local space = 5000
-    local p1, p2, p3, p4: number, number, number, number
-    p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
-    wrp.new_static_segment(p1, p2, p3, p4)
-    p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
-    wrp.new_static_segment(p1, p2, p3, p4)
-    p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
-    wrp.new_static_segment(p1, p2, p3, p4)
-    p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
-    wrp.new_static_segment(p1, p2, p3, p4)
+local function initBorders()
+    local lf = love.filesystem
+    local borders_data: {Borders}
+
+    local ok, msg = pcall(function()
+        borders_data = lf.load(SCENE_PREFIX .. "/borders_data.lua")() as {Borders}
+    end) as (boolean, string)
+    if not ok then
+        print('Could not load borders data')
+    end
+
+    if borders_data then
+        for _, b in ipairs(borders_data) do
+            wrp.new_static_segment(b.x1, b.x1, b.y1, b.y2)
+        end
+    else
+
+        local minx, maxx = 0, 4000
+        local miny, maxy = 0, 4000
+
+        bordersArea.x1, bordersArea.y1 = minx, miny
+        bordersArea.x2, bordersArea.y2 = maxx, maxy
+
+        local tmp: {Borders} = {}
+
+        local b = bordersArea
+        print('b', inspect(b))
+        local space = 5000
+        local p1, p2, p3, p4: number, number, number, number
+
+        p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
+        wrp.new_static_segment(p1, p2, p3, p4)
+
+        table.insert(tmp, { 
+            x1 = p1,
+            y1 = p2,
+            x2 = p3,
+            y2 = p4,
+        })
+
+        p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
+        wrp.new_static_segment(p1, p2, p3, p4)
+
+        table.insert(tmp, { 
+            x1 = p1,
+            y1 = p2,
+            x2 = p3,
+            y2 = p4,
+        })
+
+        p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+        wrp.new_static_segment(p1, p2, p3, p4)
+
+        table.insert(tmp, { 
+            x1 = p1,
+            y1 = p2,
+            x2 = p3,
+            y2 = p4,
+        })
+
+        p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+        wrp.new_static_segment(p1, p2, p3, p4)
+
+        table.insert(tmp, { 
+            x1 = p1,
+            y1 = p2,
+            x2 = p3,
+            y2 = p4,
+        })
+
+        local dump = serpent.dump(tmp)
+        lf.write("borders.dump.lua", dump)
+    end
 end
 
 local function spawnPlayer()
@@ -1619,9 +1681,8 @@ local function keypressed(key: string)
     if physics_pause and key == 'q' then
         physics_reset()
         render_reset_state()
-
+        initBorders()
         spawnTanks()
-        spawnBorders()
         spawnPlayer()
     end
 
@@ -2260,8 +2321,8 @@ end
 
 local stateCoro: thread = coroutine.create(function(dt: number)
 
+    initBorders()
     spawnTanks()
-    spawnBorders()
     spawnPlayer()
 
     diamondSquare:eval()
