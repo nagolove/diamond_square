@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local package = _tl_compat and _tl_compat.package or package; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local package = _tl_compat and _tl_compat.package or package; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -57,7 +57,7 @@ require("keyconfig")
 
 local sformat = string.format
 local inspect = require("inspect")
-
+local serpent = require('serpent')
 
 local metrics = require("metrics")
 local vec2 = require("vector")
@@ -390,6 +390,7 @@ local camera
 
 
 
+local bordersArea = {}
 local borders = {}
 
 local Joystick = love.joystick.Joystick
@@ -544,6 +545,7 @@ function Camera:checkScale(j)
    local axes = { j:getAxes() }
    local dy = axes[2]
    local factor = 1 * self.dt
+   local px, py = screenW * factor / 2, screenH * factor / 2
 
    if dy == -1 then
 
@@ -551,10 +553,16 @@ function Camera:checkScale(j)
       self.scale = 1 + factor
       self.transform:scale(1 + factor, 1 + factor)
 
+      self.transform:translate(-px, -py)
+
+
    elseif dy == 1 then
       self.scale = 1 - factor
       self.transform:scale(1 - factor, 1 - factor)
 
+
+
+      self.transform:translate(px, py)
    end
 end
 
@@ -1506,8 +1514,8 @@ local function spawnTanks()
    local minx, maxx = 0, 4000
    local miny, maxy = 0, 4000
 
-   borders.x1, borders.y1 = minx, miny
-   borders.x2, borders.y2 = maxx, maxy
+   bordersArea.x1, bordersArea.y1 = minx, miny
+   bordersArea.x2, bordersArea.y2 = maxx, maxy
 
 
 
@@ -1582,18 +1590,79 @@ local function render_reset_state()
 end
 
 
-local function spawnBorders()
-   local b = borders
-   local space = 5000
-   local p1, p2, p3, p4
-   p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
-   wrp.new_static_segment(p1, p2, p3, p4)
-   p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
-   wrp.new_static_segment(p1, p2, p3, p4)
-   p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
-   wrp.new_static_segment(p1, p2, p3, p4)
-   p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
-   wrp.new_static_segment(p1, p2, p3, p4)
+local function initBorders()
+   local lf = love.filesystem
+   local borders_data
+
+   local ok, msg = pcall(function()
+      borders_data = lf.load(SCENE_PREFIX .. "/borders_data.lua")()
+   end)
+   if not ok then
+      print('Could not load borders data')
+   end
+
+   if borders_data then
+      for _, b in ipairs(borders_data) do
+         wrp.new_static_segment(b.x1, b.x1, b.y1, b.y2)
+      end
+   else
+
+      local minx, maxx = 0, 4000
+      local miny, maxy = 0, 4000
+
+      bordersArea.x1, bordersArea.y1 = minx, miny
+      bordersArea.x2, bordersArea.y2 = maxx, maxy
+
+      local tmp = {}
+
+      local b = bordersArea
+      print('b', inspect(b))
+      local space = 5000
+      local p1, p2, p3, p4
+
+      p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
+      wrp.new_static_segment(p1, p2, p3, p4)
+
+      table.insert(tmp, {
+         x1 = p1,
+         y1 = p2,
+         x2 = p3,
+         y2 = p4,
+      })
+
+      p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
+      wrp.new_static_segment(p1, p2, p3, p4)
+
+      table.insert(tmp, {
+         x1 = p1,
+         y1 = p2,
+         x2 = p3,
+         y2 = p4,
+      })
+
+      p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+      wrp.new_static_segment(p1, p2, p3, p4)
+
+      table.insert(tmp, {
+         x1 = p1,
+         y1 = p2,
+         x2 = p3,
+         y2 = p4,
+      })
+
+      p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+      wrp.new_static_segment(p1, p2, p3, p4)
+
+      table.insert(tmp, {
+         x1 = p1,
+         y1 = p2,
+         x2 = p3,
+         y2 = p4,
+      })
+
+      local dump = serpent.dump(tmp)
+      lf.write("borders.dump.lua", dump)
+   end
 end
 
 local function spawnPlayer()
@@ -1612,9 +1681,8 @@ local function keypressed(key)
    if physics_pause and key == 'q' then
       physics_reset()
       render_reset_state()
-
+      initBorders()
       spawnTanks()
-      spawnBorders()
       spawnPlayer()
    end
 
@@ -2253,8 +2321,8 @@ end
 
 local stateCoro = coroutine.create(function(dt)
 
+   initBorders()
    spawnTanks()
-   spawnBorders()
    spawnPlayer()
 
    diamondSquare:eval()
