@@ -387,7 +387,8 @@ local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 rng:setSeed(os.time())
 
 local DiamonAndSquare = require 'diamondsquare'
-local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
+--local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
+local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(5, rng, pipeline)
 --local diamondSquare: DiamonAndSquare = nil
 
 --local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
@@ -1286,7 +1287,11 @@ local function renderLinesBuf(player_x: number, player_y: number)
     camera:push2lines_buf()
     local msg = sformat("player pos (%.3f, %.3f)", player_x, player_y)
     pipeline:push("add", "player_pos", msg)
+
+    -- Верно-ли, что здесь единственный вызов flush() для данного объекта в
+    -- кадре?
     pipeline:push('flush')
+
     pipeline:close()
 end
 
@@ -1298,12 +1303,11 @@ local function renderInternal()
 
     -- Ландшафт
     diamondSquare:render()
-    --[[
 
     -- Танки
-    renderTanks()
+    --renderTanks()
     -- Ограничители уровня, преграды в виде отрезков.
-    renderSegments()
+    --renderSegments()
 
     -- Выделенный объект - управляемый игроком
     local player_x, player_y = renderSelectedObject()
@@ -1532,6 +1536,49 @@ local function processCommandModeKeys(key: string)
 end
 --]]
 
+local function lines_buf_push_mapn()
+    if not diamondSquare then
+        return
+    end
+    pipeline:open('lines_buf')
+    pipeline:push("add", 'mapn', "mapn: " .. diamondSquare.mapn)
+    --pipeline:push('enough')
+    pipeline:push('flush')
+    pipeline:close()
+end
+
+local function processLandscape(key: string)
+    if not diamondSquare then
+        return
+    end
+
+    if key == 'r' then
+        diamondSquare:reset()
+        diamondSquare:eval()
+        diamondSquare:send2render()
+    end
+
+    if key == 'z' then
+        local mapn = diamondSquare.mapn - 1
+        if mapn >= 1 then
+            diamondSquare = DiamonAndSquare.new(mapn, rng, pipeline)
+            diamondSquare:eval()
+            diamondSquare:send2render()
+            lines_buf_push_mapn()
+        end
+    end
+
+    if key == 'x' then
+        local mapn = diamondSquare.mapn + 1
+        if mapn <= 10 then
+            diamondSquare = DiamonAndSquare.new(mapn, rng, pipeline)
+            diamondSquare:eval()
+            diamondSquare:send2render()
+            lines_buf_push_mapn()
+        end
+    end
+end
+
 local function keypressed(key: string)
     -- {{{
     print('keypressed', key)
@@ -1539,6 +1586,8 @@ local function keypressed(key: string)
     if key == "p" then
         physics_pause = not physics_pause
     end
+
+    processLandscape(key)
 
     --[[
     if showLogo then
@@ -2254,28 +2303,9 @@ local stateCoro: thread = coroutine.create(function(dt: number)
     spawnBorders()
     spawnPlayer()
 
-    --[[
-    -- Проверка качества сжатия данных карты.
-
     diamondSquare:eval()
-
-    local dump = serpent.dump(diamondSquare.map)
-
-    local compressed: string
-
-    compressed = love.data.compress("string", 'lz4', dump, 9) as string
-    love.filesystem.write("diamondSquare.map.c.lz4", compressed as string)
-
-    compressed = love.data.compress("string", 'zlib', dump, 9) as string
-    love.filesystem.write("diamondSquare.map.c.zlib", compressed as string)
-
-    compressed = love.data.compress("string", 'gzip', dump, 9) as string
-    love.filesystem.write("diamondSquare.map.c.gzip", compressed as string)
-
-    love.filesystem.write("diamondSquare.map", dump)
-
-    --print('diamondSquare.map', inspect(diamondSquare.map))
-    --]]
+    diamondSquare:send2render()
+    --lines_buf_push_mapn()
 
     while true do
         if state == 'map' then
