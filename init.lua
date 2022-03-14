@@ -387,7 +387,8 @@ local rng = love.math.newRandomGenerator()
 rng:setSeed(os.time())
 
 local DiamonAndSquare = require('diamondsquare')
-local diamondSquare = DiamonAndSquare.new(8, rng, pipeline)
+
+local diamondSquare = DiamonAndSquare.new(5, rng, pipeline)
 
 
 
@@ -1286,7 +1287,11 @@ local function renderLinesBuf(player_x, player_y)
    camera:push2lines_buf()
    local msg = sformat("player pos (%.3f, %.3f)", player_x, player_y)
    pipeline:push("add", "player_pos", msg)
+
+
+
    pipeline:push('flush')
+
    pipeline:close()
 end
 
@@ -1305,23 +1310,22 @@ local function renderInternal()
 
 
 
+   local player_x, player_y = renderSelectedObject()
 
 
+   pipeline:openAndClose('main_axises')
 
 
+   camera:setOrigin()
 
 
+   renderLinesBuf(player_x, player_y)
 
 
+   pipeline:openPushAndClose('object_lines_buf', 'flush')
 
 
-
-
-
-
-
-
-
+   camera:draw_axises()
 
 end
 
@@ -1532,6 +1536,49 @@ local lastPosX, lastPosY
 
 
 
+local function lines_buf_push_mapn()
+   if not diamondSquare then
+      return
+   end
+   pipeline:open('lines_buf')
+   pipeline:push("add", 'mapn', "mapn: " .. diamondSquare.mapn)
+
+   pipeline:push('flush')
+   pipeline:close()
+end
+
+local function processLandscape(key)
+   if not diamondSquare then
+      return
+   end
+
+   if key == 'r' then
+      diamondSquare:reset()
+      diamondSquare:eval()
+      diamondSquare:send2render()
+   end
+
+   if key == 'z' then
+      local mapn = diamondSquare.mapn - 1
+      if mapn >= 1 then
+         diamondSquare = DiamonAndSquare.new(mapn, rng, pipeline)
+         diamondSquare:eval()
+         diamondSquare:send2render()
+         lines_buf_push_mapn()
+      end
+   end
+
+   if key == 'x' then
+      local mapn = diamondSquare.mapn + 1
+      if mapn <= 10 then
+         diamondSquare = DiamonAndSquare.new(mapn, rng, pipeline)
+         diamondSquare:eval()
+         diamondSquare:send2render()
+         lines_buf_push_mapn()
+      end
+   end
+end
+
 local function keypressed(key)
 
    print('keypressed', key)
@@ -1539,6 +1586,8 @@ local function keypressed(key)
    if key == "p" then
       physics_pause = not physics_pause
    end
+
+   processLandscape(key)
 
 
 
@@ -2254,27 +2303,8 @@ local stateCoro = coroutine.create(function(dt)
    spawnBorders()
    spawnPlayer()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+   diamondSquare:eval()
+   diamondSquare:send2render()
 
 
    while true do
