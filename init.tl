@@ -57,7 +57,7 @@ require "keyconfig"
 
 local sformat = string.format
 local inspect = require "inspect"
-local serpent = require 'serpent'
+--local serpent = require 'serpent'
 --local i18n = require "i18n"
 local metrics = require "metrics"
 local vec2 = require "vector"
@@ -131,31 +131,7 @@ end
 -- восстановить сцену из файла. Сцена содержит списки танков, списки ребер, списки ангаров.
 local record Arena
     -- {{{
-
-    -- какая точка рисуется, первая или вторая
-    enum Mode
-        'first'
-        'second'
-    end
-
-    mode: Mode
-    edges: {Edge}
-
-    -- interface
-
     new: function(fname: string): Arena
-    present: function(Arena)
-    update: function(Arena)
-    mousemoved: function(Arena, x: number, y: number, dx: number, dy: number)
-    mousepressed: function(Arena, x: number, y: number, btn: integer)
-
-    save2file: function(Arena, fname: string)
-    ser: function(Arena): string
-
-    -- internal 
-
-    createFixtures: function(Arena)
-
     -- }}}
 end
 
@@ -384,7 +360,8 @@ require 'logo'
 
 local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
-rng:setSeed(os.time())
+rng:setSeed(300 * 123414)
+--rng:setSeed(os.time())
 
 local DiamonAndSquare = require 'diamondsquare'
 --local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
@@ -490,7 +467,7 @@ function Camera:push2lines_buf()
     local mat = {self.transform:getMatrix()}
     local fmt1 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f,"
     local fmt2 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f"
-    local msg = sformat(
+    msg = sformat(
         "camera mat: (" .. fmt1 .. fmt2 .. ")",
         mat[1],
         mat[2],
@@ -670,51 +647,6 @@ function Arena.new(_: string): Arena
 
     return self
 end
-
-function Arena:mousemoved(_: number, _: number, _: number, _: number)
-end
-
-function Arena:update()
-end
-
-function Arena:mousepressed(x: number, y: number, _: integer)
-
-    x, y = x * PIX2M, y * PIX2M
-    if self.mode then
-        if self.mode == 'first' then
-            self.edges[#self.edges].x2 = x
-            self.edges[#self.edges].y2 = y
-            self.mode = 'second'
-        elseif self.mode == 'second' then
-            self.mode = nil
-        end
-    else
-        self.mode = 'first'
-        table.insert(self.edges, { x1 = x, y1 = y })
-    end
-end
-
-function Arena:ser(): string
-end
-
-function Arena:save2file(fname: string)
-    local root = {
-        rngSeed = rng:getSeed(),
-        edges = self.edges,
-        hangars = {},
-    }
-    for _, v in ipairs(hangars) do
-        table.insert(root.hangars, v.vertices)
-    end
-    local data = serpent.dump(root)
-    love.filesystem.write(fname, data)
-end
-
-function Arena:createFixtures()
-    assert(self.edges )
-end
-
-global arena: Arena
 
 function Base:left()
 end
@@ -1357,8 +1289,6 @@ local function updateTanks()
     -- }}}
 end
 
-local lastPosX, lastPosY: number, number
-
 --[[
 local function backspaceCmdLine()
     -- {{{
@@ -2000,7 +1930,7 @@ local function init()
     screenW, screenH = pipeline:getDimensions()
     print('screenW, screenH', screenW, screenH)
  
-    arena = Arena.new("arena.lua")
+    --arena = Arena.new("arena.lua")
     --terrain()
     local corners = getTerrainCorners()
     if corners then
@@ -2026,7 +1956,7 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
     metrics.mousemoved(x, y, dx, dy)
 
     local absx, absy = camera.x, camera.y
-    print('absx, absy', absx, absy)
+    --print('absx, absy', absx, absy)
     local counter = 0
     wrp.get_shape_under_point(x + absx, y + absy, 
         function(
