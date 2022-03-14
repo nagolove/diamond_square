@@ -329,6 +329,8 @@ local Hit = {}
 
 local screenW, screenH
 
+local space
+
 
 
 
@@ -358,6 +360,13 @@ local playerTank
 
 require('logo')
 
+local Borders = {}
+
+
+
+
+
+
 local rng = love.math.newRandomGenerator()
 
 rng:setSeed(300 * 123414)
@@ -377,11 +386,15 @@ local main_channel = love.thread.getChannel("main_channel")
 local is_stop = false
 local last_render = love.timer.getTime()
 
+local camera
+
+
+
+local borders = {}
 
 local Joystick = love.joystick.Joystick
 local joystick = love.joystick
 local joyState
-
 local joy
 
 
@@ -582,8 +595,6 @@ function Camera:moveToOrigin()
    self.transform:reset()
    self.transform:scale(self.scale, self.scale)
 end
-
-local camera
 
 local function initJoy()
    for _, j in ipairs(joystick.getJoysticks()) do
@@ -1237,9 +1248,9 @@ local function renderInternal()
    diamondSquare:render()
 
 
+   renderTanks()
 
-
-
+   renderSegments()
 
 
    local player_x, player_y = renderSelectedObject()
@@ -1466,6 +1477,53 @@ end
 
 
 
+
+local function spawnTank(px, py)
+   local tank = Tank.new(vec2(px, py), tank_width, tank_height)
+   table.insert(tanks, tank)
+   local px, py, angle = wrp.get_position(tank.base)
+   tank._prev_x, tank._prev_y = px, py
+   pipeline:openPushAndClose(
+   'base_shape',
+   'new',
+   tank.id,
+   px, py, angle,
+   "flush")
+
+   return tank
+end
+
+local function spawnTanks()
+
+
+
+
+
+
+   local tanks_num = 5
+
+
+   local minx, maxx = 0, 4000
+   local miny, maxy = 0, 4000
+
+   borders.x1, borders.y1 = minx, miny
+   borders.x2, borders.y2 = maxx, maxy
+
+
+
+
+   for _ = 1, tanks_num do
+      local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
+      local tank = spawnTank(px, py)
+   end
+
+   spawnTank(100, 100)
+   spawnTank(screenW / 2, screenH / 2)
+
+
+end
+
+
 local function lines_buf_push_mapn()
    if not diamondSquare then
       return
@@ -1509,12 +1567,55 @@ local function processLandscape(key)
    end
 end
 
+
+local function physics_reset()
+   wrp.free_space(space)
+   space = wrp.init_space()
+   print(colorize("%{blue}physics reseted"))
+end
+
+
+
+
+local function render_reset_state()
+   pipeline:openPushAndClose('base_shape', 'clear')
+end
+
+
+local function spawnBorders()
+   local b = borders
+   local space = 5000
+   local p1, p2, p3, p4
+   p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
+   wrp.new_static_segment(p1, p2, p3, p4)
+   p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
+   wrp.new_static_segment(p1, p2, p3, p4)
+   p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+   wrp.new_static_segment(p1, p2, p3, p4)
+   p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
+   wrp.new_static_segment(p1, p2, p3, p4)
+end
+
+local function spawnPlayer()
+   local px, py = screenW / 3, screenH / 2
+   playerTank = spawnTank(px, py)
+end
+
 local function keypressed(key)
 
    print('keypressed', key)
 
    if key == "p" then
       physics_pause = not physics_pause
+   end
+
+   if physics_pause and key == 'q' then
+      physics_reset()
+      render_reset_state()
+
+      spawnTanks()
+      spawnBorders()
+      spawnPlayer()
    end
 
    processLandscape(key)
@@ -1894,8 +1995,6 @@ end
 
 
 
-local space
-
 local function init()
 
    print('init started')
@@ -2121,73 +2220,12 @@ local State = {}
 local state = 'map'
 
 
-local function spawnTank(px, py)
-   local tank = Tank.new(vec2(px, py), tank_width, tank_height)
-   table.insert(tanks, tank)
-   local px, py, angle = wrp.get_position(tank.base)
-   tank._prev_x, tank._prev_y = px, py
-   pipeline:openPushAndClose(
-   'base_shape',
-   'new',
-   tank.id,
-   px, py, angle,
-   "flush")
-
-   return tank
-end
-
-local function spawnPlayer()
-   playerTank = spawnTank(-20, -20)
-end
-
-local Borders = {}
 
 
 
 
 
 
-
-
-local borders = {}
-
-
-
-
-
-
-
-
-
-local function spawnTanks()
-
-
-
-
-
-
-   local tanks_num = 5
-
-
-   local minx, maxx = 0, 4000
-   local miny, maxy = 0, 4000
-
-   borders.x1, borders.y1 = minx, miny
-   borders.x2, borders.y2 = maxx, maxy
-
-
-
-
-   for _ = 1, tanks_num do
-      local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-      local tank = spawnTank(px, py)
-   end
-
-   spawnTank(100, 100)
-   spawnTank(screenW / 2, screenH / 2)
-
-
-end
 
 local function applyInput(j)
    local left, right, up, down = 3, 2, 4, 1
@@ -2211,20 +2249,6 @@ local function applyInput(j)
       end
 
    end
-end
-
-local function spawnBorders()
-   local b = borders
-   local space = 5000
-   local p1, p2, p3, p4
-   p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
-   wrp.new_static_segment(p1, p2, p3, p4)
-   p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
-   wrp.new_static_segment(p1, p2, p3, p4)
-   p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
-   wrp.new_static_segment(p1, p2, p3, p4)
-   p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
-   wrp.new_static_segment(p1, p2, p3, p4)
 end
 
 local stateCoro = coroutine.create(function(dt)

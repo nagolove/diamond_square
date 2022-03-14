@@ -85,26 +85,13 @@ local gr = love.graphics
 local quad = gr.newQuad(0, 0, 256, 256, texture)
 
 local function draw(x, y, angle)
-
-
    gr.push()
    gr.translate(x, y)
    gr.rotate(angle)
    gr.translate(-width / 2, -height / 2)
-
-
-
    gr.setColor({ 1, 1, 1, 1 })
-
-
-
-
    gr.draw(texture, quad, 0, 0)
-
    gr.pop()
-
-
-
 end
 
 local function get_id()
@@ -152,6 +139,9 @@ while true do
          local id = get_id()
          hash[id] = nil
 
+      elseif cmd == 'clear' then
+         hash = {}
+         break
       elseif cmd == 'flush' then
          for _, v in pairs(hash) do
             draw(v[1], v[2], v[3])
