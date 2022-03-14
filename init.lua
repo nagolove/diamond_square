@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local os = _tl_compat and _tl_compat.os or os; local package = _tl_compat and _tl_compat.package or package; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local package = _tl_compat and _tl_compat.package or package; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -57,7 +57,7 @@ require("keyconfig")
 
 local sformat = string.format
 local inspect = require("inspect")
-local serpent = require('serpent')
+
 
 local metrics = require("metrics")
 local vec2 = require("vector")
@@ -130,30 +130,6 @@ local Edge = {}
 
 
 local Arena = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -384,7 +360,8 @@ require('logo')
 
 local rng = love.math.newRandomGenerator()
 
-rng:setSeed(os.time())
+rng:setSeed(300 * 123414)
+
 
 local DiamonAndSquare = require('diamondsquare')
 
@@ -490,7 +467,7 @@ function Camera:push2lines_buf()
    local mat = { self.transform:getMatrix() }
    local fmt1 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f,"
    local fmt2 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f"
-   local msg = sformat(
+   msg = sformat(
    "camera mat: (" .. fmt1 .. fmt2 .. ")",
    mat[1],
    mat[2],
@@ -670,51 +647,6 @@ function Arena.new(_)
 
    return self
 end
-
-function Arena:mousemoved(_, _, _, _)
-end
-
-function Arena:update()
-end
-
-function Arena:mousepressed(x, y, _)
-
-   x, y = x * PIX2M, y * PIX2M
-   if self.mode then
-      if self.mode == 'first' then
-         self.edges[#self.edges].x2 = x
-         self.edges[#self.edges].y2 = y
-         self.mode = 'second'
-      elseif self.mode == 'second' then
-         self.mode = nil
-      end
-   else
-      self.mode = 'first'
-      table.insert(self.edges, { x1 = x, y1 = y })
-   end
-end
-
-function Arena:ser()
-end
-
-function Arena:save2file(fname)
-   local root = {
-      rngSeed = rng:getSeed(),
-      edges = self.edges,
-      hangars = {},
-   }
-   for _, v in ipairs(hangars) do
-      table.insert(root.hangars, v.vertices)
-   end
-   local data = serpent.dump(root)
-   love.filesystem.write(fname, data)
-end
-
-function Arena:createFixtures()
-   assert(self.edges)
-end
-
-
 
 function Base:left()
 end
@@ -1357,8 +1289,6 @@ local function updateTanks()
 
 end
 
-local lastPosX, lastPosY
-
 
 
 
@@ -2000,7 +1930,7 @@ local function init()
    screenW, screenH = pipeline:getDimensions()
    print('screenW, screenH', screenW, screenH)
 
-   arena = Arena.new("arena.lua")
+
 
    local corners = getTerrainCorners()
    if corners then
@@ -2026,7 +1956,7 @@ local function mousemoved(x, y, dx, dy)
    metrics.mousemoved(x, y, dx, dy)
 
    local absx, absy = camera.x, camera.y
-   print('absx, absy', absx, absy)
+
    local counter = 0
    wrp.get_shape_under_point(x + absx, y + absy,
    function(
