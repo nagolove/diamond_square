@@ -137,6 +137,9 @@ static int new_body(lua_State *lua) {
     int h = (int)lua_tonumber(lua, 3);
 
     cpFloat mass = w * h * DENSITY;
+
+    printf("mass %.3f\n", mass);
+
     cpFloat moment = cpMomentForBox(mass, w, h);
     /*printf("mass %f moment %f\n", mass, moment);*/
     cpBody *b = cpBodyNew(mass, moment);
@@ -153,6 +156,8 @@ static int new_body(lua_State *lua) {
     // ссылка на табличку, связанную с телом
     int reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
     b->userData = (void*)(uint64_t)reg_index;
+
+    cpBodySetMass(b, mass);
 
     lua_pushlightuserdata(lua, b);
 
@@ -480,13 +485,13 @@ void on_point_query(cpShape *shape, cpVect point, cpFloat distance, cpVect gradi
     lua_pushnumber(lua, gradient.x);
     lua_pushnumber(lua, gradient.x);
 
-    stackDump(lua);
-    printf("1111111111111111111");
+    /*stackDump(lua);*/
+    /*printf("1111111111111111111");*/
 
     lua_call(lua, 6, 0);
 
-    stackDump(lua);
-    printf("222222222222222");
+    /*stackDump(lua);*/
+    /*printf("222222222222222");*/
 }
 
 // Вызывает функцию обратного вызова для фигур под данной точно.
@@ -564,6 +569,26 @@ int get_body_stat(lua_State *lua) {
     lua_pushnumber(lua, b->w);
     // крутящий момент
     lua_pushnumber(lua, b->t);
+
+/*
+ *    cpVect p = cpBodyGetPosition(b);
+ *    cpVect cod = cpBodyGetCenterOfGravity(b);
+ *    cpVect v = cpBodyGetVelocity(b);
+ *    printf("mass %f moment %f px %f py %f\n", 
+ *            cpBodyGetMass(b), 
+ *            cpBodyGetMoment(b),
+ *            cpBodyGetVelLimit
+ *            cpBodyGetRotation(b),
+ *            p.x, p.y);
+ *
+ *    printf(
+ *        "m %f, i %f, cog %f, cog %f, pos %f, pos %f, vel %f, vel %f, "
+ *        "for %f, for %f, ang %f, w %f, tor %f\n",
+ *        b->m, b->i, b->cog.x, b->cog.y, b->p.x, b->p.y, b->v.x, b->v.y, 
+ *        b->f.x, b->f.y, b->a, b->w, b->t
+ *    );
+ *
+ */
 
     return 13;
 }
