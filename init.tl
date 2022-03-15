@@ -1605,63 +1605,6 @@ local function initBorders()
         for _, b in ipairs(borders_data) do
             wrp.new_static_segment(b.x1, b.x1, b.y1, b.y2)
         end
-    else
-
-        local minx, maxx = 0, 4000
-        local miny, maxy = 0, 4000
-
-        bordersArea.x1, bordersArea.y1 = minx, miny
-        bordersArea.x2, bordersArea.y2 = maxx, maxy
-
-        local tmp: {Borders} = {}
-
-        local b = bordersArea
-        print('b', inspect(b))
-        local space = 5000
-        local p1, p2, p3, p4: number, number, number, number
-
-        p1, p2, p3, p4 = b.x1 - space, b.y1 - space, b.x2 + space, b.y1 - space
-        wrp.new_static_segment(p1, p2, p3, p4)
-
-        table.insert(tmp, { 
-            x1 = p1,
-            y1 = p2,
-            x2 = p3,
-            y2 = p4,
-        })
-
-        p1, p2, p3, p4 = b.x2 + space, b.y1 - space, b.x2 + space, b.y2 + space
-        wrp.new_static_segment(p1, p2, p3, p4)
-
-        table.insert(tmp, { 
-            x1 = p1,
-            y1 = p2,
-            x2 = p3,
-            y2 = p4,
-        })
-
-        p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
-        wrp.new_static_segment(p1, p2, p3, p4)
-
-        table.insert(tmp, { 
-            x1 = p1,
-            y1 = p2,
-            x2 = p3,
-            y2 = p4,
-        })
-
-        p1, p2, p3, p4 = b.x2 + space, b.y2 + space, b.x1 - space, b.y2 + space
-        wrp.new_static_segment(p1, p2, p3, p4)
-
-        table.insert(tmp, { 
-            x1 = p1,
-            y1 = p2,
-            x2 = p3,
-            y2 = p4,
-        })
-
-        local dump = serpent.dump(tmp)
-        lf.write("borders.dump.lua", dump)
     end
 end
 
