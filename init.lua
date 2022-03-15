@@ -1490,6 +1490,8 @@ local function spawnTank(px, py)
    local tank = Tank.new(vec2(px, py), tank_width, tank_height)
    table.insert(tanks, tank)
    local px, py, angle = wrp.get_position(tank.base)
+
+
    tank._prev_x, tank._prev_y = px, py
    pipeline:openPushAndClose(
    'base_shape',
@@ -1543,7 +1545,8 @@ local function lines_buf_push_mapn()
    pipeline:close()
 end
 
-local function processLandscape(key)
+
+local function processLandscapeKeys(key)
    if not diamondSquare then
       return
    end
@@ -1619,65 +1622,6 @@ local function initBorders()
          local segment = wrp.new_static_segment(b.x1, b.y1, b.x2, b.y2)
          table.insert(segments, segment)
       end
-   else
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    end
 end
 
@@ -1686,9 +1630,52 @@ local function spawnPlayer()
    playerTank = spawnTank(px, py)
 end
 
+local function nextTankAsPlayer()
+   print('nextTankAsPlayer')
+   local index = -1
+   for k, v in ipairs(tanks) do
+      if v == playerTank then
+         index = k + 1
+         break
+      end
+   end
+   if tanks[index] then
+      playerTank = tanks[index]
+   else
+      playerTank = tanks[1]
+   end
+end
+
+local function prevTankAsPlayer()
+   print('prevTankAsPlayer')
+   local index = -1
+   for k, v in ipairs(tanks) do
+      if v == playerTank then
+         index = k - 1
+         break
+      end
+   end
+   if tanks[index] then
+      playerTank = tanks[index]
+   else
+      playerTank = tanks[#tanks]
+   end
+end
+
+local function changePlayerTank(key)
+   if love.keyboard.isDown('lshift') then
+      if key == 'left' then
+         prevTankAsPlayer()
+      elseif key == 'right' then
+         nextTankAsPlayer()
+      end
+   end
+end
+
 local function keypressed(key)
 
    print('keypressed', key)
+
 
    if key == "p" then
       physics_pause = not physics_pause
@@ -1711,7 +1698,8 @@ local function keypressed(key)
       end
    end
 
-   processLandscape(key)
+   processLandscapeKeys(key)
+   changePlayerTank(key)
 
 
 
@@ -1938,56 +1926,7 @@ local function initRenderCode()
 
 
 
-   pipeline:pushCode('border_segments', [[
-    local yield = coroutine.yield
-    local linew = 12
-    local gr = love.graphics
-    local font = gr.newFont(42)
-
-    while true do
-        local cmd: string
-        
-        local oldlw = gr.getLineWidth()
-        local oldf = gr.getFont()
-        gr.setFont(font)
-        gr.setLineWidth(linew)
-        repeat
-            cmd = graphic_command_channel:demand() as string
-
-            if cmd == "draw" then
-                local x1, y1, x2, y2: number, number, number, number
-                x1 = graphic_command_channel:demand() as number
-                y1 = graphic_command_channel:demand() as number
-                x2 = graphic_command_channel:demand() as number
-                y2 = graphic_command_channel:demand() as number
-
-                gr.setColor {0, 0, 0, 1}
-                gr.line(x1, y1, x2, y2)
-
-                gr.setColor {1, 0, 0, 1}
-
-                local msg = string.format("(%d, %d)", x1, y1)
-                --print('msg', msg)
-                gr.print(msg, x1, y1)
-
-                msg = string.format("(%d, %d)", x2, y2)
-                gr.print(msg, x2, y2)
-
-                --print(x1, y1, x2, y2)
-
-            elseif cmd == 'flush' then
-                break
-            else
-                error('unkonwn command: ' .. cmd)
-            end
-
-        until not cmd
-        gr.setLineWidth(oldlw)
-        gr.setFont(oldf)
-
-        yield()
-    end
-    ]])
+   pipeline:pushCodeFromFile('border_segments', 'border_segments.lua')
 
 
 end
