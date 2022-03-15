@@ -416,6 +416,26 @@ static int new_static_segment(lua_State *lua) {
     // что дает установка следующего фильтра?
     cpShapeSetFilter(shape, NOT_GRABBABLE_FILTER);
 
+    lua_pushlightuserdata(lua, shape);
+
+    return 1;
+}
+
+static int free_static_segment(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expect 1 argument.\n");
+        lua_error(lua);
+    }
+
+    assert(cur_space && "space is NULL");
+
+    cpShape *shape = (cpShape*)lua_topointer(lua, 1);
+    cpSpaceRemoveShape(cur_space, shape);
+    cpShapeFree(shape);
+
     return 0;
 }
 
@@ -575,6 +595,8 @@ extern int luaopen_wrp(lua_State *lua) {
 
         // добавить к статическому телу форму - отрезок
         {"new_static_segment", new_static_segment},
+        // удалить фигуру статического тела и освободить ее память
+        {"free_static_segment", free_static_segment},
         // обратный вызов функции для рисования всех сегментов
         {"draw_static_segments", draw_static_segments},
 
