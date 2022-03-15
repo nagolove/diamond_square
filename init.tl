@@ -1490,6 +1490,8 @@ local function spawnTank(px: number, py: number): Tank
     local tank = Tank.new(vec2(px, py), tank_width, tank_height)
     table.insert(tanks, tank)
     local px, py, angle = wrp.get_position(tank.base)
+    -- Эти значения используются в C модуле для определения на сколько
+    -- сдвинулся объект с момента предыдущей обработки.
     tank._prev_x, tank._prev_y = px, py
     pipeline:openPushAndClose(
         'base_shape',
@@ -1543,7 +1545,8 @@ local function lines_buf_push_mapn()
     pipeline:close()
 end
 
-local function processLandscape(key: string)
+-- Клавиши для управления генератором ландшафта.
+local function processLandscapeKeys(key: string)
     if not diamondSquare then
         return
     end
@@ -1627,10 +1630,53 @@ local function spawnPlayer()
     playerTank = spawnTank(px, py)
 end
 
+local function nextTankAsPlayer()
+    print('nextTankAsPlayer')
+    local index = -1
+    for k, v in ipairs(tanks) do
+        if v == playerTank then
+            index = k + 1
+            break
+        end
+    end
+    if tanks[index] then
+        playerTank = tanks[index]
+    else
+        playerTank = tanks[1]
+    end
+end
+
+local function prevTankAsPlayer()
+    print('prevTankAsPlayer')
+    local index = -1
+    for k, v in ipairs(tanks) do
+        if v == playerTank then
+            index = k - 1
+            break
+        end
+    end
+    if tanks[index] then
+        playerTank = tanks[index]
+    else
+        playerTank = tanks[#tanks]
+    end
+end
+
+local function changePlayerTank(key: string)
+    if love.keyboard.isDown('lshift') then
+        if key == 'left' then
+            prevTankAsPlayer()
+        elseif key == 'right' then
+            nextTankAsPlayer()
+        end
+    end
+end
+
 local function keypressed(key: string)
     -- {{{
     print('keypressed', key)
 
+    -- Пауза для физики
     if key == "p" then
         physics_pause = not physics_pause
     end
@@ -1652,7 +1698,8 @@ local function keypressed(key: string)
         end
     end
 
-    processLandscape(key)
+    processLandscapeKeys(key)
+    changePlayerTank(key)
 
     --[[
     if showLogo then
