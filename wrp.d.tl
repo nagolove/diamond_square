@@ -32,7 +32,9 @@ local record Wrapper
 
     -- Создать новый сегмент. Сегмент тонкий(не имеет толщины) и крепится к
     -- статичному телу пространства
-    new_static_segment: function(x1: number, y1: number, x2: number, y2: number)
+    new_static_segment: function(x1: number, y1: number, x2: number, y2: number): Shape
+    -- Удаляет и освобождает память о фигуре
+    free_static_segment: function(Shape)
 
     draw_static_segments: function(EachSegmentCallback)
 
