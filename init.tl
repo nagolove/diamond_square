@@ -1589,21 +1589,35 @@ local function render_reset_state()
     pipeline:openPushAndClose('base_shape', 'clear')
 end
 
+local segments: {wrp.Shape} = {}
+
 -- Создать сегменты ограничивающие карту
 local function initBorders()
     local lf = love.filesystem
     local borders_data: {Borders}
 
+    -- Удалить существующие сегменты если они созданы.
+    if #segments ~= 0 then
+        for _, v in ipairs(segments) do
+            wrp.free_static_segment(v)
+        end
+    end
+
     local ok, msg = pcall(function()
-        borders_data = lf.load(SCENE_PREFIX .. "/borders_data.lua")() as {Borders}
+        local path = SCENE_PREFIX .. "/borders_data.lua" 
+        borders_data = lf.load(path)() as {Borders}
     end) as (boolean, string)
     if not ok then
         print('Could not load borders data')
+    else
+        print(colorize("%{blue}borders loaded"))
     end
 
     if borders_data then
         for _, b in ipairs(borders_data) do
-            wrp.new_static_segment(b.x1, b.x1, b.y1, b.y2)
+            print('border', inspect(b))
+            local segment = wrp.new_static_segment(b.x1, b.y1, b.x2, b.y2)
+            table.insert(segments, segment)
         end
     end
 end
@@ -1621,12 +1635,21 @@ local function keypressed(key: string)
         physics_pause = not physics_pause
     end
 
-    if physics_pause and key == 'q' then
-        physics_reset()
-        render_reset_state()
-        initBorders()
-        spawnTanks()
-        spawnPlayer()
+    if physics_pause then
+        -- Полностью перезагрузить уровень.
+        if key == 'q' then
+
+            physics_reset()
+            render_reset_state()
+            initBorders()
+            spawnTanks()
+            spawnPlayer()
+
+        -- Перезагрузить сегменты из файла.
+        elseif key == '1' then
+            -- FIXME падает если вызвать несколько раз
+            initBorders()
+        end
     end
 
     processLandscape(key)
@@ -1858,12 +1881,17 @@ local function initRenderCode()
     -- игрового поля.
     pipeline:pushCode('border_segments', [[
     local yield = coroutine.yield
-    local linew = 6
+    local linew = 12
+    local gr = love.graphics
+    local font = gr.newFont(42)
+
     while true do
         local cmd: string
         
-        local oldlw = love.graphics.getLineWidth()
-        love.graphics.setLineWidth(linew)
+        local oldlw = gr.getLineWidth()
+        local oldf = gr.getFont()
+        gr.setFont(font)
+        gr.setLineWidth(linew)
         repeat
             cmd = graphic_command_channel:demand() as string
 
@@ -1874,8 +1902,18 @@ local function initRenderCode()
                 x2 = graphic_command_channel:demand() as number
                 y2 = graphic_command_channel:demand() as number
 
-                love.graphics.setColor {0, 0, 0, 1}
-                love.graphics.line(x1, y1, x2, y2)
+                gr.setColor {0, 0, 0, 1}
+                gr.line(x1, y1, x2, y2)
+
+                gr.setColor {1, 0, 0, 1}
+
+                local msg = string.format("(%d, %d)", x1, y1)
+                --print('msg', msg)
+                gr.print(msg, x1, y1)
+
+                msg = string.format("(%d, %d)", x2, y2)
+                gr.print(msg, x2, y2)
+
                 --print(x1, y1, x2, y2)
 
             elseif cmd == 'flush' then
@@ -1885,7 +1923,8 @@ local function initRenderCode()
             end
 
         until not cmd
-        love.graphics.setLineWidth(oldlw)
+        gr.setLineWidth(oldlw)
+        gr.setFont(oldf)
 
         yield()
     end
