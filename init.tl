@@ -286,7 +286,7 @@ end
 
 local type ParticlesMap = {string: ParticleSystemDefinition}
 
-global particles: ParticlesMap= {
+local particles: ParticlesMap= {
     -- {{{
     -- значение для по-умолчанию для новых эффектов
     ["default"] = {
@@ -397,6 +397,29 @@ local Joystick = love.joystick.Joystick
 local joystick = love.joystick
 local joyState: JoyState
 local joy: Joystick
+
+local record Hotkey
+    combo: string
+    doc: string
+end
+
+local hotkeys: {Hotkey} = {}
+
+local function add_hotkey_doc(combo: string, doc: string)
+    table.insert(hotkeys, { combo = combo, doc = doc })
+    local id = #hotkeys
+    --print('id', tostring(id))
+    --print('str', combo .. " " .. doc)
+    pipeline:push(
+        'add',
+        tostring(id),
+        combo .. " " .. doc
+    )
+end
+
+local function draw_hotkeys_docs()
+    pipeline:openPushAndClose('hotkeys_render', 'flush')
+end
 
 -- TODO добавить инерцию к камере
 local record Camera
@@ -1246,6 +1269,8 @@ local function renderLinesBuf(player_x: number, player_y: number)
     pipeline:close()
 end
 
+local is_draw_hotkeys_docs = false
+
 local function renderInternal()
     pipeline:openAndClose('clear')
 
@@ -1278,6 +1303,10 @@ local function renderInternal()
     -- Оси через центр экрана
     camera:draw_axises()
     --]]
+
+    if is_draw_hotkeys_docs then
+        draw_hotkeys_docs()
+    end
 end
 
 local function renderScene()
@@ -1681,6 +1710,10 @@ local function keypressed(key: string)
         physics_pause = not physics_pause
     end
 
+    if key == 'f1' then
+        is_draw_hotkeys_docs = not is_draw_hotkeys_docs
+    end
+
     if physics_pause then
         -- Полностью перезагрузить уровень.
         if key == 'q' then
@@ -1841,15 +1874,20 @@ local function initRenderCode()
 
     -- рисовать ортогональные оси координат в левом верхнем углу экрана
     pipeline:pushCode("main_axises", [[
-    local col = {0.3, 0.5, 1, 1}
+    local gr = love.graphics
+    --local col = {0.3, 0.5, 1, 1}
+    local col = {0, 0, 0, 1}
+    local rad = 100
+    local size = 1000
+
     while true do
-        local size = 1000
-        --love.graphics.setColor(col)
-        love.graphics.setColor {0, 0, 0, 1}
-        local rad = 100
-        love.graphics.circle("line", 0, 0, rad)
-        love.graphics.line(0, size, 0, -size)
-        love.graphics.line(-size, 0, size, 0)
+        gr.setColor(col)
+        --gr.setColor {0, 0, 0, 1}
+        gr.setLineWidth(1)
+        gr.circle("line", 0, 0, rad)
+        gr.line(0, size, 0, -size)
+        gr.line(-size, 0, size, 0)
+
         coroutine.yield()
     end
     ]])
@@ -1858,6 +1896,8 @@ local function initRenderCode()
     pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
     -- Буфер для вывода отладочной информации при наведении на физическое тело.
     pipeline:pushCodeFromFile('object_lines_buf', 'lines_buf.lua')
+    -- Буфер для вывода справки по клавишам
+    pipeline:pushCodeFromFile('hotkeys_render', 'lines_buf.lua')
 
     -- Рисование прозрачного прямоугольника над определенным телом.
     pipeline:pushCode('selected_object', [[
@@ -1954,9 +1994,11 @@ local function initPipelineObjects()
     --pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 40)
     pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 24)
     pipeline:openPushAndClose('object_lines_buf', "DejaVuSansMono.ttf", 24)
+    pipeline:openPushAndClose('hotkeys_render', "DejaVuSansMono.ttf", 24)
 
     pipeline:sync()
 
+    --[[
     pipeline:openPushAndClose(
         'lines_buf',                -- coroutine object name
         "add",                      -- object command
@@ -1964,6 +2006,7 @@ local function initPipelineObjects()
         "привет из недр движка",    -- message(payload)
         "flush"                     -- render buffer and break waiting cycle
     )
+    --]]
 end
 
 --[[
@@ -2043,6 +2086,15 @@ local function eachShape_base(b: cm.cpBody, shape: cm.cpShape)
 end
 --]]
 
+local function add_hotkeys_docs()
+    pipeline:open('hotkeys_render')
+    add_hotkey_doc("escape", "exit")
+    pipeline:push('border', true)
+    pipeline:push('align_center')
+    pipeline:push('enough')
+    pipeline:close()
+end
+
 local function init()
     -- {{{
     print('init started')
@@ -2055,11 +2107,14 @@ local function init()
     print('space', space)
 
     initJoy()
+    -- Загрузка удаленного кода для рисования
     initRenderCode()
     initPipelineObjects()
 
     -- требует инициализации после создания объекта pipeline
     camera = Camera.new()
+
+    add_hotkeys_docs()
 
     --loadLocales()
 
