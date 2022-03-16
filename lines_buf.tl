@@ -16,51 +16,114 @@ record LinesBuffer
     -- Прервать цикл обработки команд.
     -- Используется при множественном добавлении или удалении.
     enough: function()
+
+    -- Рисовать рамку вокруг таблицы или нет.
+    -- Перерасчитывает ширину рамки.
+    border: function(boolean)
+
+    -- Установить рисование таблицы по центру экрана.
+    align_center: function()
+
+    -- Установить точку рисования таблицы. 
+    -- Сбрасывается вызовом align_center()
+    pos: function(x: number, y: number)
 end
 --]]
     
 global SCENE_PREFIX: string
 global graphic_command_channel: love.thread.Channel
+local gr = love.graphics
 local yield = coroutine.yield
+local colorize = require 'ansicolors2'.ansicolors
 
 local timeout = 0.5
 local t1 = love.timer.getTime()
 
 local font_name = graphic_command_channel:demand(timeout) as string
---if type(font_name) ~= "string" then
-    --error("Incorrect font name variable type.")
---end
+if type(font_name) ~= "string" then
+    error("Incorrect font name variable type.")
+end
 
 local font_size = graphic_command_channel:demand(timeout) as integer
---if type(font_size) ~= "number" then
-    --error("Declare font size as integer.")
---end
+if type(font_size) ~= "number" then
+    error("Declare font size as integer.")
+end
 local t2 = love.timer.getTime()
 
 if t2 - t1 >= timeout then
     error("Could not demand data, timeout elapsed.")
 end
 
---local font = love.graphics.newFont(SCENE_PREFIX .. '/' .. "VeraMono.ttf")
+--local font = gr.newFont(SCENE_PREFIX .. '/' .. "VeraMono.ttf")
 print("SCENE_PREFIX", SCENE_PREFIX)
 local path = SCENE_PREFIX .. "/" .. font_name
-local font = love.graphics.newFont(path, font_size)
+local font = gr.newFont(path, font_size)
 
---local oldfont: love.graphics.Font
 local buffer: {string: string} = {}
+-- Количество записей
+local buffer_num: integer = 0
+-- Рисовать-ли рамку вокруг текста?
+local use_border = false
+-- Ширина рамки вокруг текста. Равняется максимальной ширине текста.
+local border_w = 0
+-- Толщина рамки вокруг текста, в пикселях.
+local border_line_width = 10
 
-yield()
+---------------------------------------------------------------
+--[[---------------------]] yield() --[[---------------------]]
+---------------------------------------------------------------
 
 local posx, posy = 0., 0.
+
+local function calculate_border_witdh()
+    local max_len = 0
+    gr.setLineWidth(border_line_width)
+    for _, v in pairs(buffer) do
+        local pix_len = font:getWidth(v) as integer
+        if pix_len > max_len then
+            max_len = pix_len
+        end
+    end
+    border_w = max_len
+    print('calculate_border_witdh')
+end
+
+local text_color = {0, 0, 0, 1}
+local border_color = {0, 0, 0, 1}
+
+-- Перерасчет posx, posy для рисования текущей таблицы по центру экрана.
+local function align_center()
+    local w, h = gr.getDimensions()
+    posx = (w - border_w) / 2
+    posy = (h - buffer_num * font:getHeight()) / 2
+    print('posx, posy', posx, posy)
+end
+
+local function draw()
+    gr.setFont(font)
+    gr.setColor(text_color)
+    local y = posy
+    for _, v in pairs(buffer) do
+        gr.print(v, posx, y)
+        y = y + font:getHeight()
+    end
+end
 
 while true do
     local cmd: string
     --print('lines_buf: cmd', cmd)
 
-    local oldfont = love.graphics.getFont()
+    local oldfont = gr.getFont()
     repeat
         cmd = graphic_command_channel:demand() as string
 
+        --[[
+        Добавить цветной текст? В каком виде?
+        add_colored
+        add_color
+        add_text
+        finish_add_colored
+        --]]
         if cmd == "add" then
             local id = graphic_command_channel:demand() as string
             local message = graphic_command_channel:demand() as string
@@ -74,7 +137,20 @@ while true do
             end
 
             buffer[id] = message
+            buffer_num = buffer_num + 1
 
+        elseif cmd == 'border' then
+            print(colorize('%{yellow}cmd == border'))
+            local state = graphic_command_channel:demand() as boolean
+            if type(state) ~= 'boolean' then
+                error('lines_buf: border should be a boolean value')
+            end
+            use_border = state
+            if use_border then
+                calculate_border_witdh()
+            end
+        elseif cmd == 'align_center' then
+            align_center()
         elseif cmd == 'pos' then
             local x = graphic_command_channel:demand() as number
             local y = graphic_command_channel:demand() as number
@@ -89,27 +165,25 @@ while true do
             posx, posy = x, y
         elseif cmd == 'remove' then
             local id = graphic_command_channel:demand() as string
-            buffer[id] = nil
+            if buffer[id] then
+                buffer[id] = nil
+                buffer_num = buffer_num - 1
+            end
         elseif cmd == 'clear' then
             buffer = {}
+            buffer_num = 0
             break
         elseif cmd == 'enough' then
             break
         elseif cmd == 'flush' then
-            love.graphics.setFont(font)
-            love.graphics.setColor {0, 0, 0, 1}
-            local y = posy
-            for _, v in pairs(buffer) do
-                love.graphics.print(v, posx, y)
-                y = y + font:getHeight()
-            end
+            draw()
             break
         else
             error('lines_buf unkonwn command: ' .. cmd)
         end
 
     until not cmd
-    love.graphics.setFont(oldfont)
+    gr.setFont(oldfont)
 
     yield()
 end
