@@ -286,7 +286,7 @@ local ParticleSystemDefinition = {}
 
 local ParticlesMap = {}
 
-particles = {
+local particles = {
 
 
    ["default"] = {
@@ -397,6 +397,29 @@ local Joystick = love.joystick.Joystick
 local joystick = love.joystick
 local joyState
 local joy
+
+local Hotkey = {}
+
+
+
+
+local hotkeys = {}
+
+local function add_hotkey_doc(combo, doc)
+   table.insert(hotkeys, { combo = combo, doc = doc })
+   local id = #hotkeys
+
+
+   pipeline:push(
+   'add',
+   tostring(id),
+   combo .. " " .. doc)
+
+end
+
+local function draw_hotkeys_docs()
+   pipeline:openPushAndClose('hotkeys_render', 'flush')
+end
 
 
 local Camera = {}
@@ -1246,6 +1269,8 @@ local function renderLinesBuf(player_x, player_y)
    pipeline:close()
 end
 
+local is_draw_hotkeys_docs = false
+
 local function renderInternal()
    pipeline:openAndClose('clear')
 
@@ -1278,6 +1303,10 @@ local function renderInternal()
 
    camera:draw_axises()
 
+
+   if is_draw_hotkeys_docs then
+      draw_hotkeys_docs()
+   end
 end
 
 local function renderScene()
@@ -1681,6 +1710,10 @@ local function keypressed(key)
       physics_pause = not physics_pause
    end
 
+   if key == 'f1' then
+      is_draw_hotkeys_docs = not is_draw_hotkeys_docs
+   end
+
    if physics_pause then
 
       if key == 'q' then
@@ -1841,15 +1874,20 @@ local function initRenderCode()
 
 
    pipeline:pushCode("main_axises", [[
-    local col = {0.3, 0.5, 1, 1}
+    local gr = love.graphics
+    --local col = {0.3, 0.5, 1, 1}
+    local col = {0, 0, 0, 1}
+    local rad = 100
+    local size = 1000
+
     while true do
-        local size = 1000
-        --love.graphics.setColor(col)
-        love.graphics.setColor {0, 0, 0, 1}
-        local rad = 100
-        love.graphics.circle("line", 0, 0, rad)
-        love.graphics.line(0, size, 0, -size)
-        love.graphics.line(-size, 0, size, 0)
+        gr.setColor(col)
+        --gr.setColor {0, 0, 0, 1}
+        gr.setLineWidth(1)
+        gr.circle("line", 0, 0, rad)
+        gr.line(0, size, 0, -size)
+        gr.line(-size, 0, size, 0)
+
         coroutine.yield()
     end
     ]])
@@ -1858,6 +1896,8 @@ local function initRenderCode()
    pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
 
    pipeline:pushCodeFromFile('object_lines_buf', 'lines_buf.lua')
+
+   pipeline:pushCodeFromFile('hotkeys_render', 'lines_buf.lua')
 
 
    pipeline:pushCode('selected_object', [[
@@ -1954,15 +1994,18 @@ local function initPipelineObjects()
 
    pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 24)
    pipeline:openPushAndClose('object_lines_buf', "DejaVuSansMono.ttf", 24)
+   pipeline:openPushAndClose('hotkeys_render', "DejaVuSansMono.ttf", 24)
 
    pipeline:sync()
 
-   pipeline:openPushAndClose(
-   'lines_buf',
-   "add",
-   'hi',
-   "привет из недр движка",
-   "flush")
+
+
+
+
+
+
+
+
 
 end
 
@@ -2043,6 +2086,15 @@ end
 
 
 
+local function add_hotkeys_docs()
+   pipeline:open('hotkeys_render')
+   add_hotkey_doc("escape", "exit")
+   pipeline:push('border', true)
+   pipeline:push('align_center')
+   pipeline:push('enough')
+   pipeline:close()
+end
+
 local function init()
 
    print('init started')
@@ -2055,11 +2107,14 @@ local function init()
    print('space', space)
 
    initJoy()
+
    initRenderCode()
    initPipelineObjects()
 
 
    camera = Camera.new()
+
+   add_hotkeys_docs()
 
 
 
