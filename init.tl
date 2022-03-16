@@ -62,7 +62,7 @@ local serpent = require 'serpent'
 local metrics = require "metrics"
 local vec2 = require "vector"
 --local vecl = require "vector-light"
---local tabular = require "tabular"
+local tabular = require "tabular".show2
 
 local Pipeline = require 'pipeline'
 local pipeline = Pipeline.new(SCENE_PREFIX)
@@ -2088,7 +2088,21 @@ end
 
 local function add_hotkeys_docs()
     pipeline:open('hotkeys_render')
+
     add_hotkey_doc("escape", "exit")
+    -- Как учитывать "p" - режим?
+    add_hotkey_doc("r", "Rebuild map")
+    add_hotkey_doc('z', 'Decrease map size')
+    add_hotkey_doc('x', 'Increase map size')
+    add_hotkey_doc('shift+left', 'Previous tank as player')
+    add_hotkey_doc('shift+right', 'Next tank as player')
+    add_hotkey_doc('p', 'Pause for physics engine. "P" - mode')
+    add_hotkey_doc('f1', 'Show or hide this text')
+    add_hotkey_doc('q', "Fully reload map with objects.")
+    add_hotkey_doc('1', 'Reload static physics segments.')
+
+    print(tabular(hotkeys))
+
     pipeline:push('border', true)
     pipeline:push('align_center')
     pipeline:push('enough')
@@ -2215,7 +2229,7 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
     end)
 
     if counter == 0 then
-        pipeline:openPushAndClose('object_lines_buf', 'clear', 'enough')
+        pipeline:openPushAndClose('object_lines_buf', 'clear')
     end
 
     --if mode == 'editor' then
