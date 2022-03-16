@@ -1,11 +1,19 @@
 --[[
 record LinesBuffer
-    add: function(id: string, message: string)
+    -- добавить идентификатор и запись. 
+    -- Цикл обработки команд не прерывается.
+    add: function(id: string|number, message: string)
+
+    -- Удалить запись из словаря.
     remove: function(id: string, message: string)
+
+    -- Очистить словарь и прервать цикл обработки команд.
     clear: function()
-    -- рисовать и сбросить
+
+    -- Рисовать и прервать цикл обработки команд.
     flush: function()
-    -- сбросить цикл обработки. 
+
+    -- Прервать цикл обработки команд.
     -- Используется при множественном добавлении или удалении.
     enough: function()
 end
@@ -84,6 +92,7 @@ while true do
             buffer[id] = nil
         elseif cmd == 'clear' then
             buffer = {}
+            break
         elseif cmd == 'enough' then
             break
         elseif cmd == 'flush' then
