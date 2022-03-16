@@ -92,14 +92,15 @@ local text_color = {0, 0, 0, 1}
 local border_color = {0, 0, 0, 1}
 
 -- Перерасчет posx, posy для рисования текущей таблицы по центру экрана.
-local function align_center()
+local function align_center(): boolean
     local w, h = gr.getDimensions()
     posx = (w - border_w) / 2
     posy = (h - buffer_num * font:getHeight()) / 2
     print('posx, posy', posx, posy)
+    return true
 end
 
-local function draw()
+local function draw(): boolean
     gr.setFont(font)
     gr.setColor(text_color)
     local y = posy
@@ -107,7 +108,72 @@ local function draw()
         gr.print(v, posx, y)
         y = y + font:getHeight()
     end
+    return false
 end
+
+local commands: {string: function(): boolean} = {
+    ['add'] = function(): boolean
+        local id = graphic_command_channel:demand() as string
+        local message = graphic_command_channel:demand() as string
+
+        if type(id) ~= 'string' and type(id) ~= 'number' then
+            print('id, type(id)', id, type(id))
+            error('id in lines_buf should be a string or number')
+        end
+        if type(message) ~= 'string' then
+            error('message in lines_buf should be a string')
+        end
+
+        buffer[id] = message
+        buffer_num = buffer_num + 1
+
+        return true
+    end,
+    ['border'] = function(): boolean
+        print(colorize('%{yellow}cmd == border'))
+        local state = graphic_command_channel:demand() as boolean
+        if type(state) ~= 'boolean' then
+            error('lines_buf: border should be a boolean value')
+        end
+        use_border = state
+        if use_border then
+            calculate_border_witdh()
+        end
+        return true
+    end,
+    ['align_center'] = align_center,
+    ['pos'] = function(): boolean
+        local x = graphic_command_channel:demand() as number
+        local y = graphic_command_channel:demand() as number
+
+        if type(x) ~= 'number' then
+            error('x should be a number in lines_buf->add')
+        end
+        if type(y) ~= 'number' then
+            error('y should be a number in lines_buf->add')
+        end
+
+        posx, posy = x, y
+        return true
+    end,
+    ['remove'] = function(): boolean
+        local id = graphic_command_channel:demand() as string
+        if buffer[id] then
+            buffer[id] = nil
+            buffer_num = buffer_num - 1
+        end
+        return true
+    end,
+    ['clear'] = function(): boolean
+        buffer = {}
+        buffer_num = 0
+        return false
+    end,
+    ['enough'] = function(): boolean
+        return false
+    end,
+    ['flush'] = draw,
+}
 
 while true do
     local cmd: string
@@ -124,62 +190,13 @@ while true do
         add_text
         finish_add_colored
         --]]
-        if cmd == "add" then
-            local id = graphic_command_channel:demand() as string
-            local message = graphic_command_channel:demand() as string
 
-            if type(id) ~= 'string' and type(id) ~= 'number' then
-                print('id, type(id)', id, type(id))
-                error('id in lines_buf should be a string or number')
-            end
-            if type(message) ~= 'string' then
-                error('message in lines_buf should be a string')
-            end
-
-            buffer[id] = message
-            buffer_num = buffer_num + 1
-
-        elseif cmd == 'border' then
-            print(colorize('%{yellow}cmd == border'))
-            local state = graphic_command_channel:demand() as boolean
-            if type(state) ~= 'boolean' then
-                error('lines_buf: border should be a boolean value')
-            end
-            use_border = state
-            if use_border then
-                calculate_border_witdh()
-            end
-        elseif cmd == 'align_center' then
-            align_center()
-        elseif cmd == 'pos' then
-            local x = graphic_command_channel:demand() as number
-            local y = graphic_command_channel:demand() as number
-
-            if type(x) ~= 'number' then
-                error('x should be a number in lines_buf->add')
-            end
-            if type(y) ~= 'number' then
-                error('y should be a number in lines_buf->add')
-            end
-
-            posx, posy = x, y
-        elseif cmd == 'remove' then
-            local id = graphic_command_channel:demand() as string
-            if buffer[id] then
-                buffer[id] = nil
-                buffer_num = buffer_num - 1
-            end
-        elseif cmd == 'clear' then
-            buffer = {}
-            buffer_num = 0
-            break
-        elseif cmd == 'enough' then
-            break
-        elseif cmd == 'flush' then
-            draw()
-            break
-        else
+        local fun = commands[cmd]
+        if not fun then
             error('lines_buf unkonwn command: ' .. cmd)
+        end
+        if not fun() then
+            break
         end
 
     until not cmd
