@@ -1292,13 +1292,13 @@ local function renderInternal()
    pipeline:openAndClose('main_axises')
 
 
+   pipeline:openPushAndClose('object_lines_buf', 'flush')
+
+
    camera:setOrigin()
 
 
    renderLinesBuf(player_x, player_y)
-
-
-   pipeline:openPushAndClose('object_lines_buf', 'flush')
 
 
    camera:draw_axises()
@@ -1556,6 +1556,7 @@ local function spawnTanks()
       local tank = spawnTank(px, py)
    end
 
+   spawnTank(-100, 100)
    spawnTank(100, 100)
    spawnTank(screenW / 2, screenH / 2)
 
@@ -1704,6 +1705,11 @@ end
 local function keypressed(key)
 
    print('keypressed', key)
+
+   if key == "escape" then
+      is_stop = true
+      debug_print('input', colorize('%{blue}escape pressed'))
+   end
 
 
    if key == "p" then
@@ -2171,7 +2177,8 @@ end
 local function mousemoved(x, y, dx, dy)
    metrics.mousemoved(x, y, dx, dy)
 
-   local absx, absy = camera.x, camera.y
+   local absx, absy = -camera.x, -camera.y
+
 
    local counter = 0
    wrp.get_shape_under_point(x + absx, y + absy,
@@ -2186,6 +2193,7 @@ local function mousemoved(x, y, dx, dy)
 
       counter = counter + 1
       pipeline:open('object_lines_buf')
+
       pipeline:push('pos', x, y)
 
 
@@ -2257,6 +2265,20 @@ local function updateJoyState()
    end
 end
 
+local function joystickpressed(j, button)
+   local left_shift = 5
+   local right_shift = 6
+
+   if button == left_shift then
+      print("moveToOrigin()")
+      camera:moveToOrigin()
+   end
+   if button == right_shift then
+      print("moveToPlayer()")
+      camera:moveToPlayer()
+   end
+end
+
 local function process_events()
    local events = event_channel:pop()
    if events then
@@ -2282,12 +2304,6 @@ local function process_events()
 
             dprint.keypressed(scancode)
 
-            if scancode == "escape" then
-               is_stop = true
-               debug_print('input', colorize('%{blue}escape pressed'))
-               break
-            end
-
 
             keypressed(scancode)
 
@@ -2295,12 +2311,6 @@ local function process_events()
 
 
          elseif evtype == "mousepressed" then
-
-
-
-
-
-
             local x, y = (e)[2], (e)[3]
             local btn = (e)[4]
             mousepressed(x, y, btn)
@@ -2308,22 +2318,7 @@ local function process_events()
          elseif evtype == "joystickpressed" then
             local joystick = (e)[2]
             local button = (e)[3]
-
-            print('joystick', inspect(joystick))
-            print('button', inspect(button))
-
-            local left_shift = 5
-            local right_shift = 6
-
-
-            if button == left_shift then
-               print("moveToOrigin()")
-               camera:moveToOrigin()
-            end
-            if button == right_shift then
-               print("moveToPlayer()")
-               camera:moveToPlayer()
-            end
+            joystickpressed(joystick, button)
          end
       end
    end
