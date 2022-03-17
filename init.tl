@@ -1291,14 +1291,14 @@ local function renderInternal()
     -- Оси на экране из (0, 0)
     pipeline:openAndClose('main_axises')
 
+    -- Инфа об объекте под мышкой
+    pipeline:openPushAndClose('object_lines_buf', 'flush')
+
     -- Сброс трансформации камеры
     camera:setOrigin()
 
     -- Строчки с отладочной инфой.
     renderLinesBuf(player_x, player_y)
-
-    -- Инфа об объекте под мышкой
-    pipeline:openPushAndClose('object_lines_buf', 'flush')
 
     -- Оси через центр экрана
     camera:draw_axises()
@@ -1556,6 +1556,7 @@ local function spawnTanks()
         local tank = spawnTank(px, py)
     end
 
+    spawnTank(-100, 100)
     spawnTank(100, 100)
     spawnTank(screenW / 2, screenH / 2)
     --pipeline:push('enough')
@@ -2171,7 +2172,8 @@ end
 local function mousemoved(x: number, y: number, dx: number, dy: number)
     metrics.mousemoved(x, y, dx, dy)
 
-    local absx, absy = camera.x, camera.y
+    local absx, absy = -camera.x, -camera.y
+
     --print('absx, absy', absx, absy)
     local counter = 0
     wrp.get_shape_under_point(x + absx, y + absy, 
@@ -2186,6 +2188,7 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
 
         counter = counter + 1
         pipeline:open('object_lines_buf')
+        --pipeline:push('pos', absx, absy)
         pipeline:push('pos', x, y)
         --pipeline:push("add", 1, tostring(shape))
         --pipeline:push('add', 1, 'on get_shape_under_point()')
