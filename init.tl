@@ -1706,6 +1706,11 @@ local function keypressed(key: string)
     -- {{{
     print('keypressed', key)
 
+    if key == "escape" then
+        is_stop = true
+        debug_print('input', colorize('%{blue}escape pressed'))
+    end
+
     -- Пауза для физики
     if key == "p" then
         physics_pause = not physics_pause
@@ -2260,6 +2265,20 @@ local function updateJoyState()
     end
 end
 
+local function joystickpressed(j: Joystick, button: integer)
+    local left_shift = 5
+    local right_shift = 6
+
+    if button == left_shift then
+        print("moveToOrigin()")
+        camera:moveToOrigin()
+    end
+    if button == right_shift then
+        print("moveToPlayer()")
+        camera:moveToPlayer()
+    end
+end
+
 local function process_events()
     local events = event_channel:pop() as {any}
     if events then
@@ -2285,12 +2304,6 @@ local function process_events()
 
                 dprint.keypressed(scancode)
 
-                if scancode == "escape" then
-                    is_stop = true
-                    debug_print('input', colorize('%{blue}escape pressed'))
-                    break
-                end
-
                 -- Использовать scancode или key?
                 keypressed(scancode)
 
@@ -2298,35 +2311,14 @@ local function process_events()
                 --print(colorize(msg .. key .. ' ' .. scancode))
 
             elseif evtype == "mousepressed" then
-
-                --local x: number = (e as {number})[2]
-                --local y: number = (e as {number})[3]
-                --local button: number = (e as {number})[4]
-                --local istouch: boolean = (e as {boolean})[5]
-                --local presses: number = (e as {number})[6]
                 local x, y = (e as {number})[2], (e as {number})[3]
                 local btn = (e as {integer})[4]
                 mousepressed(x, y, btn)
 
             elseif evtype == "joystickpressed" then
                 local joystick = (e as {number})[2] as Joystick
-                local button = (e as {number})[3]
-
-                print('joystick', inspect(joystick))
-                print('button', inspect(button))
-
-                local left_shift = 5
-                local right_shift = 6
-
-                --if joystick:isDown(right_shift) then
-                if button == left_shift then
-                    print("moveToOrigin()")
-                    camera:moveToOrigin()
-                end
-                if button == right_shift then
-                    print("moveToPlayer()")
-                    camera:moveToPlayer()
-                end
+                local button = (e as {number})[3] as integer
+                joystickpressed(joystick, button)
             end
         end
     end
