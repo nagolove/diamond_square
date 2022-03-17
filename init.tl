@@ -423,24 +423,46 @@ end
 
 -- TODO добавить инерцию к камере
 local record Camera
-    -- public
+    --[[
+    Локальная система координат - отображаемое окно, координаты курсора мыши.
+    Глобальная система координат - все игровое поле. Имеет свою точку (0, 0).
+    --]]
+
     new: function(): Camera
+    -- Включить камеру
     setTransform: function(Camera)
+    -- Отключить камеру
     setOrigin: function(Camera)
+    -- Проверка ввода с геймпада.
+    -- TODO Вынести из камеры наружу.
     checkInput: function(Camera)
+    -- Обновить состояние.
     update: function(Camera, dt: number)
-    checkPlayerInCircle: function(Camera)
+
+    -- Из оконных координаты в абсолютные.
+    fromLocal: function(Camera, x: number, y: number): number, number
+    -- Из абсолютных в оконные. 
+    -- Что возвращать если точка лежит за пределами окна?
+    fromGlobal: function(Camera)
+
+    -- Проверить, не выехал ли игрок за круг в локальной системе координат.
+    -- Если выехал, то вернуть его обратно.
+    checkIsPlayerInCircle: function(Camera)
+
+    -- Передвинуть к текущему игроку.
     moveToPlayer: function(Camera)
+
+    -- Сбросить смещение в начальное положение.
     moveToOrigin: function(Camera)
 
-    -- разместить строку информациии в текстовом буфере lines_buf
-    -- секция должна быть октрыта
+    -- Разместить строку информациии в текстовом буфере lines_buf
+    -- Секция должна быть октрыта.
     push2lines_buf: function(Camera)
 
     -- нарисовать оси координат, проходящие через центр экрана
     draw_axises: function(Camera)
 
-    -- private
+    -- PRIVATE
     checkMovement: function(Camera, j: Joystick)
     checkScale: function(Camera, j: Joystick)
 
@@ -593,7 +615,7 @@ end
 -- определенного радиуса. Если танк выезжает за пределы, то камера сдвигается.
 -- * Обеспечить плавность движения камеры.
 -- * Камера должна сохранять какие-то абсолютные координаты?
-function Camera:checkPlayerInCircle()
+function Camera:checkIsPlayerInCircle()
     local rad = 300
 end
 
