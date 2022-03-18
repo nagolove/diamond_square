@@ -204,7 +204,7 @@ void on_each_tank(cpBody *body, void *data) {
     double dx = fabs(prev_x - body->p.x);
     double dy = fabs(prev_y - body->p.y);
 
-    if (dx > epsilon && dy > epsilon) {
+    if (dx > epsilon || dy > epsilon) {
         lua_pushvalue(lua, 1); // callback function
         lua_pushnumber(lua, body->p.x);
         lua_pushnumber(lua, body->p.y);
