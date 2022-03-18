@@ -451,6 +451,28 @@ local Camera = {}
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 local Camera_mt = {
    __index = Camera,
 }
@@ -593,7 +615,7 @@ end
 
 
 
-function Camera:checkPlayerInCircle()
+function Camera:checkIsPlayerInCircle()
    local rad = 300
 end
 
@@ -1520,6 +1542,11 @@ local function spawnTank(px, py)
    table.insert(tanks, tank)
    local px, py, angle = wrp.get_position(tank.base)
 
+   print(colorize(
+   "%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)))
+
+
+
 
    tank._prev_x, tank._prev_y = px, py
    pipeline:openPushAndClose(
@@ -1910,6 +1937,9 @@ local function initRenderCode()
     -- жесткие значения ширины и высоты, как проверить что они соответствуют
     -- действительным?
     local width, height = 256, 256
+    local selection_color = {0, 0.5, 1, 0.3}
+    local border_color = {0, 0, 0, 1}
+    local linew = 5
 
     local x, y, angle: number
     local gr = love.graphics
@@ -1923,13 +1953,12 @@ local function initRenderCode()
         gr.rotate(angle)
         gr.translate(-width / 2, -height / 2)
 
-        gr.setColor {0, 0.5, 1, 0.3}
-
-        --gr.setColor {1, 1, 1, 1}
-
+        gr.setColor(selection_color)
         gr.rectangle('fill', 0, 0, width, height)
-        --gr.draw(texture, quad, 0, 0, width, height)
-        --gr.draw(texture, quad, 0, 0)
+
+        gr.setColor(border_color)
+        gr.setLineWidth(linew)
+        gr.rectangle('line', 0, 0, width, height)
 
         gr.pop()
 
@@ -2340,27 +2369,36 @@ local state = 'map'
 
 
 local function applyInput(j)
+
+   if not j and not playerTank then
+      return
+   end
+
    local left, right, up, down = 3, 2, 4, 1
 
-   if j and playerTank then
-      local body = playerTank.base
+   local body = playerTank.base
 
-      local px, py = 0, 0
-      local amount = 100
-
+   local px, py = 0, 0
+   local amount = 2
 
 
-      if j:isDown(right) then
-         wrp.apply_impulse(body, amount, 0, px, py);
-      elseif j:isDown(left) then
-         wrp.apply_impulse(body, -amount, 0, px, py);
-      elseif j:isDown(up) then
-         wrp.apply_impulse(body, 0, -amount, px, py);
-      elseif j:isDown(down) then
-         wrp.apply_impulse(body, 0, amount, px, py);
-      end
 
+
+
+
+
+   if j:isDown(right) then
+      wrp.apply_impulse(body, amount, 0, 256, 256);
+
+   elseif j:isDown(left) then
+
+
+   elseif j:isDown(up) then
+      wrp.apply_impulse(body, 0, -amount, px, py);
+   elseif j:isDown(down) then
+      wrp.apply_impulse(body, 0, amount, px, py);
    end
+
 end
 
 local stateCoro = coroutine.create(function(dt)
