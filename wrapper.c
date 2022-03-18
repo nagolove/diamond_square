@@ -597,6 +597,49 @@ int get_body_stat(lua_State *lua) {
     return 13;
 }
 
+static int set_torque(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 2, LUA_TNUMBER);
+
+    int top = lua_gettop(lua);
+    if (top != 2) {
+        lua_pushstring(lua, "Function expects 2 arguments.\n");
+        lua_error(lua);
+    }
+
+    cpBody *body = (cpBody*)lua_topointer(lua, 1);
+    double torque = lua_tonumber(lua, 2);
+
+    cpBodySetTorque(body, torque);
+
+    return 0;
+}
+
+static int get_body_type(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expects 1 argument.\n");
+        lua_error(lua);
+    }
+    
+    cpBody *body = (cpBody*)lua_topointer(lua, 1);
+    cpBodyType btype = cpBodyGetType(body);
+    double type = -1.;
+
+    if (btype == CP_BODY_TYPE_DYNAMIC)
+        type = 1.;
+    else if (btype == CP_BODY_TYPE_KINEMATIC)
+        type = 2.;
+    else if (btype == CP_BODY_TYPE_STATIC)
+        type = 3.;
+
+    lua_pushnumber(lua, type);
+
+    return 1;
+}
+
 extern int luaopen_wrp(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
@@ -621,6 +664,9 @@ extern int luaopen_wrp(lua_State *lua) {
         {"get_position", get_position},
         // придать импульс телу
         {"apply_impulse", apply_impulse},
+        // установить вращение тела
+        {"set_torque", set_torque},
+        {"get_body_type", get_body_type},
 
         // добавить к статическому телу форму - отрезок
         {"new_static_segment", new_static_segment},
