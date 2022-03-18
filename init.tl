@@ -1541,6 +1541,11 @@ local function spawnTank(px: number, py: number): Tank
     local tank = Tank.new(vec2(px, py), tank_width, tank_height)
     table.insert(tanks, tank)
     local px, py, angle = wrp.get_position(tank.base)
+
+    print(colorize(
+        "%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)
+    ))
+
     -- Эти значения используются в C модуле для определения на сколько
     -- сдвинулся объект с момента предыдущей обработки.
     tank._prev_x, tank._prev_y = px, py
@@ -1932,6 +1937,9 @@ local function initRenderCode()
     -- жесткие значения ширины и высоты, как проверить что они соответствуют
     -- действительным?
     local width, height = 256, 256
+    local selection_color = {0, 0.5, 1, 0.3}
+    local border_color = {0, 0, 0, 1}
+    local linew = 5
 
     local x, y, angle: number
     local gr = love.graphics
@@ -1945,13 +1953,12 @@ local function initRenderCode()
         gr.rotate(angle)
         gr.translate(-width / 2, -height / 2)
 
-        gr.setColor {0, 0.5, 1, 0.3}
-
-        --gr.setColor {1, 1, 1, 1}
-
+        gr.setColor(selection_color)
         gr.rectangle('fill', 0, 0, width, height)
-        --gr.draw(texture, quad, 0, 0, width, height)
-        --gr.draw(texture, quad, 0, 0)
+
+        gr.setColor(border_color)
+        gr.setLineWidth(linew)
+        gr.rectangle('line', 0, 0, width, height)
 
         gr.pop()
 
@@ -2362,27 +2369,36 @@ pipeline.tl
 --pp.free()
 
 local function applyInput(j: Joystick)
+    -- Нужно and или or?
+    if not j and not playerTank then
+        return
+    end
+
     local left, right, up, down = 3, 2, 4, 1
 
-    if j and playerTank then
-        local body = playerTank.base
+    local body = playerTank.base
 
-        local px, py = 0, 0
-        local amount = 100
+    local px, py = 0, 0
+    local amount = 2
 
-        -- FIXME Если прикладывать слишком большой импульс, то объект пролетает
-        -- за заграждение в виде EdgeShape
-        if j:isDown(right) then
-            wrp.apply_impulse(body, amount, 0, px, py);
-        elseif j:isDown(left) then
-            wrp.apply_impulse(body, -amount, 0, px, py);
-        elseif j:isDown(up) then
-            wrp.apply_impulse(body, 0, -amount, px, py);
-        elseif j:isDown(down) then
-            wrp.apply_impulse(body, 0, amount, px, py);
-        end
+    --[[
+    Как узнать направление движения и направление приложения силы?
+    --]]
 
+    -- FIXME Если прикладывать слишком большой импульс, то объект пролетает
+    -- за заграждение в виде EdgeShape
+    if j:isDown(right) then
+        wrp.apply_impulse(body, amount, 0, 256, 256);
+        --wrp.set_torque(body, 10)
+    elseif j:isDown(left) then
+        --wrp.apply_impulse(body, -amount, 0, px, py);
+        --wrp.set_torque(body, -10)
+    elseif j:isDown(up) then
+        wrp.apply_impulse(body, 0, -amount, px, py);
+    elseif j:isDown(down) then
+        wrp.apply_impulse(body, 0, amount, px, py);
     end
+
 end
 
 local stateCoro: thread = coroutine.create(function(dt: number)
