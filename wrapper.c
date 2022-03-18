@@ -151,6 +151,10 @@ static int new_body(lua_State *lua) {
 
     cpSpaceAddBody(cur_space, b);
     cpShape *shape = cpBoxShapeNew(b, w, h, 0.f);
+
+    cpShapeSetFriction(shape, 10000.);
+    printf("shape friction: %f\n", cpShapeGetFriction(shape));
+    /*cpShapeSetFriction(shape, 1);*/
     cpSpaceAddShape(cur_space, shape);
 
     // ссылка на табличку, связанную с телом
