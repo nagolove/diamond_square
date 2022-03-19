@@ -1,4 +1,5 @@
 require 'konstants'
+require 'common'
 local wrp = require "wrp"
 --local Bullet = require "bullet"
 
@@ -68,22 +69,37 @@ local record Tank
     -- }}}
 end
 
+local px, py = 0, 0
+local amount = 200
+
 function Tank:fire()
 end
 
 function Tank:left()
     --self.base:left()
+    --wrp.apply_impulse(body, -amount, 0, px, py);
+    --wrp.set_torque(body, -10)
 end
 
 function Tank:right()
     --self.base:right()
+    --wrp.set_torque(body, 10)
+    wrp.apply_impulse(self.base, amount, 0, 256, 256);
 end
 
 function Tank:forward()
+    --wrp.apply_impulse(body, 0, -amount, px, py);
+    local vx, vy = wrp.get_body_vel(self.base)
+    local len = vec_len(vx, vy)
+    if len < 10 then
+        wrp.apply_force(self.base, 0, -amount, px, py);
+    end
     --self.base:forward()
 end
 
 function Tank:backward()
+    --wrp.apply_impulse(body, 0, amount, px, py);
+    wrp.apply_force(self.base, 0, amount, px, py);
     --self.base:backward()
 end
 
