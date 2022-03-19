@@ -2378,9 +2378,6 @@ local function applyInput(j: Joystick)
 
     local body = playerTank.base
 
-    local px, py = 0, 0
-    local amount = 2
-
     --[[
     Как узнать направление движения и направление приложения силы?
     --]]
@@ -2388,15 +2385,13 @@ local function applyInput(j: Joystick)
     -- FIXME Если прикладывать слишком большой импульс, то объект пролетает
     -- за заграждение в виде EdgeShape
     if j:isDown(right) then
-        wrp.apply_impulse(body, amount, 0, 256, 256);
-        --wrp.set_torque(body, 10)
+        playerTank:right()
     elseif j:isDown(left) then
-        --wrp.apply_impulse(body, -amount, 0, px, py);
-        --wrp.set_torque(body, -10)
+        playerTank:left()
     elseif j:isDown(up) then
-        wrp.apply_impulse(body, 0, -amount, px, py);
+        playerTank:forward()
     elseif j:isDown(down) then
-        wrp.apply_impulse(body, 0, amount, px, py);
+        playerTank:backward()
     end
 
 end
