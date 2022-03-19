@@ -4,7 +4,7 @@ local record Wrapper
     record Space end
     record Body end
 
-    init_space: function(): Space
+    init_space: function(damping: number): Space
     free_space: function(Space)
     step: function(dt: number)
 
@@ -21,7 +21,12 @@ local record Wrapper
     -- Создать поли-тело данной ширины и высоты, прикрепив к нему таблицу.
     -- Нужно указывать тип тела из перечисление ObjectType для соблюдений 
     -- внутренней логики работы модуля wrapper
-    new_body: function(type: ObjectType, w: number, h: number, self: table): Body
+    new_body: function(
+        type: ObjectType, 
+        xpos: number, ypos: number,
+        w: number, h: number, 
+        self: table
+    ): Body
 
     -- Установить положение тела
     set_position: function(b: Body, x: number, y: number)
