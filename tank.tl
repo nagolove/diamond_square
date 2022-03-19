@@ -1,5 +1,6 @@
 require 'konstants'
 require 'common'
+require 'vector'
 
 local wrp = require "wrp"
 --local Bullet = require "bullet"
@@ -128,8 +129,8 @@ function Tank.new(pos: vector, w: number, h: number): Tank
     self.color = {1, 1, 1, 1}
 
     self.type = "tank"
-    self.base = wrp.new_body(self.type, w, h, self as table)
-    wrp.set_position(self.base, pos.x, pos.y)
+    self.base = wrp.new_body(self.type, pos.x, pos.y, w, h, self as table)
+    --wrp.set_position(self.base, pos.x, pos.y)
 
     return self
 end

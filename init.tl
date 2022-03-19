@@ -324,12 +324,10 @@ end
 
 -- {{{ Global and local variables.
 
--- Указатель на текущий подсвеченный навигатором танк.
---local currentNavigator: Tank
-
 local screenW, screenH: number, number
 
 local space: Wrapper.Space
+local space_damping = 0.5
 
 -- {{{ Konsole editing
 --local historyfname = "cmdhistory.txt"
@@ -1629,7 +1627,7 @@ end
 -- Сброс физики - удаление пространства, всех тел и фигур
 local function physics_reset()
     wrp.free_space(space)
-    space = wrp.init_space()
+    space = wrp.init_space(space_damping)
     print(colorize("%{blue}physics reseted"))
 end
 
@@ -2141,7 +2139,7 @@ local function init()
 
     --pw.init(pipeline)
     --cur_space = cm.cpSpaceNew()
-    space = wrp.init_space()
+    space = wrp.init_space(space_damping)
     print('space', space)
 
     initJoy()
