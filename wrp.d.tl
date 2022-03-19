@@ -29,10 +29,14 @@ local record Wrapper
     get_position: function(b: Body): number, number, number
     -- Приложить импульс к данному телу в определенной точке
     apply_impulse: function(b: Body, ix: number, iy: number, px: number, py: number)
+    -- Приложить силу к данному телу в определенной точке
+    apply_force: function(b: Body, fx: number, fy: number, px: number, py: number)
     -- Установить вращение тела
     set_torque: function(Body, torque: number)
     -- Узнать тип тела - динамический(1), кинематический(2) или статический(3)
     get_body_type: function(Body): integer
+    -- Получить скорость тела
+    get_body_vel: function(Body): number, number
 
     -- Создать новый сегмент. Сегмент тонкий(не имеет толщины) и крепится к
     -- статичному телу пространства

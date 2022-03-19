@@ -1,3 +1,6 @@
+// vim: set colorcolumn=85
+// vim: fdm=marker
+
 #include "chipmunk/chipmunk.h"
 #include "chipmunk/chipmunk_structs.h"
 
@@ -353,6 +356,50 @@ static int set_position(lua_State *lua) {
     return 0;
 }
 
+static int apply_force(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 2, LUA_TNUMBER);
+    luaL_checktype(lua, 3, LUA_TNUMBER);
+    luaL_checktype(lua, 4, LUA_TNUMBER);
+    luaL_checktype(lua, 5, LUA_TNUMBER);
+
+    cpVect force = { 
+        .x = lua_tonumber(lua, 2),
+        .y = lua_tonumber(lua, 3),
+    };
+
+    cpVect point = { 
+        .x = lua_tonumber(lua, 4),
+        .y = lua_tonumber(lua, 5),
+    };
+
+    int top = lua_gettop(lua);
+    if (top != 5) {
+        lua_pushstring(lua, "Function expects 5 arguments.\n");
+        lua_error(lua);
+    }
+
+    cpBody *b = (cpBody*)lua_topointer(lua, 1);
+
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);
+
+    // {{{
+    /*stackDump(lua);*/
+    /*printf("-----------------------\n");*/
+    /*lua_pushstring(lua, "id");*/
+    /*lua_gettable(lua, 6);*/
+    /*stackDump(lua);*/
+    /*luaL_checktype(lua, 7, LUA_TNUMBER);*/
+    /*int id = (int)lua_tonumber(lua, 7);*/
+    // печатать порядковый номер объекта
+    /*printf("id = %d\n", id);*/
+    // }}}
+    
+    cpBodyApplyForceAtLocalPoint(b, force, point);
+
+    return 0;
+}
+
 static int apply_impulse(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
@@ -379,6 +426,8 @@ static int apply_impulse(lua_State *lua) {
     cpBody *b = (cpBody*)lua_topointer(lua, 1);
 
     lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);
+
+    // {{{
     /*stackDump(lua);*/
     /*printf("-----------------------\n");*/
     /*lua_pushstring(lua, "id");*/
@@ -388,7 +437,8 @@ static int apply_impulse(lua_State *lua) {
     /*int id = (int)lua_tonumber(lua, 7);*/
     // печатать порядковый номер объекта
     /*printf("id = %d\n", id);*/
-
+    // }}}
+    
     cpBodyApplyImpulseAtLocalPoint(b, impulse, point);
 
     return 0;
@@ -640,6 +690,24 @@ static int get_body_type(lua_State *lua) {
     return 1;
 }
 
+static int get_body_vel(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expects 1 argument.\n");
+        lua_error(lua);
+    }
+    
+    cpBody *body = (cpBody*)lua_topointer(lua, 1);
+    cpVect vel = cpBodyGetVelocity(body);
+
+    lua_pushnumber(lua, vel.x);
+    lua_pushnumber(lua, vel.y);
+
+    return 2;
+}
+
 extern int luaopen_wrp(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
@@ -664,9 +732,13 @@ extern int luaopen_wrp(lua_State *lua) {
         {"get_position", get_position},
         // придать импульс телу
         {"apply_impulse", apply_impulse},
+        // приложить силу к телу
+        {"apply_force", apply_force},
         // установить вращение тела
         {"set_torque", set_torque},
         {"get_body_type", get_body_type},
+        // Возвращает скорость тела
+        {"get_body_vel", get_body_vel},
 
         // добавить к статическому телу форму - отрезок
         {"new_static_segment", new_static_segment},
