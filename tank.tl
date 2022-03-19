@@ -1,5 +1,6 @@
 require 'konstants'
 require 'common'
+
 local wrp = require "wrp"
 --local Bullet = require "bullet"
 
@@ -71,6 +72,7 @@ end
 
 local px, py = 0, 0
 local amount = 200
+local max_vel_len = 10
 
 function Tank:fire()
 end
@@ -91,7 +93,7 @@ function Tank:forward()
     --wrp.apply_impulse(body, 0, -amount, px, py);
     local vx, vy = wrp.get_body_vel(self.base)
     local len = vec_len(vx, vy)
-    if len < 10 then
+    if len < max_vel_len then
         wrp.apply_force(self.base, 0, -amount, px, py);
     end
     --self.base:forward()
