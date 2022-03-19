@@ -2378,9 +2378,6 @@ local function applyInput(j)
 
    local body = playerTank.base
 
-   local px, py = 0, 0
-   local amount = 2
-
 
 
 
@@ -2388,15 +2385,13 @@ local function applyInput(j)
 
 
    if j:isDown(right) then
-      wrp.apply_impulse(body, amount, 0, 256, 256);
-
+      playerTank:right()
    elseif j:isDown(left) then
-
-
+      playerTank:left()
    elseif j:isDown(up) then
-      wrp.apply_impulse(body, 0, -amount, px, py);
+      playerTank:forward()
    elseif j:isDown(down) then
-      wrp.apply_impulse(body, 0, amount, px, py);
+      playerTank:backward()
    end
 
 end

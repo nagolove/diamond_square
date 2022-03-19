@@ -1,4 +1,5 @@
 require('konstants')
+require('common')
 local wrp = require("wrp")
 
 
@@ -68,22 +69,37 @@ local Tank = {}
 
 
 
+local px, py = 0, 0
+local amount = 200
+
 function Tank:fire()
 end
 
 function Tank:left()
 
+
+
 end
 
 function Tank:right()
 
+
+   wrp.apply_impulse(self.base, amount, 0, 256, 256);
 end
 
 function Tank:forward()
 
+   local vx, vy = wrp.get_body_vel(self.base)
+   local len = vec_len(vx, vy)
+   if len < 10 then
+      wrp.apply_force(self.base, 0, -amount, px, py);
+   end
+
 end
 
 function Tank:backward()
+
+   wrp.apply_force(self.base, 0, amount, px, py);
 
 end
 
