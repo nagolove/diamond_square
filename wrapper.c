@@ -19,6 +19,17 @@ cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
 cpShapeFilter GRAB_FILTER = {CP_NO_GROUP, GRABBABLE_MASK_BIT, GRABBABLE_MASK_BIT};
 cpShapeFilter NOT_GRABBABLE_FILTER = {CP_NO_GROUP, ~GRABBABLE_MASK_BIT, ~GRABBABLE_MASK_BIT};
 
+void print_body_stat(cpBody *b) {
+    printf("mass, inertia %f, %f \n", b->m, b->i);
+    printf("cog (%f, %f)\n", b->cog.x, b->cog.y);
+    printf("pos (%f, %f)\n", b->p.x, b->p.y);
+    printf("vel (%f, %f)\n", b->v.x, b->v.y);
+    printf("force (%f, %f)\n", b->f.x, b->f.y);
+    printf("a %f\n", b->a);
+    printf("w %f\n", b->w);
+    printf("t %f\n", b->t);
+}
+
 static void stackDump (lua_State *L) {
     int i;
     int top = lua_gettop(L);
@@ -63,16 +74,23 @@ static int each_body(lua_State *lua) {
 static cpSpace *cur_space = NULL;
 
 static int init_space(lua_State *lua) {
-    /*int type = lua_type(lua, 1);*/
-    /*printf("type %d\n", type);*/
-    /*cur_space = (cpSpace*)lua_topointer(lua, 1);*/
+    luaL_checktype(lua, 1, LUA_TNUMBER);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expects 1 argument.\n");
+        lua_error(lua);
+    }
+
     cur_space = cpSpaceNew();
+    double damping = lua_tonumber(lua, 1);
     lua_pushlightuserdata(lua, cur_space);
 
 	/*cpSpaceSetIterations(space, 30);*/
 	/*cpSpaceSetGravity(space, cpv(0, -500));*/
 	/*cpSpaceSetSleepTimeThreshold(space, 0.5f);*/
 	/*cpSpaceSetCollisionSlop(space, 0.5f);*/
+    cpSpaceSetDamping(cur_space, damping);
 
     return 1;
 }
@@ -105,6 +123,7 @@ static int free_space(lua_State *lua) {
     cpSpaceFree(space);
 }
 
+/*#define DENSITY (1.0/10000.0)*/
 #define DENSITY (1.0/10000.0)
 
 // добавить трения для тел так, что-бы они останавливались после приложения
@@ -113,15 +132,17 @@ static int new_body(lua_State *lua) {
     // in: ширина, высота, таблица с инфой
 
     int top = lua_gettop(lua);
-    if (top != 4) {
+    if (top != 6) {
         lua_pushstring(lua, "Function should receive only 3 arguments.\n");
         lua_error(lua);
     }
 
-    luaL_checktype(lua, 1, LUA_TSTRING);
-    luaL_checktype(lua, 2, LUA_TNUMBER);
-    luaL_checktype(lua, 3, LUA_TNUMBER);
-    luaL_checktype(lua, 4, LUA_TTABLE);
+    luaL_checktype(lua, 1, LUA_TSTRING); // type
+    luaL_checktype(lua, 2, LUA_TNUMBER); // x pos
+    luaL_checktype(lua, 3, LUA_TNUMBER); // y pos
+    luaL_checktype(lua, 4, LUA_TNUMBER); // w in pixels
+    luaL_checktype(lua, 5, LUA_TNUMBER); // h in pixels
+    luaL_checktype(lua, 6, LUA_TTABLE);  // associated table
 
     const char *object_type = lua_tostring(lua, 1);
     if (strcmp(object_type, "tank") == 0) {
@@ -136,15 +157,16 @@ static int new_body(lua_State *lua) {
         lua_error(lua);
     }
 
-    int w = (int)lua_tonumber(lua, 2);
-    int h = (int)lua_tonumber(lua, 3);
+    cpVect pos = {
+        .x = (int)lua_tonumber(lua, 2),
+        .y = (int)lua_tonumber(lua, 3),
+    };
+
+    int w = (int)lua_tonumber(lua, 4);
+    int h = (int)lua_tonumber(lua, 5);
 
     cpFloat mass = w * h * DENSITY;
-
-    printf("mass %.3f\n", mass);
-
     cpFloat moment = cpMomentForBox(mass, w, h);
-    /*printf("mass %f moment %f\n", mass, moment);*/
     cpBody *b = cpBodyNew(mass, moment);
 
     if (!cur_space) {
@@ -155,16 +177,18 @@ static int new_body(lua_State *lua) {
     cpSpaceAddBody(cur_space, b);
     cpShape *shape = cpBoxShapeNew(b, w, h, 0.f);
 
-    cpShapeSetFriction(shape, 10000.);
-    printf("shape friction: %f\n", cpShapeGetFriction(shape));
+    /*cpShapeSetFriction(shape, 10000.);*/
+    /*printf("shape friction: %f\n", cpShapeGetFriction(shape));*/
     /*cpShapeSetFriction(shape, 1);*/
+
     cpSpaceAddShape(cur_space, shape);
+    cpBodySetPosition(b, pos);
 
     // ссылка на табличку, связанную с телом
     int reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
     b->userData = (void*)(uint64_t)reg_index;
 
-    cpBodySetMass(b, mass);
+    print_body_stat(b);
 
     lua_pushlightuserdata(lua, b);
 
@@ -177,6 +201,9 @@ static int new_body(lua_State *lua) {
 // Как хранить данные о прошлом положении?
 void on_each_tank(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
+
+    /*printf("------------------\n");*/
+    /*print_body_stat(body);*/
 
     // TODO Убрать лишние операции со стеком, получать таблицу связанную с 
     // телом один раз.
@@ -342,7 +369,7 @@ static int set_position(lua_State *lua) {
 
     int top = lua_gettop(lua);
     if (top != 3) {
-        lua_pushstring(lua, "Function expect 3 arguments.\n");
+        lua_pushstring(lua, "Function expects 3 arguments.\n");
         lua_error(lua);
     }
 
@@ -352,6 +379,8 @@ static int set_position(lua_State *lua) {
     cpVect pos = { .x = x, .y = y};
     /*printf("pos %f, %f\n", pos.x, pos.y);*/
     cpBodySetPosition(b, pos);
+
+    print_body_stat(b);
     
     return 0;
 }
@@ -590,7 +619,7 @@ int get_body_stat(lua_State *lua) {
 
     int top = lua_gettop(lua);
     if (top != 1) {
-        lua_pushstring(lua, "Function expect 1 argument.\n");
+        lua_pushstring(lua, "Function expects 1 argument.\n");
         lua_error(lua);
     }
 
@@ -624,25 +653,24 @@ int get_body_stat(lua_State *lua) {
     // крутящий момент
     lua_pushnumber(lua, b->t);
 
-/*
- *    cpVect p = cpBodyGetPosition(b);
- *    cpVect cod = cpBodyGetCenterOfGravity(b);
- *    cpVect v = cpBodyGetVelocity(b);
- *    printf("mass %f moment %f px %f py %f\n", 
- *            cpBodyGetMass(b), 
- *            cpBodyGetMoment(b),
- *            cpBodyGetVelLimit
- *            cpBodyGetRotation(b),
- *            p.x, p.y);
- *
- *    printf(
- *        "m %f, i %f, cog %f, cog %f, pos %f, pos %f, vel %f, vel %f, "
- *        "for %f, for %f, ang %f, w %f, tor %f\n",
- *        b->m, b->i, b->cog.x, b->cog.y, b->p.x, b->p.y, b->v.x, b->v.y, 
- *        b->f.x, b->f.y, b->a, b->w, b->t
- *    );
- *
- */
+    cpVect p = cpBodyGetPosition(b);
+    /*cpVect cog = cpBodyGetCenterOfGravity(b);*/
+    /*cpVect v = cpBodyGetVelocity(b);*/
+
+    printf("get_body_stat()\n");
+    print_body_stat(b);
+    /*printf("mass %f moment %f px %f py %f\n", */
+            /*cpBodyGetMass(b), */
+            /*cpBodyGetMoment(b),*/
+            /*p.x, p.y);*/
+
+    /*printf(*/
+        /*"m %f, i %f, cog %f, cog %f, pos %f, pos %f, vel %f, vel %f, "*/
+        /*"for %f, for %f, ang %f, w %f, tor %f\n",*/
+        /*b->m, b->i, b->cog.x, b->cog.y, b->p.x, b->p.y, b->v.x, b->v.y, */
+        /*b->f.x, b->f.y, b->a, b->w, b->t*/
+    /*);*/
+
 
     return 13;
 }
