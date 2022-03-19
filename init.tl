@@ -391,10 +391,12 @@ local camera: Camera
 -- Границы в которых создаются танки
 -- Сделать сохраняемыми и загружаемыми из файла.
 local bordersArea: Borders = {}
-local borders: {Borders} = {}
+--local borders: {Borders} = {}
+
+local segments: {wrp.Shape} = {}
 
 local Joystick = love.joystick.Joystick
-local joystick = love.joystick
+local lj = love.joystick
 local joyState: JoyState
 local joy: Joystick
 
@@ -586,7 +588,7 @@ function Camera:checkMovement(j: Joystick)
 end
 
 -- как лучше учитывать положение джойстика что-бы не было рывков?
-function Camera:checkScale(j: joystick.Joystick)
+function Camera:checkScale(j: Joystick)
     local axes = {j:getAxes()}
     local dy = axes[2]
     local factor = 1 * self.dt
@@ -616,7 +618,7 @@ end
 -- * Обеспечить плавность движения камеры.
 -- * Камера должна сохранять какие-то абсолютные координаты?
 function Camera:checkIsPlayerInCircle()
-    local rad = 300
+    --local rad = 300
 end
 
 -- камера перемещается на танк игрока
@@ -650,10 +652,10 @@ function Camera:moveToOrigin()
 end
 
 local function initJoy()
-    for _, j in ipairs(joystick.getJoysticks()) do
+    for _, j in ipairs(lj.getJoysticks()) do
         debug_print("joy", colorize('%{green}' .. inspect(j)))
     end
-    joy = joystick.getJoysticks()[1]
+    joy = lj.getJoysticks()[1]
     if joy then
         debug_print("joy", colorize('%{green}avaible ' .. joy:getButtonCount() .. ' buttons'))
         debug_print("joy", colorize('%{green}hats num: ' .. joy:getHatCount()))
@@ -692,7 +694,7 @@ function Hit.new(x: number, y: number): Hit
     self.ps = nil
     error('self.ps = nil')
 
-    x, y = x * M2PIX, y * M2PIX
+    --x, y = x * M2PIX, y * M2PIX
 
     self.x = x
     self.y = y
@@ -749,7 +751,7 @@ function Base:drawDirectionVector()
         local x, y = 0, 0
         local scale = 100
         local color = {0., 0.05, 0.99, 1}
-        x, y = x * M2PIX, y * M2PIX
+        --x, y = x * M2PIX, y * M2PIX
         arrow.draw(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
     end
 end
@@ -796,8 +798,8 @@ end
 -- Как сделать медленный поворот башни?
 -- скорость поворота башни танка т-80 - 40 градусов в секунду.
 function Turret:rotateToMouse()
-    local mx, my = love.mouse.getPosition()
-    mx, my = mx * PIX2M, my * PIX2M
+    --local mx, my = love.mouse.getPosition()
+    --mx, my = mx * PIX2M, my * PIX2M
 end
 
 function Turret:update()
@@ -1223,18 +1225,6 @@ local function bindEscape()
 end
 --]]
 
-function printBody(body: love.physics.Body)
-    -- {{{
-    print(">>>>>>>>")
-    print("mass:", body:getMass())
-    local x, y = body:getWorldCenter()
-    x, y = x * M2PIX, y * M2PIX
-    print("getWorldCenter() x, y in pixels", x, y)
-    print("getAngle()", body:getAngle())
-    print(">>>>>>>>")
-    -- }}}
-end
-
 local function on_each_body(x: number, y: number, angle: number, obj: any)
     local tank = obj as Tank
     if tank then
@@ -1540,7 +1530,7 @@ end
 local function spawnTank(px: number, py: number): Tank
     local tank = Tank.new(vec2(px, py), tank_width, tank_height)
     table.insert(tanks, tank)
-    local px, py, angle = wrp.get_position(tank.base)
+    local tank_x, tank_y, angle = wrp.get_position(tank.base)
 
     print(colorize(
         "%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)
@@ -1548,12 +1538,12 @@ local function spawnTank(px: number, py: number): Tank
 
     -- Эти значения используются в C модуле для определения на сколько
     -- сдвинулся объект с момента предыдущей обработки.
-    tank._prev_x, tank._prev_y = px, py
+    tank._prev_x, tank._prev_y = tank_x, tank_y
     pipeline:openPushAndClose(
         'base_shape',
         'new', 
         tank.id, 
-        px, py, angle, 
+        tank_x, tank_y, angle, 
         "flush"
     )
     return tank
@@ -1580,7 +1570,8 @@ local function spawnTanks()
     --pipeline:open('base_shape')
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-        local tank = spawnTank(px, py)
+        --local tank = spawnTank(px, py)
+        spawnTank(px, py)
     end
 
     spawnTank(-100, 100)
@@ -1649,8 +1640,6 @@ local function render_reset_state()
     pipeline:openPushAndClose('base_shape', 'clear')
 end
 
-local segments: {wrp.Shape} = {}
-
 -- Создать сегменты ограничивающие карту
 local function initBorders()
     local lf = love.filesystem
@@ -1668,7 +1657,7 @@ local function initBorders()
         borders_data = lf.load(path)() as {Borders}
     end) as (boolean, string)
     if not ok then
-        print('Could not load borders data')
+        error('Could not load borders data: ' .. msg)
     else
         print(colorize("%{blue}borders loaded"))
     end
@@ -2213,13 +2202,14 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
     wrp.get_shape_under_point(x + absx, y + absy, 
         function(
             shape: Wrapper.Shape,
-            x: number,
-            y: number,
-            distance: number,
+            shape_x: number,
+            shape_y: number,
+            dist: number,
             gradx: number,
             grady: number
         )
 
+        local msg = ""
         counter = counter + 1
         pipeline:open('object_lines_buf')
         --pipeline:push('pos', absx, absy)
@@ -2227,8 +2217,11 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
         --pipeline:push("add", 1, tostring(shape))
         --pipeline:push('add', 1, 'on get_shape_under_point()')
         pipeline:push('add', 2, 'shape ' .. tostring(shape))
-        pipeline:push('add', 3, sformat('point (%.3f, %.3f)', x, y))
-        pipeline:push('add', 4, 'distance ' .. distance)
+
+        msg = sformat('point (%.3f, %.3f)', shape_x, shape_y)
+        pipeline:push('add', 3, msg)
+
+        pipeline:push('add', 4, 'distance ' .. dist)
         pipeline:push('add', 5, sformat('gradient (%.3f, %.3f)', gradx, grady))
 
         pipeline:push('add', 6, "----------")
@@ -2237,7 +2230,6 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
         local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
             force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
 
-        local msg = ""
         msg = sformat('mass, inertia: %.3f, %.3f', mass, inertia)
         pipeline:push('add', 7, msg)
 
@@ -2294,7 +2286,7 @@ local function updateJoyState()
     end
 end
 
-local function joystickpressed(j: Joystick, button: integer)
+local function joystickpressed(_: Joystick, button: integer)
     local left_shift = 5
     local right_shift = 6
 
@@ -2375,8 +2367,6 @@ local function applyInput(j: Joystick)
     end
 
     local left, right, up, down = 3, 2, 4, 1
-
-    local body = playerTank.base
 
     --[[
     Как узнать направление движения и направление приложения силы?
