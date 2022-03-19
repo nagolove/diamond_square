@@ -1,5 +1,7 @@
 require('konstants')
 require('common')
+require('vector')
+
 local wrp = require("wrp")
 
 
@@ -71,6 +73,7 @@ local Tank = {}
 
 local px, py = 0, 0
 local amount = 200
+local max_vel_len = 10
 
 function Tank:fire()
 end
@@ -91,7 +94,7 @@ function Tank:forward()
 
    local vx, vy = wrp.get_body_vel(self.base)
    local len = vec_len(vx, vy)
-   if len < 10 then
+   if len < max_vel_len then
       wrp.apply_force(self.base, 0, -amount, px, py);
    end
 
@@ -126,8 +129,8 @@ function Tank.new(pos, w, h)
    self.color = { 1, 1, 1, 1 }
 
    self.type = "tank"
-   self.base = wrp.new_body(self.type, w, h, self)
-   wrp.set_position(self.base, pos.x, pos.y)
+   self.base = wrp.new_body(self.type, pos.x, pos.y, w, h, self)
+
 
    return self
 end

@@ -324,12 +324,10 @@ local Hit = {}
 
 
 
-
-
-
 local screenW, screenH
 
 local space
+local space_damping = 0.5
 
 
 
@@ -391,10 +389,12 @@ local camera
 
 
 local bordersArea = {}
-local borders = {}
+
+
+local segments = {}
 
 local Joystick = love.joystick.Joystick
-local joystick = love.joystick
+local lj = love.joystick
 local joyState
 local joy
 
@@ -616,7 +616,7 @@ end
 
 
 function Camera:checkIsPlayerInCircle()
-   local rad = 300
+
 end
 
 
@@ -650,10 +650,10 @@ function Camera:moveToOrigin()
 end
 
 local function initJoy()
-   for _, j in ipairs(joystick.getJoysticks()) do
+   for _, j in ipairs(lj.getJoysticks()) do
       debug_print("joy", colorize('%{green}' .. inspect(j)))
    end
-   joy = joystick.getJoysticks()[1]
+   joy = lj.getJoysticks()[1]
    if joy then
       debug_print("joy", colorize('%{green}avaible ' .. joy:getButtonCount() .. ' buttons'))
       debug_print("joy", colorize('%{green}hats num: ' .. joy:getHatCount()))
@@ -692,7 +692,7 @@ function Hit.new(x, y)
    self.ps = nil
    error('self.ps = nil')
 
-   x, y = x * M2PIX, y * M2PIX
+
 
    self.x = x
    self.y = y
@@ -749,7 +749,7 @@ function Base:drawDirectionVector()
       local x, y = 0, 0
       local scale = 100
       local color = { 0., 0.05, 0.99, 1 }
-      x, y = x * M2PIX, y * M2PIX
+
       arrow.draw(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
    end
 end
@@ -796,8 +796,8 @@ end
 
 
 function Turret:rotateToMouse()
-   local mx, my = love.mouse.getPosition()
-   mx, my = mx * PIX2M, my * PIX2M
+
+
 end
 
 function Turret:update()
@@ -1223,18 +1223,6 @@ end
 
 
 
-function printBody(body)
-
-   print(">>>>>>>>")
-   print("mass:", body:getMass())
-   local x, y = body:getWorldCenter()
-   x, y = x * M2PIX, y * M2PIX
-   print("getWorldCenter() x, y in pixels", x, y)
-   print("getAngle()", body:getAngle())
-   print(">>>>>>>>")
-
-end
-
 local function on_each_body(x, y, angle, obj)
    local tank = obj
    if tank then
@@ -1540,7 +1528,7 @@ end
 local function spawnTank(px, py)
    local tank = Tank.new(vec2(px, py), tank_width, tank_height)
    table.insert(tanks, tank)
-   local px, py, angle = wrp.get_position(tank.base)
+   local tank_x, tank_y, angle = wrp.get_position(tank.base)
 
    print(colorize(
    "%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)))
@@ -1548,12 +1536,12 @@ local function spawnTank(px, py)
 
 
 
-   tank._prev_x, tank._prev_y = px, py
+   tank._prev_x, tank._prev_y = tank_x, tank_y
    pipeline:openPushAndClose(
    'base_shape',
    'new',
    tank.id,
-   px, py, angle,
+   tank_x, tank_y, angle,
    "flush")
 
    return tank
@@ -1580,7 +1568,8 @@ local function spawnTanks()
 
    for _ = 1, tanks_num do
       local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-      local tank = spawnTank(px, py)
+
+      spawnTank(px, py)
    end
 
    spawnTank(-100, 100)
@@ -1638,7 +1627,7 @@ end
 
 local function physics_reset()
    wrp.free_space(space)
-   space = wrp.init_space()
+   space = wrp.init_space(space_damping)
    print(colorize("%{blue}physics reseted"))
 end
 
@@ -1648,8 +1637,6 @@ end
 local function render_reset_state()
    pipeline:openPushAndClose('base_shape', 'clear')
 end
-
-local segments = {}
 
 
 local function initBorders()
@@ -1668,7 +1655,7 @@ local function initBorders()
       borders_data = lf.load(path)()
    end)
    if not ok then
-      print('Could not load borders data')
+      error('Could not load borders data: ' .. msg)
    else
       print(colorize("%{blue}borders loaded"))
    end
@@ -2152,7 +2139,7 @@ local function init()
 
 
 
-   space = wrp.init_space()
+   space = wrp.init_space(space_damping)
    print('space', space)
 
    initJoy()
@@ -2213,13 +2200,14 @@ local function mousemoved(x, y, dx, dy)
    wrp.get_shape_under_point(x + absx, y + absy,
    function(
       shape,
-      x,
-      y,
-      distance,
+      shape_x,
+      shape_y,
+      dist,
       gradx,
       grady)
 
 
+      local msg = ""
       counter = counter + 1
       pipeline:open('object_lines_buf')
 
@@ -2227,8 +2215,11 @@ local function mousemoved(x, y, dx, dy)
 
 
       pipeline:push('add', 2, 'shape ' .. tostring(shape))
-      pipeline:push('add', 3, sformat('point (%.3f, %.3f)', x, y))
-      pipeline:push('add', 4, 'distance ' .. distance)
+
+      msg = sformat('point (%.3f, %.3f)', shape_x, shape_y)
+      pipeline:push('add', 3, msg)
+
+      pipeline:push('add', 4, 'distance ' .. dist)
       pipeline:push('add', 5, sformat('gradient (%.3f, %.3f)', gradx, grady))
 
       pipeline:push('add', 6, "----------")
@@ -2237,7 +2228,6 @@ local function mousemoved(x, y, dx, dy)
       local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y,
       force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
 
-      local msg = ""
       msg = sformat('mass, inertia: %.3f, %.3f', mass, inertia)
       pipeline:push('add', 7, msg)
 
@@ -2294,7 +2284,7 @@ local function updateJoyState()
    end
 end
 
-local function joystickpressed(j, button)
+local function joystickpressed(_, button)
    local left_shift = 5
    local right_shift = 6
 
@@ -2375,8 +2365,6 @@ local function applyInput(j)
    end
 
    local left, right, up, down = 3, 2, 4, 1
-
-   local body = playerTank.base
 
 
 
