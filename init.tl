@@ -62,7 +62,11 @@ local serpent = require 'serpent'
 local metrics = require "metrics"
 local vec2 = require "vector"
 --local vecl = require "vector-light"
-local tabular = require "tabular".show2
+
+-- Вывод в строку
+local tabular = require "tabular".show
+-- Вывод в таблицу
+local tabular_t = require "tabular".show2
 
 local Pipeline = require 'pipeline'
 local pipeline = Pipeline.new(SCENE_PREFIX)
@@ -327,7 +331,7 @@ end
 local screenW, screenH: number, number
 
 local space: Wrapper.Space
-local space_damping = 0.5
+local space_damping = 0.02
 
 -- {{{ Konsole editing
 --local historyfname = "cmdhistory.txt"
@@ -403,13 +407,14 @@ local record Hotkey
     doc: string
 end
 
+-- Справка по клавишам на клавиатуре.
 local hotkeys: {Hotkey} = {}
+-- Справка по клавишам на геймпаде.
+local gamepad_hotkeys: {Hotkey} = {}
 
-local function add_hotkey_doc(combo: string, doc: string)
-    table.insert(hotkeys, { combo = combo, doc = doc })
-    local id = #hotkeys
-    --print('id', tostring(id))
-    --print('str', combo .. " " .. doc)
+local function add_gamepad_doc(combo: string, doc: string)
+    table.insert(gamepad_hotkeys, { combo = combo, doc = doc })
+    local id = #gamepad_hotkeys
     pipeline:push(
         'add',
         tostring(id),
@@ -417,8 +422,26 @@ local function add_hotkey_doc(combo: string, doc: string)
     )
 end
 
+--local function add_hotkey_doc(combo: string, doc: string)
+    --table.insert(hotkeys, { combo = combo, doc = doc })
+    --local id = #hotkeys
+    --pipeline:push(
+        --'add',
+        --tostring(id),
+        --combo .. " " .. doc
+    --)
+--end
+
+local function add_hotkey_doc(combo: string, doc: string)
+    table.insert(hotkeys, { combo = combo, doc = doc })
+end
+
 local function draw_hotkeys_docs()
     pipeline:openPushAndClose('hotkeys_render', 'flush')
+end
+
+local function draw_gamepad_docs()
+    pipeline:openPushAndClose('gamepad_render', 'flush')
 end
 
 -- TODO добавить инерцию к камере
@@ -1280,6 +1303,7 @@ local function renderLinesBuf(player_x: number, player_y: number)
 end
 
 local is_draw_hotkeys_docs = false
+local is_draw_gamepad_docs = false
 
 local function renderInternal()
     pipeline:openAndClose('clear')
@@ -1316,6 +1340,9 @@ local function renderInternal()
 
     if is_draw_hotkeys_docs then
         draw_hotkeys_docs()
+    end
+    if is_draw_gamepad_docs then
+        draw_gamepad_docs()
     end
 end
 
@@ -1732,6 +1759,9 @@ local function keypressed(key: string)
 
     if key == 'f1' then
         is_draw_hotkeys_docs = not is_draw_hotkeys_docs
+        if is_draw_hotkeys_docs then
+            is_draw_gamepad_docs = false
+        end
     end
 
     if physics_pause then
@@ -1916,8 +1946,10 @@ local function initRenderCode()
     pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
     -- Буфер для вывода отладочной информации при наведении на физическое тело.
     pipeline:pushCodeFromFile('object_lines_buf', 'lines_buf.lua')
-    -- Буфер для вывода справки по клавишам
-    pipeline:pushCodeFromFile('hotkeys_render', 'lines_buf.lua')
+    -- Буфер для вывода справки по клавишам клавиатуры
+    pipeline:pushCodeFromFile('hotkeys_render', 'lines_buf_ordered.lua')
+    -- Буфер для вывода справки по клавишам геймпада
+    pipeline:pushCodeFromFile('gamepad_render', 'lines_buf_ordered.lua')
 
     -- Рисование прозрачного прямоугольника над определенным телом.
     pipeline:pushCode('selected_object', [[
@@ -2014,9 +2046,11 @@ local function initPipelineObjects()
     pipeline:close()
 
     --pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 40)
-    pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 24)
-    pipeline:openPushAndClose('object_lines_buf', "DejaVuSansMono.ttf", 24)
-    pipeline:openPushAndClose('hotkeys_render', "DejaVuSansMono.ttf", 24)
+    local dejavu_mono = "DejaVuSansMono.ttf"
+    pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
+    pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
+    pipeline:openPushAndClose('hotkeys_render', dejavu_mono, 34)
+    pipeline:openPushAndClose('gamepad_render', dejavu_mono, 34)
 
     pipeline:sync()
 
@@ -2108,8 +2142,29 @@ local function eachShape_base(b: cm.cpBody, shape: cm.cpShape)
 end
 --]]
 
+local function add_gamepad_docs()
+    pipeline:open('gamepad_render')
+
+    add_hotkey_doc("start", "show this help")
+    add_hotkey_doc("left shift", "reset camera")
+    add_hotkey_doc('right shift', 'move camera to player')
+
+    add_hotkey_doc('X', 'rotate left')
+    add_hotkey_doc('B', 'rotate right')
+    add_hotkey_doc('Y', 'move forward')
+    add_hotkey_doc('A', 'move backward')
+
+    --print(tabular(hotkeys))
+    --print('os.exit(1)')
+    --os.exit(1)
+
+    pipeline:push('border', true)
+    pipeline:push('align_center')
+    pipeline:push('enough')
+    pipeline:close()
+end
+
 local function add_hotkeys_docs()
-    pipeline:open('hotkeys_render')
 
     add_hotkey_doc("escape", "exit")
     -- Как учитывать "p" - режим?
@@ -2124,12 +2179,41 @@ local function add_hotkeys_docs()
     add_hotkey_doc('1', 'Reload static physics segments.')
 
     print(tabular(hotkeys))
+    pipeline:open('hotkeys_render')
+
+    local tab = tabular_t(hotkeys)
+    for k, v in ipairs(tab) do
+        pipeline:push('add', v)
+    end
 
     pipeline:push('border', true)
     pipeline:push('align_center')
     pipeline:push('enough')
     pipeline:close()
 end
+
+--local function add_hotkeys_docs()
+    --pipeline:open('hotkeys_render')
+
+    --add_hotkey_doc("escape", "exit")
+    ---- Как учитывать "p" - режим?
+    --add_hotkey_doc("r", "Rebuild map")
+    --add_hotkey_doc('z', 'Decrease map size')
+    --add_hotkey_doc('x', 'Increase map size')
+    --add_hotkey_doc('shift+left', 'Previous tank as player')
+    --add_hotkey_doc('shift+right', 'Next tank as player')
+    --add_hotkey_doc('p', 'Pause for physics engine. "P" - mode')
+    --add_hotkey_doc('f1', 'Show or hide this text')
+    --add_hotkey_doc('q', "Fully reload map with objects.")
+    --add_hotkey_doc('1', 'Reload static physics segments.')
+
+    --print(tabular(hotkeys))
+
+    --pipeline:push('border', true)
+    --pipeline:push('align_center')
+    --pipeline:push('enough')
+    --pipeline:close()
+--end
 
 local function init()
     -- {{{
@@ -2151,6 +2235,7 @@ local function init()
     camera = Camera.new()
 
     add_hotkeys_docs()
+    --add_gamepad_docs()
 
     --loadLocales()
 
@@ -2287,6 +2372,7 @@ end
 local function joystickpressed(_: Joystick, button: integer)
     local left_shift = 5
     local right_shift = 6
+    local start = 8
 
     if button == left_shift then
         print("moveToOrigin()")
@@ -2295,6 +2381,11 @@ local function joystickpressed(_: Joystick, button: integer)
     if button == right_shift then
         print("moveToPlayer()")
         camera:moveToPlayer()
+    end
+    if button == start then
+        -- Вывести справку по управлению
+        is_draw_gamepad_docs = not is_draw_gamepad_docs
+        is_draw_hotkeys_docs = false
     end
 end
 
@@ -2321,7 +2412,9 @@ local function process_events()
                 local msg = '%{green}keypressed '
                 debug_print('input', colorize(msg .. key .. ' ' .. scancode))
 
-                dprint.keypressed(scancode)
+                if love.keyboard.isDown('lshift') then
+                    dprint.keypressed(scancode)
+                end
 
                 -- Использовать scancode или key?
                 keypressed(scancode)
