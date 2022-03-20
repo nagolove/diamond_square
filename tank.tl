@@ -72,37 +72,47 @@ local record Tank
 end
 
 local px, py = 0, 0
-local amount = 200
-local max_vel_len = 10
+local impulse_amount = 100
+local force_amount = 200
+local vel_limit = 160
+local ang_vel_limit = 2
 
 function Tank:fire()
 end
 
 function Tank:left()
     --self.base:left()
-    --wrp.apply_impulse(body, -amount, 0, px, py);
+    --print("w", wrp.get_body_ang_vel(self.base))
+    if ang_vel_limit > wrp.get_body_ang_vel(self.base) then
+        wrp.apply_impulse(self.base, -0.2, 0, 128, 128)
+    end
     --wrp.set_torque(body, -10)
 end
 
 function Tank:right()
-    --self.base:right()
-    --wrp.set_torque(body, 10)
-    wrp.apply_impulse(self.base, amount, 0, 256, 256);
+    if ang_vel_limit > wrp.get_body_ang_vel(self.base) then
+        wrp.apply_impulse(self.base, 0.2, 0, 128, 128)
+        --wrp.set_body_ang_vel(self.base, 0.5);
+    end
 end
 
 function Tank:forward()
-    --wrp.apply_impulse(body, 0, -amount, px, py);
     local vx, vy = wrp.get_body_vel(self.base)
     local len = vec_len(vx, vy)
-    if len < max_vel_len then
-        wrp.apply_force(self.base, 0, -amount, px, py);
+    if len < vel_limit then
+        --wrp.apply_force(self.base, 0, -amount, px, py);
+        wrp.apply_impulse(self.base, 0, -impulse_amount, px, py);
     end
     --self.base:forward()
 end
 
 function Tank:backward()
     --wrp.apply_impulse(body, 0, amount, px, py);
-    wrp.apply_force(self.base, 0, amount, px, py);
+    local vx, vy = wrp.get_body_vel(self.base)
+    local len = vec_len(vx, vy)
+    if len < vel_limit then
+        wrp.apply_impulse(self.base, 0, impulse_amount, px, py);
+    end
     --self.base:backward()
 end
 
