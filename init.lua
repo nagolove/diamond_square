@@ -62,7 +62,11 @@ local serpent = require('serpent')
 local metrics = require("metrics")
 local vec2 = require("vector")
 
-local tabular = require("tabular").show2
+
+
+local tabular = require("tabular").show
+
+local tabular_t = require("tabular").show2
 
 local Pipeline = require('pipeline')
 local pipeline = Pipeline.new(SCENE_PREFIX)
@@ -327,7 +331,7 @@ local Hit = {}
 local screenW, screenH
 
 local space
-local space_damping = 0.5
+local space_damping = 0.02
 
 
 
@@ -403,13 +407,14 @@ local Hotkey = {}
 
 
 
+
 local hotkeys = {}
 
-local function add_hotkey_doc(combo, doc)
-   table.insert(hotkeys, { combo = combo, doc = doc })
-   local id = #hotkeys
+local gamepad_hotkeys = {}
 
-
+local function add_gamepad_doc(combo, doc)
+   table.insert(gamepad_hotkeys, { combo = combo, doc = doc })
+   local id = #gamepad_hotkeys
    pipeline:push(
    'add',
    tostring(id),
@@ -417,8 +422,26 @@ local function add_hotkey_doc(combo, doc)
 
 end
 
+
+
+
+
+
+
+
+
+
+
+local function add_hotkey_doc(combo, doc)
+   table.insert(hotkeys, { combo = combo, doc = doc })
+end
+
 local function draw_hotkeys_docs()
    pipeline:openPushAndClose('hotkeys_render', 'flush')
+end
+
+local function draw_gamepad_docs()
+   pipeline:openPushAndClose('gamepad_render', 'flush')
 end
 
 
@@ -1280,6 +1303,7 @@ local function renderLinesBuf(player_x, player_y)
 end
 
 local is_draw_hotkeys_docs = false
+local is_draw_gamepad_docs = false
 
 local function renderInternal()
    pipeline:openAndClose('clear')
@@ -1316,6 +1340,9 @@ local function renderInternal()
 
    if is_draw_hotkeys_docs then
       draw_hotkeys_docs()
+   end
+   if is_draw_gamepad_docs then
+      draw_gamepad_docs()
    end
 end
 
@@ -1732,6 +1759,9 @@ local function keypressed(key)
 
    if key == 'f1' then
       is_draw_hotkeys_docs = not is_draw_hotkeys_docs
+      if is_draw_hotkeys_docs then
+         is_draw_gamepad_docs = false
+      end
    end
 
    if physics_pause then
@@ -1917,7 +1947,9 @@ local function initRenderCode()
 
    pipeline:pushCodeFromFile('object_lines_buf', 'lines_buf.lua')
 
-   pipeline:pushCodeFromFile('hotkeys_render', 'lines_buf.lua')
+   pipeline:pushCodeFromFile('hotkeys_render', 'lines_buf_ordered.lua')
+
+   pipeline:pushCodeFromFile('gamepad_render', 'lines_buf_ordered.lua')
 
 
    pipeline:pushCode('selected_object', [[
@@ -2014,9 +2046,11 @@ local function initPipelineObjects()
    pipeline:close()
 
 
-   pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 24)
-   pipeline:openPushAndClose('object_lines_buf', "DejaVuSansMono.ttf", 24)
-   pipeline:openPushAndClose('hotkeys_render', "DejaVuSansMono.ttf", 24)
+   local dejavu_mono = "DejaVuSansMono.ttf"
+   pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
+   pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
+   pipeline:openPushAndClose('hotkeys_render', dejavu_mono, 34)
+   pipeline:openPushAndClose('gamepad_render', dejavu_mono, 34)
 
    pipeline:sync()
 
@@ -2108,8 +2142,29 @@ end
 
 
 
+local function add_gamepad_docs()
+   pipeline:open('gamepad_render')
+
+   add_hotkey_doc("start", "show this help")
+   add_hotkey_doc("left shift", "reset camera")
+   add_hotkey_doc('right shift', 'move camera to player')
+
+   add_hotkey_doc('X', 'rotate left')
+   add_hotkey_doc('B', 'rotate right')
+   add_hotkey_doc('Y', 'move forward')
+   add_hotkey_doc('A', 'move backward')
+
+
+
+
+
+   pipeline:push('border', true)
+   pipeline:push('align_center')
+   pipeline:push('enough')
+   pipeline:close()
+end
+
 local function add_hotkeys_docs()
-   pipeline:open('hotkeys_render')
 
    add_hotkey_doc("escape", "exit")
 
@@ -2124,12 +2179,41 @@ local function add_hotkeys_docs()
    add_hotkey_doc('1', 'Reload static physics segments.')
 
    print(tabular(hotkeys))
+   pipeline:open('hotkeys_render')
+
+   local tab = tabular_t(hotkeys)
+   for k, v in ipairs(tab) do
+      pipeline:push('add', v)
+   end
 
    pipeline:push('border', true)
    pipeline:push('align_center')
    pipeline:push('enough')
    pipeline:close()
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function init()
 
@@ -2151,6 +2235,7 @@ local function init()
    camera = Camera.new()
 
    add_hotkeys_docs()
+
 
 
 
@@ -2287,6 +2372,7 @@ end
 local function joystickpressed(_, button)
    local left_shift = 5
    local right_shift = 6
+   local start = 8
 
    if button == left_shift then
       print("moveToOrigin()")
@@ -2295,6 +2381,11 @@ local function joystickpressed(_, button)
    if button == right_shift then
       print("moveToPlayer()")
       camera:moveToPlayer()
+   end
+   if button == start then
+
+      is_draw_gamepad_docs = not is_draw_gamepad_docs
+      is_draw_hotkeys_docs = false
    end
 end
 
@@ -2321,7 +2412,9 @@ local function process_events()
             local msg = '%{green}keypressed '
             debug_print('input', colorize(msg .. key .. ' ' .. scancode))
 
-            dprint.keypressed(scancode)
+            if love.keyboard.isDown('lshift') then
+               dprint.keypressed(scancode)
+            end
 
 
             keypressed(scancode)
