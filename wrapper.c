@@ -30,6 +30,15 @@ void print_body_stat(cpBody *b) {
     printf("t %f\n", b->t);
 }
 
+void *new_guarded_user_data(lua_State *lua, size_t size) {
+    const char *guard = "abcdefg";
+    void *ud = lua_newuserdata(lua, size + strlen(guard) * 2);
+    strcpy((char*)ud, guard);
+    char *last = (char*)ud + strlen(guard) + size;
+    strcpy(last, guard);
+    return (char*)ud + strlen(guard);
+}
+
 static void stackDump (lua_State *L) {
     int i;
     int top = lua_gettop(L);
@@ -82,6 +91,8 @@ static int init_space(lua_State *lua) {
         lua_error(lua);
     }
 
+    void *ud = lua_newuserdata(lua, sizeof(cpSpace));
+
     cur_space = cpSpaceNew();
     double damping = lua_tonumber(lua, 1);
     lua_pushlightuserdata(lua, cur_space);
@@ -115,7 +126,7 @@ static void PostShapeFree(cpShape *shape, cpSpace *space){
 
 static int free_space(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
-    cpSpace *space = (cpSpace*)lua_topointer(lua, 1);
+    cpSpace *space = (cpSpace*)lua_touserdata(lua, 1);
 
     cpSpaceEachShape(space, (cpSpaceShapeIteratorFunc)PostShapeFree, space);
     cpSpaceEachConstraint(space, (cpSpaceConstraintIteratorFunc)PostConstraintFree, space);
@@ -354,7 +365,7 @@ static int get_position(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)lua_topointer(lua, 1);
+    cpBody *b = (cpBody*)lua_touserdata(lua, 1);
     lua_pushnumber(lua, b->p.x);
     lua_pushnumber(lua, b->p.y);
     lua_pushnumber(lua, b->a);
@@ -373,7 +384,7 @@ static int set_position(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)lua_topointer(lua, 1);
+    cpBody *b = (cpBody*)lua_touserdata(lua, 1);
     double x = lua_tonumber(lua, 2);
     double y = lua_tonumber(lua, 3);
     cpVect pos = { .x = x, .y = y};
@@ -408,7 +419,7 @@ static int apply_force(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)lua_topointer(lua, 1);
+    cpBody *b = (cpBody*)lua_touserdata(lua, 1);
 
     lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);
 
@@ -452,7 +463,7 @@ static int apply_impulse(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)lua_topointer(lua, 1);
+    cpBody *b = (cpBody*)lua_touserdata(lua, 1);
 
     lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);
 
@@ -520,7 +531,7 @@ static int free_static_segment(lua_State *lua) {
 
     assert(cur_space && "space is NULL");
 
-    cpShape *shape = (cpShape*)lua_topointer(lua, 1);
+    cpShape *shape = (cpShape*)lua_touserdata(lua, 1);
     cpSpaceRemoveShape(cur_space, shape);
     cpShapeFree(shape);
 
@@ -623,7 +634,10 @@ int get_body_stat(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)lua_topointer(lua, 1);
+    cpBody *b = (cpBody*)lua_touserdata(lua, 1);
+
+    printf("get_body_stat()\n");
+    print_body_stat(b);
 
     // масса
     lua_pushnumber(lua, b->m);
@@ -657,8 +671,6 @@ int get_body_stat(lua_State *lua) {
     /*cpVect cog = cpBodyGetCenterOfGravity(b);*/
     /*cpVect v = cpBodyGetVelocity(b);*/
 
-    printf("get_body_stat()\n");
-    print_body_stat(b);
     /*printf("mass %f moment %f px %f py %f\n", */
             /*cpBodyGetMass(b), */
             /*cpBodyGetMoment(b),*/
@@ -685,7 +697,7 @@ static int set_torque(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *body = (cpBody*)lua_topointer(lua, 1);
+    cpBody *body = (cpBody*)lua_touserdata(lua, 1);
     double torque = lua_tonumber(lua, 2);
 
     cpBodySetTorque(body, torque);
@@ -702,7 +714,7 @@ static int get_body_type(lua_State *lua) {
         lua_error(lua);
     }
     
-    cpBody *body = (cpBody*)lua_topointer(lua, 1);
+    cpBody *body = (cpBody*)lua_touserdata(lua, 1);
     cpBodyType btype = cpBodyGetType(body);
     double type = -1.;
 
@@ -727,13 +739,45 @@ static int get_body_vel(lua_State *lua) {
         lua_error(lua);
     }
     
-    cpBody *body = (cpBody*)lua_topointer(lua, 1);
+    cpBody *body = (cpBody*)lua_touserdata(lua, 1);
     cpVect vel = cpBodyGetVelocity(body);
 
     lua_pushnumber(lua, vel.x);
     lua_pushnumber(lua, vel.y);
 
     return 2;
+}
+
+static int set_body_ang_vel(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 2, LUA_TNUMBER);
+
+    int top = lua_gettop(lua);
+    if (top != 2) {
+        lua_pushstring(lua, "Function expects 2 argument.\n");
+        lua_error(lua);
+    }
+    
+    cpBody *body = (cpBody*)lua_touserdata(lua, 1);
+    double ang_vel = lua_tonumber(lua, 2);
+    cpBodySetAngularVelocity(body, ang_vel);
+
+    return 0;
+}
+
+static int get_body_ang_vel(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expects 1 argument.\n");
+        lua_error(lua);
+    }
+    
+    cpBody *body = (cpBody*)lua_touserdata(lua, 1);
+    lua_pushnumber(lua, cpBodyGetAngularVelocity(body));
+
+    return 1;
 }
 
 extern int luaopen_wrp(lua_State *lua) {
@@ -767,6 +811,10 @@ extern int luaopen_wrp(lua_State *lua) {
         {"get_body_type", get_body_type},
         // Возвращает скорость тела
         {"get_body_vel", get_body_vel},
+        // Получить угловую скорость тела
+        {"get_body_ang_vel", get_body_ang_vel},
+        // Установить угловую скорость тела
+        {"set_body_ang_vel", set_body_ang_vel},
 
         // добавить к статическому телу форму - отрезок
         {"new_static_segment", new_static_segment},

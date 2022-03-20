@@ -42,6 +42,10 @@ local record Wrapper
     get_body_type: function(Body): integer
     -- Получить скорость тела
     get_body_vel: function(Body): number, number
+    -- Получить угловую скорость тела
+    get_body_ang_vel: function(Body): number
+    -- Установить угловую скорость тела
+    set_body_ang_vel: function(Body, w: number)
 
     -- Создать новый сегмент. Сегмент тонкий(не имеет толщины) и крепится к
     -- статичному телу пространства
