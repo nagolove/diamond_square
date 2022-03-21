@@ -33,6 +33,12 @@ local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 th
 
 
 
+
+
+
+
+
+local inspect = require("inspect")
 local gr = love.graphics
 local yield = coroutine.yield
 local colorize = require('ansicolors2').ansicolors
@@ -64,6 +70,7 @@ local buffer = {}
 
 local buffer_num = 0
 
+
 local use_border = false
 
 local border_w = 0
@@ -71,6 +78,8 @@ local border_w = 0
 local border_line_width = 10
 
 local background_color = nil
+local use_background = false
+
 local text_color = { 0, 0, 0, 1 }
 local border_color = { 0, 0, 0, 1 }
 
@@ -104,6 +113,10 @@ end
 
 local function draw()
    gr.setFont(font)
+   if use_background then
+      gr.setColor(background_color)
+      gr.rectangle('fill', posx, posy, border_w, font:getHeight() * #buffer)
+   end
    gr.setColor(text_color)
    local y = posy
    for _, v in ipairs(buffer) do
@@ -148,9 +161,26 @@ local commands = {
       if type(state) ~= 'boolean' then
          error("use_background has a boolean argument, not " .. type(state))
       end
+      use_background = state
       return true
    end,
-   ['background_color'] = function()
+   ['set_background_color'] = function()
+      local color = graphic_command_channel:demand()
+      if type(color) ~= 'table' then
+         error(
+         'set_background_color: should receive {number}, not ' ..
+         type(color))
+
+      end
+      if is_rgba(color) then
+         background_color = color
+      else
+         background_color = nil
+         error(
+         'set_background_color: not a proper color - ' ..
+         inspect(color))
+
+      end
       return true
    end,
    ['pos'] = function()

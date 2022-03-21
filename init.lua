@@ -66,10 +66,10 @@ local vec2 = require("vector")
 
 local tabular = require("tabular").show
 
-local tabular_t = require("tabular").show2
-
 local Pipeline = require('pipeline')
 local pipeline = Pipeline.new(SCENE_PREFIX)
+
+local docsystem = require('doc-system')
 
 
 local arrow = require('arrow')
@@ -401,48 +401,6 @@ local Joystick = love.joystick.Joystick
 local lj = love.joystick
 local joyState
 local joy
-
-local Hotkey = {}
-
-
-
-
-
-local hotkeys = {}
-
-local gamepad_hotkeys = {}
-
-local function add_gamepad_doc(combo, doc)
-   table.insert(gamepad_hotkeys, { combo = combo, doc = doc })
-   local id = #gamepad_hotkeys
-   pipeline:push(
-   'add',
-   tostring(id),
-   combo .. " " .. doc)
-
-end
-
-
-
-
-
-
-
-
-
-
-
-local function add_hotkey_doc(combo, doc)
-   table.insert(hotkeys, { combo = combo, doc = doc })
-end
-
-local function draw_hotkeys_docs()
-   pipeline:openPushAndClose('hotkeys_render', 'flush')
-end
-
-local function draw_gamepad_docs()
-   pipeline:openPushAndClose('gamepad_render', 'flush')
-end
 
 
 local Camera = {}
@@ -1339,10 +1297,10 @@ local function renderInternal()
 
 
    if is_draw_hotkeys_docs then
-      draw_hotkeys_docs()
+      docsystem.draw_keyboard()
    end
    if is_draw_gamepad_docs then
-      draw_gamepad_docs()
+      docsystem.draw_gamepad()
    end
 end
 
@@ -1946,10 +1904,7 @@ local function initRenderCode()
    pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
 
    pipeline:pushCodeFromFile('object_lines_buf', 'lines_buf.lua')
-
-   pipeline:pushCodeFromFile('hotkeys_render', 'lines_buf_ordered.lua')
-
-   pipeline:pushCodeFromFile('gamepad_render', 'lines_buf_ordered.lua')
+   docsystem.init_render_stage1(pipeline)
 
 
    pipeline:pushCode('selected_object', [[
@@ -2049,8 +2004,7 @@ local function initPipelineObjects()
    local dejavu_mono = "DejaVuSansMono.ttf"
    pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
    pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
-   pipeline:openPushAndClose('hotkeys_render', dejavu_mono, 34)
-   pipeline:openPushAndClose('gamepad_render', dejavu_mono, 34)
+   docsystem.init_render_stage2()
 
    pipeline:sync()
 
@@ -2142,78 +2096,53 @@ end
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 local function add_gamepad_docs()
-   pipeline:open('gamepad_render')
-
-   add_hotkey_doc("start", "show this help")
-   add_hotkey_doc("left shift", "reset camera")
-   add_hotkey_doc('right shift', 'move camera to player')
-
-   add_hotkey_doc('X', 'rotate left')
-   add_hotkey_doc('B', 'rotate right')
-   add_hotkey_doc('Y', 'move forward')
-   add_hotkey_doc('A', 'move backward')
-
-
-
-
-
-   pipeline:push('border', true)
-   pipeline:push('align_center')
-   pipeline:push('enough')
-   pipeline:close()
+   docsystem.add_keyboard_doc("escape", "exit")
+   docsystem.add_keyboard_doc("r", "Rebuild map")
+   docsystem.add_keyboard_doc('z', 'Decrease map size')
+   docsystem.add_keyboard_doc('x', 'Increase map size')
+   docsystem.add_keyboard_doc('shift+left', 'Previous tank as player')
+   docsystem.add_keyboard_doc('shift+right', 'Next tank as player')
+   docsystem.add_keyboard_doc('p', 'Pause for physics engine. "P" - mode')
+   docsystem.add_keyboard_doc('f1', 'Show or hide this text')
+   docsystem.add_keyboard_doc('q', "Fully reload map with objects.")
+   docsystem.add_keyboard_doc('1', 'Reload static physics segments.')
+   docsystem.finish_keyboard_docs()
 end
 
-local function add_hotkeys_docs()
-
-   add_hotkey_doc("escape", "exit")
-
-   add_hotkey_doc("r", "Rebuild map")
-   add_hotkey_doc('z', 'Decrease map size')
-   add_hotkey_doc('x', 'Increase map size')
-   add_hotkey_doc('shift+left', 'Previous tank as player')
-   add_hotkey_doc('shift+right', 'Next tank as player')
-   add_hotkey_doc('p', 'Pause for physics engine. "P" - mode')
-   add_hotkey_doc('f1', 'Show or hide this text')
-   add_hotkey_doc('q', "Fully reload map with objects.")
-   add_hotkey_doc('1', 'Reload static physics segments.')
-
-   print(tabular(hotkeys))
-   pipeline:open('hotkeys_render')
-
-   local tab = tabular_t(hotkeys)
-   for k, v in ipairs(tab) do
-      pipeline:push('add', v)
-   end
-
-   pipeline:push('border', true)
-   pipeline:push('align_center')
-   pipeline:push('enough')
-   pipeline:close()
+local function add_keyboard_docs()
+   docsystem.add_gamepad_doc("start", "show this help")
+   docsystem.add_gamepad_doc("left shift", "reset camera")
+   docsystem.add_gamepad_doc('right shift', 'move camera to player')
+   docsystem.add_gamepad_doc('X', 'rotate left')
+   docsystem.add_gamepad_doc('B', 'rotate right')
+   docsystem.add_gamepad_doc('Y', 'move forward')
+   docsystem.add_gamepad_doc('A', 'move backward')
+   docsystem.finish_gamepad_docs()
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 local function init()
 
@@ -2234,7 +2163,8 @@ local function init()
 
    camera = Camera.new()
 
-   add_hotkeys_docs()
+   add_keyboard_docs()
+   add_gamepad_docs()
 
 
 
@@ -2245,6 +2175,7 @@ local function init()
 
 
    bindFullscreenSwitcher()
+
 
 
 
