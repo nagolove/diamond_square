@@ -1,5 +1,9 @@
+-- vim: set colorcolumn=85
+-- vim: fdm=marker
+
 -- Вариант буфера с упорядоченным содержимым.
 --[[
+-- {{{
 record LinesBuffer
     -- добавить идентификатор и запись. 
     -- Цикл обработки команд не прерывается.
@@ -29,10 +33,12 @@ record LinesBuffer
     -- Сбрасывается вызовом align_center()
     pos: function(x: number, y: number)
 end
+-- }}}
 --]]
     
 global SCENE_PREFIX: string
 global graphic_command_channel: love.thread.Channel
+local inspect = require "inspect"
 local gr = love.graphics
 local yield = coroutine.yield
 local colorize = require 'ansicolors2'.ansicolors
@@ -63,7 +69,8 @@ local font = gr.newFont(path, font_size)
 local buffer: {string} = {}
 -- Количество записей
 local buffer_num: integer = 0
--- Рисовать-ли рамку вокруг текста?
+-- Рисовать-ли рамку вокруг текста? 
+-- Лучше не использовать при выводе таблиц через tabular
 local use_border = false
 -- Ширина рамки вокруг текста. Равняется максимальной ширине текста.
 local border_w = 0
@@ -71,6 +78,8 @@ local border_w = 0
 local border_line_width = 10
 
 local background_color: {number} = nil
+local use_background = false
+
 local text_color = {0, 0, 0, 1}
 local border_color = {0, 0, 0, 1}
 
@@ -104,6 +113,10 @@ end
 
 local function draw(): boolean
     gr.setFont(font)
+    if use_background then
+        gr.setColor(background_color)
+        gr.rectangle('fill', posx, posy, border_w, font:getHeight() * #buffer)
+    end
     gr.setColor(text_color)
     local y = posy
     for _, v in ipairs(buffer) do
@@ -148,9 +161,26 @@ local commands: {string: function(): boolean} = {
         if type(state) ~= 'boolean' then
             error("use_background has a boolean argument, not " .. type(state))
         end
+        use_background = state
         return true
     end,
-    ['background_color'] = function(): boolean
+    ['set_background_color'] = function(): boolean
+        local color = graphic_command_channel:demand() as {number}
+        if type(color) ~= 'table' then
+            error(
+                'set_background_color: should receive {number}, not ' ..
+                type(color)
+            )
+        end
+        if is_rgba(color) then
+            background_color = color
+        else
+            background_color = nil
+            error(
+                'set_background_color: not a proper color - ' .. 
+                inspect(color)
+            )
+        end
         return true
     end,
     ['pos'] = function(): boolean
