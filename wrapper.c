@@ -4,6 +4,8 @@
 #include "chipmunk/chipmunk.h"
 #include "chipmunk/chipmunk_structs.h"
 
+#include "mem_guard.h"
+
 #include <assert.h>
 #include <lauxlib.h>
 #include <lua.h>

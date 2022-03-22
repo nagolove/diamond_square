@@ -13,11 +13,15 @@ workspace "wrapper"
         includedirs { 
             "/usr/include/luajit-2.1",
             --"~/projects/Chipmunk2D/include"
-            "/home/nagolove/projects/Chipmunk2D/include"
+            "/home/nagolove/projects/Chipmunk2D/include",
+            "/home/nagolove/myprojects/c_guard" 
         }
         buildoptions { "-fPIC" }
         links { "luajit-5.1", "chipmunk" }
-        libdirs { "/home/nagolove/projects/Chipmunk2D/src/" }
+        libdirs { 
+            "/home/nagolove/projects/Chipmunk2D/src/",
+            "/home/nagolove/myprojects/c_guard" 
+        }
         --links { "lua5.1" }
 
     --filter "configurations:Debug"
