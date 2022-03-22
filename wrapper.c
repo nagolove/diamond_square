@@ -14,6 +14,20 @@
 #include <stdio.h>
 #include <string.h>
 
+// Проверить указатель на текущее физическое пространство.
+// Вызвать ошибку Lua в случае пустого указателя.
+#define CHECK_SPACE \
+if (!cur_space) {                                       \
+    lua_pushstring(lua, "Space pointer is null.\n");    \
+    lua_error(lua);                                     \
+}                                                       \
+
+typedef struct {
+    int32_t regindex_ud;     // индекс userdata
+    int32_t regindex_table;  // индекс для связанной таблицы
+/*} num __attribute__((packed, aligned(2)));*/
+} Parts;
+
 cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
 
 // Что делает этот фильтр?
@@ -30,15 +44,6 @@ void print_body_stat(cpBody *b) {
     printf("a %f\n", b->a);
     printf("w %f\n", b->w);
     printf("t %f\n", b->t);
-}
-
-void *new_guarded_user_data(lua_State *lua, size_t size) {
-    const char *guard = "abcdefg";
-    void *ud = lua_newuserdata(lua, size + strlen(guard) * 2);
-    strcpy((char*)ud, guard);
-    char *last = (char*)ud + strlen(guard) + size;
-    strcpy(last, guard);
-    return (char*)ud + strlen(guard);
 }
 
 static void stackDump (lua_State *L) {
@@ -69,19 +74,6 @@ static void stackDump (lua_State *L) {
     printf("\n"); /* end the listing */
 }
 
-static int each_body(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TFUNCTION);
-    int call_count = (int)lua_tonumber(lua, 2);
-    printf("call_count %d\n", call_count);
-    for (int i = 0; i < call_count; i++) {
-        /*lua_call(lua, 1, 0);*/
-        lua_pushvalue(lua, 1);
-        lua_pushnumber(lua, i);
-        lua_call(lua, 1, 0);
-    }
-    return 0;
-}
-
 static cpSpace *cur_space = NULL;
 
 static int init_space(lua_State *lua) {
@@ -93,11 +85,27 @@ static int init_space(lua_State *lua) {
         lua_error(lua);
     }
 
-    void *ud = lua_newuserdata(lua, sizeof(cpSpace));
+#ifdef DEBUG
+    printf("init_space()\n");
+    stackDump(lua);
+#endif
 
-    cur_space = cpSpaceNew();
+    cur_space = lua_newuserdata(lua, sizeof(cpSpace));
+
+    // Дублирую значени userdata на стеке т.к. lua_ref() снимает одно значение
+    // с верхушки.
+    lua_pushvalue(lua, 2);
+    cur_space->userData = (void*)lua_ref(lua, LUA_REGISTRYINDEX);
+
+#ifdef DEBUG
+    printf("after ref\n");
+    stackDump();
+#endif
+
+    cpSpaceInit(cur_space);
     double damping = lua_tonumber(lua, 1);
-    lua_pushlightuserdata(lua, cur_space);
+
+    /*lua_pushlightuserdata(lua, cur_space);*/
 
 	/*cpSpaceSetIterations(space, 30);*/
 	/*cpSpaceSetGravity(space, cpv(0, -500));*/
@@ -110,7 +118,9 @@ static int init_space(lua_State *lua) {
 
 static void ConstraintFreeWrap(cpSpace *space, cpConstraint *constraint, void *unused){
     cpSpaceRemoveConstraint(space, constraint);
-    cpConstraintFree(constraint);
+    printf("please not use constraints in program\n");
+    exit(1);
+    /*cpConstraintFree(constraint);*/
 }
 
 static void PostConstraintFree(cpConstraint *constraint, cpSpace *space){
@@ -119,7 +129,8 @@ static void PostConstraintFree(cpConstraint *constraint, cpSpace *space){
 
 static void ShapeFreeWrap(cpSpace *space, cpShape *shape, void *unused){
 	cpSpaceRemoveShape(space, shape);
-	cpShapeFree(shape);
+    luaL_unref(lua, LUA_REGISTRYINDEX, (int)shape->userData);
+	/*cpShapeFree(shape);*/
 }
 
 static void PostShapeFree(cpShape *shape, cpSpace *space){
@@ -127,7 +138,7 @@ static void PostShapeFree(cpShape *shape, cpSpace *space){
 }
 
 static int free_space(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
     cpSpace *space = (cpSpace*)lua_touserdata(lua, 1);
 
     cpSpaceEachShape(space, (cpSpaceShapeIteratorFunc)PostShapeFree, space);
@@ -142,7 +153,7 @@ static int free_space(lua_State *lua) {
 // добавить трения для тел так, что-бы они останавливались после приложения
 // импульса
 static int new_body(lua_State *lua) {
-    // in: ширина, высота, таблица с инфой
+    CHECK_SPACE;
 
     int top = lua_gettop(lua);
     if (top != 6) {
@@ -178,32 +189,53 @@ static int new_body(lua_State *lua) {
     int w = (int)lua_tonumber(lua, 4);
     int h = (int)lua_tonumber(lua, 5);
 
+    printf("new_body\n");
+    stackDump(lua);
+    printf("------------------\n");
+
+    cpBody *b = lua_newuserdata(lua, sizeof(cpBody));
     cpFloat mass = w * h * DENSITY;
     cpFloat moment = cpMomentForBox(mass, w, h);
-    cpBody *b = cpBodyNew(mass, moment);
+    cpBodyInit(b, mass, moment);
+    cpSpaceAddBody(cur_space, b);
 
-    if (!cur_space) {
-        lua_pushstring(lua, "Space pointer is null.\n");
-        lua_error(lua);
+    lua_pushvalue(lua, 6);
+    // ссылка на табличку, связанную с телом
+    int assoc_table_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
+
+    printf("before shape ud\n");
+    stackDump(lua);
+    printf("------------------\n");
+
+    cpPolyShape *shape = lua_newuserdata(lua, sizeof(cpPolyShape));
+    shape->userData = luaL_ref(lua, LUA_REGISTRYINDEX);
+    cpBoxShapeInit(shape, b, w, h, 0.f);
+
+    printf("shape_reg_index %d\n", shape_reg_index);
+    printf("assoc_table_reg_index %d\n", assoc_table_reg_index);
+
+    /*b->userData = assoc_table_reg_index;*/
+    ((Parts*)(&b->userData))->ud = body_reg_index;
+    ((Parts*)(&b->userData))->table = assoc_table_reg_index;
+
+    // Удалить все предшествующие возвращаемому значению элементы стека.
+    // Не уверен в нужности вызова.
+    for(int i = 0; i <= 5; i++) {
+        lua_remove(lua, 1);
     }
 
-    cpSpaceAddBody(cur_space, b);
-    cpShape *shape = cpBoxShapeNew(b, w, h, 0.f);
+    printf("after ref\n");
+    stackDump(lua);
+    printf("------------------\n");
 
     /*cpShapeSetFriction(shape, 10000.);*/
     /*printf("shape friction: %f\n", cpShapeGetFriction(shape));*/
     /*cpShapeSetFriction(shape, 1);*/
 
-    cpSpaceAddShape(cur_space, shape);
+    cpSpaceAddShape(cur_space, (cpShape*)shape);
     cpBodySetPosition(b, pos);
 
-    // ссылка на табличку, связанную с телом
-    int reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
-    b->userData = (void*)(uint64_t)reg_index;
-
     print_body_stat(b);
-
-    lua_pushlightuserdata(lua, b);
 
     return 1;
 }
@@ -229,7 +261,8 @@ void on_each_tank(cpBody *body, void *data) {
     /*lua_remove(lua, -1);*/
     /*printf("tank id = %s\n", id);*/
 
-    lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)body->userData);
+    int table_reg_index = ((Parts*)(&body->userData))->table;
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
 
     lua_pushstring(lua, "_prev_x");
     lua_gettable(lua, -2);
@@ -263,7 +296,7 @@ void on_each_tank(cpBody *body, void *data) {
     /*stackDump(lua);*/
     /*printf("---------------------------\n");*/
 
-    lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)body->userData);
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
 
     lua_pushstring(lua, "_prev_x"); //key
     lua_pushnumber(lua, body->p.x); //value
@@ -288,7 +321,8 @@ void on_each_body(cpBody *body, void *data) {
     lua_pushnumber(lua, body->p.x);
     lua_pushnumber(lua, body->p.y);
     lua_pushnumber(lua, body->a);
-    lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)body->userData);
+    int table_reg_index = ((Parts*)(&body->userData))->table;
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
     /*stackDump(lua);*/
     lua_call(lua, 4, 0);
 
@@ -359,7 +393,7 @@ static int step(lua_State *lua) {
 }
 
 static int get_position(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
 
     int top = lua_gettop(lua);
     if (top != 1) {
@@ -376,7 +410,7 @@ static int get_position(lua_State *lua) {
 }
 
 static int set_position(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TNUMBER);
 
@@ -399,7 +433,7 @@ static int set_position(lua_State *lua) {
 }
 
 static int apply_force(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TNUMBER);
     luaL_checktype(lua, 4, LUA_TNUMBER);
@@ -423,7 +457,7 @@ static int apply_force(lua_State *lua) {
 
     cpBody *b = (cpBody*)lua_touserdata(lua, 1);
 
-    lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);
+    /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);*/
 
     // {{{
     /*stackDump(lua);*/
@@ -443,7 +477,7 @@ static int apply_force(lua_State *lua) {
 }
 
 static int apply_impulse(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TNUMBER);
     luaL_checktype(lua, 4, LUA_TNUMBER);
@@ -467,7 +501,7 @@ static int apply_impulse(lua_State *lua) {
 
     cpBody *b = (cpBody*)lua_touserdata(lua, 1);
 
-    lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);
+    /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);*/
 
     // {{{
     /*stackDump(lua);*/
@@ -508,22 +542,24 @@ static int new_static_segment(lua_State *lua) {
     /*cpBody *static_body = cpBodyNew(10000.f, 1.);*/
     /*cpSpaceAddBody(cur_space, static_body);*/
 
-    cpShape *shape = cpSpaceAddShape(
-            cur_space, 
-            cpSegmentShapeNew(static_body, p1, p2, 0.0f)
-        );
+    cpShape *shape = lua_newuserdata(lua, sizeof(cpSegmentShape));
+    lua_pushvalue(lua, 5);
+    ((Parts*)(&shape->userData))->regindex_ud = lua_ref(lua, LUA_REGISTRYINDEX);
+    cpSegmentShapeInit((cpSegmentShape*)shape, static_body, p1, p2, 0.0f);
+    cpSpaceAddShape(cur_space, shape);
     cpShapeSetElasticity(shape, 1.0f);
     cpShapeSetFriction(shape, 1.0f);
+
     // что дает установка следующего фильтра?
     cpShapeSetFilter(shape, NOT_GRABBABLE_FILTER);
 
-    lua_pushlightuserdata(lua, shape);
+    /*lua_pushlightuserdata(lua, shape);*/
 
     return 1;
 }
 
 static int free_static_segment(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
 
     int top = lua_gettop(lua);
     if (top != 1) {
@@ -535,7 +571,12 @@ static int free_static_segment(lua_State *lua) {
 
     cpShape *shape = (cpShape*)lua_touserdata(lua, 1);
     cpSpaceRemoveShape(cur_space, shape);
-    cpShapeFree(shape);
+    luaL_unref(
+            lua, 
+            LUA_REGISTRYINDEX, 
+            ((Parts*)(&shape->userData))->regindex_ud
+    );
+    /*cpShapeFree(shape);*/
 
     return 0;
 }
@@ -571,10 +612,19 @@ static int draw_static_segments(lua_State *lua) {
     return 0;
 }
 
-void on_point_query(cpShape *shape, cpVect point, cpFloat distance, cpVect gradient, void *data) {
+void on_point_query(
+        cpShape *shape, 
+        cpVect point, 
+        cpFloat distance, 
+        cpVect gradient, 
+        void *data
+) {
     lua_State *lua = (lua_State*)data;
 
-    lua_pushlightuserdata(lua, shape);
+    int index = ((Parts*)(&shape->userData))->regindex_ud;
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, index);
+    /*lua_pushlightuserdata(lua, shape);*/
+
     lua_pushnumber(lua, point.x);
     lua_pushnumber(lua, point.y);
     lua_pushnumber(lua, distance);
@@ -616,7 +666,7 @@ static int get_shape_under_point(lua_State *lua) {
 }
 
 static int get_shape_body(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
     
     int top = lua_gettop(lua);
     if (top != 1) {
@@ -624,11 +674,13 @@ static int get_shape_body(lua_State *lua) {
         lua_error(lua);
     }
 
+    // XXX возврат ?????
+
     return 1;
 }
 
 int get_body_stat(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
 
     int top = lua_gettop(lua);
     if (top != 1) {
@@ -690,7 +742,7 @@ int get_body_stat(lua_State *lua) {
 }
 
 static int set_torque(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
 
     int top = lua_gettop(lua);
@@ -708,7 +760,7 @@ static int set_torque(lua_State *lua) {
 }
 
 static int get_body_type(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
 
     int top = lua_gettop(lua);
     if (top != 1) {
@@ -733,7 +785,7 @@ static int get_body_type(lua_State *lua) {
 }
 
 static int get_body_vel(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
 
     int top = lua_gettop(lua);
     if (top != 1) {
@@ -751,7 +803,7 @@ static int get_body_vel(lua_State *lua) {
 }
 
 static int set_body_ang_vel(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
 
     int top = lua_gettop(lua);
@@ -768,7 +820,7 @@ static int set_body_ang_vel(lua_State *lua) {
 }
 
 static int get_body_ang_vel(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TLIGHTUSERDATA);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
 
     int top = lua_gettop(lua);
     if (top != 1) {
