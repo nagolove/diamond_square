@@ -28,6 +28,16 @@ typedef struct {
 /*} num __attribute__((packed, aligned(2)));*/
 } Parts;
 
+#define SET_USER_DATA_UD(b, reg_index) \
+    ((Parts*)(&b->userData))->regindex_ud = reg_index;
+
+#define GET_USER_DATA_UD(b) ((Parts*)(&b->userData))->regindex_ud
+
+#define SET_USER_DATA_TABLE(b, reg_index) \
+    ((Parts*)(&b->userData))->regindex_table = reg_index;
+
+#define GET_USER_DATA_TABLE(b) ((Parts*)(&b->userData))->regindex_table
+
 cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
 
 // Что делает этот фильтр?
@@ -95,7 +105,8 @@ static int init_space(lua_State *lua) {
     // Дублирую значени userdata на стеке т.к. lua_ref() снимает одно значение
     // с верхушки.
     lua_pushvalue(lua, 2);
-    cur_space->userData = (void*)lua_ref(lua, LUA_REGISTRYINDEX);
+
+    SET_USER_DATA_UD(cur_space, luaL_ref(lua, LUA_REGISTRYINDEX));
 
 #ifdef DEBUG
     printf("after ref\n");
@@ -116,35 +127,67 @@ static int init_space(lua_State *lua) {
     return 1;
 }
 
-static void ConstraintFreeWrap(cpSpace *space, cpConstraint *constraint, void *unused){
+static void ConstraintFreeWrap(
+        cpSpace *space, 
+        cpConstraint *constraint, 
+        void *data
+) {
+    lua_State *lua = (lua_State*)data;
     cpSpaceRemoveConstraint(space, constraint);
-    printf("please not use constraints in program\n");
-    exit(1);
+    luaL_unref(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(constraint));
     /*cpConstraintFree(constraint);*/
 }
 
-static void PostConstraintFree(cpConstraint *constraint, cpSpace *space){
-    cpSpaceAddPostStepCallback(space, (cpPostStepFunc)ConstraintFreeWrap, constraint, NULL);
+struct PostCallbackData {
+    cpSpace *space;
+    lua_State *lua;
+};
+
+static void PostConstraintFree(
+        cpConstraint *constraint,
+        struct PostCallbackData *data
+) {
+    cpSpaceAddPostStepCallback(
+            data->space, 
+            (cpPostStepFunc)ConstraintFreeWrap, 
+            constraint, 
+            data->lua
+    );
 }
 
 static void ShapeFreeWrap(cpSpace *space, cpShape *shape, void *unused){
+    lua_State *lua = (lua_State*)unused;
+
 	cpSpaceRemoveShape(space, shape);
-    luaL_unref(lua, LUA_REGISTRYINDEX, (int)shape->userData);
+    luaL_unref(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(shape));
 	/*cpShapeFree(shape);*/
 }
 
-static void PostShapeFree(cpShape *shape, cpSpace *space){
-    cpSpaceAddPostStepCallback(space, (cpPostStepFunc)ShapeFreeWrap, shape, NULL);
+static void PostShapeFree(cpShape *shape, struct PostCallbackData *data){
+    cpSpaceAddPostStepCallback(
+            data->space, 
+            (cpPostStepFunc)ShapeFreeWrap, 
+            shape, 
+            data->lua
+    );
 }
 
 static int free_space(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     cpSpace *space = (cpSpace*)lua_touserdata(lua, 1);
 
-    cpSpaceEachShape(space, (cpSpaceShapeIteratorFunc)PostShapeFree, space);
-    cpSpaceEachConstraint(space, (cpSpaceConstraintIteratorFunc)PostConstraintFree, space);
+    struct PostCallbackData data = {
+        .space = space,
+        .lua = lua,
+    };
 
-    cpSpaceFree(space);
+    cpSpaceEachShape(space, (cpSpaceShapeIteratorFunc)PostShapeFree, &data);
+    cpSpaceEachConstraint(
+            space, (cpSpaceConstraintIteratorFunc)PostConstraintFree, space
+    );
+
+    luaL_unref(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(space));
+    /*cpSpaceFree(space);*/
 }
 
 /*#define DENSITY (1.0/10000.0)*/
@@ -193,30 +236,34 @@ static int new_body(lua_State *lua) {
     stackDump(lua);
     printf("------------------\n");
 
+    // ссылка на табличку, связанную с телом
+    int assoc_table_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
+
     cpBody *b = lua_newuserdata(lua, sizeof(cpBody));
     cpFloat mass = w * h * DENSITY;
     cpFloat moment = cpMomentForBox(mass, w, h);
     cpBodyInit(b, mass, moment);
     cpSpaceAddBody(cur_space, b);
 
-    lua_pushvalue(lua, 6);
-    // ссылка на табличку, связанную с телом
-    int assoc_table_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
+    //TODO Проверить как работает дублирование верхнего значения на стеке
+    lua_pushvalue(lua, lua_gettop(lua));
+    int body_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
 
     printf("before shape ud\n");
     stackDump(lua);
     printf("------------------\n");
 
-    cpPolyShape *shape = lua_newuserdata(lua, sizeof(cpPolyShape));
-    shape->userData = luaL_ref(lua, LUA_REGISTRYINDEX);
-    cpBoxShapeInit(shape, b, w, h, 0.f);
+    cpShape *shape = lua_newuserdata(lua, sizeof(cpPolyShape));
+    SET_USER_DATA_UD(shape, luaL_ref(lua, LUA_REGISTRYINDEX));
+    cpBoxShapeInit((cpPolyShape*)shape, b, w, h, 0.f);
 
-    printf("shape_reg_index %d\n", shape_reg_index);
-    printf("assoc_table_reg_index %d\n", assoc_table_reg_index);
+    /*printf("shape_reg_index %d\n", shape_reg_index);*/
+    /*printf("assoc_table_reg_index %d\n", assoc_table_reg_index);*/
 
     /*b->userData = assoc_table_reg_index;*/
-    ((Parts*)(&b->userData))->ud = body_reg_index;
-    ((Parts*)(&b->userData))->table = assoc_table_reg_index;
+
+    SET_USER_DATA_UD(b, body_reg_index);
+    SET_USER_DATA_TABLE(b, assoc_table_reg_index);
 
     // Удалить все предшествующие возвращаемому значению элементы стека.
     // Не уверен в нужности вызова.
@@ -261,7 +308,8 @@ void on_each_tank(cpBody *body, void *data) {
     /*lua_remove(lua, -1);*/
     /*printf("tank id = %s\n", id);*/
 
-    int table_reg_index = ((Parts*)(&body->userData))->table;
+    /*int table_reg_index = ((Parts*)(&body->userData))->table;*/
+    int table_reg_index = GET_USER_DATA_TABLE(body);
     lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
 
     lua_pushstring(lua, "_prev_x");
@@ -321,7 +369,8 @@ void on_each_body(cpBody *body, void *data) {
     lua_pushnumber(lua, body->p.x);
     lua_pushnumber(lua, body->p.y);
     lua_pushnumber(lua, body->a);
-    int table_reg_index = ((Parts*)(&body->userData))->table;
+    /*int table_reg_index = ((Parts*)(&body->userData))->table;*/
+    int table_reg_index = GET_USER_DATA_TABLE(body);
     lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
     /*stackDump(lua);*/
     lua_call(lua, 4, 0);
@@ -544,7 +593,9 @@ static int new_static_segment(lua_State *lua) {
 
     cpShape *shape = lua_newuserdata(lua, sizeof(cpSegmentShape));
     lua_pushvalue(lua, 5);
-    ((Parts*)(&shape->userData))->regindex_ud = lua_ref(lua, LUA_REGISTRYINDEX);
+
+    SET_USER_DATA_UD(shape, luaL_ref(lua, LUA_REGISTRYINDEX));
+
     cpSegmentShapeInit((cpSegmentShape*)shape, static_body, p1, p2, 0.0f);
     cpSpaceAddShape(cur_space, shape);
     cpShapeSetElasticity(shape, 1.0f);
