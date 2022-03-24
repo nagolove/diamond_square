@@ -4,8 +4,10 @@ workspace "wrapper"
     project "wrp"
         kind "SharedLib"
         language "C"
+        
         --targetdir "bin/%{cfg.buildcfg}"
         --targetdir "bin/%{cfg.buildcfg}"
+        
         targetprefix ""
         targetdir "."
 
@@ -24,10 +26,10 @@ workspace "wrapper"
         }
         --links { "lua5.1" }
 
-    --filter "configurations:Debug"
-    --defines { "DEBUG" }
-    --symbols "On"
+    filter "configurations:Debug"
+    defines { "DEBUG" }
+    symbols "On"
 
-    --filter "configurations:Release"
-    --defines { "NDEBUG" }
-    --optimize "On"
+    filter "configurations:Release"
+    defines { "NDEBUG" }
+    optimize "On"

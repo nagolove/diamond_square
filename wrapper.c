@@ -56,13 +56,25 @@ cpShapeFilter NOT_GRABBABLE_FILTER = {
     ~GRABBABLE_MASK_BIT
 };
 
+void term_color_set() {
+    // cyan color
+    printf("\033[36m");
+}
+
+void term_color_reset() {
+    printf("\033[0m");
+}
+
 void print_userData(void *data) {
     int index_ud = ((Parts*)data)->regindex_ud;
     int index_table = ((Parts*)data)->regindex_table;
+    term_color_set();
     printf("regindex_ud = %d, regindex_table = %d\n", index_ud, index_table);
+    term_color_reset();
 }
 
 void print_body_stat(cpBody *b) {
+    term_color_set();
     printf("mass, inertia %f, %f \n", b->m, b->i);
     printf("cog (%f, %f)\n", b->cog.x, b->cog.y);
     printf("pos (%f, %f)\n", b->p.x, b->p.y);
@@ -71,6 +83,7 @@ void print_body_stat(cpBody *b) {
     printf("a %f\n", b->a);
     printf("w %f\n", b->w);
     printf("t %f\n", b->t);
+    term_color_reset();
 }
 
 static void stack_dump (lua_State *L) {
@@ -113,11 +126,14 @@ static int init_space(lua_State *lua) {
     }
 
 #ifdef DEBUG
+    term_color_set();
     printf("init_space()\n");
     stack_dump(lua);
+    term_color_reset();
 #endif
 
     cur_space = lua_newuserdata(lua, sizeof(cpSpace));
+    cpSpaceInit(cur_space);
 
     // Дублирую значени userdata на стеке т.к. lua_ref() снимает одно значение
     // с верхушки.
@@ -126,11 +142,11 @@ static int init_space(lua_State *lua) {
     SET_USER_DATA_UD(cur_space, luaL_ref(lua, LUA_REGISTRYINDEX));
 
 #ifdef DEBUG
-    printf("after ref\n");
-    stack_dump();
+    term_color_set();
+    stack_dump(lua);
+    term_color_reset();
 #endif
 
-    cpSpaceInit(cur_space);
     double damping = lua_tonumber(lua, 1);
 
     /*lua_pushlightuserdata(lua, cur_space);*/
@@ -139,6 +155,7 @@ static int init_space(lua_State *lua) {
 	/*cpSpaceSetGravity(space, cpv(0, -500));*/
 	/*cpSpaceSetSleepTimeThreshold(space, 0.5f);*/
 	/*cpSpaceSetCollisionSlop(space, 0.5f);*/
+
     cpSpaceSetDamping(cur_space, damping);
 
     return 1;

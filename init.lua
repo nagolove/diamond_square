@@ -1206,6 +1206,11 @@ end
 
 local function on_each_body(x, y, angle, obj)
    local tank = obj
+
+   if type(tank) ~= "table" then
+      error("tank should be a table, not a " .. type(tank))
+   end
+
    if tank then
       pipeline:push('new', tank.id, x, y, angle)
    end
