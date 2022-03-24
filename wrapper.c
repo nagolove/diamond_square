@@ -42,6 +42,11 @@ cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
 // Что делает этот фильтр?
 #define GRABBABLE_MASK_BIT (1<<31)
 
+#define LOG(...)        \
+    term_color_set();   \
+    printf(__VA_ARGS__);        \
+    term_color_reset(); \
+
 cpShapeFilter GRAB_FILTER = {
     CP_NO_GROUP, 
     GRABBABLE_MASK_BIT, 
@@ -365,9 +370,6 @@ static int new_body(lua_State *lua) {
 void on_each_tank(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
-    /*printf("------------------\n");*/
-    /*print_body_stat(body);*/
-
     // TODO Убрать лишние операции со стеком, получать таблицу связанную с 
     // телом один раз.
 
@@ -379,8 +381,10 @@ void on_each_tank(cpBody *body, void *data) {
     /*lua_remove(lua, -1);*/
     /*printf("tank id = %s\n", id);*/
 
-    /*int table_reg_index = ((Parts*)(&body->userData))->table;*/
     int table_reg_index = GET_USER_DATA_TABLE(body);
+
+    /*LOG("table_reg_index %d\n", table_reg_index);*/
+
     lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
 
     lua_pushstring(lua, "_prev_x");
@@ -408,7 +412,7 @@ void on_each_tank(cpBody *body, void *data) {
         lua_pushnumber(lua, body->p.x);
         lua_pushnumber(lua, body->p.y);
         lua_pushnumber(lua, body->a);
-        lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)body->userData);
+        lua_rawgeti(lua, LUA_REGISTRYINDEX, GET_USER_DATA_TABLE(body));
         lua_call(lua, 4, 0);
     }
 
@@ -461,15 +465,14 @@ void print_space_info(cpSpace *space) {
 }
 
 static int query_all_tanks(lua_State *lua) {
+    CHECK_SPACE;
     luaL_checktype(lua, 1, LUA_TFUNCTION);
 
     int top = lua_gettop(lua);
     if (top != 1) {
-        lua_pushstring(lua, "Space pointer is null.\n");
+        lua_pushstring(lua, "Function expect 1 argument.\n");
         lua_error(lua);
     }
-
-    assert(cur_space && "space is NULL");
 
     cpSpaceEachBody(cur_space, on_each_tank, lua);
 
@@ -793,7 +796,8 @@ static int get_shape_body(lua_State *lua) {
         lua_error(lua);
     }
 
-    // XXX возврат ?????
+    cpShape *shape = lua_touserdata(lua, 1);
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(shape->body));
 
     return 1;
 }
