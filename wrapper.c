@@ -42,8 +42,25 @@ cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
 
 // Что делает этот фильтр?
 #define GRABBABLE_MASK_BIT (1<<31)
-cpShapeFilter GRAB_FILTER = {CP_NO_GROUP, GRABBABLE_MASK_BIT, GRABBABLE_MASK_BIT};
-cpShapeFilter NOT_GRABBABLE_FILTER = {CP_NO_GROUP, ~GRABBABLE_MASK_BIT, ~GRABBABLE_MASK_BIT};
+
+cpShapeFilter GRAB_FILTER = {
+    CP_NO_GROUP, 
+    GRABBABLE_MASK_BIT, 
+    GRABBABLE_MASK_BIT
+};
+cpShapeFilter NOT_GRABBABLE_FILTER = {
+    CP_NO_GROUP, 
+    // Что делает оператор ~ ? Побитовое отрицание?
+    ~GRABBABLE_MASK_BIT, 
+    // Что делает оператор ~ ? Побитовое отрицание?
+    ~GRABBABLE_MASK_BIT
+};
+
+void print_userData(void *data) {
+    int index_ud = ((Parts*)data)->regindex_ud;
+    int index_table = ((Parts*)data)->regindex_table;
+    printf("regindex_ud = %d, regindex_table = %d\n", index_ud, index_table);
+}
 
 void print_body_stat(cpBody *b) {
     printf("mass, inertia %f, %f \n", b->m, b->i);
@@ -56,7 +73,7 @@ void print_body_stat(cpBody *b) {
     printf("t %f\n", b->t);
 }
 
-static void stackDump (lua_State *L) {
+static void stack_dump (lua_State *L) {
     int i;
     int top = lua_gettop(L);
     for (i = 1; i <= top; i++) { /* repeat for each level */
@@ -97,7 +114,7 @@ static int init_space(lua_State *lua) {
 
 #ifdef DEBUG
     printf("init_space()\n");
-    stackDump(lua);
+    stack_dump(lua);
 #endif
 
     cur_space = lua_newuserdata(lua, sizeof(cpSpace));
@@ -110,7 +127,7 @@ static int init_space(lua_State *lua) {
 
 #ifdef DEBUG
     printf("after ref\n");
-    stackDump();
+    stack_dump();
 #endif
 
     cpSpaceInit(cur_space);
@@ -233,7 +250,7 @@ static int new_body(lua_State *lua) {
     int h = (int)lua_tonumber(lua, 5);
 
     printf("new_body\n");
-    stackDump(lua);
+    stack_dump(lua);
     printf("------------------\n");
 
     // ссылка на табличку, связанную с телом
@@ -250,7 +267,7 @@ static int new_body(lua_State *lua) {
     int body_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
 
     printf("before shape ud\n");
-    stackDump(lua);
+    stack_dump(lua);
     printf("------------------\n");
 
     cpShape *shape = lua_newuserdata(lua, sizeof(cpPolyShape));
@@ -267,12 +284,12 @@ static int new_body(lua_State *lua) {
 
     // Удалить все предшествующие возвращаемому значению элементы стека.
     // Не уверен в нужности вызова.
-    for(int i = 0; i <= 5; i++) {
-        lua_remove(lua, 1);
-    }
+    /*for(int i = 0; i <= 5; i++) {*/
+        /*lua_remove(lua, 1);*/
+    /*}*/
 
     printf("after ref\n");
-    stackDump(lua);
+    stack_dump(lua);
     printf("------------------\n");
 
     /*cpShapeSetFriction(shape, 10000.);*/
@@ -283,6 +300,9 @@ static int new_body(lua_State *lua) {
     cpBodySetPosition(b, pos);
 
     print_body_stat(b);
+
+    printf("before return\n");
+    stack_dump(lua);
 
     return 1;
 }
@@ -370,8 +390,11 @@ void on_each_body(cpBody *body, void *data) {
     lua_pushnumber(lua, body->p.y);
     lua_pushnumber(lua, body->a);
     /*int table_reg_index = ((Parts*)(&body->userData))->table;*/
+
     int table_reg_index = GET_USER_DATA_TABLE(body);
+    printf("table_reg_index = %d\n", table_reg_index);
     lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
+
     /*stackDump(lua);*/
     lua_call(lua, 4, 0);
 
@@ -415,13 +438,7 @@ static int query_all_shapes(lua_State *lua) {
     /*print_space_info(cur_space);*/
     assert(cur_space && "space is NULL");
 
-    /*printf("C: query_all_shapes\n");*/
-
-    cpSpaceEachBody(cur_space, on_each_body, lua);
-    /*cpSpaceEachBody(cur_space, NULL, NULL);*/
-
-    /*printf("C: query_all_shapes after\n");*/
-    /*printf("C: query_all_shapes after\n");*/
+    /*cpSpaceEachBody(cur_space, on_each_body, lua);*/
 
     return 0;
 }
@@ -509,11 +526,11 @@ static int apply_force(lua_State *lua) {
     /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);*/
 
     // {{{
-    /*stackDump(lua);*/
+    /*stack_dump(lua);*/
     /*printf("-----------------------\n");*/
     /*lua_pushstring(lua, "id");*/
     /*lua_gettable(lua, 6);*/
-    /*stackDump(lua);*/
+    /*stack_dump(lua);*/
     /*luaL_checktype(lua, 7, LUA_TNUMBER);*/
     /*int id = (int)lua_tonumber(lua, 7);*/
     // печатать порядковый номер объекта
@@ -553,11 +570,11 @@ static int apply_impulse(lua_State *lua) {
     /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);*/
 
     // {{{
-    /*stackDump(lua);*/
+    /*stack_dump(lua);*/
     /*printf("-----------------------\n");*/
     /*lua_pushstring(lua, "id");*/
     /*lua_gettable(lua, 6);*/
-    /*stackDump(lua);*/
+    /*stack_dump(lua);*/
     /*luaL_checktype(lua, 7, LUA_TNUMBER);*/
     /*int id = (int)lua_tonumber(lua, 7);*/
     // печатать порядковый номер объекта
@@ -682,12 +699,12 @@ void on_point_query(
     lua_pushnumber(lua, gradient.x);
     lua_pushnumber(lua, gradient.x);
 
-    /*stackDump(lua);*/
+    /*stack_dump(lua);*/
     /*printf("1111111111111111111");*/
 
     lua_call(lua, 6, 0);
 
-    /*stackDump(lua);*/
+    /*stack_dump(lua);*/
     /*printf("222222222222222");*/
 }
 
