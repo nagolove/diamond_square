@@ -25,8 +25,7 @@ if (!cur_space) {                                       \
 typedef struct {
     int32_t regindex_ud;     // индекс userdata
     int32_t regindex_table;  // индекс для связанной таблицы
-/*} num __attribute__((packed, aligned(2)));*/
-} Parts;
+} __attribute__((packed)) Parts;
 
 #define SET_USER_DATA_UD(b, reg_index) \
     ((Parts*)(&b->userData))->regindex_ud = reg_index;
@@ -66,8 +65,8 @@ void term_color_reset() {
 }
 
 void print_userData(void *data) {
-    int index_ud = ((Parts*)data)->regindex_ud;
-    int index_table = ((Parts*)data)->regindex_table;
+    int index_ud = ((Parts*)&data)->regindex_ud;
+    int index_table = ((Parts*)&data)->regindex_table;
     term_color_set();
     printf("regindex_ud = %d, regindex_table = %d\n", index_ud, index_table);
     term_color_reset();
@@ -86,32 +85,31 @@ void print_body_stat(cpBody *b) {
     term_color_reset();
 }
 
-static void stack_dump (lua_State *L) {
-    int i;
-    int top = lua_gettop(L);
-    for (i = 1; i <= top; i++) { /* repeat for each level */
-        int t = lua_type(L, i);
+static void stack_dump (lua_State *lua) {
+    int top = lua_gettop(lua);
+    for (int i = 1; i <= top; i++) {
+        int t = lua_type(lua, i);
         switch (t) {
-            case LUA_TSTRING: { /* strings */
-                                  printf("’%s’", lua_tostring(L, i));
+            case LUA_TSTRING: {
+                                  printf("’%s’", lua_tostring(lua, i));
                                   break;
                               }
-            case LUA_TBOOLEAN: { /* booleans */
-                                   printf(lua_toboolean(L, i) ? "true" : "false");
+            case LUA_TBOOLEAN: {
+                                   printf(lua_toboolean(lua, i) ? "true" : "false");
                                    break;
                                }
-            case LUA_TNUMBER: { /* numbers */
-                                  printf("%g", lua_tonumber(L, i));
+            case LUA_TNUMBER: {
+                                  printf("%g", lua_tonumber(lua, i));
                                   break;
                               }
-            default: { /* other values */
-                         printf("%s", lua_typename(L, t));
+            default: {
+                         printf("%s", lua_typename(lua, t));
                          break;
                      }
         }
-        printf(" "); /* put a separator */
+        printf(" "); 
     }
-    printf("\n"); /* end the listing */
+    printf("\n"); 
 }
 
 static cpSpace *cur_space = NULL;
@@ -133,13 +131,24 @@ static int init_space(lua_State *lua) {
 #endif
 
     cur_space = lua_newuserdata(lua, sizeof(cpSpace));
+    memset(cur_space, 0, sizeof(cpSpace));
     cpSpaceInit(cur_space);
 
     // Дублирую значени userdata на стеке т.к. lua_ref() снимает одно значение
     // с верхушки.
     lua_pushvalue(lua, 2);
 
-    SET_USER_DATA_UD(cur_space, luaL_ref(lua, LUA_REGISTRYINDEX));
+    int index = luaL_ref(lua, LUA_REGISTRYINDEX);
+    SET_USER_DATA_UD(cur_space, index);
+
+    /*SET_USER_DATA_UD(cur_space, luaL_ref(lua, LUA_REGISTRYINDEX));*/
+    /*printf("index %d\n", index);*/
+
+    /*printf("userData %d\n", cur_space->userData);*/
+    /*printf("ud %d\n", GET_USER_DATA_UD(cur_space));*/
+    /*printf("table %d\n", GET_USER_DATA_UD(cur_space));*/
+
+    print_userData(cur_space->userData);
 
 #ifdef DEBUG
     term_color_set();
@@ -168,7 +177,15 @@ static void ConstraintFreeWrap(
 ) {
     lua_State *lua = (lua_State*)data;
     cpSpaceRemoveConstraint(space, constraint);
-    luaL_unref(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(constraint));
+    int index = GET_USER_DATA_UD(constraint);
+    luaL_unref(lua, LUA_REGISTRYINDEX, index);
+
+#ifdef DEBUG
+    term_color_set();
+    printf("constraint regindex_ud = %d\n", index);
+    term_color_reset();
+#endif
+
     /*cpConstraintFree(constraint);*/
 }
 
@@ -193,7 +210,16 @@ static void ShapeFreeWrap(cpSpace *space, cpShape *shape, void *unused){
     lua_State *lua = (lua_State*)unused;
 
 	cpSpaceRemoveShape(space, shape);
-    luaL_unref(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(shape));
+
+    int index = GET_USER_DATA_UD(shape);
+    luaL_unref(lua, LUA_REGISTRYINDEX, index);
+
+#ifdef DEBUG
+    term_color_set();
+    printf("constraint regindex_ud = %d\n", index);
+    term_color_reset();
+#endif
+
 	/*cpShapeFree(shape);*/
 }
 
@@ -220,7 +246,15 @@ static int free_space(lua_State *lua) {
             space, (cpSpaceConstraintIteratorFunc)PostConstraintFree, space
     );
 
-    luaL_unref(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(space));
+    int index = GET_USER_DATA_UD(space);
+
+#ifdef DEBUG
+    term_color_set();
+    printf("space regindex_ud = %d\n", index);
+    term_color_reset();
+#endif
+
+    luaL_unref(lua, LUA_REGISTRYINDEX, index);
     /*cpSpaceFree(space);*/
 }
 
