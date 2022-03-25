@@ -642,6 +642,11 @@ local function initJoy()
     joyState = JoyState.new(joy)
 end
 
+local function print_fps()
+    local msg = sformat("fps %d", love.timer.getFPS())
+    pipeline:push('add', 'fps', msg)
+end
+
 local function print_io_rate()
     local bytes = pipeline:get_received_in_sec()
     local msg = sformat("передано за секунду Килобайт = %d", math.floor(bytes / 1024))
@@ -1254,6 +1259,7 @@ end
 local function renderLinesBuf(player_x: number, player_y: number)
     pipeline:open('lines_buf')
     print_io_rate()
+    print_fps()
     camera:push2lines_buf()
     local msg = sformat("player pos (%.3f, %.3f)", player_x, player_y)
     pipeline:push("add", "player_pos", msg)
@@ -1706,6 +1712,11 @@ local function changePlayerTank(key: string)
     end
 end
 
+local function changeWindowMode()
+    --if love.window.getFullscreen() then
+    love.window.setFullscreen(not love.window.getFullscreen())
+end
+
 local function keypressed(key: string)
     -- {{{
     print('keypressed', key)
@@ -1725,6 +1736,8 @@ local function keypressed(key: string)
         if is_draw_hotkeys_docs then
             is_draw_gamepad_docs = false
         end
+    elseif key == 'f11' then
+        changeWindowMode()
     end
 
     if physics_pause then
