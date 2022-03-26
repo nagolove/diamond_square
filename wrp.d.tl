@@ -74,6 +74,7 @@ local record Wrapper
     -- скорость(x, y), сила под действием которой находится тело(x, y), 
     -- угол, угловая скорость, крутящий момент.
     get_body_stat: function(Body): number, number, number, number, number, number, number, number, number, number, number, number, number
+    shape_print_filter: function(Shape)
 end
 
 return Wrapper
