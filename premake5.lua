@@ -19,7 +19,11 @@ workspace "wrapper"
             "/home/nagolove/myprojects/c_guard" 
         }
         buildoptions { "-fPIC" }
-        links { "luajit-5.1", "chipmunk" }
+        links { 
+            "luajit-5.1", 
+            "chipmunk",
+            "mem_guard",
+        }
         libdirs { 
             "/home/nagolove/projects/Chipmunk2D/src/",
             "/home/nagolove/myprojects/c_guard" 
