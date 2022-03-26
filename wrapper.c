@@ -47,6 +47,43 @@ cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
     printf(__VA_ARGS__);        \
     term_color_reset(); \
 
+#define LOG_STACK_DUMP(lua) \
+    term_color_set();       \
+    stack_dump(lua);        \
+    term_color_reset();     \
+
+#define DENSITY (1.0/10000.0)
+
+struct Byte {
+    unsigned int _0: 1;
+    unsigned int _1: 1;
+    unsigned int _2: 1;
+    unsigned int _3: 1;
+    unsigned int _4: 1;
+    unsigned int _5: 1;
+    unsigned int _6: 1;
+    unsigned int _7: 1;
+};
+
+// Буфер для записы должен быть как минимум sizeof(value) * 8 + 9
+void uint64t_to_bitstr(uint64_t value, char *buf) {
+    assert(buf && "buf should not be a nil");
+    char *ptr = (char*)&value;
+    char *last = buf;
+    for(int i = 0; i < sizeof(value); ++i) {
+        char b = ptr[i];
+        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_0);
+        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_1);
+        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_2);
+        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_3);
+        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_4);
+        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_5);
+        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_6);
+        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_7);
+        last += sprintf(last, " ");
+    }
+}
+
 cpShapeFilter GRAB_FILTER = {
     CP_NO_GROUP, 
     GRABBABLE_MASK_BIT, 
@@ -128,12 +165,8 @@ static int init_space(lua_State *lua) {
         lua_error(lua);
     }
 
-#ifdef DEBUG
-    term_color_set();
-    printf("init_space()\n");
-    stack_dump(lua);
-    term_color_reset();
-#endif
+    LOG("init_space()\n");
+    LOG_STACK_DUMP(lua);
 
     cur_space = lua_newuserdata(lua, sizeof(cpSpace));
     memset(cur_space, 0, sizeof(cpSpace));
@@ -155,11 +188,7 @@ static int init_space(lua_State *lua) {
 
     print_userData(cur_space->userData);
 
-#ifdef DEBUG
-    term_color_set();
-    stack_dump(lua);
-    term_color_reset();
-#endif
+    LOG_STACK_DUMP(lua);
 
     double damping = lua_tonumber(lua, 1);
 
@@ -186,9 +215,7 @@ static void ConstraintFreeWrap(
     luaL_unref(lua, LUA_REGISTRYINDEX, index);
 
 #ifdef DEBUG
-    term_color_set();
-    printf("constraint regindex_ud = %d\n", index);
-    term_color_reset();
+    LOG("constraint regindex_ud = %d\n", index);
 #endif
 
     /*cpConstraintFree(constraint);*/
@@ -220,9 +247,7 @@ static void ShapeFreeWrap(cpSpace *space, cpShape *shape, void *unused){
     luaL_unref(lua, LUA_REGISTRYINDEX, index);
 
 #ifdef DEBUG
-    term_color_set();
-    printf("constraint regindex_ud = %d\n", index);
-    term_color_reset();
+    LOG("constraint regindex_ud = %d\n", index);
 #endif
 
 	/*cpShapeFree(shape);*/
@@ -253,18 +278,11 @@ static int free_space(lua_State *lua) {
 
     int index = GET_USER_DATA_UD(space);
 
-#ifdef DEBUG
-    term_color_set();
-    printf("space regindex_ud = %d\n", index);
-    term_color_reset();
-#endif
+    LOG("space regindex_ud = %d\n", index);
 
     luaL_unref(lua, LUA_REGISTRYINDEX, index);
     /*cpSpaceFree(space);*/
 }
-
-/*#define DENSITY (1.0/10000.0)*/
-#define DENSITY (1.0/10000.0)
 
 // добавить трения для тел так, что-бы они останавливались после приложения
 // импульса
@@ -302,6 +320,12 @@ static int new_body(lua_State *lua) {
         .y = (int)lua_tonumber(lua, 3),
     };
 
+    LOG("pozition (%f, %f)\n", pos.x, pos.y);
+    if (pos.x != pos.x || pos.y != pos.y ) {
+        printf("NAN\n");
+        abort();
+    }
+
     int w = (int)lua_tonumber(lua, 4);
     int h = (int)lua_tonumber(lua, 5);
 
@@ -312,7 +336,9 @@ static int new_body(lua_State *lua) {
     // ссылка на табличку, связанную с телом
     int assoc_table_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
 
-    cpBody *b = lua_newuserdata(lua, sizeof(cpBody));
+    /*cpBody *b = lua_newuserdata(lua, sizeof(cpBody));*/
+    cpBody *b = new_guarded_ud(lua, sizeof(cpBody));
+
     cpFloat mass = w * h * DENSITY;
     cpFloat moment = cpMomentForBox(mass, w, h);
     cpBodyInit(b, mass, moment);
@@ -354,6 +380,10 @@ static int new_body(lua_State *lua) {
 
     cpSpaceAddShape(cur_space, (cpShape*)shape);
     cpBodySetPosition(b, pos);
+
+    // XXX Debuggig only
+    cpBodySetVelocity(b, cpvzero);
+    b->cog = cpvzero;
 
     print_body_stat(b);
 
@@ -547,7 +577,7 @@ static int set_position(lua_State *lua) {
     /*printf("pos %f, %f\n", pos.x, pos.y);*/
     cpBodySetPosition(b, pos);
 
-    print_body_stat(b);
+    /*print_body_stat(b);*/
     
     return 0;
 }
@@ -787,6 +817,33 @@ static int get_shape_under_point(lua_State *lua) {
     return 0;
 }
 
+int print_shape_filter(cpShapeFilter filter) {
+    printf("sizeof(cpGroup) = %d\n", sizeof(cpGroup));
+    printf("sizeof(cpBitmask) = %d\n", sizeof(cpBitmask));
+    LOG("cpShapeFilter {\n");
+
+    /*LOG("   group       %u\n", filter.group);*/
+    /*LOG("   categories  %s\n", categories);*/
+    /*LOG("   mask        %s\n", mask);*/
+
+    LOG("}\n");
+}
+
+static int shape_print_filter(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expect 1 argument.\n");
+        lua_error(lua);
+    }
+
+    cpShape *shape = (cpShape*)lua_touserdata(lua, 1);
+    print_shape_filter(shape->filter);
+
+    return 0;
+}
+
 static int get_shape_body(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     
@@ -1008,6 +1065,7 @@ extern int luaopen_wrp(lua_State *lua) {
         // получить разную информацию по телу
         // используется для отладки
         {"get_body_stat", get_body_stat},
+        {"shape_print_filter", shape_print_filter},
 
         {NULL, NULL}
     };
