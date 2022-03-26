@@ -57,14 +57,14 @@ require "keyconfig"
 
 local sformat = string.format
 local inspect = require "inspect"
-local serpent = require 'serpent'
+--local serpent = require 'serpent'
 --local i18n = require "i18n"
 local metrics = require "metrics"
 local vec2 = require "vector"
 --local vecl = require "vector-light"
 
 -- Вывод в строку
-local tabular = require "tabular".show
+--local tabular = require "tabular".show
 
 local Pipeline = require 'pipeline'
 local pipeline = Pipeline.new(SCENE_PREFIX)
@@ -122,12 +122,14 @@ local turretCommon: TurretCommon = {
 
 -- }}}
 
+--[[
 local record Edge
     x1: number
     y1: number
     x2: number
     y2: number
 end
+--]]
 
 -- Чем занят класс Arena?
 -- Класс Arena применяется для хранения геометрии ограничивающей игровое поле.
@@ -268,6 +270,7 @@ local record Base
     -- }}}
 end
 
+--[[
 -- информация о наборе частиц
 local record ParticleSystemDefinition
     -- режим смешивания
@@ -287,9 +290,11 @@ local record ParticleSystemDefinition
     rotation1: number
     rotation2: number
 end
+--]]
 
-local type ParticlesMap = {string: ParticleSystemDefinition}
+--local type ParticlesMap = {string: ParticleSystemDefinition}
 
+--[[
 local particles: ParticlesMap= {
     -- {{{
     -- значение для по-умолчанию для новых эффектов
@@ -311,6 +316,7 @@ local particles: ParticlesMap= {
     }
     -- }}}
 }
+--]]
 
 -- То, что создается когда происходит попадание снаряда в танк.
 local record Hit 
@@ -1551,7 +1557,7 @@ local function spawnTanks()
     которое приводит к мельканию.
     --]]
     local tanks_num = 5
-    --local tanks_num = 10
+    --local tanks_num = 100
 
     local minx, maxx = 0, 4000
     local miny, maxy = 0, 4000
@@ -1562,10 +1568,24 @@ local function spawnTanks()
     -- информация о танчиках записывается в таблицу на стороне потока рисования
     -- что-бы позже передавать данные только от изменивших положение объектах
     --pipeline:open('base_shape')
+
+    --[[
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
         --local tank = spawnTank(px, py)
         spawnTank(px, py)
+    end
+    --]]
+
+    local rad = 1000
+    for _ = 1, tanks_num do
+        --local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
+        local p = vec2.fromPolar(
+            rng:random() * 2 * math.pi, 
+            rad
+        )
+        --local tank = spawnTank(px, py)
+        spawnTank(p.x, p.y)
     end
 
     spawnTank(-100, 100)
@@ -2241,6 +2261,10 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
             grady: number
         )
 
+        if not shape then
+            error("no shape")
+        end
+
         local msg = ""
         counter = counter + 1
         pipeline:open('object_lines_buf')
@@ -2257,6 +2281,8 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
         pipeline:push('add', 5, sformat('gradient (%.3f, %.3f)', gradx, grady))
 
         pipeline:push('add', 6, "----------")
+
+        wrp.shape_print_filter(shape)
 
         local body = wrp.get_shape_body(shape)
         local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
