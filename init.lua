@@ -642,6 +642,11 @@ local function initJoy()
    joyState = JoyState.new(joy)
 end
 
+local function print_fps()
+   local msg = sformat("fps %d", love.timer.getFPS())
+   pipeline:push('add', 'fps', msg)
+end
+
 local function print_io_rate()
    local bytes = pipeline:get_received_in_sec()
    local msg = sformat("передано за секунду Килобайт = %d", math.floor(bytes / 1024))
@@ -1254,6 +1259,7 @@ end
 local function renderLinesBuf(player_x, player_y)
    pipeline:open('lines_buf')
    print_io_rate()
+   print_fps()
    camera:push2lines_buf()
    local msg = sformat("player pos (%.3f, %.3f)", player_x, player_y)
    pipeline:push("add", "player_pos", msg)
@@ -1556,10 +1562,24 @@ local function spawnTanks()
 
 
 
-   for _ = 1, tanks_num do
-      local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
 
-      spawnTank(px, py)
+
+
+
+
+
+
+
+
+   local cx, cy, rad = 0, 0, 1000
+   for _ = 1, tanks_num do
+
+      local p = vec2.fromPolar(
+      rng:random() * 2 * math.pi,
+      rad)
+
+
+      spawnTank(p.x, p.y)
    end
 
    spawnTank(-100, 100)
@@ -1706,6 +1726,11 @@ local function changePlayerTank(key)
    end
 end
 
+local function changeWindowMode()
+
+   love.window.setFullscreen(not love.window.getFullscreen())
+end
+
 local function keypressed(key)
 
    print('keypressed', key)
@@ -1725,6 +1750,8 @@ local function keypressed(key)
       if is_draw_hotkeys_docs then
          is_draw_gamepad_docs = false
       end
+   elseif key == 'f11' then
+      changeWindowMode()
    end
 
    if physics_pause then
@@ -2228,6 +2255,10 @@ local function mousemoved(x, y, dx, dy)
       grady)
 
 
+      if not shape then
+         error("no shape")
+      end
+
       local msg = ""
       counter = counter + 1
       pipeline:open('object_lines_buf')
@@ -2244,6 +2275,8 @@ local function mousemoved(x, y, dx, dy)
       pipeline:push('add', 5, sformat('gradient (%.3f, %.3f)', gradx, grady))
 
       pipeline:push('add', 6, "----------")
+
+      wrp.shape_print_filter(shape)
 
       local body = wrp.get_shape_body(shape)
       local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y,

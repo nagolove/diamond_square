@@ -22,7 +22,7 @@ ifeq ($(config),debug)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -lluajit-5.1 -lchipmunk
+  LIBS += -lluajit-5.1 -lchipmunk -lmem_guard
   LDDEPS +=
   ALL_LDFLAGS += $(LDFLAGS) -L../../../../projects/Chipmunk2D/src -L../../../c_guard -shared -Wl,-soname=wrp.so
   LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
@@ -49,7 +49,7 @@ ifeq ($(config),release)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -lluajit-5.1 -lchipmunk
+  LIBS += -lluajit-5.1 -lchipmunk -lmem_guard
   LDDEPS +=
   ALL_LDFLAGS += $(LDFLAGS) -L../../../../projects/Chipmunk2D/src -L../../../c_guard -shared -Wl,-soname=wrp.so -s
   LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
