@@ -30,7 +30,7 @@ local record Tank
 
     type: ObjectType
     base: wrp.Body
-    turret: wrp.Body
+    --turret: wrp.Body
 
     -- {{{ px, py, angle используются в eachShape для проверки на необходимсоть 
     -- рисования
@@ -140,6 +140,9 @@ function Tank.new(pos: vector, w: number, h: number): Tank
 
     self.type = "tank"
     self.base = wrp.new_body(self.type, pos.x, pos.y, w, h, self as table)
+
+    print('self.base', self.base)
+    
     --wrp.set_position(self.base, pos.x, pos.y)
 
     return self
