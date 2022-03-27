@@ -1248,12 +1248,39 @@ local function renderTanks()
     pipeline:close()
 end
 
+local function print_body_stat(body: Wrapper.Body)
+    print('body', body)
+    local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
+        force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
+
+    print('body stat:')
+    print("mass", mass)
+    print("inertia", inertia)
+    print("cog_x", cog_x)
+    print("cog_y", cog_y)
+    print("pos_x", pos_x)
+    print("pos_y", pos_y)
+    print("v_x", v_x)
+    print("v_y", v_y)
+    print("force_x", force_x)
+    print("force_y", force_y)
+    print("angle", angle)
+    print("w", w)
+    print("torque", torque)
+
+end
+
 local function renderSelectedObject(): number, number
     local player_x, player_y: number, number
     if playerTank then
         pipeline:open('selected_object')
         local body = playerTank.base
         player_x, player_y = wrp.get_position(body)
+
+        --print('selected_object: ', player_x, player_y)
+        print_body_stat(body)
+        --print('----------------------------------------------')
+
         pipeline:push(wrp.get_position(body))
         pipeline:close()
     else
@@ -1556,7 +1583,7 @@ local function spawnTanks()
     Расчитать количество передаваемых данных за кадр и в среднем за секунду
     которое приводит к мельканию.
     --]]
-    local tanks_num = 5
+    local tanks_num = 2
     --local tanks_num = 100
 
     local minx, maxx = 0, 4000
