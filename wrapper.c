@@ -99,11 +99,11 @@ cpShapeFilter NOT_GRABBABLE_FILTER = {
 
 void term_color_set() {
     // cyan color
-    printf("\033[36m");
+    /*printf("\033[36m");*/
 }
 
 void term_color_reset() {
-    printf("\033[0m");
+    /*printf("\033[0m");*/
 }
 
 void print_userData(void *data) {
@@ -157,6 +157,7 @@ static void stack_dump (lua_State *lua) {
 static cpSpace *cur_space = NULL;
 
 static int init_space(lua_State *lua) {
+    // [.. , damping]
     luaL_checktype(lua, 1, LUA_TNUMBER);
 
     int top = lua_gettop(lua);
@@ -168,15 +169,21 @@ static int init_space(lua_State *lua) {
     LOG("init_space()\n");
     LOG_STACK_DUMP(lua);
 
-    cur_space = lua_newuserdata(lua, sizeof(cpSpace));
+    cur_space = lua_newuserdata(lua, sizeof(cpSpace)); // [.. , damping, {ud}]
     memset(cur_space, 0, sizeof(cpSpace));
     cpSpaceInit(cur_space);
 
+    luaL_getmetatable(lua, "_Space");
+    // [.., damping, {ud}, {M}]
+    
+    luaL_setmetatable(lua, -2);
+    // [... damping, {ud}]
+
     // Дублирую значени userdata на стеке т.к. lua_ref() снимает одно значение
     // с верхушки.
-    lua_pushvalue(lua, 2);
+    lua_pushvalue(lua, 2); // [.. , damping, {ud}, {ud}]
 
-    int index = luaL_ref(lua, LUA_REGISTRYINDEX);
+    int index = luaL_ref(lua, LUA_REGISTRYINDEX); // [.., damping, {ud}]
     SET_USER_DATA_UD(cur_space, index);
 
     /*SET_USER_DATA_UD(cur_space, luaL_ref(lua, LUA_REGISTRYINDEX));*/
@@ -201,7 +208,10 @@ static int init_space(lua_State *lua) {
 
     cpSpaceSetDamping(cur_space, damping);
 
-    return 1;
+    printf("before return:\n");
+    stack_dump(lua);
+
+    return 1; // [.., damping, -> {ud}]
 }
 
 static void ConstraintFreeWrap(
@@ -287,6 +297,7 @@ static int free_space(lua_State *lua) {
 // добавить трения для тел так, что-бы они останавливались после приложения
 // импульса
 static int new_body(lua_State *lua) {
+    // [.., type, x, y, w, h, assoc_table]
     CHECK_SPACE;
 
     int top = lua_gettop(lua);
@@ -320,7 +331,7 @@ static int new_body(lua_State *lua) {
         .y = (int)lua_tonumber(lua, 3),
     };
 
-    LOG("pozition (%f, %f)\n", pos.x, pos.y);
+    /*LOG("pozition (%f, %f)\n", pos.x, pos.y);*/
     if (pos.x != pos.x || pos.y != pos.y ) {
         printf("NAN\n");
         abort();
@@ -329,15 +340,22 @@ static int new_body(lua_State *lua) {
     int w = (int)lua_tonumber(lua, 4);
     int h = (int)lua_tonumber(lua, 5);
 
-    printf("new_body\n");
-    stack_dump(lua);
-    printf("------------------\n");
+    /*printf("new_body\n");*/
+    /*stack_dump(lua);*/
+    /*printf("------------------\n");*/
 
-    // ссылка на табличку, связанную с телом
+    // [.., type, x, y, w, h, -> assoc_table]
     int assoc_table_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
+    // [.., type, x, y, w, h]
 
-    /*cpBody *b = lua_newuserdata(lua, sizeof(cpBody));*/
-    cpBody *b = new_guarded_ud(lua, sizeof(cpBody));
+    cpBody *b = lua_newuserdata(lua, sizeof(cpBody));
+    /*cpBody *b = new_guarded_ud(lua, sizeof(cpBody));*/
+    // [.., type, x, y, w, h, {ud}]
+
+    luaL_getmetatable(lua, "_Body");
+    // [.., type, x, y, w, h, {ud}, {M}]
+    luaL_setmetatable(lua, -2);
+    // [.., type, x, y, w, h, {ud}]
 
     cpFloat mass = w * h * DENSITY;
     cpFloat moment = cpMomentForBox(mass, w, h);
@@ -346,14 +364,18 @@ static int new_body(lua_State *lua) {
 
     //TODO Проверить как работает дублирование верхнего значения на стеке
     lua_pushvalue(lua, lua_gettop(lua));
+    // [.., type, x, y, w, h, {ud}, {ud}]
     int body_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
+    // [.., type, x, y, w, h, {ud}]
 
-    printf("before shape ud\n");
-    stack_dump(lua);
-    printf("------------------\n");
+    /*printf("before shape ud\n");*/
+    /*stack_dump(lua);*/
+    /*printf("------------------\n");*/
 
     cpShape *shape = lua_newuserdata(lua, sizeof(cpPolyShape));
+    // [.., type, x, y, w, h, {ud}, {ud}]
     SET_USER_DATA_UD(shape, luaL_ref(lua, LUA_REGISTRYINDEX));
+    // [.., type, x, y, w, h, {ud}]
     cpBoxShapeInit((cpPolyShape*)shape, b, w, h, 0.f);
 
     /*printf("shape_reg_index %d\n", shape_reg_index);*/
@@ -364,15 +386,9 @@ static int new_body(lua_State *lua) {
     SET_USER_DATA_UD(b, body_reg_index);
     SET_USER_DATA_TABLE(b, assoc_table_reg_index);
 
-    // Удалить все предшествующие возвращаемому значению элементы стека.
-    // Не уверен в нужности вызова.
-    /*for(int i = 0; i <= 5; i++) {*/
-        /*lua_remove(lua, 1);*/
-    /*}*/
-
-    printf("after ref\n");
-    stack_dump(lua);
-    printf("------------------\n");
+    /*printf("after ref\n");*/
+    /*stack_dump(lua);*/
+    /*printf("------------------\n");*/
 
     /*cpShapeSetFriction(shape, 10000.);*/
     /*printf("shape friction: %f\n", cpShapeGetFriction(shape));*/
@@ -385,11 +401,26 @@ static int new_body(lua_State *lua) {
     cpBodySetVelocity(b, cpvzero);
     b->cog = cpvzero;
 
-    print_body_stat(b);
+    /*print_body_stat(b);*/
 
-    printf("before return\n");
-    stack_dump(lua);
+    /*printf("before return\n");*/
+    /*stack_dump(lua);*/
 
+    // Удалить все предшествующие возвращаемому значению элементы стека.
+    // Не уверен в нужности вызова.
+    /*printf("lua_gettop() = %d\n", lua_gettop(lua));*/
+
+    top = lua_gettop(lua);
+    for(int i = 0; i <= top - 2; i++) {
+        lua_remove(lua, 1);
+        stack_dump(lua);
+    }
+    // [.., {ud}]
+
+    /*printf("-----------------------\n");*/
+    /*stack_dump(lua);*/
+
+    // [.., -> {ud}]
     return 1;
 }
 
@@ -543,6 +574,10 @@ static int step(lua_State *lua) {
 }
 
 static int get_position(lua_State *lua) {
+    /*stack_dump(lua);*/
+    /*printf("exit(2)\n");*/
+    /*exit(2);*/
+
     luaL_checktype(lua, 1, LUA_TUSERDATA);
 
     int top = lua_gettop(lua);
@@ -551,7 +586,10 @@ static int get_position(lua_State *lua) {
         lua_error(lua);
     }
 
+    // Как проверить действительный тип данных?
+    // Можно передать не тот тип userdata, а ошибки не произойдет.
     cpBody *b = (cpBody*)lua_touserdata(lua, 1);
+    /*printf("b %p\n", b);*/
     lua_pushnumber(lua, b->p.x);
     lua_pushnumber(lua, b->p.y);
     lua_pushnumber(lua, b->a);
@@ -860,7 +898,9 @@ static int get_shape_body(lua_State *lua) {
 }
 
 int get_body_stat(lua_State *lua) {
+    printf("get_body_stat() 1\n");
     luaL_checktype(lua, 1, LUA_TUSERDATA);
+    printf("get_body_stat() 2\n");
 
     int top = lua_gettop(lua);
     if (top != 1) {
@@ -1069,6 +1109,11 @@ extern int luaopen_wrp(lua_State *lua) {
 
         {NULL, NULL}
     };
+
+    luaL_newmetatable(lua, "_Body");
+    luaL_newmetatable(lua, "_Shape");
+    luaL_newmetatable(lua, "_Space");
+    /*luaL_newmetatable(lua, "_Segment");*/
 
     luaL_register(lua, "wrapper", functions);
     printf("wrp module opened\n");
