@@ -57,14 +57,14 @@ require("keyconfig")
 
 local sformat = string.format
 local inspect = require("inspect")
-local serpent = require('serpent')
+
 
 local metrics = require("metrics")
 local vec2 = require("vector")
 
 
 
-local tabular = require("tabular").show
+
 
 local Pipeline = require('pipeline')
 local pipeline = Pipeline.new(SCENE_PREFIX)
@@ -122,7 +122,9 @@ local yield, resume = coroutine.yield, coroutine.resume
 
 
 
-local Edge = {}
+
+
+
 
 
 
@@ -269,7 +271,6 @@ local Base = {}
 
 
 
-local ParticleSystemDefinition = {}
 
 
 
@@ -288,29 +289,34 @@ local ParticleSystemDefinition = {}
 
 
 
-local ParticlesMap = {}
-
-local particles = {
 
 
-   ["default"] = {
-      blendmode = 'alpha',
-      alphamode = 'alphamultiply',
-      lifetime1 = 1,
-      lifetime2 = 2,
-      emissionRate = 10,
-      sizeVariation = 1,
-      lineAcceleration = { -20, -20, 20, 20 },
-      colors = {
-         { 1, 1, 1, 1 },
-         { 1, 1, 1, 0 },
-      },
-      emiterlifetimeexp = "return 0.1 + (rng:random() + 0.01) / 2",
-      rotation1 = 0,
-      rotation2 = math.pi * 2,
-   },
 
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 local Hit = {}
@@ -1242,12 +1248,39 @@ local function renderTanks()
    pipeline:close()
 end
 
+local function print_body_stat(body)
+   print('body', body)
+   local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y,
+   force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
+
+   print('body stat:')
+   print("mass", mass)
+   print("inertia", inertia)
+   print("cog_x", cog_x)
+   print("cog_y", cog_y)
+   print("pos_x", pos_x)
+   print("pos_y", pos_y)
+   print("v_x", v_x)
+   print("v_y", v_y)
+   print("force_x", force_x)
+   print("force_y", force_y)
+   print("angle", angle)
+   print("w", w)
+   print("torque", torque)
+
+end
+
 local function renderSelectedObject()
    local player_x, player_y
    if playerTank then
       pipeline:open('selected_object')
       local body = playerTank.base
       player_x, player_y = wrp.get_position(body)
+
+
+      print_body_stat(body)
+
+
       pipeline:push(wrp.get_position(body))
       pipeline:close()
    else
@@ -1550,7 +1583,7 @@ local function spawnTanks()
 
 
 
-   local tanks_num = 5
+   local tanks_num = 2
 
 
    local minx, maxx = 0, 4000
@@ -1563,15 +1596,14 @@ local function spawnTanks()
 
 
 
+   for _ = 1, tanks_num do
+      local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
+
+      spawnTank(px, py)
+   end
 
 
-
-
-
-
-
-
-   local cx, cy, rad = 0, 0, 1000
+   local rad = 1000
    for _ = 1, tanks_num do
 
       local p = vec2.fromPolar(

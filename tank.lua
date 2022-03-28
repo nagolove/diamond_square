@@ -141,6 +141,9 @@ function Tank.new(pos, w, h)
    self.type = "tank"
    self.base = wrp.new_body(self.type, pos.x, pos.y, w, h, self)
 
+   print('self.base', self.base)
+
+
 
    return self
 end

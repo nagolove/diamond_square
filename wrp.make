@@ -19,8 +19,8 @@ ifeq ($(config),debug)
   INCLUDES += -I/usr/include/luajit-2.1 -I../../../../projects/Chipmunk2D/include -I../../../c_guard
   FORCE_INCLUDE +=
   ALL_CPPFLAGS += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC
-  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC
+  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC -Wall -Werror -Wno-strict-aliasing
+  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC -Wall -Werror -Wno-strict-aliasing
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
   LIBS += -lluajit-5.1 -lchipmunk -lmem_guard
   LDDEPS +=
@@ -46,8 +46,8 @@ ifeq ($(config),release)
   INCLUDES += -I/usr/include/luajit-2.1 -I../../../../projects/Chipmunk2D/include -I../../../c_guard
   FORCE_INCLUDE +=
   ALL_CPPFLAGS += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC
-  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC
+  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing
+  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
   LIBS += -lluajit-5.1 -lchipmunk -lmem_guard
   LDDEPS +=
