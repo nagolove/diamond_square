@@ -54,32 +54,33 @@ cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
 
 #define DENSITY (1.0/10000.0)
 
-struct Byte {
-    unsigned int _0: 1;
-    unsigned int _1: 1;
-    unsigned int _2: 1;
-    unsigned int _3: 1;
-    unsigned int _4: 1;
-    unsigned int _5: 1;
-    unsigned int _6: 1;
-    unsigned int _7: 1;
-};
-
-// Буфер для записы должен быть как минимум sizeof(value) * 8 + 9
 void uint64t_to_bitstr(uint64_t value, char *buf) {
     assert(buf && "buf should not be a nil");
-    char *ptr = (char*)&value;
     char *last = buf;
+
+    union BitMap {
+        struct {
+            unsigned char _0: 1;
+            unsigned char _1: 1;
+            unsigned char _2: 1;
+            unsigned char _3: 1;
+            unsigned char _4: 1;
+            unsigned char _5: 1;
+            unsigned char _6: 1;
+            unsigned char _7: 1;
+        } b[8];
+        uint64_t u;
+    } bp = { .u = value, };
+
     for(int i = 0; i < sizeof(value); ++i) {
-        char b = ptr[i];
-        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_0);
-        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_1);
-        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_2);
-        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_3);
-        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_4);
-        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_5);
-        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_6);
-        last += sprintf(last, "%d", (int)(((struct Byte*)&b))->_7);
+        last += sprintf(last, "%d", (int)bp.b[i]._0);
+        last += sprintf(last, "%d", (int)bp.b[i]._1);
+        last += sprintf(last, "%d", (int)bp.b[i]._2);
+        last += sprintf(last, "%d", (int)bp.b[i]._3);
+        last += sprintf(last, "%d", (int)bp.b[i]._4);
+        last += sprintf(last, "%d", (int)bp.b[i]._5);
+        last += sprintf(last, "%d", (int)bp.b[i]._6);
+        last += sprintf(last, "%d", (int)bp.b[i]._7);
         last += sprintf(last, " ");
     }
 }
@@ -175,8 +176,11 @@ static int init_space(lua_State *lua) {
 
     luaL_getmetatable(lua, "_Space");
     // [.., damping, {ud}, {M}]
-    
-    luaL_setmetatable(lua, -2);
+   
+    printf("stack:\n");
+    stack_dump(lua);
+
+    lua_setmetatable(lua, -2);
     // [... damping, {ud}]
 
     // Дублирую значени userdata на стеке т.к. lua_ref() снимает одно значение
@@ -274,7 +278,7 @@ static void PostShapeFree(cpShape *shape, struct PostCallbackData *data){
 
 static int free_space(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
-    cpSpace *space = (cpSpace*)lua_touserdata(lua, 1);
+    cpSpace *space = (cpSpace*)luaL_checkudata(lua, 1, "_Space");
 
     struct PostCallbackData data = {
         .space = space,
@@ -292,6 +296,7 @@ static int free_space(lua_State *lua) {
 
     luaL_unref(lua, LUA_REGISTRYINDEX, index);
     /*cpSpaceFree(space);*/
+    return 0;
 }
 
 // добавить трения для тел так, что-бы они останавливались после приложения
@@ -354,7 +359,7 @@ static int new_body(lua_State *lua) {
 
     luaL_getmetatable(lua, "_Body");
     // [.., type, x, y, w, h, {ud}, {M}]
-    luaL_setmetatable(lua, -2);
+    lua_setmetatable(lua, -2);
     // [.., type, x, y, w, h, {ud}]
 
     cpFloat mass = w * h * DENSITY;
@@ -588,7 +593,7 @@ static int get_position(lua_State *lua) {
 
     // Как проверить действительный тип данных?
     // Можно передать не тот тип userdata, а ошибки не произойдет.
-    cpBody *b = (cpBody*)lua_touserdata(lua, 1);
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Body");
     /*printf("b %p\n", b);*/
     lua_pushnumber(lua, b->p.x);
     lua_pushnumber(lua, b->p.y);
@@ -608,7 +613,7 @@ static int set_position(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)lua_touserdata(lua, 1);
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Body");
     double x = lua_tonumber(lua, 2);
     double y = lua_tonumber(lua, 3);
     cpVect pos = { .x = x, .y = y};
@@ -643,7 +648,7 @@ static int apply_force(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)lua_touserdata(lua, 1);
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Body");
 
     /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);*/
 
@@ -687,7 +692,7 @@ static int apply_impulse(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)lua_touserdata(lua, 1);
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Body");
 
     /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);*/
 
@@ -759,7 +764,7 @@ static int free_static_segment(lua_State *lua) {
 
     assert(cur_space && "space is NULL");
 
-    cpShape *shape = (cpShape*)lua_touserdata(lua, 1);
+    cpShape *shape = (cpShape*)luaL_checkudata(lua, 1, "_Segment");
     cpSpaceRemoveShape(cur_space, shape);
     luaL_unref(
             lua, 
@@ -855,9 +860,9 @@ static int get_shape_under_point(lua_State *lua) {
     return 0;
 }
 
-int print_shape_filter(cpShapeFilter filter) {
-    printf("sizeof(cpGroup) = %d\n", sizeof(cpGroup));
-    printf("sizeof(cpBitmask) = %d\n", sizeof(cpBitmask));
+void print_shape_filter(cpShapeFilter filter) {
+    printf("sizeof(cpGroup) = %ld\n", sizeof(cpGroup));
+    printf("sizeof(cpBitmask) = %ld\n", sizeof(cpBitmask));
     LOG("cpShapeFilter {\n");
 
     /*LOG("   group       %u\n", filter.group);*/
@@ -876,13 +881,14 @@ static int shape_print_filter(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpShape *shape = (cpShape*)lua_touserdata(lua, 1);
+    cpShape *shape = (cpShape*)luaL_checkudata(lua, 1, "_Shape");
     print_shape_filter(shape->filter);
 
     return 0;
 }
 
 static int get_shape_body(lua_State *lua) {
+    // [.., shape]
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     
     int top = lua_gettop(lua);
@@ -891,8 +897,9 @@ static int get_shape_body(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpShape *shape = lua_touserdata(lua, 1);
+    cpShape *shape = luaL_checkudata(lua, 1, "_Shape");
     lua_rawgeti(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(shape->body));
+    // [.., -> ud]
 
     return 1;
 }
@@ -908,7 +915,7 @@ int get_body_stat(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)lua_touserdata(lua, 1);
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Body");
 
     printf("get_body_stat()\n");
     print_body_stat(b);
@@ -941,7 +948,7 @@ int get_body_stat(lua_State *lua) {
     // крутящий момент
     lua_pushnumber(lua, b->t);
 
-    cpVect p = cpBodyGetPosition(b);
+    /*cpVect p = cpBodyGetPosition(b);*/
     /*cpVect cog = cpBodyGetCenterOfGravity(b);*/
     /*cpVect v = cpBodyGetVelocity(b);*/
 
@@ -971,7 +978,7 @@ static int set_torque(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *body = (cpBody*)lua_touserdata(lua, 1);
+    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Body");
     double torque = lua_tonumber(lua, 2);
 
     cpBodySetTorque(body, torque);
@@ -988,7 +995,7 @@ static int get_body_type(lua_State *lua) {
         lua_error(lua);
     }
     
-    cpBody *body = (cpBody*)lua_touserdata(lua, 1);
+    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Body");
     cpBodyType btype = cpBodyGetType(body);
     double type = -1.;
 
@@ -1013,7 +1020,7 @@ static int get_body_vel(lua_State *lua) {
         lua_error(lua);
     }
     
-    cpBody *body = (cpBody*)lua_touserdata(lua, 1);
+    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Body");
     cpVect vel = cpBodyGetVelocity(body);
 
     lua_pushnumber(lua, vel.x);
@@ -1032,7 +1039,7 @@ static int set_body_ang_vel(lua_State *lua) {
         lua_error(lua);
     }
     
-    cpBody *body = (cpBody*)lua_touserdata(lua, 1);
+    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Body");
     double ang_vel = lua_tonumber(lua, 2);
     cpBodySetAngularVelocity(body, ang_vel);
 
@@ -1048,7 +1055,7 @@ static int get_body_ang_vel(lua_State *lua) {
         lua_error(lua);
     }
     
-    cpBody *body = (cpBody*)lua_touserdata(lua, 1);
+    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Body");
     lua_pushnumber(lua, cpBodyGetAngularVelocity(body));
 
     return 1;
