@@ -933,6 +933,11 @@ int get_body_stat(lua_State *lua) {
     lua_pushnumber(lua, b->p.x);
     lua_pushnumber(lua, b->p.y);
 
+    if (isnan(b->p.x) || isnan(b->p.y)) {
+        lua_pushstring(lua, "Position vector component hash NaN value.\n");
+        lua_error(lua);
+    }
+
     // скорость
     lua_pushnumber(lua, b->v.x);
     lua_pushnumber(lua, b->v.y);
