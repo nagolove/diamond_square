@@ -1596,7 +1596,6 @@ local function spawnTanks()
     -- что-бы позже передавать данные только от изменивших положение объектах
     --pipeline:open('base_shape')
 
-    --[[
     for _ = 1, tanks_num do
         local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
         --local tank = spawnTank(px, py)
