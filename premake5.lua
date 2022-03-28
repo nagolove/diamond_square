@@ -18,7 +18,12 @@ workspace "wrapper"
             "/home/nagolove/projects/Chipmunk2D/include",
             "/home/nagolove/myprojects/c_guard" 
         }
-        buildoptions { "-fPIC" }
+        buildoptions { 
+            "-fPIC",
+            "-Wall",
+            "-Werror",
+            "-Wno-strict-aliasing",
+        }
         links { 
             "luajit-5.1", 
             "chipmunk",
