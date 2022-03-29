@@ -1278,7 +1278,7 @@ local function renderSelectedObject(): number, number
         player_x, player_y = wrp.get_position(body)
 
         --print('selected_object: ', player_x, player_y)
-        print_body_stat(body)
+        --print_body_stat(body)
         --print('----------------------------------------------')
 
         pipeline:push(wrp.get_position(body))
@@ -1559,9 +1559,9 @@ local function spawnTank(px: number, py: number): Tank
     table.insert(tanks, tank)
     local tank_x, tank_y, angle = wrp.get_position(tank.base)
 
-    print(colorize(
-        "%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)
-    ))
+    --print(colorize(
+        --"%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)
+    --))
 
     -- Эти значения используются в C модуле для определения на сколько
     -- сдвинулся объект с момента предыдущей обработки.
@@ -1596,13 +1596,6 @@ local function spawnTanks()
     -- что-бы позже передавать данные только от изменивших положение объектах
     --pipeline:open('base_shape')
 
-    for _ = 1, tanks_num do
-        local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-        --local tank = spawnTank(px, py)
-        spawnTank(px, py)
-    end
-    --]]
-
     local rad = 1000
     for _ = 1, tanks_num do
         --local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
@@ -1610,7 +1603,6 @@ local function spawnTanks()
             rng:random() * 2 * math.pi, 
             rad
         )
-        --local tank = spawnTank(px, py)
         spawnTank(p.x, p.y)
     end
 
@@ -1708,12 +1700,17 @@ local function initBorders()
             local segment = wrp.new_static_segment(b.x1, b.y1, b.x2, b.y2)
             table.insert(segments, segment)
         end
+    else
+        print(colorize("${red}" .. "no borders data"))
     end
 end
 
 local function spawnPlayer()
     local px, py = screenW / 3, screenH / 2
     playerTank = spawnTank(px, py)
+
+    -- near friend for debugger
+    spawnTank(px + 200, py)
 end
 
 local function nextTankAsPlayer()
@@ -2278,6 +2275,16 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
     --print('absx, absy', absx, absy)
     local counter = 0
     wrp.get_shape_under_point(x + absx, y + absy, 
+    --[[
+        function(
+            body: Wrapper.Body,
+            shape_x: number,
+            shape_y: number,
+            dist: number,
+            gradx: number,
+            grady: number
+        )
+    --]]
         function(
             shape: Wrapper.Shape,
             shape_x: number,
@@ -2308,11 +2315,21 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
 
         pipeline:push('add', 6, "----------")
 
-        wrp.shape_print_filter(shape)
+        --wrp.shape_print_filter(shape)
 
-        local body = wrp.get_shape_body(shape)
+        local body: Wrapper.Body
+        local ok, errmsg: boolean, string = pcall(function()
+            body = wrp.get_shape_body(shape)
+        end)
+        if not ok then
+            print('error in wrp.get_shape_body(): ' .. errmsg)
+            os.exit(10);
+        end
+
         local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
             force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
+        --local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
+            --force_x, force_y, angle, w, torque = wrp.get_body_stat(space as Wrapper.Body)
 
         msg = sformat('mass, inertia: %.3f, %.3f', mass, inertia)
         pipeline:push('add', 7, msg)
