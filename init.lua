@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local package = _tl_compat and _tl_compat.package or package; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local os = _tl_compat and _tl_compat.os or os; local package = _tl_compat and _tl_compat.package or package; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -1278,7 +1278,7 @@ local function renderSelectedObject()
       player_x, player_y = wrp.get_position(body)
 
 
-      print_body_stat(body)
+
 
 
       pipeline:push(wrp.get_position(body))
@@ -1559,8 +1559,8 @@ local function spawnTank(px, py)
    table.insert(tanks, tank)
    local tank_x, tank_y, angle = wrp.get_position(tank.base)
 
-   print(colorize(
-   "%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)))
+
+
 
 
 
@@ -1596,20 +1596,12 @@ local function spawnTanks()
 
 
 
-   for _ = 1, tanks_num do
-      local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-
-      spawnTank(px, py)
-   end
-
-
    local rad = 1000
    for _ = 1, tanks_num do
 
       local p = vec2.fromPolar(
       rng:random() * 2 * math.pi,
       rad)
-
 
       spawnTank(p.x, p.y)
    end
@@ -1708,12 +1700,17 @@ local function initBorders()
          local segment = wrp.new_static_segment(b.x1, b.y1, b.x2, b.y2)
          table.insert(segments, segment)
       end
+   else
+      print(colorize("${red}" .. "no borders data"))
    end
 end
 
 local function spawnPlayer()
    local px, py = screenW / 3, screenH / 2
    playerTank = spawnTank(px, py)
+
+
+   spawnTank(px + 200, py)
 end
 
 local function nextTankAsPlayer()
@@ -2278,6 +2275,16 @@ local function mousemoved(x, y, dx, dy)
 
    local counter = 0
    wrp.get_shape_under_point(x + absx, y + absy,
+
+
+
+
+
+
+
+
+
+
    function(
       shape,
       shape_x,
@@ -2308,11 +2315,21 @@ local function mousemoved(x, y, dx, dy)
 
       pipeline:push('add', 6, "----------")
 
-      wrp.shape_print_filter(shape)
 
-      local body = wrp.get_shape_body(shape)
+
+      local body
+      local ok, errmsg = pcall(function()
+         body = wrp.get_shape_body(shape)
+      end)
+      if not ok then
+         print('error in wrp.get_shape_body(): ' .. errmsg)
+         os.exit(10);
+      end
+
       local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y,
       force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
+
+
 
       msg = sformat('mass, inertia: %.3f, %.3f', mass, inertia)
       pipeline:push('add', 7, msg)

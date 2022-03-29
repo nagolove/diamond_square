@@ -139,6 +139,11 @@ function Tank.new(pos, w, h)
    self.color = { 1, 1, 1, 1 }
 
    self.type = "tank"
+
+   if pos.x ~= pos.x or pos.y ~= pos.y then
+      error("NaN in tank positon.")
+   end
+
    self.base = wrp.new_body(self.type, pos.x, pos.y, w, h, self)
 
    print('self.base', self.base)
