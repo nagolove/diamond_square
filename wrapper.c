@@ -1,18 +1,19 @@
 // vim: set colorcolumn=85
 // vim: fdm=marker
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <lauxlib.h>
+#include <lua.h>
+#include <lualib.h>
 
 #include "chipmunk/chipmunk.h"
 #include "chipmunk/chipmunk_structs.h"
 
-#include "mem_guard.h"
-
-#include <assert.h>
-#include <lauxlib.h>
-#include <lua.h>
-#include <lualib.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
+/*#include "mem_guard.h"*/
+#include "lua_tools.h"
 
 // Проверить указатель на текущее физическое пространство.
 // Вызвать ошибку Lua в случае пустого указателя.
@@ -130,31 +131,6 @@ void print_body_stat(cpBody *b) {
     term_color_reset();
 }
 */
-
-static const char *stack_dump(lua_State *lua) {
-    static char ret[1024] = {0, };
-    char *ptr = ret;
-    int top = lua_gettop(lua);
-    for (int i = 1; i <= top; i++) {
-        int t = lua_type(lua, i);
-        switch (t) {
-            case LUA_TSTRING: 
-                ptr += sprintf(ptr, "’%s’", lua_tostring(lua, i));
-                break;
-            case LUA_TBOOLEAN: 
-                ptr += sprintf(ptr, lua_toboolean(lua, i) ? "true" : "false");
-                break;
-            case LUA_TNUMBER: 
-                ptr += sprintf(ptr, "%g", lua_tonumber(lua, i));
-                break;
-            default: 
-                ptr += sprintf(ptr, "%s", lua_typename(lua, t));
-                break;
-        }
-        ptr += sprintf(ptr, " "); 
-    }
-    return ret;
-}
 
 static void print_stack_dump (lua_State *lua) {
     printf("%s\n", stack_dump(lua));
