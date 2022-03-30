@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local os = _tl_compat and _tl_compat.os or os; local package = _tl_compat and _tl_compat.package or package; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local package = _tl_compat and _tl_compat.package or package; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -612,7 +612,7 @@ function Camera:moveToPlayer()
       return
    end
 
-   local px, py, _ = wrp.get_position(playerTank.base)
+   local px, py, _ = playerTank.base:get_position()
    print("camera x, y, scale", self.x, self.y, self.scale)
    print("tank x, y", px, py)
 
@@ -1248,40 +1248,43 @@ local function renderTanks()
    pipeline:close()
 end
 
-local function print_body_stat(body)
-   print('body', body)
-   local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y,
-   force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
 
-   print('body stat:')
-   print("mass", mass)
-   print("inertia", inertia)
-   print("cog_x", cog_x)
-   print("cog_y", cog_y)
-   print("pos_x", pos_x)
-   print("pos_y", pos_y)
-   print("v_x", v_x)
-   print("v_y", v_y)
-   print("force_x", force_x)
-   print("force_y", force_y)
-   print("angle", angle)
-   print("w", w)
-   print("torque", torque)
 
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function renderSelectedObject()
    local player_x, player_y
    if playerTank then
       pipeline:open('selected_object')
       local body = playerTank.base
-      player_x, player_y = wrp.get_position(body)
+      player_x, player_y = body:get_position()
 
 
 
 
 
-      pipeline:push(wrp.get_position(body))
+
+      pipeline:push(body:get_position())
       pipeline:close()
    else
       error('Player should not be nil')
@@ -1557,7 +1560,7 @@ end
 local function spawnTank(px, py)
    local tank = Tank.new(vec2(px, py), tank_width, tank_height)
    table.insert(tanks, tank)
-   local tank_x, tank_y, angle = wrp.get_position(tank.base)
+   local tank_x, tank_y, angle = tank.base:get_position()
 
 
 
@@ -1661,7 +1664,7 @@ end
 
 local function physics_reset()
    wrp.free_space(space)
-   space = wrp.init_space(space_damping)
+   space = wrp.new_space(space_damping)
    print(colorize("%{blue}physics reseted"))
 end
 
@@ -2208,17 +2211,14 @@ end
 local function init()
 
    print('init started')
-
    metrics.init()
+   space = wrp.new_space(space_damping)
 
-
-
-   space = wrp.init_space(space_damping)
-   print('space', space)
 
    initJoy()
 
    initRenderCode()
+
    initPipelineObjects()
 
 
@@ -2274,7 +2274,8 @@ local function mousemoved(x, y, dx, dy)
 
 
    local counter = 0
-   wrp.get_shape_under_point(x + absx, y + absy,
+
+   wrp.get_body_under_point(x + absx, y + absy,
 
 
 
@@ -2286,7 +2287,7 @@ local function mousemoved(x, y, dx, dy)
 
 
    function(
-      shape,
+      object,
       shape_x,
       shape_y,
       dist,
@@ -2294,8 +2295,8 @@ local function mousemoved(x, y, dx, dy)
       grady)
 
 
-      if not shape then
-         error("no shape")
+      if not object then
+         error("get_body_under_point: object in nil")
       end
 
       local msg = ""
@@ -2305,7 +2306,7 @@ local function mousemoved(x, y, dx, dy)
       pipeline:push('pos', x, y)
 
 
-      pipeline:push('add', 2, 'shape ' .. tostring(shape))
+      pipeline:push('add', 2, 'object ' .. tostring(object))
 
       msg = sformat('point (%.3f, %.3f)', shape_x, shape_y)
       pipeline:push('add', 3, msg)
@@ -2317,19 +2318,10 @@ local function mousemoved(x, y, dx, dy)
 
 
 
-      local body
-      local ok, errmsg = pcall(function()
-         body = wrp.get_shape_body(shape)
-      end)
-      if not ok then
-         print('error in wrp.get_shape_body(): ' .. errmsg)
-         os.exit(10);
-      end
+      local body = object
 
       local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y,
-      force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
-
-
+      force_x, force_y, angle, w, torque = body:get_stat()
 
       msg = sformat('mass, inertia: %.3f, %.3f', mass, inertia)
       pipeline:push('add', 7, msg)

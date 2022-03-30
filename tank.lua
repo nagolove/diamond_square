@@ -83,35 +83,35 @@ end
 function Tank:left()
 
 
-   if ang_vel_limit > wrp.get_body_ang_vel(self.base) then
-      wrp.apply_impulse(self.base, -0.2, 0, 128, 128)
+   if ang_vel_limit > self.base:get_ang_vel() then
+      self.base:apply_impulse(-0.2, 0, 128, 128)
    end
 
 end
 
 function Tank:right()
-   if ang_vel_limit > wrp.get_body_ang_vel(self.base) then
-      wrp.apply_impulse(self.base, 0.2, 0, 128, 128)
+   if ang_vel_limit > self.base:get_ang_vel() then
+      self.base:apply_impulse(0.2, 0, 128, 128)
 
    end
 end
 
 function Tank:forward()
-   local vx, vy = wrp.get_body_vel(self.base)
+   local vx, vy = self.base:get_vel()
    local len = vec_len(vx, vy)
    if len < vel_limit then
 
-      wrp.apply_impulse(self.base, 0, -impulse_amount, px, py);
+      self.base:apply_impulse(0, -impulse_amount, px, py);
    end
 
 end
 
 function Tank:backward()
 
-   local vx, vy = wrp.get_body_vel(self.base)
+   local vx, vy = self.base:get_vel()
    local len = vec_len(vx, vy)
    if len < vel_limit then
-      wrp.apply_impulse(self.base, 0, impulse_amount, px, py);
+      self.base:apply_impulse(0, impulse_amount, px, py);
    end
 
 end
@@ -144,7 +144,7 @@ function Tank.new(pos, w, h)
       error("NaN in tank positon.")
    end
 
-   self.base = wrp.new_body(self.type, pos.x, pos.y, w, h, self)
+   self.base = wrp.new_tank(self.type, pos.x, pos.y, w, h, self)
 
    print('self.base', self.base)
 
