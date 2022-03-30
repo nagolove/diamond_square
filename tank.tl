@@ -29,7 +29,7 @@ local record Tank
     id: integer
 
     type: ObjectType
-    base: wrp.Body
+    base: wrp.Tank
     --turret: wrp.Body
 
     -- {{{ px, py, angle используются в eachShape для проверки на необходимсоть 
@@ -83,35 +83,35 @@ end
 function Tank:left()
     --self.base:left()
     --print("w", wrp.get_body_ang_vel(self.base))
-    if ang_vel_limit > wrp.get_body_ang_vel(self.base) then
-        wrp.apply_impulse(self.base, -0.2, 0, 128, 128)
+    if ang_vel_limit > self.base:get_ang_vel() then
+        self.base:apply_impulse(-0.2, 0, 128, 128)
     end
     --wrp.set_torque(body, -10)
 end
 
 function Tank:right()
-    if ang_vel_limit > wrp.get_body_ang_vel(self.base) then
-        wrp.apply_impulse(self.base, 0.2, 0, 128, 128)
+    if ang_vel_limit > self.base:get_ang_vel() then
+        self.base:apply_impulse(0.2, 0, 128, 128)
         --wrp.set_body_ang_vel(self.base, 0.5);
     end
 end
 
 function Tank:forward()
-    local vx, vy = wrp.get_body_vel(self.base)
+    local vx, vy = self.base:get_vel()
     local len = vec_len(vx, vy)
     if len < vel_limit then
         --wrp.apply_force(self.base, 0, -amount, px, py);
-        wrp.apply_impulse(self.base, 0, -impulse_amount, px, py);
+        self.base:apply_impulse(0, -impulse_amount, px, py);
     end
     --self.base:forward()
 end
 
 function Tank:backward()
     --wrp.apply_impulse(body, 0, amount, px, py);
-    local vx, vy = wrp.get_body_vel(self.base)
+    local vx, vy = self.base:get_vel()
     local len = vec_len(vx, vy)
     if len < vel_limit then
-        wrp.apply_impulse(self.base, 0, impulse_amount, px, py);
+        self.base:apply_impulse(0, impulse_amount, px, py);
     end
     --self.base:backward()
 end
@@ -144,7 +144,7 @@ function Tank.new(pos: vector, w: number, h: number): Tank
         error("NaN in tank positon.")
     end
 
-    self.base = wrp.new_body(self.type, pos.x, pos.y, w, h, self as table)
+    self.base = wrp.new_tank(self.type, pos.x, pos.y, w, h, self as table)
 
     print('self.base', self.base)
     

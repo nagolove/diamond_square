@@ -4,7 +4,7 @@ local record Wrapper
     record Space end
     record Body end
 
-    init_space: function(damping: number): Space
+    new_space: function(damping: number): Space
     free_space: function(Space)
     step: function(dt: number)
 
@@ -21,13 +21,42 @@ local record Wrapper
     -- Создать поли-тело данной ширины и высоты, прикрепив к нему таблицу.
     -- Нужно указывать тип тела из перечисление ObjectType для соблюдений 
     -- внутренней логики работы модуля wrapper
-    new_body: function(
+    new_tank: function(
         type: ObjectType, 
         xpos: number, ypos: number,
         w: number, h: number, 
         self: table
-    ): Body
+    ): Tank
 
+    record Tank
+        set_position: function(b: Tank, x: number, y: number)
+        -- Получить положение тела и его угол поворота
+        get_position: function(b: Tank): number, number, number
+        -- Приложить импульс к данному телу в определенной точке
+        apply_impulse: function(b: Tank, ix: number, iy: number, px: number, py: number)
+        -- Приложить силу к данному телу в определенной точке
+        apply_force: function(b: Tank, fx: number, fy: number, px: number, py: number)
+        -- Установить вращение тела
+        set_torque: function(Tank, torque: number)
+        -- Узнать тип тела - динамический(1), кинематический(2) или статический(3)
+        get_type: function(Tank): integer
+        -- Получить скорость тела
+        get_vel: function(Tank): number, number
+        -- Получить угловую скорость тела
+        get_ang_vel: function(Tank): number
+        -- Установить угловую скорость тела
+        set_ang_vel: function(Tank, w: number)
+
+        -- Возвращает данные о физическом теле.
+        -- Масса, момент инерции, центр гравитации(x, y), положение(x, y), 
+        -- скорость(x, y), сила под действием которой находится тело(x, y), 
+        -- угол, угловая скорость, крутящий момент.
+        get_stat: function(Tank):   number, number, number, number, number, 
+                                    number, number, number, number, number, 
+                                    number, number, number
+    end
+
+    --[[
     -- Установить положение тела
     set_position: function(b: Body, x: number, y: number)
     -- Получить положение тела и его угол поворота
@@ -46,6 +75,7 @@ local record Wrapper
     get_body_ang_vel: function(Body): number
     -- Установить угловую скорость тела
     set_body_ang_vel: function(Body, w: number)
+    --]]
 
     -- Создать новый сегмент. Сегмент тонкий(не имеет толщины) и крепится к
     -- статичному телу пространства
@@ -55,8 +85,11 @@ local record Wrapper
 
     draw_static_segments: function(EachSegmentCallback)
 
+    --[[
+    Какой тип должен быть у object? Body как базовый класс объектов.
+    --]]
     type EachShape = function(
-        shape: Shape, 
+        object: Tank, 
         px: number, 
         py: number, 
         distance: number,
@@ -64,16 +97,11 @@ local record Wrapper
         grady: number)
 
     -- Обратный вызов функции для фигур в данной точке
-    get_shape_under_point: function(x: number, y: number, cb: EachShape)
+    get_body_under_point: function(x: number, y: number, cb: EachShape)
 
     -- Возвращает тело данной фигуры
     get_shape_body: function(Shape): Body
 
-    -- Возвращает данные о физическом теле.
-    -- Масса, момент инерции, центр гравитации(x, y), положение(x, y), 
-    -- скорость(x, y), сила под действием которой находится тело(x, y), 
-    -- угол, угловая скорость, крутящий момент.
-    get_body_stat: function(Body): number, number, number, number, number, number, number, number, number, number, number, number, number
     shape_print_filter: function(Shape)
 end
 

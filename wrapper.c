@@ -19,7 +19,7 @@
 // Вызвать ошибку Lua в случае пустого указателя.
 #define CHECK_SPACE \
 if (!cur_space) {                                       \
-    lua_pushstring(lua, "Space pointer is null.\n");    \
+    lua_pushstring(lua, "cur_space pointer is null.\n");\
     lua_error(lua);                                     \
 }                                                       \
 
@@ -44,6 +44,8 @@ cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
 // Что делает этот фильтр?
 #define GRABBABLE_MASK_BIT (1<<31)
 
+#ifdef DEBUG
+
 #define LOG(...)        \
     term_color_set();   \
     printf(__VA_ARGS__);        \
@@ -53,6 +55,13 @@ cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
     term_color_set();       \
     print_stack_dump(lua);  \
     term_color_reset();     \
+
+#else
+#define LOG(...) \
+    do {} while(0)
+#define LOG_STACK_DUMP(lua) \
+    do {} while(0)
+#endif
 
 #define DENSITY (1.0/10000.0)
 
@@ -117,9 +126,9 @@ void print_userData(void *data) {
     term_color_reset();
 }
 
-/*
 void print_body_stat(cpBody *b) {
     term_color_set();
+    printf("body %p\n", b);
     printf("mass, inertia %f, %f \n", b->m, b->i);
     printf("cog (%f, %f)\n", b->cog.x, b->cog.y);
     printf("pos (%f, %f)\n", b->p.x, b->p.y);
@@ -130,15 +139,14 @@ void print_body_stat(cpBody *b) {
     printf("t %f\n", b->t);
     term_color_reset();
 }
-*/
 
-static void print_stack_dump (lua_State *lua) {
-    printf("%s\n", stack_dump(lua));
+static void print_stack_dump(lua_State *lua) {
+    printf("[%s]\n", stack_dump(lua));
 }
 
 static cpSpace *cur_space = NULL;
 
-static int init_space(lua_State *lua) {
+static int new_space(lua_State *lua) {
     // [.. , damping]
     luaL_checktype(lua, 1, LUA_TNUMBER);
 
@@ -148,21 +156,21 @@ static int init_space(lua_State *lua) {
         lua_error(lua);
     }
 
-    LOG("init_space()\n");
+    LOG("new_space\n");
     LOG_STACK_DUMP(lua);
 
     cur_space = lua_newuserdata(lua, sizeof(cpSpace)); // [.. , damping, {ud}]
     memset(cur_space, 0, sizeof(cpSpace));
     cpSpaceInit(cur_space);
     
-    printf("stack 1\n");
-    print_stack_dump(lua);
+    /*printf("stack 1\n");*/
+    /*print_stack_dump(lua);*/
 
     luaL_getmetatable(lua, "_Space");
     // [.., damping, {ud}, {M}]
    
-    printf("stack 2\n");
-    print_stack_dump(lua);
+    /*printf("stack 2\n");*/
+    /*print_stack_dump(lua);*/
 
     lua_setmetatable(lua, -2);
     // [... damping, {ud}]
@@ -174,20 +182,9 @@ static int init_space(lua_State *lua) {
     int index = luaL_ref(lua, LUA_REGISTRYINDEX); // [.., damping, {ud}]
     SET_USER_DATA_UD(cur_space, index);
 
-    /*SET_USER_DATA_UD(cur_space, luaL_ref(lua, LUA_REGISTRYINDEX));*/
-    /*printf("index %d\n", index);*/
-
-    /*printf("userData %d\n", cur_space->userData);*/
-    /*printf("ud %d\n", GET_USER_DATA_UD(cur_space));*/
-    /*printf("table %d\n", GET_USER_DATA_UD(cur_space));*/
-
-    print_userData(cur_space->userData);
-
-    LOG_STACK_DUMP(lua);
+    /*print_userData(cur_space->userData);*/
 
     double damping = lua_tonumber(lua, 1);
-
-    /*lua_pushlightuserdata(lua, cur_space);*/
 
 	/*cpSpaceSetIterations(space, 30);*/
 	/*cpSpaceSetGravity(space, cpv(0, -500));*/
@@ -196,8 +193,7 @@ static int init_space(lua_State *lua) {
 
     cpSpaceSetDamping(cur_space, damping);
 
-    printf("before return:\n");
-    print_stack_dump(lua);
+    LOG_STACK_DUMP(lua);
 
     return 1; // [.., damping, -> {ud}]
 }
@@ -207,16 +203,11 @@ static void ConstraintFreeWrap(
         cpConstraint *constraint, 
         void *data
 ) {
-    lua_State *lua = (lua_State*)data;
+    /*lua_State *lua = (lua_State*)data;*/
     cpSpaceRemoveConstraint(space, constraint);
-    int index = GET_USER_DATA_UD(constraint);
-    luaL_unref(lua, LUA_REGISTRYINDEX, index);
-
-#ifdef DEBUG
-    LOG("constraint regindex_ud = %d\n", index);
-#endif
-
-    /*cpConstraintFree(constraint);*/
+    /*int index = GET_USER_DATA_UD(constraint);*/
+    /*luaL_unref(lua, LUA_REGISTRYINDEX, index);*/
+    cpConstraintFree(constraint);
 }
 
 struct PostCallbackData {
@@ -237,18 +228,14 @@ static void PostConstraintFree(
 }
 
 static void ShapeFreeWrap(cpSpace *space, cpShape *shape, void *unused){
-    lua_State *lua = (lua_State*)unused;
+    /*lua_State *lua = (lua_State*)unused;*/
 
 	cpSpaceRemoveShape(space, shape);
 
-    int index = GET_USER_DATA_UD(shape);
-    luaL_unref(lua, LUA_REGISTRYINDEX, index);
+    /*int index = GET_USER_DATA_UD(shape);*/
+    /*luaL_unref(lua, LUA_REGISTRYINDEX, index);*/
 
-#ifdef DEBUG
-    LOG("constraint regindex_ud = %d\n", index);
-#endif
-
-	/*cpShapeFree(shape);*/
+    cpShapeFree(shape);
 }
 
 static void PostShapeFree(cpShape *shape, struct PostCallbackData *data){
@@ -275,7 +262,6 @@ static int free_space(lua_State *lua) {
     );
 
     int index = GET_USER_DATA_UD(space);
-
     LOG("space regindex_ud = %d\n", index);
 
     luaL_unref(lua, LUA_REGISTRYINDEX, index);
@@ -285,7 +271,7 @@ static int free_space(lua_State *lua) {
 
 // добавить трения для тел так, что-бы они останавливались после приложения
 // импульса
-static int new_body(lua_State *lua) {
+static int new_tank(lua_State *lua) {
     // [.., type, x, y, w, h, assoc_table]
     CHECK_SPACE;
 
@@ -294,6 +280,8 @@ static int new_body(lua_State *lua) {
         lua_pushstring(lua, "Function should receive only 3 arguments.\n");
         lua_error(lua);
     }
+
+    LOG("new_tank: [%s]\n", stack_dump(lua));
 
     luaL_checktype(lua, 1, LUA_TSTRING); // type
     luaL_checktype(lua, 2, LUA_TNUMBER); // x pos
@@ -320,18 +308,13 @@ static int new_body(lua_State *lua) {
         .y = (int)lua_tonumber(lua, 3),
     };
 
-    /*LOG("pozition (%f, %f)\n", pos.x, pos.y);*/
     if (pos.x != pos.x || pos.y != pos.y ) {
-        printf("NAN\n");
-        abort();
+        LOG("new_tank: NaN in pos vector\n");
+        exit(10);
     }
 
     int w = (int)lua_tonumber(lua, 4);
     int h = (int)lua_tonumber(lua, 5);
-
-    /*printf("new_body\n");*/
-    /*print_stack_dump(lua);*/
-    /*printf("------------------\n");*/
 
     // [.., type, x, y, w, h, -> assoc_table]
     int assoc_table_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
@@ -343,7 +326,7 @@ static int new_body(lua_State *lua) {
     cpBodyInit(b, mass, moment);
     // [.., type, x, y, w, h, {ud}]
 
-    luaL_getmetatable(lua, "_Body");
+    luaL_getmetatable(lua, "_Tank");
     // [.., type, x, y, w, h, {ud}, {M}]
     lua_setmetatable(lua, -2);
     // [.., type, x, y, w, h, {ud}]
@@ -351,50 +334,27 @@ static int new_body(lua_State *lua) {
     cpSpaceAddBody(cur_space, b);
 
     //TODO Проверить как работает дублирование верхнего значения на стеке
-    /*lua_pushvalue(lua, lua_gettop(lua));*/
     lua_pushvalue(lua, -1);
     // [.., type, x, y, w, h, {ud}, {ud}]
     
     int body_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
     // [.., type, x, y, w, h, {ud}]
 
-    /*printf("before shape ud\n");*/
-    /*print_stack_dump(lua);*/
-    /*printf("------------------\n");*/
-
-    cpShape *shape = lua_newuserdata(lua, sizeof(cpPolyShape));
-    cpBoxShapeInit((cpPolyShape*)shape, b, w, h, 0.f);
-    // [.., type, x, y, w, h, {ud}, {ud_shape}]
-    SET_USER_DATA_UD(shape, luaL_ref(lua, LUA_REGISTRYINDEX));
-    // [.., type, x, y, w, h, {ud}]
+    cpShape *shape = (cpShape*)cpBoxShapeNew(b, w, h, 0.f);
 
     SET_USER_DATA_UD(b, body_reg_index);
     SET_USER_DATA_TABLE(b, assoc_table_reg_index);
 
-    /*LOG("after ref\n");*/
-    /*print_stack_dump(lua);*/
-    /*printf("------------------\n");*/
-
     /*cpShapeSetFriction(shape, 10000.);*/
-    /*printf("shape friction: %f\n", cpShapeGetFriction(shape));*/
     /*cpShapeSetFriction(shape, 1);*/
 
-    cpSpaceAddShape(cur_space, (cpShape*)shape);
+    cpSpaceAddShape(cur_space, shape);
     cpBodySetPosition(b, pos);
 
-    // XXX Debuggig only
-    /*cpBodySetVelocity(b, cpvzero);*/
-    /*b->cog = cpvzero;*/
-
-    /*print_body_stat(b);*/
-
-    /*printf("before return\n");*/
-    /*print_stack_dump(lua);*/
+    print_body_stat(b);
 
     // Удалить все предшествующие возвращаемому значению элементы стека.
     // Не уверен в нужности вызова.
-    /*printf("lua_gettop() = %d\n", lua_gettop(lua));*/
-
     top = lua_gettop(lua);
     for(int i = 0; i <= top - 2; i++) {
         lua_remove(lua, 1);
@@ -402,8 +362,7 @@ static int new_body(lua_State *lua) {
     }
     // [.., {ud}]
 
-    /*printf("-----------------------\n");*/
-    /*print_stack_dump(lua);*/
+    LOG("new_tank: [%s]\n", stack_dump(lua));
 
     // [.., -> {ud}]
     return 1;
@@ -419,19 +378,12 @@ void on_each_tank(cpBody *body, void *data) {
     // TODO Убрать лишние операции со стеком, получать таблицу связанную с 
     // телом один раз.
 
-    /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)body->userData);*/
-    /*lua_pushstring(lua, "id");*/
-    /*lua_gettable(lua, -2);*/
-    /*const char *id = lua_tostring(lua, -1);*/
-    /*lua_remove(lua, -1);*/
-    /*lua_remove(lua, -1);*/
-    /*printf("tank id = %s\n", id);*/
-
     int table_reg_index = GET_USER_DATA_TABLE(body);
 
     /*LOG("table_reg_index %d\n", table_reg_index);*/
-
     lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
+
+    LOG_STACK_DUMP(lua);
 
     lua_pushstring(lua, "_prev_x");
     lua_gettable(lua, -2);
@@ -445,9 +397,11 @@ void on_each_tank(cpBody *body, void *data) {
     double prev_y = lua_tonumber(lua, -1);
     lua_remove(lua, -1); // remove last result
 
+    LOG_STACK_DUMP(lua);
+
     lua_remove(lua, -1); // body->userData table
 
-    /*printf("prev_x, prev_y %.3f, %.3f \n", prev_x, prev_y);*/
+    LOG("on_each_tank: prev_x, prev_y %.3f, %.3f \n", prev_x, prev_y);
 
     double epsilon = 0.001;
     double dx = fabs(prev_x - body->p.x);
@@ -462,8 +416,7 @@ void on_each_tank(cpBody *body, void *data) {
         lua_call(lua, 4, 0);
     }
 
-    /*stackDump(lua);*/
-    /*printf("---------------------------\n");*/
+    LOG_STACK_DUMP(lua);
 
     lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
 
@@ -520,8 +473,12 @@ static int query_all_tanks(lua_State *lua) {
         lua_error(lua);
     }
 
+    LOG("query_all_tanks\n");
+    LOG_STACK_DUMP(lua);
     cpSpaceEachBody(cur_space, on_each_tank, lua);
 
+    LOG("query_all_tanks: return\n");
+    LOG_STACK_DUMP(lua);
     return 0;
 }
 
@@ -573,7 +530,7 @@ static int get_position(lua_State *lua) {
 
     // Как проверить действительный тип данных?
     // Можно передать не тот тип userdata, а ошибки не произойдет.
-    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Body");
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     /*printf("b %p\n", b);*/
     lua_pushnumber(lua, b->p.x);
     lua_pushnumber(lua, b->p.y);
@@ -593,7 +550,7 @@ static int set_position(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Body");
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     double x = lua_tonumber(lua, 2);
     double y = lua_tonumber(lua, 3);
     cpVect pos = { .x = x, .y = y};
@@ -628,22 +585,8 @@ static int apply_force(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Body");
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
 
-    /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);*/
-
-    // {{{
-    /*print_stack_dump(lua);*/
-    /*printf("-----------------------\n");*/
-    /*lua_pushstring(lua, "id");*/
-    /*lua_gettable(lua, 6);*/
-    /*print_stack_dump(lua);*/
-    /*luaL_checktype(lua, 7, LUA_TNUMBER);*/
-    /*int id = (int)lua_tonumber(lua, 7);*/
-    // печатать порядковый номер объекта
-    /*printf("id = %d\n", id);*/
-    // }}}
-    
     cpBodyApplyForceAtLocalPoint(b, force, point);
 
     return 0;
@@ -672,7 +615,7 @@ static int apply_impulse(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Body");
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
 
     /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);*/
 
@@ -835,7 +778,9 @@ void on_point_query(
     /*lua_rawget(lua, LUA_REGISTRYINDEX);*/
     LOG("stack 3: [%s]\n", stack_dump(lua));
 
-    void *ud = luaL_checkudata(lua, -1, "_Shape");
+    // XXX Изменить проверку типа объекта для других типов.
+    void *ud = luaL_checkudata(lua, -1, "_Tank");
+
     LOG("stack 4: [%s]\n", stack_dump(lua));
     /*void *ud = lua_touserdata(lua, lua_gettop(lua));*/
     if (!ud) {
@@ -862,7 +807,7 @@ void on_point_query(
 
 // Вызывает функцию обратного вызова для фигур под данной точно.
 // Не учитывает фильтры.
-static int get_shape_under_point(lua_State *lua) {
+static int get_body_under_point(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TNUMBER);
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TFUNCTION);
@@ -942,7 +887,7 @@ int get_body_stat(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Body");
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
 
     /*printf("get_body_stat()\n");*/
     /*print_body_stat(b);*/
@@ -1010,7 +955,7 @@ static int set_torque(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Body");
+    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     double torque = lua_tonumber(lua, 2);
 
     cpBodySetTorque(body, torque);
@@ -1027,7 +972,7 @@ static int get_body_type(lua_State *lua) {
         lua_error(lua);
     }
     
-    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Body");
+    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     cpBodyType btype = cpBodyGetType(body);
     double type = -1.;
 
@@ -1052,7 +997,7 @@ static int get_body_vel(lua_State *lua) {
         lua_error(lua);
     }
     
-    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Body");
+    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     cpVect vel = cpBodyGetVelocity(body);
 
     lua_pushnumber(lua, vel.x);
@@ -1071,7 +1016,7 @@ static int set_body_ang_vel(lua_State *lua) {
         lua_error(lua);
     }
     
-    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Body");
+    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     double ang_vel = lua_tonumber(lua, 2);
     cpBodySetAngularVelocity(body, ang_vel);
 
@@ -1087,17 +1032,46 @@ static int get_body_ang_vel(lua_State *lua) {
         lua_error(lua);
     }
     
-    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Body");
+    cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     lua_pushnumber(lua, cpBodyGetAngularVelocity(body));
 
     return 1;
 }
 
+static const struct luaL_Reg Tank_methods[] =
+{
+    // установить положение тела
+    {"set_position", set_position},
+    // получить положение тела и угол поворота
+    {"get_position", get_position},
+    // придать импульс телу
+    {"apply_impulse", apply_impulse},
+    // приложить силу к телу
+    {"apply_force", apply_force},
+    // установить вращение тела
+    {"set_torque", set_torque},
+    // возвращает число 1..3 - тип тела: DYNAMIC, KINEMATIC, STATIC
+    {"get_type", get_body_type},
+    // Возвращает скорость тела
+    {"get_vel", get_body_vel},
+    // Получить угловую скорость тела
+    {"get_ang_vel", get_body_ang_vel},
+    // Установить угловую скорость тела
+    {"set_ang_vel", set_body_ang_vel},
+
+    // получить разную информацию по телу
+    // используется для отладки
+    {"get_stat", get_body_stat},
+    /*{"shape_print_filter", shape_print_filter},*/
+
+    {NULL, NULL}
+};
+
 extern int luaopen_wrp(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
         // создать пространство
-        {"init_space", init_space},
+        {"new_space", new_space},
         // удалить пространство и все тела на нем
         {"free_space", free_space},
         // шаг симуляции
@@ -1110,7 +1084,7 @@ extern int luaopen_wrp(lua_State *lua) {
         {"query_all_tanks", query_all_tanks},
 
         // новое тело
-        {"new_body", new_body},
+        {"new_tank", new_tank},
         // установить положение тела
         {"set_position", set_position},
         // получить положение тела и угол поворота
@@ -1121,13 +1095,13 @@ extern int luaopen_wrp(lua_State *lua) {
         {"apply_force", apply_force},
         // установить вращение тела
         {"set_torque", set_torque},
-        {"get_body_type", get_body_type},
+        {"get_type", get_body_type},
         // Возвращает скорость тела
-        {"get_body_vel", get_body_vel},
+        {"get_vel", get_body_vel},
         // Получить угловую скорость тела
-        {"get_body_ang_vel", get_body_ang_vel},
+        {"get_ang_vel", get_body_ang_vel},
         // Установить угловую скорость тела
-        {"set_body_ang_vel", set_body_ang_vel},
+        {"set_ang_vel", set_body_ang_vel},
 
         // добавить к статическому телу форму - отрезок
         {"new_static_segment", new_static_segment},
@@ -1137,7 +1111,7 @@ extern int luaopen_wrp(lua_State *lua) {
         {"draw_static_segments", draw_static_segments},
 
         // вызвать коллббэк для всех фигур под данной точкой
-        {"get_shape_under_point", get_shape_under_point},
+        {"get_body_under_point", get_body_under_point},
         // возвращает тело относящееся к фигуре
         {"get_shape_body", get_shape_body},
 
@@ -1149,9 +1123,11 @@ extern int luaopen_wrp(lua_State *lua) {
         {NULL, NULL}
     };
 
-    luaL_newmetatable(lua, "_Body");
-    luaL_newmetatable(lua, "_Shape");
-    luaL_newmetatable(lua, "_Space");
+    register_methods(lua, "_Tank", Tank_methods);
+
+    /*luaL_newmetatable(lua, "_Tank");*/
+    /*luaL_newmetatable(lua, "_Shape");*/
+    /*luaL_newmetatable(lua, "_Space");*/
     /*luaL_newmetatable(lua, "_Segment");*/
 
     luaL_register(lua, "wrapper", functions);

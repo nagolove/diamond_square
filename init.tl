@@ -612,7 +612,7 @@ function Camera:moveToPlayer()
         return
     end
 
-    local px, py, _ = wrp.get_position(playerTank.base)
+    local px, py, _ = playerTank.base:get_position()
     print("camera x, y, scale", self.x, self.y, self.scale)
     print("tank x, y", px, py)
     --self.x, self.y = 0, 0
@@ -1248,6 +1248,7 @@ local function renderTanks()
     pipeline:close()
 end
 
+--[[
 local function print_body_stat(body: Wrapper.Body)
     print('body', body)
     local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
@@ -1269,19 +1270,21 @@ local function print_body_stat(body: Wrapper.Body)
     print("torque", torque)
 
 end
+--]]
 
 local function renderSelectedObject(): number, number
     local player_x, player_y: number, number
     if playerTank then
         pipeline:open('selected_object')
         local body = playerTank.base
-        player_x, player_y = wrp.get_position(body)
+        player_x, player_y = body:get_position()
 
         --print('selected_object: ', player_x, player_y)
         --print_body_stat(body)
         --print('----------------------------------------------')
 
-        pipeline:push(wrp.get_position(body))
+        --pipeline:push(wrp.get_position(body))
+        pipeline:push(body:get_position())
         pipeline:close()
     else
         error('Player should not be nil')
@@ -1557,7 +1560,7 @@ end
 local function spawnTank(px: number, py: number): Tank
     local tank = Tank.new(vec2(px, py), tank_width, tank_height)
     table.insert(tanks, tank)
-    local tank_x, tank_y, angle = wrp.get_position(tank.base)
+    local tank_x, tank_y, angle = tank.base:get_position()
 
     --print(colorize(
         --"%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)
@@ -1661,7 +1664,7 @@ end
 -- Сброс физики - удаление пространства, всех тел и фигур
 local function physics_reset()
     wrp.free_space(space)
-    space = wrp.init_space(space_damping)
+    space = wrp.new_space(space_damping)
     print(colorize("%{blue}physics reseted"))
 end
 
@@ -2208,17 +2211,14 @@ end
 local function init()
     -- {{{
     print('init started')
-
     metrics.init()
+    space = wrp.new_space(space_damping)
 
-    --pw.init(pipeline)
-    --cur_space = cm.cpSpaceNew()
-    space = wrp.init_space(space_damping)
-    print('space', space)
-
+    -- Начало геймпада
     initJoy()
     -- Загрузка удаленного кода для рисования
     initRenderCode()
+    -- Дополнительная инициализация объектов рисовки.
     initPipelineObjects()
 
     -- требует инициализации после создания объекта pipeline
@@ -2274,7 +2274,8 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
 
     --print('absx, absy', absx, absy)
     local counter = 0
-    wrp.get_shape_under_point(x + absx, y + absy, 
+    --wrp.get_shape_under_point(x + absx, y + absy, 
+    wrp.get_body_under_point(x + absx, y + absy, 
     --[[
         function(
             body: Wrapper.Body,
@@ -2286,7 +2287,7 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
         )
     --]]
         function(
-            shape: Wrapper.Shape,
+            object: Wrapper.Tank,
             shape_x: number,
             shape_y: number,
             dist: number,
@@ -2294,8 +2295,8 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
             grady: number
         )
 
-        if not shape then
-            error("no shape")
+        if not object then
+            error("get_body_under_point: object in nil")
         end
 
         local msg = ""
@@ -2305,7 +2306,7 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
         pipeline:push('pos', x, y)
         --pipeline:push("add", 1, tostring(shape))
         --pipeline:push('add', 1, 'on get_shape_under_point()')
-        pipeline:push('add', 2, 'shape ' .. tostring(shape))
+        pipeline:push('add', 2, 'object ' .. tostring(object))
 
         msg = sformat('point (%.3f, %.3f)', shape_x, shape_y)
         pipeline:push('add', 3, msg)
@@ -2317,19 +2318,10 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
 
         --wrp.shape_print_filter(shape)
 
-        local body: Wrapper.Body
-        local ok, errmsg: boolean, string = pcall(function()
-            body = wrp.get_shape_body(shape)
-        end)
-        if not ok then
-            print('error in wrp.get_shape_body(): ' .. errmsg)
-            os.exit(10);
-        end
+        local body: Wrapper.Tank = object as Wrapper.Tank
 
         local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
-            force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
-        --local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
-            --force_x, force_y, angle, w, torque = wrp.get_body_stat(space as Wrapper.Body)
+            force_x, force_y, angle, w, torque = body:get_stat()
 
         msg = sformat('mass, inertia: %.3f, %.3f', mass, inertia)
         pipeline:push('add', 7, msg)
