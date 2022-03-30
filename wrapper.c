@@ -323,7 +323,13 @@ static int new_tank(lua_State *lua) {
     cpFloat mass = w * h * DENSITY;
     cpFloat moment = cpMomentForBox(mass, w, h);
     cpBody *b = lua_newuserdata(lua, sizeof(cpBody));
+    memset(b, 0, sizeof(cpBody));
+
+    /*LOG("mass = %f, moment = %f\n", mass, moment);*/
+    /*LOG("11111111111111111111111111111111111111\n");*/
     cpBodyInit(b, mass, moment);
+    /*LOG("22222222222222222222222222222222222222\n");*/
+
     // [.., type, x, y, w, h, {ud}]
 
     luaL_getmetatable(lua, "_Tank");
@@ -554,7 +560,11 @@ static int set_position(lua_State *lua) {
     double x = lua_tonumber(lua, 2);
     double y = lua_tonumber(lua, 3);
     cpVect pos = { .x = x, .y = y};
-    /*printf("pos %f, %f\n", pos.x, pos.y);*/
+
+    if (pos.x != pos.x || pos.y != pos.y) {
+        LOG("set_position: NaN in pos vector.\n");
+    }
+
     cpBodySetPosition(b, pos);
 
     /*print_body_stat(b);*/
