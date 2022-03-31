@@ -1332,6 +1332,7 @@ end
 -- не добавляет в таблицу рисовки на стороне потока рендера
 local function spawnTank(px: number, py: number): Tank
     local tank = Tank.new(vec2(px, py), tank_width, tank_height)
+    print("tank", inspect(tank))
     table.insert(tanks, tank)
     local tank_x, tank_y, angle = tank.base:get_position()
 
@@ -1993,7 +1994,8 @@ local function init()
     screenW, screenH = pipeline:getDimensions()
     print('screenW, screenH', screenW, screenH)
 
-    -- требует инициализации после создания объекта pipeline
+    -- Требует инициализации после создания объекта pipeline, но до функций
+    -- init*
     camera = PCamera.new(pipeline, screenW, screenH)
 
     -- Начало геймпада
@@ -2050,18 +2052,7 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
 
     --print('absx, absy', absx, absy)
     local counter = 0
-    --wrp.get_shape_under_point(x + absx, y + absy, 
     wrp.get_body_under_point(x + absx, y + absy, 
-    --[[
-        function(
-            body: Wrapper.Body,
-            shape_x: number,
-            shape_y: number,
-            dist: number,
-            gradx: number,
-            grady: number
-        )
-    --]]
         function(
             object: Wrapper.Tank,
             shape_x: number,
