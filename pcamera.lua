@@ -189,16 +189,22 @@ function Camera:checkScale(j)
    local dy = axes[2]
    local factor = 1 * self.dt
    local px, py = self.screenW * factor / 2, self.screenH * factor / 2
+
+
+
+
    if dy == -1 then
 
 
       self.scale = 1 + factor
-      self.transform:scale(1 + factor, 1 + factor)
+
+      self.transform:scale(self.scale, self.scale)
 
       self.transform:translate(-px, -py)
    elseif dy == 1 then
       self.scale = 1 - factor
-      self.transform:scale(1 - factor, 1 - factor)
+
+      self.transform:scale(self.scale, self.scale)
       self.transform:translate(px, py)
    end
 end

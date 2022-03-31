@@ -1332,6 +1332,7 @@ end
 
 local function spawnTank(px, py)
    local tank = Tank.new(vec2(px, py), tank_width, tank_height)
+   print("tank", inspect(tank))
    table.insert(tanks, tank)
    local tank_x, tank_y, angle = tank.base:get_position()
 
@@ -1990,10 +1991,9 @@ local function init()
    metrics.init()
    space = wrp.new_space(space_damping)
 
-
    screenW, screenH = pipeline:getDimensions()
-
    print('screenW, screenH', screenW, screenH)
+
 
 
    camera = PCamera.new(pipeline, screenW, screenH)
@@ -2052,18 +2052,7 @@ local function mousemoved(x, y, dx, dy)
 
 
    local counter = 0
-
    wrp.get_body_under_point(x + absx, y + absy,
-
-
-
-
-
-
-
-
-
-
    function(
       object,
       shape_x,
