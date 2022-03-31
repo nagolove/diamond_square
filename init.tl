@@ -440,7 +440,7 @@ local record Camera
     moveToPlayer: function(Camera)
 
     -- Сбросить смещение в начальное положение.
-    moveToOrigin: function(Camera)
+    setToOrigin: function(Camera)
 
     -- Разместить строку информациии в текстовом буфере lines_buf
     -- Секция должна быть октрыта.
@@ -628,7 +628,7 @@ function Camera:moveToPlayer()
     end
 end
 
-function Camera:moveToOrigin()
+function Camera:setToOrigin()
     self.x, self.y = 0, 0
     self.scale = 1,
     self.transform:translate(self.x, self.y)
@@ -2299,11 +2299,13 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
             error("get_body_under_point: object in nil")
         end
 
+        print("under cursor")
+
         local msg = ""
         counter = counter + 1
         pipeline:open('object_lines_buf')
         --pipeline:push('pos', absx, absy)
-        pipeline:push('pos', x, y)
+        pipeline:push('pos', x + absx, y + absy)
         --pipeline:push("add", 1, tostring(shape))
         --pipeline:push('add', 1, 'on get_shape_under_point()')
         pipeline:push('add', 2, 'object ' .. tostring(object))
@@ -2385,8 +2387,8 @@ local function joystickpressed(_: Joystick, button: integer)
     local start = 8
 
     if button == left_shift then
-        print("moveToOrigin()")
-        camera:moveToOrigin()
+        print("setToOrigin()")
+        camera:setToOrigin()
     end
     if button == right_shift then
         print("moveToPlayer()")
