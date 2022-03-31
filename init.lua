@@ -394,6 +394,7 @@ local main_channel = love.thread.getChannel("main_channel")
 local is_stop = false
 local last_render = love.timer.getTime()
 
+local PCamera = require("pcamera")
 local camera
 
 
@@ -403,238 +404,10 @@ local bordersArea = {}
 
 local segments = {}
 
-local Joystick = love.joystick.Joystick
 local lj = love.joystick
+local Joystick = lj.Joystick
 local joyState
 local joy
-
-
-local Camera = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local Camera_mt = {
-   __index = Camera,
-}
-
-function Camera:setTransform()
-   pipeline:open('set_transform')
-   pipeline:push(self.transform)
-   pipeline:close()
-end
-
-function Camera:setOrigin()
-   pipeline:openAndClose('origin_transform')
-end
-
-function Camera.new()
-   local self = setmetatable({}, Camera_mt)
-   self.x, self.y = 0, 0
-   self.scale = 1.
-   self.dt = 0
-   self.transform = love.math.newTransform()
-   pipeline:pushCode("camera_axises", [[
-    local yield = coroutine.yield
-    local linew = 1.
-    local color = {0, 0, 0, 1}
-    while true do
-        local oldlw = love.graphics.getLineWidth()
-        local w, h = love.graphics.getDimensions()
-        love.graphics.setLineWidth(linew)
-        love.graphics.setColor(color)
-        love.graphics.line(w / 2, 0, w / 2, h)
-        love.graphics.line(0, h / 2, w, h / 2)
-        love.graphics.setLineWidth(oldlw)
-        yield()
-    end
-    ]])
-   return self
-end
-
-function Camera:checkInput(j)
-   self:checkMovement(j)
-   self:checkScale(j)
-end
-
-function Camera:draw_axises()
-   pipeline:openAndClose("camera_axises")
-end
-
-function Camera:push2lines_buf()
-   local msg = sformat("camera: (%.3f, %.3f, %.4f)", self.x, self.y, self.scale)
-   pipeline:push("add", "camera", msg)
-   local mat = { self.transform:getMatrix() }
-   local fmt1 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f,"
-   local fmt2 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f"
-   msg = sformat(
-   "camera mat: (" .. fmt1 .. fmt2 .. ")",
-   mat[1],
-   mat[2],
-   mat[3],
-   mat[4],
-   mat[5],
-   mat[6],
-   mat[7],
-   mat[8],
-   mat[9],
-   mat[10],
-   mat[11],
-   mat[12],
-   mat[13],
-   mat[14],
-   mat[15],
-   mat[16])
-
-   pipeline:push("add", "camera_mat", msg)
-end
-
-function Camera:update(dt)
-   self.dt = dt
-end
-
-function Camera:checkMovement(j)
-   local axes = { j:getAxes() }
-   local dx, dy = axes[4], axes[5]
-
-   local amount_x, amount_y = 3000 * self.dt, 3000 * self.dt
-   local tx, ty = 0., 0.
-   local changed = false
-
-
-   if dx > 0 then
-      changed = true
-      tx = -amount_x
-   elseif dx < 0 then
-      changed = true
-      tx = amount_x
-   end
-
-
-   if dy > 0 then
-      changed = true
-      ty = -amount_y
-   elseif dy < 0 then
-      changed = true
-      ty = amount_y
-   end
-
-   if changed then
-      self.x = self.x + tx
-      self.y = self.y + ty
-      self.transform:translate(tx, ty)
-   end
-end
-
-
-function Camera:checkScale(j)
-   local axes = { j:getAxes() }
-   local dy = axes[2]
-   local factor = 1 * self.dt
-   local px, py = screenW * factor / 2, screenH * factor / 2
-
-   if dy == -1 then
-
-
-      self.scale = 1 + factor
-      self.transform:scale(1 + factor, 1 + factor)
-
-      self.transform:translate(-px, -py)
-
-
-   elseif dy == 1 then
-      self.scale = 1 - factor
-      self.transform:scale(1 - factor, 1 - factor)
-
-
-
-      self.transform:translate(px, py)
-   end
-end
-
-
-
-
-
-function Camera:checkIsPlayerInCircle()
-
-end
-
-
-function Camera:moveToPlayer()
-   if not playerTank and playerTank.base then
-      return
-   end
-
-   local px, py, _ = playerTank.base:get_position()
-   print("camera x, y, scale", self.x, self.y, self.scale)
-   print("tank x, y", px, py)
-
-   self.scale = 1.
-   local dx, dy = self.x + -px + screenW / 2, self.y + -py + screenH / 2
-   self.x, self.y = self.x + dx, self.y + dy
-   if self.x ~= dx or self.y ~= dy then
-
-      self.transform:reset()
-      self.transform:scale(self.scale)
-
-      self.transform:translate(dx, dy)
-   end
-end
-
-function Camera:moveToOrigin()
-   self.x, self.y = 0, 0
-   self.scale = 1,
-   self.transform:translate(self.x, self.y)
-   self.transform:reset()
-   self.transform:scale(self.scale, self.scale)
-end
 
 local function initJoy()
    for _, j in ipairs(lj.getJoysticks()) do
@@ -1711,6 +1484,7 @@ end
 local function spawnPlayer()
    local px, py = screenW / 3, screenH / 2
    playerTank = spawnTank(px, py)
+   camera:setPlayer(playerTank)
 
 
    spawnTank(px + 200, py)
@@ -1730,6 +1504,7 @@ local function nextTankAsPlayer()
    else
       playerTank = tanks[1]
    end
+   camera:setPlayer(playerTank)
 end
 
 local function prevTankAsPlayer()
@@ -1746,6 +1521,7 @@ local function prevTankAsPlayer()
    else
       playerTank = tanks[#tanks]
    end
+   camera:setPlayer(playerTank)
 end
 
 local function changePlayerTank(key)
@@ -2215,14 +1991,19 @@ local function init()
    space = wrp.new_space(space_damping)
 
 
+   screenW, screenH = pipeline:getDimensions()
+
+   print('screenW, screenH', screenW, screenH)
+
+
+   camera = PCamera.new(pipeline, screenW, screenH)
+
+
    initJoy()
 
    initRenderCode()
 
    initPipelineObjects()
-
-
-   camera = Camera.new()
 
    add_keyboard_docs()
    add_gamepad_docs()
@@ -2241,9 +2022,6 @@ local function init()
 
 
 
-
-   screenW, screenH = pipeline:getDimensions()
-   print('screenW, screenH', screenW, screenH)
 
 
 
@@ -2299,11 +2077,13 @@ local function mousemoved(x, y, dx, dy)
          error("get_body_under_point: object in nil")
       end
 
+      print("under cursor")
+
       local msg = ""
       counter = counter + 1
       pipeline:open('object_lines_buf')
 
-      pipeline:push('pos', x, y)
+      pipeline:push('pos', x + absx, y + absy)
 
 
       pipeline:push('add', 2, 'object ' .. tostring(object))
@@ -2385,8 +2165,8 @@ local function joystickpressed(_, button)
    local start = 8
 
    if button == left_shift then
-      print("moveToOrigin()")
-      camera:moveToOrigin()
+      print("setToOrigin()")
+      camera:setToOrigin()
    end
    if button == right_shift then
       print("moveToPlayer()")
