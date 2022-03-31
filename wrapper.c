@@ -378,6 +378,7 @@ static int new_tank(lua_State *lua) {
 // Вариант решения - вызывать функцию обратного вызова только если с момента
 // прошлого рисования произошло изменению положения, более чем на 0.5px
 // Как хранить данные о прошлом положении?
+/*#define LOG_ON_EACH_TANK*/
 void on_each_tank(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
@@ -389,7 +390,9 @@ void on_each_tank(cpBody *body, void *data) {
     /*LOG("table_reg_index %d\n", table_reg_index);*/
     lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
 
+#ifdef LOG_ON_EACH_TANK
     LOG_STACK_DUMP(lua);
+#endif
 
     lua_pushstring(lua, "_prev_x");
     lua_gettable(lua, -2);
@@ -403,11 +406,15 @@ void on_each_tank(cpBody *body, void *data) {
     double prev_y = lua_tonumber(lua, -1);
     lua_remove(lua, -1); // remove last result
 
+#ifdef LOG_ON_EACH_TANK
     LOG_STACK_DUMP(lua);
+#endif
 
     lua_remove(lua, -1); // body->userData table
 
+#ifdef LOG_ON_EACH_TANK
     LOG("on_each_tank: prev_x, prev_y %.3f, %.3f \n", prev_x, prev_y);
+#endif
 
     double epsilon = 0.001;
     double dx = fabs(prev_x - body->p.x);
@@ -422,7 +429,9 @@ void on_each_tank(cpBody *body, void *data) {
         lua_call(lua, 4, 0);
     }
 
+#ifdef LOG_ON_EACH_TANK
     LOG_STACK_DUMP(lua);
+#endif
 
     lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
 
@@ -441,6 +450,7 @@ void on_each_tank(cpBody *body, void *data) {
 
     /*printf("on_each_body\n");*/
 }
+#undef LOG_ON_EACH_TANK
 
 void on_each_body(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
@@ -479,12 +489,9 @@ static int query_all_tanks(lua_State *lua) {
         lua_error(lua);
     }
 
-    LOG("query_all_tanks\n");
-    LOG_STACK_DUMP(lua);
+    LOG("query_all_tanks: [%s]\n", stack_dump(lua));
     cpSpaceEachBody(cur_space, on_each_tank, lua);
-
-    LOG("query_all_tanks: return\n");
-    LOG_STACK_DUMP(lua);
+    LOG("query_all_tanks: return [%s]\n", stack_dump(lua));
     return 0;
 }
 
@@ -750,6 +757,7 @@ static int draw_static_segments(lua_State *lua) {
     return 0;
 }
 
+/*#define LOG_ON_POINT_QUERY*/
 void on_point_query(
         cpShape *shape, 
         cpVect point, 
@@ -759,6 +767,10 @@ void on_point_query(
 ) {
     lua_State *lua = (lua_State*)data;
 
+#ifdef LOG_ON_POINT_QUERY
+    LOG("on_point_query\n");
+#endif
+
     // XXX Костыли или нет? Функция иногда вызывается с пустой фигурой.
     if (!shape) {
         return;
@@ -767,38 +779,43 @@ void on_point_query(
     // TODO Использовать тело вместо формы в lua коллбэке 
     // cpBody *b = shape->body;
 
+#ifdef LOG_ON_POINT_QUERY
     LOG("stack 1: [%s]\n", stack_dump(lua));
+#endif
 
     /*int index = ((Parts*)(&shape->userData))->regindex_ud;*/
     /*lua_rawgeti(lua, LUA_REGISTRYINDEX, index);*/
 
-    lua_rawgeti(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(shape));
+    cpBody *body = shape->body;
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(body));
+#ifdef LOG_ON_POINT_QUERY
     LOG("stack 2: [%s]\n", stack_dump(lua));
+#endif
 
     if (lua_isnil(lua, -1)) {
         return;
     }
 
-    printf("shape->userData = %p\n", shape->userData);
-    printf("ud %d\n", GET_USER_DATA_UD(shape));
-    printf("table %d\n", GET_USER_DATA_TABLE(shape));
+    /*printf("body->userData = %p\n", body->userData);*/
+    /*printf("ud %d\n", GET_USER_DATA_UD(body));*/
+    /*printf("table %d\n", GET_USER_DATA_TABLE(body));*/
 
-    /*lua_getmetatable(lua, -1);*/
-    // print(REGISTRY[ud])
-    /*lua_rawget(lua, LUA_REGISTRYINDEX);*/
+#ifdef LOG_ON_POINT_QUERY
     LOG("stack 3: [%s]\n", stack_dump(lua));
+#endif
 
     // XXX Изменить проверку типа объекта для других типов.
     void *ud = luaL_checkudata(lua, -1, "_Tank");
 
+#ifdef LOG_ON_POINT_QUERY
     LOG("stack 4: [%s]\n", stack_dump(lua));
+#endif
+
     /*void *ud = lua_touserdata(lua, lua_gettop(lua));*/
     if (!ud) {
         lua_pushstring(lua, "no shape\n");
         lua_error(lua);
     }
-
-    /*lua_pushlightuserdata(lua, shape);*/
 
     lua_pushnumber(lua, point.x);
     lua_pushnumber(lua, point.y);
@@ -809,10 +826,12 @@ void on_point_query(
     /*print_stack_dump(lua);*/
     /*printf("1111111111111111111");*/
 
-    lua_call(lua, -6, 0);
+    /*LOG("stack 5: [%s]\n", stack_dump(lua));*/
+    lua_call(lua, 6, 0);
 
     /*print_stack_dump(lua);*/
     /*printf("222222222222222");*/
+    /*LOG("on_point_query: [%s]\n", stack_dump(lua));*/
 }
 
 // Вызывает функцию обратного вызова для фигур под данной точно.
