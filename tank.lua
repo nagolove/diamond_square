@@ -71,6 +71,44 @@ local Tank = {}
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 local px, py = 0, 0
 local impulse_amount = 100
 local force_amount = 200
@@ -160,6 +198,59 @@ function Tank:update()
    end
 
    return self
+end
+
+function Tank:engineCycle()
+
+
+   if self.fuel > 0 then
+   end
+end
+
+function Tank:pushTrack()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+end
+
+function Tank:drawDirectionVector()
+
+
+
+
+
+
+
+
+
+
 end
 
 return Tank

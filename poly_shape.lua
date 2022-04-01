@@ -104,54 +104,77 @@ local function get_id()
    return id
 end
 
+local commands = {}
+
+local Commands = {}
+
+
+
+
+
+
+
+
+
+function commands.new()
+   local id = get_id()
+   local x = graphic_command_channel:demand()
+   local y = graphic_command_channel:demand()
+   local angle = graphic_command_channel:demand()
+   hash[id] = { [1] = x, [2] = y, [3] = angle }
+   return true
+end
+
+
+function commands.new_t()
+   local id = get_id()
+   local x = graphic_command_channel:demand()
+   local y = graphic_command_channel:demand()
+   local angle = graphic_command_channel:demand()
+   hash[id] = { [1] = x, [2] = y, [3] = angle }
+   return true
+end
+
+
+function commands.remove()
+   local id = get_id()
+   hash[id] = nil
+   return true
+end
+
+
+function commands.clear()
+   hash = {}
+   return false
+end
+
+
+function commands.flush()
+   for _, v in pairs(hash) do
+      draw(v[1], v[2], v[3])
+   end
+   return false
+end
+
+
+function commands.enough()
+   return false
+end
+
 while true do
    local cmd
 
    cmd_num = 0
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    repeat
       cmd = graphic_command_channel:demand()
 
-
-      if cmd == "new" then
-         local id = get_id()
-         local x = graphic_command_channel:demand()
-         local y = graphic_command_channel:demand()
-         local angle = graphic_command_channel:demand()
-
-         hash[id] = { [1] = x, [2] = y, [3] = angle }
-      elseif cmd == "remove" then
-         local id = get_id()
-         hash[id] = nil
-
-      elseif cmd == 'clear' then
-         hash = {}
+      local fun = commands[cmd]
+      if not fun then
+         error('poly_shape unknown command: ' .. cmd)
+      end
+      if not fun() then
          break
-      elseif cmd == 'flush' then
-         for _, v in pairs(hash) do
-            draw(v[1], v[2], v[3])
-         end
-
-         break
-      elseif cmd == 'enough' then
-         break
-      else
-         error('poly_shape unkonwn command: ' .. cmd)
       end
 
       cmd_num = cmd_num + 1

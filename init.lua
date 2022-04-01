@@ -81,6 +81,13 @@ arrow.init(pipeline)
 
 local yield, resume = coroutine.yield, coroutine.resume
 
+local State = {}
+
+
+
+
+local state = 'map'
+
 
 
 
@@ -141,12 +148,6 @@ local Arena = {}
 
 
 
-local FilterData = {}
-
-
-
-
-
 
 
 
@@ -175,100 +176,6 @@ local Hangar = {}
 
 
 local Tank = require('tank')
-
-
-local Turret = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local Base = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -465,9 +372,6 @@ function Hit.new(x, y)
    return self
 end
 
-function Turret:fire()
-end
-
 function Arena.new(_)
    local Arena_mt = { __index = Arena }
    local self = setmetatable({}, Arena_mt)
@@ -476,23 +380,6 @@ function Arena.new(_)
 
    return self
 end
-
-function Base:left()
-end
-
-function Base:right()
-end
-
-function Base:forward()
-   if self.tank.fuel > 0. then
-   end
-end
-
-function Base:backward()
-   if self.tank.fuel > 0. then
-   end
-end
-
 
 
 local base_tex_fname = 'tank_body.cut.png'
@@ -508,134 +395,6 @@ local function getTankSize()
 end
 
 local tank_width, tank_height = getTankSize()
-
-function Base:drawDirectionVector()
-   if self.dir then
-      local x, y = 0, 0
-      local scale = 100
-      local color = { 0., 0.05, 0.99, 1 }
-
-      arrow.draw(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
-   end
-end
-
-function Base:resetVelocities()
-end
-
-function Base:updateDir()
-end
-
-function Base:engineCycle()
-
-
-   if self.tank.fuel > 0 then
-   end
-end
-
-function Base:update()
-   self:updateDir()
-   if not self.filterdata then
-
-   end
-   self:processTracks()
-end
-
-function Base:processTracks()
-end
-
-function Turret.new(t)
-   if not t then
-      error("Could'not create Turret without Tank object")
-   end
-
-   local Turret_mt = {
-      __index = Turret,
-   }
-
-   local self = setmetatable({}, Turret_mt)
-   self.tank = t
-
-   return self
-end
-
-
-
-function Turret:rotateToMouse()
-
-
-end
-
-function Turret:update()
-
-   if playerTank and self.tank == playerTank then
-      self:rotateToMouse()
-   end
-end
-
-function Turret:present()
-end
-
-function Base.new(t)
-
-   local Base_mt = {
-      __index = Base,
-   }
-
-   if not t then
-      error("Could'not create BaseP without Tank object")
-   end
-
-   local self = setmetatable({}, Base_mt)
-
-   self.tank = t
-   self.track = {}
-
-
-   self.rectXY = { 86, 72 }
-   self.rectWH = { 84, 111 }
-
-   return self
-end
-
-function Base:present()
-   self:drawTrack()
-end
-
-function Base:pushTrack()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-end
-
-function Base:drawTrack()
-end
 
 
 
@@ -1860,106 +1619,6 @@ local function initPipelineObjects()
 
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local function add_gamepad_docs()
    docsystem.add_keyboard_doc("escape", "exit")
    docsystem.add_keyboard_doc("r", "Rebuild map")
@@ -2214,13 +1873,6 @@ local function process_events()
       end
    end
 end
-
-local State = {}
-
-
-
-
-local state = 'map'
 
 
 
