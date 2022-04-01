@@ -11,6 +11,12 @@ local record Wrapper
     type EachSegmentCallback = function(x1: number, y1: number, x2: number, y2: number)
     type EachBodyCallback = function(x: number, y: number, angle: number, obj: any)
 
+    -- Как лучше вызывать рисовку башни?
+    type EachTankCallback = function(
+        x: number, y: number, angle: number, obj: any,
+        tur_x: number, tur_y: number, tur_angle: number
+    )
+
     enum ObjectType
         "tank"
     end
