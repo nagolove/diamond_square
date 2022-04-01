@@ -747,6 +747,24 @@ end
 
 
 
+local function on_each_body_t(
+   x, y, angle, obj,
+   tur_x, tur_y, tur_angle)
+
+   local tank = obj
+
+   if type(tank) ~= "table" then
+      error("tank should be a table, not a " .. type(tank))
+   end
+
+   if tank then
+      pipeline:push('new_t', tank.id, x, y, angle)
+   end
+
+
+
+end
+
 local function on_each_body(x, y, angle, obj)
    local tank = obj
 
@@ -775,7 +793,8 @@ end
 
 local function renderTanks()
    pipeline:open('base_shape')
-   wrp.query_all_tanks(on_each_body)
+
+   wrp.query_all_tanks_t(on_each_body_t)
    pipeline:push('flush')
    pipeline:close()
 end
@@ -1094,6 +1113,7 @@ local function spawnTank(px, py)
    print("tank", inspect(tank))
    table.insert(tanks, tank)
    local tank_x, tank_y, angle = tank.base:get_position()
+   local turret_x, turret_y, turret_angle = tank.base:get_turret_position()
 
 
 
@@ -1107,6 +1127,7 @@ local function spawnTank(px, py)
    'new',
    tank.id,
    tank_x, tank_y, angle,
+   turret_x, turret_y, turret_angle,
    "flush")
 
    return tank
@@ -1571,7 +1592,7 @@ local function initRenderCode()
 
    pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
 
-   pipeline:pushCodeFromFile("turret_shape", 'poly_shape.lua')
+
 
 
 
@@ -1583,7 +1604,16 @@ end
 
 local function initPipelineObjects()
    pipeline:open('base_shape')
-   pipeline:push(base_tex_fname, tank_width, tank_height)
+
+   local turret_width, turret_height = tank_width, tank_height
+   pipeline:push(
+   base_tex_fname,
+   turret_text_fname,
+   tank_width,
+   tank_height,
+   turret_width,
+   turret_height)
+
 
 
 
@@ -1591,14 +1621,14 @@ local function initPipelineObjects()
 
    pipeline:close()
 
-   pipeline:open('turret_shape')
-   pipeline:push(turret_text_fname, tank_width, tank_height)
 
 
 
 
 
-   pipeline:close()
+
+
+
 
 
    local dejavu_mono = "DejaVuSansMono.ttf"

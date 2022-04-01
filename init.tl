@@ -758,7 +758,7 @@ local function on_each_body_t(
     end
 
     if tank then
-        pipeline:push('new', tank.id, x, y, angle)
+        pipeline:push('new_t', tank.id, x, y, angle)
     end
     --print('lua: on_each_body')
     --print('id, x, y, angle', tank.id, x, y, angle)
@@ -1113,6 +1113,7 @@ local function spawnTank(px: number, py: number): Tank
     print("tank", inspect(tank))
     table.insert(tanks, tank)
     local tank_x, tank_y, angle = tank.base:get_position()
+    local turret_x, turret_y, turret_angle = tank.base:get_turret_position()
 
     --print(colorize(
         --"%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)
@@ -1126,6 +1127,7 @@ local function spawnTank(px: number, py: number): Tank
         'new', 
         tank.id, 
         tank_x, tank_y, angle, 
+        turret_x, turret_y, turret_angle,
         "flush"
     )
     return tank
@@ -1590,7 +1592,7 @@ local function initRenderCode()
     -- Рисование физических тел.
     pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
     -- Рисование физических тел.
-    pipeline:pushCodeFromFile("turret_shape", 'poly_shape.lua')
+    --pipeline:pushCodeFromFile("turret_shape", 'poly_shape.lua')
 
     -- Рисование линий физических сегментов используемых для ограничения 
     -- игрового поля.
@@ -1602,7 +1604,16 @@ end
 -- Инициализация параметрами объектов-корутин на стороне главного потока.
 local function initPipelineObjects()
     pipeline:open('base_shape')
-    pipeline:push(base_tex_fname, tank_width, tank_height)
+    -- XXX Временное решение. Какие размеры башни?
+    local turret_width, turret_height = tank_width, tank_height
+    pipeline:push(
+        base_tex_fname, 
+        turret_text_fname, 
+        tank_width, 
+        tank_height,
+        turret_width,
+        turret_height
+    )
     --[[
     Пиксели для вырезки
     82*108
@@ -1610,14 +1621,14 @@ local function initPipelineObjects()
     --]]
     pipeline:close()
 
-    pipeline:open('turret_shape')
-    pipeline:push(turret_text_fname, tank_width, tank_height)
+    --pipeline:open('turret_shape')
+    --pipeline:push(turret_text_fname, tank_width, tank_height)
     --[[
     Пиксели для вырезки
     52*159
     102, 1
     --]]
-    pipeline:close()
+    --pipeline:close()
 
     --pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 40)
     local dejavu_mono = "DejaVuSansMono.ttf"

@@ -6,19 +6,34 @@ local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 th
 
 local format = string.format
 local yield = coroutine.yield
+local gr = love.graphics
 
 require('love')
-
-
-require('ffi')
 
 
 
 
 local timeout = 0.5
+
+
 local texture_msg = graphic_command_channel:demand(timeout)
+
+local texture_msg_t = graphic_command_channel:demand(timeout)
+
+
 local width = graphic_command_channel:demand(timeout)
 local height = graphic_command_channel:demand(timeout)
+
+
+local width_t = graphic_command_channel:demand(timeout)
+local height_t = graphic_command_channel:demand(timeout)
+
+
+
+
+
+local errmsg = 'Not enough data received to ' ..
+'initializate %s poly_shape renderer.'
 
 
 
@@ -26,30 +41,46 @@ local height = graphic_command_channel:demand(timeout)
 
 if not texture_msg or not width or not height then
    print("texture_msg, width, height", texture_msg, width, height)
-   error("Not enough data received to initializate poly_shape renderer.")
+   error(format(errmsg, "body"))
 end
 
-if type(texture_msg) ~= 'string' then
-   error('Wrong texture type')
+if not texture_msg_t or not width_t or not height_t then
+   print("texture_msg_t, width_t, height_t", texture_msg_t, width_t, height_t)
+   error(format(errmsg, "turret"))
 end
-if type(width) ~= 'number' then
-   error('Wrong width type')
+
+if type(texture_msg) ~= 'string' or type(texture_msg_t) ~= 'string' then
+   error('Wrong texture(t) type')
 end
-if type(height) ~= 'number' then
-   error('Wrong height type')
+if type(width) ~= 'number' or type(width_t) ~= 'number' then
+   error('Wrong width(t) type')
 end
+if type(height) ~= 'number' or type(height_t) ~= 'number' then
+   error('Wrong height(t) type')
+end
+
+
 
 local path = SCENE_PREFIX .. '/' .. texture_msg
+local path_t = SCENE_PREFIX .. '/' .. texture_msg_t
 local texture = love.graphics.newImage(path)
-if texture then
-   local w, h = texture:getDimensions()
-   local msg = format('"%s" loaded %dx%d', path, w, h)
-   print(msg)
-else
-   error('Could not load texture:' .. path)
+local texture_t = love.graphics.newImage(path_t)
+
+local function check(texture, path)
+   if texture then
+      local w, h = texture:getDimensions()
+      local msg = format('"%s" loaded %dx%d', path, w, h)
+      print(msg)
+   else
+      error('Could not load texture:' .. path)
+   end
 end
 
+check(texture, path)
+check(texture_t, path)
+
 print('shape width, height:', width, height)
+
 
 
 
@@ -81,10 +112,16 @@ local hash = {}
 
 local cmd_num = 0
 
-local gr = love.graphics
+
 local quad = gr.newQuad(0, 0, 256, 256, texture)
 
-local function draw(x, y, angle)
+local quad_t = gr.newQuad(0, 0, 256, 256, texture_t)
+
+local function draw(
+   texture,
+   quad,
+   x, y, angle)
+
    gr.push()
    gr.translate(x, y)
    gr.rotate(angle)
@@ -128,10 +165,23 @@ end
 
 function commands.new_t()
    local id = get_id()
+
+
    local x = graphic_command_channel:demand()
    local y = graphic_command_channel:demand()
    local angle = graphic_command_channel:demand()
-   hash[id] = { [1] = x, [2] = y, [3] = angle }
+
+
+   local tx = graphic_command_channel:demand()
+   local ty = graphic_command_channel:demand()
+   local tangle = graphic_command_channel:demand()
+
+   hash[id] = {
+
+      [1] = x, [2] = y, [3] = angle,
+
+      [4] = tx, [5] = ty, [6] = tangle,
+   }
    return true
 end
 
@@ -151,7 +201,8 @@ end
 
 function commands.flush()
    for _, v in pairs(hash) do
-      draw(v[1], v[2], v[3])
+      draw(texture, quad, v[1], v[2], v[3])
+      draw(texture_t, quad_t, v[4], v[5], v[6])
    end
    return false
 end
