@@ -6,48 +6,78 @@
 --local serpent = require 'serpent'
 local format = string.format
 local yield = coroutine.yield
+local gr = love.graphics
 
 require 'love'
-
---local C = require 'ffi'
-require 'ffi'
 
 global graphic_command_channel: love.thread.Channel
 global SCENE_PREFIX: string
 
 local timeout = 0.5
+
+-- Корпус
 local texture_msg: string = graphic_command_channel:demand(timeout) as string
+-- Башня
+local texture_msg_t: string = graphic_command_channel:demand(timeout) as string
+
+-- Размеры корпуса
 local width = graphic_command_channel:demand(timeout) as number
 local height = graphic_command_channel:demand(timeout) as number
+
+-- Размеры башни
+local width_t = graphic_command_channel:demand(timeout) as number
+local height_t = graphic_command_channel:demand(timeout) as number
 --]]
 
 --local texture_msg = 'tank_body.png'
 --local width, height = 256, 256
 
+local errmsg = 'Not enough data received to ' ..
+               'initializate %s poly_shape renderer.'
+
+--[[----------------------------------------------------------------------]]--
+
+-- XXX Переписать блок проверки полученных данных для корпуса и башни.
+
 if not texture_msg or not width or not height then
     print("texture_msg, width, height", texture_msg, width, height)
-    error("Not enough data received to initializate poly_shape renderer.")
+    error(format(errmsg, "body"))
 end
 
-if type(texture_msg) ~= 'string' then
-    error('Wrong texture type')
+if not texture_msg_t or not width_t or not height_t then
+    print("texture_msg_t, width_t, height_t", texture_msg_t, width_t, height_t)
+    error(format(errmsg, "turret"))
 end
-if type(width) ~= 'number' then
-    error('Wrong width type')
+
+if type(texture_msg) ~= 'string' or type(texture_msg_t) ~= 'string' then
+    error('Wrong texture(t) type')
 end
-if type(height) ~= 'number' then
-    error('Wrong height type')
+if type(width) ~= 'number' or type(width_t) ~= 'number' then
+    error('Wrong width(t) type')
 end
+if type(height) ~= 'number' or type(height_t) ~= 'number' then
+    error('Wrong height(t) type')
+end
+
+--[[----------------------------------------------------------------------]]--
 
 local path = SCENE_PREFIX .. '/' .. texture_msg
+local path_t = SCENE_PREFIX .. '/' .. texture_msg_t
 local texture = love.graphics.newImage(path) as love.graphics.Texture
-if texture then
-    local w, h = texture:getDimensions()
-    local msg = format('"%s" loaded %dx%d', path, w, h)
-    print(msg)
-else
-    error('Could not load texture:' .. path)
+local texture_t = love.graphics.newImage(path_t) as love.graphics.Texture
+
+local function check(texture: gr.Texture, path: string)
+    if texture then
+        local w, h = texture:getDimensions()
+        local msg = format('"%s" loaded %dx%d', path, w, h)
+        print(msg)
+    else
+        error('Could not load texture:' .. path)
+    end
 end
+
+check(texture, path)
+check(texture_t, path)
 
 print('shape width, height:', width, height)
 
@@ -68,6 +98,7 @@ print('shape width, height:', width, height)
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------
 
+-- Прололжение работы после вызова pipeline:sync() --
 yield()
 
 ---------------------------------------------------------------------
@@ -81,10 +112,16 @@ local hash: {number: {number}} = {}
 -- счетчик команд
 local cmd_num = 0
 
-local gr = love.graphics
+-- Корпус
 local quad = gr.newQuad(0, 0, 256, 256, texture)
+-- Башня
+local quad_t = gr.newQuad(0, 0, 256, 256, texture_t)
 
-local function draw(x: number, y: number, angle: number)
+local function draw(
+    texture: gr.Texture,
+    quad: gr.Quad, 
+    x: number, y: number, angle: number
+)
     gr.push()
     gr.translate(x, y)
     gr.rotate(angle)
@@ -128,10 +165,23 @@ end
 -- Создать новый объект с башней
 function commands.new_t(): boolean
     local id = get_id()
+
+    -- Корпус
     local x = graphic_command_channel:demand() as number
     local y = graphic_command_channel:demand() as number
     local angle = graphic_command_channel:demand() as number
-    hash[id] = {[1] = x, [2] = y, [3] = angle, }
+
+    -- Башня
+    local tx = graphic_command_channel:demand() as number
+    local ty = graphic_command_channel:demand() as number
+    local tangle = graphic_command_channel:demand() as number
+
+    hash[id] = {
+        -- для корпуса
+        [1] = x, [2] = y, [3] = angle, 
+        -- для башни
+        [4] = tx, [5] = ty, [6] = tangle,
+    }
     return true
 end
 
@@ -151,7 +201,8 @@ end
 -- Нарисовать все, выйти из цикла приема сообщений
 function commands.flush(): boolean
     for _, v in pairs(hash) do
-        draw(v[1], v[2], v[3])
+        draw(texture as gr.Texture, quad, v[1], v[2], v[3])
+        draw(texture_t as gr.Texture, quad_t, v[4], v[5], v[6])
     end
     return false
 end
