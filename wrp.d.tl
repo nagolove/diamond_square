@@ -29,6 +29,7 @@ local record Wrapper
 
     query_all_shapes: function(EachBodyCallback)
     query_all_tanks: function(EachBodyCallback)
+    query_all_tanks_t: function(EachTankCallback)
 
     -- Создать поли-тело данной ширины и высоты, прикрепив к нему таблицу.
     -- Нужно указывать тип тела из перечисление ObjectType для соблюдений 
