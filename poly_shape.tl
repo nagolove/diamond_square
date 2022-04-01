@@ -104,54 +104,77 @@ local function get_id(): number
     return id
 end
 
+local commands = {}
+
+local enum Commands
+    "new"
+    "new_t"
+    "remove"
+    "clear"
+    "flush"
+    "enough"
+end
+
+-- Создать новый объект
+function commands.new(): boolean
+    local id = get_id()
+    local x = graphic_command_channel:demand() as number
+    local y = graphic_command_channel:demand() as number
+    local angle = graphic_command_channel:demand() as number
+    hash[id] = {[1] = x, [2] = y, [3] = angle, }
+    return true
+end
+
+-- Создать новый объект с башней
+function commands.new(): boolean
+    local id = get_id()
+    local x = graphic_command_channel:demand() as number
+    local y = graphic_command_channel:demand() as number
+    local angle = graphic_command_channel:demand() as number
+    hash[id] = {[1] = x, [2] = y, [3] = angle, }
+    return true
+end
+
+-- Удалить объект
+function commands.remove(): boolean
+    local id = get_id()
+    hash[id] = nil
+    return true
+end
+
+-- Очистить внутренний буфер
+function commands.clear(): boolean
+    hash = {}
+    return false
+end
+
+-- Нарисовать все, выйти из цикла приема сообщений
+function commands.flush(): boolean
+    for _, v in pairs(hash) do
+        draw(v[1], v[2], v[3])
+    end
+    return false
+end
+
+-- Выйти из цикла приема сообщений, ничего не рисовать
+function commands.enough(): boolean
+    return false
+end
+
 while true do
-    local cmd: string
+    local cmd: Commands
 
     cmd_num = 0
 
-    -- команды cmd:
-    -- new      - создать новый объект и рисовать
-    -- имя команды, идентификатор объекта, x, y, угол
-
-    -- update   - обновить вершины объекта и рисовать
-    -- имя команды, идентификатор объекта, вершины
-
-    -- remove   - удалить объект
-    -- имя команды, идентификатор объекта 
-
-    -- flush    - нарисовать все, выйти из цикла приема сообщений
-    -- имя команды
-
-    -- enough   - выйти из цикла приема сообщений, ничего не рисовать
-
     repeat
-        cmd = graphic_command_channel:demand() as string
-        --print('cmd', cmd)
+        cmd = graphic_command_channel:demand() as Commands
 
-        if cmd == "new" then
-            local id = get_id()
-            local x = graphic_command_channel:demand() as number
-            local y = graphic_command_channel:demand() as number
-            local angle = graphic_command_channel:demand() as number
-            --draw(x, y, angle)
-            hash[id] = {[1] = x, [2] = y, [3] = angle, }
-        elseif cmd == "remove" then
-            local id = get_id()
-            hash[id] = nil
-            --print('remove')
-        elseif cmd == 'clear' then
-            hash = {}
+        local fun = commands[cmd]
+        if not fun then
+            error('poly_shape unknown command: ' .. cmd)
+        end
+        if not fun() then
             break
-        elseif cmd == 'flush' then
-            for _, v in pairs(hash) do
-                draw(v[1], v[2], v[3])
-            end
-            --hash = {}
-            break
-        elseif cmd == 'enough' then
-            break
-        else
-            error('poly_shape unkonwn command: ' .. cmd)
         end
 
         cmd_num = cmd_num + 1
