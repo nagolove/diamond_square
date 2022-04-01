@@ -768,7 +768,7 @@ static int get_position(lua_State *lua) {
 
     int top = lua_gettop(lua);
     if (top != 1) {
-        lua_pushstring(lua, "Function expect 1 argument.\n");
+        lua_pushstring(lua, "Function expects 1 argument.\n");
         lua_error(lua);
     }
 
@@ -1328,8 +1328,39 @@ static const struct luaL_Reg Turret_methods[] =
     {NULL, NULL}
 };
 
+int get_turret_position(lua_State *lua) {
+    // [.., ud]
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expects 1 argument.\n");
+        lua_error(lua);
+    }
+
+    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, GET_USER_DATA_UD(b));
+    // [.., ud, assoc_table]
+    
+    lua_pushstring(lua, "_turret");
+    // [.., ud, assoc_table, "_turret"]
+    lua_gettable(lua, -2);
+    // [.., ud, assoc_table, turret_ud]
+
+    // TODO Получение значения поля таблицы в виде userdata
+    // Получение значений физического тела башни из userdata
+    cpBody *t = (cpBody*)lua_touserdata(lua, -1);
+
+    lua_pushnumber(lua, t->p.x);
+    lua_pushnumber(lua, t->p.y);
+    lua_pushnumber(lua, t->a);
+
+    return 3;
+}
+
 static const struct luaL_Reg Tank_methods[] =
 {
+    {"get_turret_position", get_turret_position},
     // установить положение тела
     {"set_position", set_position},
     // получить положение тела и угол поворота
