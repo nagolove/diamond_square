@@ -241,7 +241,7 @@ while true do
 
         local fun = commands[cmd]
         if not fun then
-            error('lines_buf unkonwn command: ' .. cmd)
+            error('lines_buf unknown command: ' .. cmd)
         end
         if not fun() then
             break
