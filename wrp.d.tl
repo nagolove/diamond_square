@@ -2,7 +2,7 @@
 local record Wrapper
     record Shape end
     record Space end
-    record Body end
+    --record Body end
 
     new_space: function(damping: number): Space
     free_space: function(Space)
@@ -16,6 +16,12 @@ local record Wrapper
         x: number, y: number, angle: number, obj: any,
         tur_x: number, tur_y: number, tur_angle: number
     )
+
+    record FilterData
+        categories: integer
+        mask: integer
+        group: integer
+    end
 
     enum ObjectType
         "tank"
@@ -61,6 +67,7 @@ local record Wrapper
                                     number, number, number, number, number, 
                                     number, number, number
     end
+    --]]
 
     record Tank
         set_position: function(b: Tank, x: number, y: number)
