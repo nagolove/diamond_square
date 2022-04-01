@@ -81,6 +81,13 @@ arrow.init(pipeline)
 --local abs = math.abs
 local yield, resume = coroutine.yield, coroutine.resume
 
+local enum State 
+    'garage'
+    'map'
+end
+
+local state: State = 'map'
+
 --[[
 local enum Mode
     "normal"
@@ -141,12 +148,6 @@ local record Arena
     -- }}}
 end
 
-local record FilterData
-    categoies: integer
-    mask: integer
-    group: integer
-end
-
 --[[
 local enum Particles
     "default"
@@ -175,100 +176,6 @@ local record Hangar
 end
 
 local Tank = require 'tank'
-
--- Пушка вместе с башней
-local record Turret
-    -- {{{
-    rectXY: {number}
-    rectWH: {number}
-
-    id: integer
-
-    filterdata: {FilterData}
-
-    type: ObjectType
-    --image: love.graphics.Image
-    angle: number
-    tank: Tank
-    -- куда смотрит башня, направление выстрела
-    dir: vector
-
-    -- загружен-ли снаряд в пушку
-    loaded: boolean
-
-    -- боезапас пушки, в штуках
-    shots: number
-
-    new: function(t: Tank): Turret
-    present: function(Turret)
-    update: function(Turret)
-    fire: function(Turret)
-    rotateToMouse: function(Turret)
-    --createFireCoro: function(): thread
-    -- }}}
-end
-
--- Ходовая часть с полигоном
-local record Base
-    -- {{{
-    id: integer
-    objectType: ObjectType
-    rectXY: {number}
-    rectWH: {number}
-
-    -- тоже, что и в Tank.physbody
-    --physbody: love.physics.Body
-
-    filterdata: {FilterData}
-
-    --fixture: love.physics.Fixture
-
-    --pos: vector -- центр поворота корпуса
-    tank: Tank
-    --polyshape: lp.PolygonShape
-    -- нормализованный вектор
-    dir: vector
-
-    -- следы движения
-    track: {{number}}
-    x4: number
-    y4: number
-    x1: number
-    y1: number
-
-    -- от 0 - пустой бак, до 1 - полный бак
-    fuel: number
-    -- потребление топлива, едениц в секунду
-    fuelConsumption: number
-    -- насколько нажат газ - от 0 до 1
-    engineAcceleration: number
-
-    new: function(t: Tank): Base
-    present: function(Base)
-    update: function(Base)
-
-    updateDir: function(Base)
-
-    left: function(Base)
-    right: function(Base)
-    forward: function(Base)
-    backward: function(Base)
-
-    -- один такт движения
-    engineCycle: function(Base)
-
-    -- добавить один след от гусениц в список
-    pushTrack: function(Base)
-    -- рисовать весь след
-    drawTrack: function(Base)
-    -- продвинуть следы - удалить старые
-    processTracks: function(Base)
-
-
-    resetVelocities: function(Base)
-    drawDirectionVector: function(Base)
-    -- }}}
-end
 
 --[[
 -- информация о наборе частиц
@@ -465,9 +372,6 @@ function Hit.new(x: number, y: number): Hit
     return self
 end
 
-function Turret:fire()
-end
-
 function Arena.new(_: string): Arena
     local Arena_mt: metatable<Arena> = { __index = Arena }
     local self: Arena = setmetatable({} as Arena, Arena_mt)
@@ -476,23 +380,6 @@ function Arena.new(_: string): Arena
 
     return self
 end
-
-function Base:left()
-end
-
-function Base:right()
-end
-
-function Base:forward()
-    if self.tank.fuel > 0. then
-    end
-end
-
-function Base:backward()
-    if self.tank.fuel > 0. then
-    end
-end
---]]
 
 --local base_tex_fname = 'tank_body_small.png'
 local base_tex_fname = 'tank_body.cut.png'
@@ -508,134 +395,6 @@ local function getTankSize(): integer, integer
 end
 
 local tank_width, tank_height = getTankSize()
-
-function Base:drawDirectionVector()
-    if self.dir then
-        local x, y = 0, 0
-        local scale = 100
-        local color = {0., 0.05, 0.99, 1}
-        --x, y = x * M2PIX, y * M2PIX
-        arrow.draw(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
-    end
-end
-
-function Base:resetVelocities()
-end
-
-function Base:updateDir()
-end
-
-function Base:engineCycle()
-    -- расход топлива, едениц в секунду
-    --local consumption = 10
-    if self.tank.fuel > 0 then
-    end
-end
-
-function Base:update()
-    self:updateDir()
-    if not self.filterdata then
-        --self.filterdata = getBodyFilterData(self.physbody)
-    end
-    self:processTracks()
-end
-
-function Base:processTracks()
-end
-
-function Turret.new(t: Tank): Turret
-    if not t then
-        error("Could'not create Turret without Tank object")
-    end
-
-    local Turret_mt: metatable<Turret> = {
-        __index = Turret,
-    }
-
-    local self: Turret = setmetatable({} as Turret, Turret_mt)
-    self.tank = t
-
-    return self
-end
-
--- Как сделать медленный поворот башни?
--- скорость поворота башни танка т-80 - 40 градусов в секунду.
-function Turret:rotateToMouse()
-    --local mx, my = love.mouse.getPosition()
-    --mx, my = mx * PIX2M, my * PIX2M
-end
-
-function Turret:update()
-    -- поворачивать башню только у танка игрока
-    if playerTank and self.tank == playerTank then
-        self:rotateToMouse()
-    end
-end
-
-function Turret:present()
-end
-
-function Base.new(t: Tank): Base
-    -- {{{
-    local Base_mt: metatable<Base> = {
-        __index = Base,
-    }
-
-    if not t then
-        error("Could'not create BaseP without Tank object")
-    end
-
-    local self: Base = setmetatable({} as Base, Base_mt)
-    --self.objectType = "Base"
-    self.tank = t
-    self.track = {}
-
-    -- цифры получены из картинки tank_body_small.png
-    self.rectXY = {86, 72}
-    self.rectWH = {84, 111}
-
-    return self
-end
-
-function Base:present()
-    self:drawTrack()
-end
-
-function Base:pushTrack()
-    --[[
-    if self.x4 and self.y4 and self.x1 and self.y1 then
-        local trackNode = {}
-        local len = 15
-        local deltalen = 3
-        local dx1, dx2 = vecl.normalize(self.x4 - self.x1, self.y4 - self.y1)
-        local deltax, deltay = dx1 * deltalen, dx2 * deltalen
-        local x1, y1, x4, y4: number, number, number, number
-        dx1, dx2 = dx1 * len, dx2 * len
-        x4, y4 = self.x4 - deltax, self.y4 - deltay
-
-        table.insert(trackNode, x4)
-        table.insert(trackNode, y4)
-        table.insert(trackNode, x4 - dx1)
-        table.insert(trackNode, y4 - dx2)
-
-        x1, y1 = self.x1 + deltax, self.y1 + deltay
-
-        table.insert(trackNode, x1)
-        table.insert(trackNode, y1)
-        table.insert(trackNode, x1 + dx1)
-        table.insert(trackNode, y1 + dx2)
-
-        table.insert(self.track, trackNode)
-
-        if #self.track > maxTrackCount then
-            table.remove(self.track, 1)
-        end
-    end
-    --]]
-end
-
-function Base:drawTrack()
-end
 
 --[[
 Где находится обрабатывающая функция?
@@ -2114,13 +1873,6 @@ local function process_events()
         end
     end
 end
-
-local enum State 
-    'garage'
-    'map'
-end
-
-local state: State = 'map'
 
 --[[
 Задача: написать модуль, встроенный в бинарный файл love, для замены
