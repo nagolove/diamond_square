@@ -747,6 +747,24 @@ local function bindEscape()
 end
 --]]
 
+local function on_each_body_t(
+    x: number, y: number, angle: number, obj: any,
+    tur_x: number, tur_y: number, tur_angle: number
+)
+    local tank = obj as Tank
+
+    if type(tank) ~= "table" then
+        error("tank should be a table, not a " .. type(tank))
+    end
+
+    if tank then
+        pipeline:push('new', tank.id, x, y, angle)
+    end
+    --print('lua: on_each_body')
+    --print('id, x, y, angle', tank.id, x, y, angle)
+    --print('tank.id', tank.id)
+end
+
 local function on_each_body(x: number, y: number, angle: number, obj: any)
     local tank = obj as Tank
 
@@ -775,7 +793,8 @@ end
 
 local function renderTanks()
     pipeline:open('base_shape')
-    wrp.query_all_tanks(on_each_body)
+    --wrp.query_all_tanks(on_each_body)
+    wrp.query_all_tanks_t(on_each_body_t)
     pipeline:push('flush')
     pipeline:close()
 end
