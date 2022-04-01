@@ -71,6 +71,9 @@ local record Wrapper
     --]]
 
     record Tank
+        -- Получить положение тела башни и угол ее поворота.
+        get_turret_position: function(b: Tank): number, number, number
+        -- Установить положение корпуса
         set_position: function(b: Tank, x: number, y: number)
         -- Получить положение тела и его угол поворота
         get_position: function(b: Tank): number, number, number
