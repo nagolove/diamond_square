@@ -464,6 +464,102 @@ static int new_tank(lua_State *lua) {
 }
 #undef LOG_NEW_TANK
 
+
+//////////////////////////////////////////////////////////////////
+///
+// Как обеспечить более быструю рисовку?
+// Вариант решения - вызывать функцию обратного вызова только если с момента
+// прошлого рисования произошло изменению положения, более чем на 0.5px
+// Как хранить данные о прошлом положении?
+/*#define LOG_ON_EACH_TANK_T*/
+void on_each_tank_t(cpBody *body, void *data) {
+    lua_State *lua = (lua_State*)data;
+
+#ifdef LOG_ON_EACH_TANK_T
+    LOG_STACK_DUMP(lua);
+#endif
+
+    // TODO Убрать лишние операции со стеком, получать таблицу связанную с 
+    // телом один раз.
+
+    int table_reg_index = GET_USER_DATA_TABLE(body);
+
+    if (table_reg_index == 0) {
+        return;
+    }
+
+    /*LOG("table_reg_index %d\n", table_reg_index);*/
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
+
+#ifdef LOG_ON_EACH_TANK_T
+    LOG_STACK_DUMP(lua);
+#endif
+
+    lua_pushstring(lua, "_prev_x");
+    lua_gettable(lua, -2);
+    double prev_x = lua_tonumber(lua, -1);
+    lua_remove(lua, -1); // remove last result
+
+    lua_pushstring(lua, "_prev_y");
+    lua_gettable(lua, -2);
+    double prev_y = lua_tonumber(lua, -1);
+    lua_remove(lua, -1); // remove last result
+
+#ifdef LOG_ON_EACH_TANK_T
+    LOG_STACK_DUMP(lua);
+#endif
+
+    lua_remove(lua, -1); // body->userData table
+
+#ifdef LOG_ON_EACH_TANK_T
+    LOG("on_each_tank_t: prev_x, prev_y %.3f, %.3f \n", prev_x, prev_y);
+#endif
+
+    double epsilon = 0.001;
+    double dx = fabs(prev_x - body->p.x);
+    double dy = fabs(prev_y - body->p.y);
+
+    // TODO Получить assoc_table
+    // Из assoc_table получить пользовательские данные _turret башни.
+    // Из данных башни получить ее координаты, угол и т.д.
+
+    // Добавить проверку не только на движение, но и на изменение угла поворота
+    // башни.
+    if (dx > epsilon || dy > epsilon) {
+        lua_pushvalue(lua, 1); // callback function
+        lua_pushnumber(lua, body->p.x);
+        lua_pushnumber(lua, body->p.y);
+        lua_pushnumber(lua, body->a);
+        lua_rawgeti(lua, LUA_REGISTRYINDEX, GET_USER_DATA_TABLE(body));
+        lua_call(lua, 4, 0);
+    }
+
+#ifdef LOG_ON_EACH_TANK_T
+    LOG_STACK_DUMP(lua);
+#endif
+
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
+
+    lua_pushstring(lua, "_prev_x"); //key
+    lua_pushnumber(lua, body->p.x); //value
+    lua_settable(lua, -3);
+
+    lua_pushstring(lua, "_prev_y"); //key
+    lua_pushnumber(lua, body->p.y); //value
+    lua_settable(lua, -3);
+
+    lua_remove(lua, -1);
+
+#ifdef LOG_ON_EACH_TANK_T
+    LOG("on_each_tank_t: [%s]\n", stack_dump);
+#endif
+
+}
+#undef LOG_ON_EACH_TANK_T
+
+//////////////////////////////////////////////////////////////////
+
+
 // Как обеспечить более быструю рисовку?
 // Вариант решения - вызывать функцию обратного вызова только если с момента
 // прошлого рисования произошло изменению положения, более чем на 0.5px
@@ -520,6 +616,8 @@ void on_each_tank(cpBody *body, void *data) {
     // Из assoc_table получить пользовательские данные _turret башни.
     // Из данных башни получить ее координаты, угол и т.д.
 
+    // Добавить проверку не только на движение, но и на изменение угла поворота
+    // башни.
     if (dx > epsilon || dy > epsilon) {
         lua_pushvalue(lua, 1); // callback function
         lua_pushnumber(lua, body->p.x);
@@ -578,6 +676,31 @@ void print_space_info(cpSpace *space) {
     printf("curr_dt %f\n", space->curr_dt);
     printf("stamp %d\n", space->stamp);
 }
+
+//////////////////////////////////////////////////////////////////////////
+/*#define LOG_QUERY_ALL_TANKS_T*/
+static int query_all_tanks_t(lua_State *lua) {
+    CHECK_SPACE;
+    luaL_checktype(lua, 1, LUA_TFUNCTION);
+
+    int top = lua_gettop(lua);
+    if (top != 1) {
+        lua_pushstring(lua, "Function expect 1 argument.\n");
+        lua_error(lua);
+    }
+
+#ifdef LOG_QUERY_ALL_TANKS_T
+    LOG("query_all_tanks_t: [%s]\n", stack_dump(lua));
+#endif
+    cpSpaceEachBody(cur_space, on_each_tank, lua);
+#ifdef LOG_QUERY_ALL_TANKS_T
+    LOG("query_all_tanks_t: return [%s]\n", stack_dump(lua));
+#endif
+    return 0;
+}
+#undef LOG_QUERY_ALL_TANKS_T
+
+//////////////////////////////////////////////////////////////////////////
 
 /*#define LOG_QUERY_ALL_TANKS*/
 static int query_all_tanks(lua_State *lua) {
@@ -1247,8 +1370,11 @@ extern int luaopen_wrp(lua_State *lua) {
         // вызов функции для всех тел в текущем пространстве
         /*{"query_all_shapes", query_all_shapes},*/
 
-        // вызов функции для всех тел в текущем пространстве
+        // вызов функции для всех танков в текущем пространстве
         {"query_all_tanks", query_all_tanks},
+
+        // Вызов функции для всех танков в текущем пространстве с учетом башни.
+        {"query_all_tanks_t", query_all_tanks_t},
 
         // новое тело
         {"new_tank", new_tank},
