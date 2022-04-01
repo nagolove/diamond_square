@@ -141,9 +141,11 @@ void print_body_stat(cpBody *b) {
     term_color_reset();
 }
 
+#ifdef DEBUG
 static void print_stack_dump(lua_State *lua) {
     printf("[%s]\n", stack_dump(lua));
 }
+#endif
 
 static cpSpace *cur_space = NULL;
 
@@ -348,6 +350,7 @@ void new_tank_turret(lua_State *lua) {
 #endif
 
 }
+#undef LOG_NEW_TANK_TURRET
 
 // добавить трения для тел так, что-бы они останавливались после приложения
 // импульса
@@ -459,6 +462,7 @@ static int new_tank(lua_State *lua) {
     // [.., -> {ud}]
     return 1;
 }
+#undef LOG_NEW_TANK
 
 // Как обеспечить более быструю рисовку?
 // Вариант решения - вызывать функцию обратного вызова только если с момента
@@ -493,8 +497,6 @@ void on_each_tank(cpBody *body, void *data) {
     double prev_x = lua_tonumber(lua, -1);
     lua_remove(lua, -1); // remove last result
 
-    /*stackDump(lua);*/
-
     lua_pushstring(lua, "_prev_y");
     lua_gettable(lua, -2);
     double prev_y = lua_tonumber(lua, -1);
@@ -513,6 +515,10 @@ void on_each_tank(cpBody *body, void *data) {
     double epsilon = 0.001;
     double dx = fabs(prev_x - body->p.x);
     double dy = fabs(prev_y - body->p.y);
+
+    // TODO Получить assoc_table
+    // Из assoc_table получить пользовательские данные _turret башни.
+    // Из данных башни получить ее координаты, угол и т.д.
 
     if (dx > epsilon || dy > epsilon) {
         lua_pushvalue(lua, 1); // callback function
@@ -539,10 +545,10 @@ void on_each_tank(cpBody *body, void *data) {
 
     lua_remove(lua, -1);
 
-    /*stackDump(lua);*/
-    /*printf("||||||||||||||||||||||||||||||||\n");*/
+#ifdef LOG_ON_EACH_TANK
+    LOG("on_each_tank: [%s]\n", stack_dump);
+#endif
 
-    /*printf("on_each_body\n");*/
 }
 #undef LOG_ON_EACH_TANK
 
@@ -593,6 +599,7 @@ static int query_all_tanks(lua_State *lua) {
 #endif
     return 0;
 }
+#undef LOG_QUERY_ALL_TANKS
 
 /*
 static int query_all_shapes(lua_State *lua) {
@@ -1292,6 +1299,6 @@ extern int luaopen_wrp(lua_State *lua) {
     /*luaL_newmetatable(lua, "_Segment");*/
 
     luaL_register(lua, "wrapper", functions);
-    printf("wrp module opened\n");
+    printf("wrp module opened [%s]\n", stack_dump(lua));
     return 1;
 }
