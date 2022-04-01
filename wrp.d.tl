@@ -34,6 +34,34 @@ local record Wrapper
         self: table
     ): Tank
 
+    record Body
+        set_position: function(b: Body, x: number, y: number)
+        -- Получить положение тела и его угол поворота
+        get_position: function(b: Body): number, number, number
+        -- Приложить импульс к данному телу в определенной точке
+        apply_impulse: function(b: Body, ix: number, iy: number, px: number, py: number)
+        -- Приложить силу к данному телу в определенной точке
+        apply_force: function(b: Body, fx: number, fy: number, px: number, py: number)
+        -- Установить вращение тела
+        set_torque: function(Body, torque: number)
+        -- Узнать тип тела - динамический(1), кинематический(2) или статический(3)
+        get_type: function(Body): integer
+        -- Получить скорость тела
+        get_vel: function(Body): number, number
+        -- Получить угловую скорость тела
+        get_ang_vel: function(Body): number
+        -- Установить угловую скорость тела
+        set_ang_vel: function(Body, w: number)
+
+        -- Возвращает данные о физическом теле.
+        -- Масса, момент инерции, центр гравитации(x, y), положение(x, y), 
+        -- скорость(x, y), сила под действием которой находится тело(x, y), 
+        -- угол, угловая скорость, крутящий момент.
+        get_stat: function(Body):   number, number, number, number, number, 
+                                    number, number, number, number, number, 
+                                    number, number, number
+    end
+
     record Tank
         set_position: function(b: Tank, x: number, y: number)
         -- Получить положение тела и его угол поворота
@@ -62,33 +90,12 @@ local record Wrapper
                                     number, number, number
     end
 
-    --[[
-    -- Установить положение тела
-    set_position: function(b: Body, x: number, y: number)
-    -- Получить положение тела и его угол поворота
-    get_position: function(b: Body): number, number, number
-    -- Приложить импульс к данному телу в определенной точке
-    apply_impulse: function(b: Body, ix: number, iy: number, px: number, py: number)
-    -- Приложить силу к данному телу в определенной точке
-    apply_force: function(b: Body, fx: number, fy: number, px: number, py: number)
-    -- Установить вращение тела
-    set_torque: function(Body, torque: number)
-    -- Узнать тип тела - динамический(1), кинематический(2) или статический(3)
-    get_body_type: function(Body): integer
-    -- Получить скорость тела
-    get_body_vel: function(Body): number, number
-    -- Получить угловую скорость тела
-    get_body_ang_vel: function(Body): number
-    -- Установить угловую скорость тела
-    set_body_ang_vel: function(Body, w: number)
-    --]]
-
     -- Создать новый сегмент. Сегмент тонкий(не имеет толщины) и крепится к
     -- статичному телу пространства
     new_static_segment: function(x1: number, y1: number, x2: number, y2: number): Shape
     -- Удаляет и освобождает память о фигуре
     free_static_segment: function(Shape)
-
+    -- Вызвать функцию для рисования всех сегментов.
     draw_static_segments: function(EachSegmentCallback)
 
     --[[
