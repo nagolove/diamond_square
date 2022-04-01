@@ -126,7 +126,7 @@ function commands.new(): boolean
 end
 
 -- Создать новый объект с башней
-function commands.new(): boolean
+function commands.new_t(): boolean
     local id = get_id()
     local x = graphic_command_channel:demand() as number
     local y = graphic_command_channel:demand() as number
