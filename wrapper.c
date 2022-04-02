@@ -23,6 +23,15 @@ if (!cur_space) {                                       \
     lua_error(lua);                                     \
 }                                                       \
 
+typedef struct {
+    cpBody *body;
+    cpBody *turret;
+    // индекс userdata на табличку связанную с танком
+    int assoc_table_reg_index;
+    // индекс userdata на танк
+    int tank_reg_index;
+} Tank;
+
 // FIXME Поддержка win32?
 typedef struct {
     int32_t regindex_ud;     // индекс userdata
