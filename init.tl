@@ -757,14 +757,18 @@ local function on_each_body_t(
         error("tank should be a table, not a " .. type(tank))
     end
 
+    print(
+        colorize("%{red}on_each_body_t: %{reset}"),
+        'id, x, y, angle, obj, tur_x, tur_y, tur_angle', 
+        tank.id, x, y, angle, obj, tur_x, tur_y, tur_angle
+    )
+
     if tank then
-        pipeline:push('new_t', tank.id, x, y, angle)
+        pipeline:push('new_t', tank.id, x, y, angle, tur_x, tur_y, tur_angle)
     end
-    --print('lua: on_each_body')
-    --print('id, x, y, angle', tank.id, x, y, angle)
-    --print('tank.id', tank.id)
 end
 
+--[[
 local function on_each_body(x: number, y: number, angle: number, obj: any)
     local tank = obj as Tank
 
@@ -779,10 +783,11 @@ local function on_each_body(x: number, y: number, angle: number, obj: any)
     --print('id, x, y, angle', tank.id, x, y, angle)
     --print('tank.id', tank.id)
 end
+--]]
 
 local function renderSegments()
     pipeline:open('border_segments')
-    wrp.draw_static_segments(
+    wrp.static_segments_draw(
         function(x1: number, y1: number, x2: number, y2:number)
             pipeline:push('draw', x1, y1, x2, y2)
         end
@@ -794,7 +799,8 @@ end
 local function renderTanks()
     pipeline:open('base_shape')
     --wrp.query_all_tanks(on_each_body)
-    wrp.query_all_tanks_t(on_each_body_t)
+
+    --wrp.query_all_tanks_t(on_each_body_t)
     pipeline:push('flush')
     pipeline:close()
 end
@@ -1119,12 +1125,22 @@ local function spawnTank(px: number, py: number): Tank
         --"%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)
     --))
 
+    print(colorize("%{yellow}spawnTank:%{reset}"),
+        "\n     tank.id", tank.id, 
+        "\n     tank_x", tank_x, 
+        "\n     tank_y", tank_y, 
+        "\n     angle", angle, 
+        "\n     turret_x", turret_x, 
+        "\n     turret_y", turret_y, 
+        "\n     turret_angle", turret_angle
+    )
+
     -- Эти значения используются в C модуле для определения на сколько
     -- сдвинулся объект с момента предыдущей обработки.
     tank._prev_x, tank._prev_y = tank_x, tank_y
     pipeline:openPushAndClose(
         'base_shape',
-        'new', 
+        'new_t', 
         tank.id, 
         tank_x, tank_y, angle, 
         turret_x, turret_y, turret_angle,
@@ -1258,7 +1274,7 @@ local function initBorders()
             --local segment = wrp.new_static_segment(b.x1, b.y1, b.x2, b.y2)
             --table.insert(segments, segment)
             -- XXX сделать добавление сегментов в таблицу
-            wrp.new_static_segment(b.x1, b.y1, b.x2, b.y2)
+            wrp.static_segment_new(b.x1, b.y1, b.x2, b.y2)
         end
     else
         print(colorize("${red}" .. "no borders data"))
@@ -1633,10 +1649,10 @@ local function initPipelineObjects()
     --]]
     --pipeline:close()
 
-    --pipeline:openPushAndClose('lines_buf', "DejaVuSansMono.ttf", 40)
     local dejavu_mono = "DejaVuSansMono.ttf"
     pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
     pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
+
     docsystem.init_render_stage2()
 
     pipeline:sync()
@@ -1650,6 +1666,7 @@ local function initPipelineObjects()
         "flush"                     -- render buffer and break waiting cycle
     )
     --]]
+
 end
 
 local function add_gamepad_docs()
