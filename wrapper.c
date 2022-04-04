@@ -330,6 +330,8 @@ void tank_turret_new(lua_State *lua, Tank *tank) {
 
     cpSpaceAddBody(cur_space->space, tank->turret);
     cpSpaceAddShape(cur_space->space, shape);
+    cpVect pos = tank->body->p;
+    cpBodySetPosition(tank->turret, pos);
 
 #ifdef LOG_NEW_TANK_TURRET
     LOG("new_tank_turret: return [%s]\n", stack_dump(lua));
@@ -396,9 +398,6 @@ static int tank_new(lua_State *lua) {
     lua_setmetatable(lua, -2);
     // [.., type, x, y, w, h, {ud}]
 
-    /*tank->body = cpBodyNew(mass, moment);*/
-    /*cpSpaceAddBody(cur_space, tank->body);*/
-    
     tank->body = cpSpaceAddBody(cur_space->space, cpBodyNew(mass, moment));
 
     lua_pushvalue(lua, -1);
@@ -406,10 +405,17 @@ static int tank_new(lua_State *lua) {
     int body_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
     // [.., type, x, y, w, h, {ud}]
 
-    cpShape *shape = (cpShape*)cpBoxShapeNew(tank->body, w, h, 0.f);
+    cpShape *shape = cpBoxShapeNew(tank->body, w, h, 0.f);
 
     tank->reg_index = body_reg_index;
     tank->assoc_table_reg_index = assoc_table_reg_index;
+
+#ifdef LOG_TANK_NEW
+    LOG(
+        "tank_new: reg_index = %d, assoc_table_reg_index = %d\n", 
+        tank->reg_index, tank->assoc_table_reg_index
+    );
+#endif
 
     /*cpShapeSetFriction(shape, 10000.);*/
     /*cpShapeSetFriction(shape, 1);*/
@@ -672,7 +678,9 @@ static int query_all_tanks_t(lua_State *lua) {
 #ifdef LOG_QUERY_ALL_TANKS_T
     LOG("query_all_tanks_t: [%s]\n", stack_dump(lua));
 #endif
-    cpSpaceEachBody(cur_space->space, on_each_tank_t, lua);
+
+    /*cpSpaceEachBody(cur_space->space, on_each_tank_t, lua);*/
+
 #ifdef LOG_QUERY_ALL_TANKS_T
     LOG("query_all_tanks_t: return [%s]\n", stack_dump(lua));
 #endif
@@ -734,17 +742,13 @@ static int space_set(lua_State *lua) {
 
 static int space_step(lua_State *lua) {
     CHECK_SPACE;
-    luaL_checktype(lua, 2, LUA_TNUMBER);
+    luaL_checktype(lua, 1, LUA_TNUMBER);
     double dt = luaL_checknumber(lua, 1);
     cpSpaceStep(cur_space->space, dt);
     return 0;
 }
 
-static int get_position(lua_State *lua) {
-    /*print_stack_dump(lua);*/
-    /*printf("exit(2)\n");*/
-    /*exit(2);*/
-
+static int body_position_get(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
 
     int top = lua_gettop(lua);
@@ -753,18 +757,19 @@ static int get_position(lua_State *lua) {
         lua_error(lua);
     }
 
-    // Как проверить действительный тип данных?
-    // Можно передать не тот тип userdata, а ошибки не произойдет.
-    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
-    /*printf("b %p\n", b);*/
-    lua_pushnumber(lua, b->p.x);
-    lua_pushnumber(lua, b->p.y);
-    lua_pushnumber(lua, b->a);
+    Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
+    lua_pushnumber(lua, tank->body->p.x);
+    lua_pushnumber(lua, tank->body->p.y);
+    lua_pushnumber(lua, tank->body->a);
 
     return 3;
 }
 
-static int set_position(lua_State *lua) {
+/*#define BODY_POSITION_SET*/
+static int body_position_set(lua_State *lua) {
+#ifdef BODY_POSITION_SET
+    LOG("body_position_set: [%s]\n", stack_dump(lua));
+#endif
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TNUMBER);
@@ -775,21 +780,22 @@ static int set_position(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
+    Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
     double x = lua_tonumber(lua, 2);
     double y = lua_tonumber(lua, 3);
     cpVect pos = { .x = x, .y = y};
 
     if (pos.x != pos.x || pos.y != pos.y) {
-        LOG("set_position: NaN in pos vector.\n");
+        LOG("body_position_set: NaN in pos vector.\n");
     }
 
-    cpBodySetPosition(b, pos);
+    cpBodySetPosition(tank->body, pos);
 
     /*print_body_stat(b);*/
     
     return 0;
 }
+#undef BODY_POSITION_SET
 
 static int apply_force(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
@@ -814,9 +820,8 @@ static int apply_force(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
-
-    cpBodyApplyForceAtLocalPoint(b, force, point);
+    Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
+    cpBodyApplyForceAtLocalPoint(tank->body, force, point);
 
     return 0;
 }
@@ -844,23 +849,8 @@ static int apply_impulse(lua_State *lua) {
         lua_error(lua);
     }
 
-    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
-
-    /*lua_rawgeti(lua, LUA_REGISTRYINDEX, (uint64_t)b->userData);*/
-
-    // {{{
-    /*print_stack_dump(lua);*/
-    /*printf("-----------------------\n");*/
-    /*lua_pushstring(lua, "id");*/
-    /*lua_gettable(lua, 6);*/
-    /*print_stack_dump(lua);*/
-    /*luaL_checktype(lua, 7, LUA_TNUMBER);*/
-    /*int id = (int)lua_tonumber(lua, 7);*/
-    // печатать порядковый номер объекта
-    /*printf("id = %d\n", id);*/
-    // }}}
-    
-    cpBodyApplyImpulseAtLocalPoint(b, impulse, point);
+    Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
+    cpBodyApplyImpulseAtLocalPoint(tank->body, impulse, point);
 
     return 0;
 }
@@ -1273,12 +1263,13 @@ static int get_body_ang_vel(lua_State *lua) {
     return 1;
 }
 
+/*
 static const struct luaL_Reg Turret_methods[] =
 {
     // установить положение тела
-    {"set_position", set_position},
+    {"set_position", body_position_set},
     // получить положение тела и угол поворота
-    {"get_position", get_position},
+    {"get_position", body_position_get},
     // придать импульс телу
     {"apply_impulse", apply_impulse},
     // приложить силу к телу
@@ -1297,10 +1288,11 @@ static const struct luaL_Reg Turret_methods[] =
     // получить разную информацию по телу
     // используется для отладки
     {"get_stat", get_body_stat},
-    /*{"shape_print_filter", shape_print_filter},*/
+    //{"shape_print_filter", shape_print_filter},
 
     {NULL, NULL}
 };
+*/
 
 int get_turret_position(lua_State *lua) {
     // [.., ud]
@@ -1313,13 +1305,10 @@ int get_turret_position(lua_State *lua) {
     }
 
     Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
-    cpBody *turret = tank->turret;
-    /*lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->turret*/
-    // [.., ud, assoc_table]
     
-    lua_pushnumber(lua, turret->p.x);
-    lua_pushnumber(lua, turret->p.y);
-    lua_pushnumber(lua, turret->a);
+    lua_pushnumber(lua, tank->turret->p.x);
+    lua_pushnumber(lua, tank->turret->p.y);
+    lua_pushnumber(lua, tank->turret->a);
 
     return 3;
 }
@@ -1328,9 +1317,9 @@ static const struct luaL_Reg Tank_methods[] =
 {
     {"get_turret_position", get_turret_position},
     // установить положение тела
-    {"set_position", set_position},
+    {"set_position", body_position_set},
     // получить положение тела и угол поворота
-    {"get_position", get_position},
+    {"get_position", body_position_get},
     // придать импульс телу
     {"apply_impulse", apply_impulse},
     // приложить силу к телу
@@ -1400,7 +1389,7 @@ extern int luaopen_wrp(lua_State *lua) {
     };
 
     register_methods(lua, "_Tank", Tank_methods);
-    register_methods(lua, "_Turret", Turret_methods);
+    /*register_methods(lua, "_Turret", Turret_methods);*/
 
     /*luaL_newmetatable(lua, "_Tank");*/
     /*luaL_newmetatable(lua, "_Shape");*/
