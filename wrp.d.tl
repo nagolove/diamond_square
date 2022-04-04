@@ -4,9 +4,10 @@ local record Wrapper
     record Space end
     --record Body end
 
-    new_space: function(damping: number): Space
-    free_space: function(Space)
-    step: function(dt: number)
+    space_new: function(damping: number): Space
+    space_free: function(Space)
+    space_set: function(Space)
+    space_step: function(dt: number)
 
     type EachSegmentCallback = function(x1: number, y1: number, x2: number, y2: number)
     type EachBodyCallback = function(x: number, y: number, angle: number, obj: any)
@@ -103,9 +104,10 @@ local record Wrapper
 
     -- Создать новый сегмент. Сегмент тонкий(не имеет толщины) и крепится к
     -- статичному телу пространства
-    new_static_segment: function(x1: number, y1: number, x2: number, y2: number): Shape
+    --new_static_segment: function(x1: number, y1: number, x2: number, y2: number): Shape
+    new_static_segment: function(x1: number, y1: number, x2: number, y2: number)
     -- Удаляет и освобождает память о фигуре
-    free_static_segment: function(Shape)
+    --free_static_segment: function(Shape)
     -- Вызвать функцию для рисования всех сегментов.
     draw_static_segments: function(EachSegmentCallback)
 
@@ -124,7 +126,7 @@ local record Wrapper
     get_body_under_point: function(x: number, y: number, cb: EachShape)
 
     -- Возвращает тело данной фигуры
-    get_shape_body: function(Shape): Body
+    --get_shape_body: function(Shape): Body
 
     shape_print_filter: function(Shape)
 end
