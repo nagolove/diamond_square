@@ -1217,8 +1217,9 @@ end
 
 
 local function physics_reset()
-   wrp.free_space(space)
-   space = wrp.new_space(space_damping)
+   wrp.space_free(space)
+   space = wrp.space_new(space_damping)
+   wrp.space_set(space)
    print(colorize("%{blue}physics reseted"))
 end
 
@@ -1237,7 +1238,7 @@ local function initBorders()
 
    if #segments ~= 0 then
       for _, v in ipairs(segments) do
-         wrp.free_static_segment(v)
+
       end
    end
 
@@ -1254,8 +1255,10 @@ local function initBorders()
    if borders_data then
       for _, b in ipairs(borders_data) do
          print('border', inspect(b))
-         local segment = wrp.new_static_segment(b.x1, b.y1, b.x2, b.y2)
-         table.insert(segments, segment)
+
+
+
+         wrp.new_static_segment(b.x1, b.y1, b.x2, b.y2)
       end
    else
       print(colorize("${red}" .. "no borders data"))
@@ -1678,7 +1681,8 @@ local function init()
 
    print('init started')
    metrics.init()
-   space = wrp.new_space(space_damping)
+   space = wrp.space_new(space_damping)
+   wrp.space_set(space)
 
    screenW, screenH = pipeline:getDimensions()
    print('screenW, screenH', screenW, screenH)
@@ -1962,7 +1966,7 @@ local stateCoro = coroutine.create(function(dt)
 
 
          if not physics_pause then
-            wrp.step(dt);
+            wrp.space_step(dt);
          end
 
 
@@ -2021,7 +2025,7 @@ mainloop()
 if is_stop then
    quit()
    print('space', space)
-   wrp.free_space(space)
+   wrp.space_free(space)
    main_channel:push('quit')
    debug_print('thread', 'Thread resources are freed')
 end
