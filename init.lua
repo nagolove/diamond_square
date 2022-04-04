@@ -757,32 +757,37 @@ local function on_each_body_t(
       error("tank should be a table, not a " .. type(tank))
    end
 
-   if tank then
-      pipeline:push('new_t', tank.id, x, y, angle)
-   end
+   print(
+   colorize("%{red}on_each_body_t: %{reset}"),
+   'id, x, y, angle, obj, tur_x, tur_y, tur_angle',
+   tank.id, x, y, angle, obj, tur_x, tur_y, tur_angle)
 
-
-
-end
-
-local function on_each_body(x, y, angle, obj)
-   local tank = obj
-
-   if type(tank) ~= "table" then
-      error("tank should be a table, not a " .. type(tank))
-   end
 
    if tank then
-      pipeline:push('new', tank.id, x, y, angle)
+      pipeline:push('new_t', tank.id, x, y, angle, tur_x, tur_y, tur_angle)
    end
-
-
-
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function renderSegments()
    pipeline:open('border_segments')
-   wrp.draw_static_segments(
+   wrp.static_segments_draw(
    function(x1, y1, x2, y2)
       pipeline:push('draw', x1, y1, x2, y2)
    end)
@@ -794,7 +799,8 @@ end
 local function renderTanks()
    pipeline:open('base_shape')
 
-   wrp.query_all_tanks_t(on_each_body_t)
+
+
    pipeline:push('flush')
    pipeline:close()
 end
@@ -1119,12 +1125,22 @@ local function spawnTank(px, py)
 
 
 
+   print(colorize("%{yellow}spawnTank:%{reset}"),
+   "\n     tank.id", tank.id,
+   "\n     tank_x", tank_x,
+   "\n     tank_y", tank_y,
+   "\n     angle", angle,
+   "\n     turret_x", turret_x,
+   "\n     turret_y", turret_y,
+   "\n     turret_angle", turret_angle)
+
+
 
 
    tank._prev_x, tank._prev_y = tank_x, tank_y
    pipeline:openPushAndClose(
    'base_shape',
-   'new',
+   'new_t',
    tank.id,
    tank_x, tank_y, angle,
    turret_x, turret_y, turret_angle,
@@ -1258,7 +1274,7 @@ local function initBorders()
 
 
 
-         wrp.new_static_segment(b.x1, b.y1, b.x2, b.y2)
+         wrp.static_segment_new(b.x1, b.y1, b.x2, b.y2)
       end
    else
       print(colorize("${red}" .. "no borders data"))
@@ -1633,13 +1649,14 @@ local function initPipelineObjects()
 
 
 
-
    local dejavu_mono = "DejaVuSansMono.ttf"
    pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
    pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
+
    docsystem.init_render_stage2()
 
    pipeline:sync()
+
 
 
 
