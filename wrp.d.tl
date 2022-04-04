@@ -35,7 +35,7 @@ local record Wrapper
     -- Создать поли-тело данной ширины и высоты, прикрепив к нему таблицу.
     -- Нужно указывать тип тела из перечисление ObjectType для соблюдений 
     -- внутренней логики работы модуля wrapper
-    new_tank: function(
+    tank_new: function(
         type: ObjectType, 
         xpos: number, ypos: number,
         w: number, h: number, 
@@ -105,11 +105,11 @@ local record Wrapper
     -- Создать новый сегмент. Сегмент тонкий(не имеет толщины) и крепится к
     -- статичному телу пространства
     --new_static_segment: function(x1: number, y1: number, x2: number, y2: number): Shape
-    new_static_segment: function(x1: number, y1: number, x2: number, y2: number)
+    static_segment_new: function(x1: number, y1: number, x2: number, y2: number)
     -- Удаляет и освобождает память о фигуре
     --free_static_segment: function(Shape)
     -- Вызвать функцию для рисования всех сегментов.
-    draw_static_segments: function(EachSegmentCallback)
+    static_segments_draw: function(EachSegmentCallback)
 
     --[[
     Какой тип должен быть у object? Body как базовый класс объектов.
