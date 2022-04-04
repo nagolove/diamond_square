@@ -182,7 +182,7 @@ function Tank.new(pos: vector, w: number, h: number): Tank
         error("NaN in tank positon.")
     end
 
-    self.base = wrp.new_tank(self.type, pos.x, pos.y, w, h, self as table)
+    self.base = wrp.tank_new(self.type, pos.x, pos.y, w, h, self as table)
 
     print('self.base', self.base)
     
