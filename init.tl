@@ -757,6 +757,7 @@ local function on_each_body_t(
         error("tank should be a table, not a " .. type(tank))
     end
 
+    --[[
     print(
         colorize("%{red}on_each_body_t: %{reset}"),
         "\n     tank.id", tank.id,
@@ -768,6 +769,7 @@ local function on_each_body_t(
         "\n     tur_y", tur_y, 
         "\n     tur_angle", tur_angle
     )
+    --]]
 
     if tank then
         pipeline:push('new_t', tank.id, x, y, angle, tur_x, tur_y, tur_angle)
@@ -1964,6 +1966,21 @@ local function applyInput(j: Joystick)
         playerTank:backward()
     end
 
+    local hut_num = 1
+    --local msg = j:getHat(hut_num)
+    --love.filesystem.append("hat", msg, #(msg as string))
+
+    local hut = j:getHat(hut_num)
+    if hut == "l" then
+        playerTank:rotate_turret("left")
+    elseif hut == "r" then
+        playerTank:rotate_turret("right")
+    end
+
+    if joyState.state then
+        --love.filesystem.append("joystate", joyState.state, #joyState.state)
+        --print(joyState.state)
+    end
 end
 
 local stateCoro: thread = coroutine.create(function(dt: number)
