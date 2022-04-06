@@ -109,6 +109,12 @@ local Tank = {}
 
 
 
+
+
+
+
+
+
 local px, py = 0, 0
 local impulse_amount = 100
 local force_amount = 200
@@ -250,6 +256,15 @@ function Tank:drawDirectionVector()
 
 
 
+
+end
+
+function Tank:rotate_turret(dir)
+   if dir == "left" then
+      self.base:turret_rotate(-1)
+   elseif dir == "right" then
+      self.base:turret_rotate(1)
+   end
 
 end
 

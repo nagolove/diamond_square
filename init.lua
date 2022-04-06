@@ -757,16 +757,18 @@ local function on_each_body_t(
       error("tank should be a table, not a " .. type(tank))
    end
 
-   print(
-   colorize("%{red}on_each_body_t: %{reset}"),
-   "\n     tank.id", tank.id,
-   "\n     x", x,
-   "\n     y", y,
-   "\n     angle", angle,
-   "\n     obj", obj,
-   "\n     tur_x", tur_x,
-   "\n     tur_y", tur_y,
-   "\n     tur_angle", tur_angle)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
    if tank then
@@ -1964,6 +1966,21 @@ local function applyInput(j)
       playerTank:backward()
    end
 
+   local hut_num = 1
+
+
+
+   local hut = j:getHat(hut_num)
+   if hut == "l" then
+      playerTank:rotate_turret("left")
+   elseif hut == "r" then
+      playerTank:rotate_turret("right")
+   end
+
+   if joyState.state then
+
+
+   end
 end
 
 local stateCoro = coroutine.create(function(dt)
