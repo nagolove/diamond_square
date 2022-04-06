@@ -463,6 +463,12 @@ static int tank_new(lua_State *lua) {
     tank_turret_new(lua, tank, collision_group);
 
     cpConstraint *joint = cpPivotJointNew(tank->body, tank->turret, cpvzero);
+
+    cpVect anchorA = { 0., 0. };
+    cpVect anchorB = { 0., 0. };
+
+    cpPivotJointSetAnchorA(joint, anchorA);
+    cpPivotJointSetAnchorB(joint, anchorB);
     cpSpaceAddConstraint(cur_space->space, joint);
 
     // Удалить все предшествующие возвращаемому значению элементы стека.
