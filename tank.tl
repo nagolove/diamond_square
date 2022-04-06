@@ -102,6 +102,12 @@ local record Tank
     forward: function(Tank)
     backward: function(Tank)
 
+    enum Direction
+        "left"
+        "right"
+    end
+    rotate_turret: function(Tank, dir: Direction)
+
     fire: function(Tank)
 
     -- запустить сопрограмму движения по кругу
@@ -249,6 +255,15 @@ function Tank:drawDirectionVector()
         local color = {0., 0.05, 0.99, 1}
         --x, y = x * M2PIX, y * M2PIX
         --arrow.draw(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
+    end
+    --]]
+end
+
+function Tank:rotate_turret(dir: Tank.Direction)
+    if dir == "left" then
+        self.base:turret_rotate(-1)
+    elseif dir == "right" then
+        self.base:turret_rotate(1)
     end
     --]]
 end

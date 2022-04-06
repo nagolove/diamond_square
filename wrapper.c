@@ -293,7 +293,7 @@ void tank_check_type(lua_State *lua, const char *tname, int stack_index) {
 Функция оставляет Lua стек без изменений.
 В связанной с танком таблице устанавливается поле _turret с userdata башни.
 */
-#define LOG_NEW_TANK_TURRET
+/*#define LOG_NEW_TANK_TURRET*/
 void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 #ifdef LOG_NEW_TANK_TURRET
     LOG("new_tank_turret: 1 [%s]\n", stack_dump(lua));
@@ -349,7 +349,7 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 
 // добавить трения для тел так, что-бы они останавливались после приложения
 // импульса
-#define LOG_TANK_NEW
+/*#define LOG_TANK_NEW*/
 static int tank_new(lua_State *lua) {
     // [.., type, x, y, w, h, assoc_table]
     CHECK_SPACE;
@@ -495,7 +495,7 @@ static int tank_new(lua_State *lua) {
 // Вариант решения - вызывать функцию обратного вызова только если с момента
 // прошлого рисования произошло изменению положения, более чем на 0.5px
 // Как хранить данные о прошлом положении?
-#define LOG_ON_EACH_TANK_T
+/*#define LOG_ON_EACH_TANK_T*/
 void on_each_tank_t(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
@@ -732,7 +732,7 @@ void print_space_info(cpSpace *space) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-#define LOG_QUERY_ALL_TANKS_T
+/*#define LOG_QUERY_ALL_TANKS_T*/
 static int query_all_tanks_t(lua_State *lua) {
     CHECK_SPACE;
 
@@ -1386,8 +1386,25 @@ int get_turret_position(lua_State *lua) {
     return 3;
 }
 
+int turret_rotate(lua_State *lua) {
+    Tank *tank = luaL_checkudata(lua, 1, "_Tank");
+    double k = luaL_checknumber(lua, 2);
+    cpVect point = { 
+        .x = 128.,
+        .y = 128.
+    };
+    cpVect impulse = {
+        .x = k,
+        .y = 0.,
+    };
+    cpBodyApplyImpulseAtLocalPoint(tank->turret, impulse, point);
+    return 0;
+}
+
 static const struct luaL_Reg Tank_methods[] =
 {
+    {"turret_rotate", turret_rotate},
+
     {"get_turret_position", get_turret_position},
     // установить положение тела
     {"set_position", body_position_set},
