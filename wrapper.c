@@ -294,7 +294,7 @@ void tank_check_type(lua_State *lua, const char *tname, int stack_index) {
 В связанной с танком таблице устанавливается поле _turret с userdata башни.
 */
 #define LOG_NEW_TANK_TURRET
-void tank_turret_new(lua_State *lua, Tank *tank) {
+void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 #ifdef LOG_NEW_TANK_TURRET
     LOG("new_tank_turret: 1 [%s]\n", stack_dump(lua));
 #endif
@@ -328,6 +328,13 @@ void tank_turret_new(lua_State *lua, Tank *tank) {
             0.f
     );
 
+    cpShapeFilter filter = {
+        collision_group, 
+        CP_ALL_CATEGORIES, 
+        CP_ALL_CATEGORIES
+    };
+    cpShapeSetFilter(shape, filter);
+
     cpSpaceAddBody(cur_space->space, tank->turret);
     cpSpaceAddShape(cur_space->space, shape);
     cpVect pos = tank->body->p;
@@ -354,7 +361,24 @@ static int tank_new(lua_State *lua) {
     }
 
 #ifdef LOG_TANK_NEW
-    LOG("tank_new: [%s]\n", stack_dump(lua));
+    LOG("tank_new: 1 [%s]\n", stack_dump(lua));
+#endif
+
+    // Получить id танка
+    lua_pushstring(lua, "id");
+    // [.., type, x, y, w, h, assoc_table, "id"]
+    lua_gettable(lua, -2);
+    // [.., type, x, y, w, h, assoc_table, {id}]
+    int collision_group = lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
+    // [.., type, x, y, w, h, assoc_table]
+    
+#ifdef LOG_TANK_NEW
+    LOG("tank_new: id = %d\n", collision_group);
+#endif
+
+#ifdef LOG_TANK_NEW
+    LOG("tank_new: 2 [%s]\n", stack_dump(lua));
 #endif
 
     luaL_checktype(lua, 1, LUA_TSTRING); // type
@@ -406,6 +430,12 @@ static int tank_new(lua_State *lua) {
     // [.., type, x, y, w, h, {ud}]
 
     cpShape *shape = cpBoxShapeNew(tank->body, w, h, 0.f);
+    cpShapeFilter filter = { 
+        collision_group, 
+        CP_ALL_CATEGORIES, 
+        CP_ALL_CATEGORIES
+    };
+    cpShapeSetFilter(shape, filter);
 
     tank->body->userData = tank;
     tank->reg_index = body_reg_index;
@@ -430,7 +460,10 @@ static int tank_new(lua_State *lua) {
     LOG("tank_new: [%s]\n", stack_dump(lua));
 #endif
 
-    tank_turret_new(lua, tank);
+    tank_turret_new(lua, tank, collision_group);
+
+    cpConstraint *joint = cpPivotJointNew(tank->body, tank->turret, cpvzero);
+    cpSpaceAddConstraint(cur_space->space, joint);
 
     // Удалить все предшествующие возвращаемому значению элементы стека.
     // Не уверен в нужности вызова.
