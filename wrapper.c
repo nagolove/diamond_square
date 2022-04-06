@@ -407,6 +407,7 @@ static int tank_new(lua_State *lua) {
 
     cpShape *shape = cpBoxShapeNew(tank->body, w, h, 0.f);
 
+    tank->body->userData = tank;
     tank->reg_index = body_reg_index;
     tank->assoc_table_reg_index = assoc_table_reg_index;
 
@@ -455,7 +456,7 @@ static int tank_new(lua_State *lua) {
 // Вариант решения - вызывать функцию обратного вызова только если с момента
 // прошлого рисования произошло изменению положения, более чем на 0.5px
 // Как хранить данные о прошлом положении?
-/*#define LOG_ON_EACH_TANK_T*/
+#define LOG_ON_EACH_TANK_T
 void on_each_tank_t(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
@@ -463,21 +464,29 @@ void on_each_tank_t(cpBody *body, void *data) {
     LOG_STACK_DUMP(lua);
 #endif
 
-    // TODO Убрать лишние операции со стеком, получать таблицу связанную с 
-    // телом один раз.
-
     Tank *tank = (Tank*)body->userData;
+
+    if (!tank) {
+        return;
+    }
 
     if (tank->assoc_table_reg_index == 0) {
         return;
     }
 
-    /*LOG("table_reg_index %d\n", table_reg_index);*/
-    lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->assoc_table_reg_index);
+#ifdef LOG_ON_EACH_TANK_T
+    LOG(
+        "on_each_tank_t: assoc_table_reg_index = %d\n", 
+        tank->assoc_table_reg_index
+    );
+#endif
 
 #ifdef LOG_ON_EACH_TANK_T
     LOG_STACK_DUMP(lua);
 #endif
+
+    /*
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->assoc_table_reg_index);
 
     lua_pushstring(lua, "_prev_x");
     lua_gettable(lua, -2);
@@ -488,20 +497,22 @@ void on_each_tank_t(cpBody *body, void *data) {
     lua_gettable(lua, -2);
     double prev_y = lua_tonumber(lua, -1);
     lua_remove(lua, -1); // remove last result
+    lua_remove(lua, -1); // body->userData table
+    */
 
 #ifdef LOG_ON_EACH_TANK_T
     LOG_STACK_DUMP(lua);
 #endif
 
-    lua_remove(lua, -1); // body->userData table
-
 #ifdef LOG_ON_EACH_TANK_T
-    LOG("on_each_tank_t: prev_x, prev_y %.3f, %.3f \n", prev_x, prev_y);
+    /*LOG("on_each_tank_t: prev_x, prev_y %.3f, %.3f \n", prev_x, prev_y);*/
 #endif
 
+    /*
     double epsilon = 0.001;
     double dx = fabs(prev_x - body->p.x);
     double dy = fabs(prev_y - body->p.y);
+    */
 
     // TODO Получить assoc_table
     // Из assoc_table получить пользовательские данные _turret башни.
@@ -509,19 +520,36 @@ void on_each_tank_t(cpBody *body, void *data) {
 
     // Добавить проверку не только на движение, но и на изменение угла поворота
     // башни.
-    if (dx > epsilon || dy > epsilon) {
+    /*if (dx > epsilon || dy > epsilon) {*/
+    if (1) {
         lua_pushvalue(lua, 1); // callback function
+
         lua_pushnumber(lua, body->p.x);
         lua_pushnumber(lua, body->p.y);
         lua_pushnumber(lua, body->a);
-        lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);
-        lua_call(lua, 4, 0);
+
+        LOG("reg_index = %d\n", tank->reg_index);
+
+        /*lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);*/
+        lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->assoc_table_reg_index);
+
+        cpBody *turret = tank->turret;
+        lua_pushnumber(lua, turret->p.x);
+        lua_pushnumber(lua, turret->p.y);
+        lua_pushnumber(lua, turret->a);
+
+#ifdef LOG_ON_EACH_TANK_T
+        LOG("on_each_tank_t: before call [%s]\n", stack_dump(lua));
+#endif
+
+        lua_call(lua, 7, 0);
     }
 
 #ifdef LOG_ON_EACH_TANK_T
     LOG_STACK_DUMP(lua);
 #endif
 
+    /*
     lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);
 
     lua_pushstring(lua, "_prev_x"); //key
@@ -533,9 +561,10 @@ void on_each_tank_t(cpBody *body, void *data) {
     lua_settable(lua, -3);
 
     lua_remove(lua, -1);
+    */
 
 #ifdef LOG_ON_EACH_TANK_T
-    LOG("on_each_tank_t: [%s]\n", stack_dump);
+    LOG("on_each_tank_t: [%s]\n", stack_dump(lua));
 #endif
 
 }
@@ -664,9 +693,14 @@ void print_space_info(cpSpace *space) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-/*#define LOG_QUERY_ALL_TANKS_T*/
+#define LOG_QUERY_ALL_TANKS_T
 static int query_all_tanks_t(lua_State *lua) {
     CHECK_SPACE;
+
+#ifdef LOG_QUERY_ALL_TANKS_T
+    LOG("query_all_tanks_t: [%s]\n", stack_dump(lua));
+#endif
+
     luaL_checktype(lua, 1, LUA_TFUNCTION);
 
     int top = lua_gettop(lua);
@@ -679,7 +713,7 @@ static int query_all_tanks_t(lua_State *lua) {
     LOG("query_all_tanks_t: [%s]\n", stack_dump(lua));
 #endif
 
-    /*cpSpaceEachBody(cur_space->space, on_each_tank_t, lua);*/
+    cpSpaceEachBody(cur_space->space, on_each_tank_t, lua);
 
 #ifdef LOG_QUERY_ALL_TANKS_T
     LOG("query_all_tanks_t: return [%s]\n", stack_dump(lua));
