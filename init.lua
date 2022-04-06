@@ -759,8 +759,14 @@ local function on_each_body_t(
 
    print(
    colorize("%{red}on_each_body_t: %{reset}"),
-   'id, x, y, angle, obj, tur_x, tur_y, tur_angle',
-   tank.id, x, y, angle, obj, tur_x, tur_y, tur_angle)
+   "\n     tank.id", tank.id,
+   "\n     x", x,
+   "\n     y", y,
+   "\n     angle", angle,
+   "\n     obj", obj,
+   "\n     tur_x", tur_x,
+   "\n     tur_y", tur_y,
+   "\n     tur_angle", tur_angle)
 
 
    if tank then
@@ -800,7 +806,7 @@ local function renderTanks()
    pipeline:open('base_shape')
 
 
-
+   wrp.query_all_tanks_t(on_each_body_t)
    pipeline:push('flush')
    pipeline:close()
 end
@@ -1145,6 +1151,7 @@ local function spawnTank(px, py)
    tank_x, tank_y, angle,
    turret_x, turret_y, turret_angle,
    "flush")
+
 
    return tank
 end
