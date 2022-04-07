@@ -288,6 +288,30 @@ void tank_check_type(lua_State *lua, const char *tname, int stack_index) {
     }
 }
 
+// Кладет в стек таблицу с вершинами из фигуры вида {x1, y1, x2, y2, ..}
+/*#define PUSH_SHAPE_VERTICES*/
+void push_shape_vertices(lua_State *lua, cpShape *shape) {
+    assert(shape);
+#ifdef PUSH_SHAPE_VERTICES
+    LOG("push_shape_vertices\n");
+#endif
+    if (shape->klass->type != CP_POLY_SHAPE) {
+        return;
+    }
+    lua_newtable(lua);
+    int top = lua_gettop(lua);
+    int index = 1;
+    for (int i = 0; i < cpPolyShapeGetCount(shape); ++i) {
+        cpVect vert = cpPolyShapeGetVert(shape, i);
+        lua_pushnumber(lua, vert.x);
+        lua_rawseti(lua, top, index++);
+        lua_pushnumber(lua, vert.y);
+        lua_rawseti(lua, top, index++);
+    }
+    //*/
+}
+#undef PUSH_SHAPE_VERTICES
+
 /*
 Создать физическое тело для башни.
 Функция оставляет Lua стек без изменений.
@@ -305,21 +329,28 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
     // Как расчитать момент и массу для фигуры сложной формы?
     cpFloat mass = 5., moment = 5.;
 
-    tank->turret = cpBodyNew(mass, moment);
-
 #ifdef LOG_NEW_TANK_TURRET
     LOG("new_tank_turret: 2 [%s]\n", stack_dump(lua));
 #endif
 
+    // Как передавать значения?
+    cpFloat w = 256., h = 256;
     cpVect verts[] = {
-        {0.0f, 0.0f},
-        {0.0f, 0.0f},
-        {0.0f, 0.0f},
-        {0.0f, 0.0f},
-        {0.0f, 0.0f},
-        {0.0f, 0.0f},
+        {w / 2., h / 2.},
+        {w / 2., 0.},
+        {0., 0.},
+        {0., h / 2.},
     };
     int verts_num = sizeof(verts) / sizeof(verts[0]);
+
+    cpVect offset = cpvzero;
+    moment = cpMomentForPoly(mass, verts_num, verts, offset, 0.0f);
+
+#ifdef LOG_NEW_TANK_TURRET
+    LOG("tank_turret_new: turret moment %f\n", moment);
+#endif
+
+    tank->turret = cpBodyNew(mass, moment);
 
     cpShape *shape = cpPolyShapeNew(
             tank->turret, 
@@ -337,6 +368,7 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 
     cpSpaceAddBody(cur_space->space, tank->turret);
     cpSpaceAddShape(cur_space->space, shape);
+
     cpVect pos = tank->body->p;
     cpBodySetPosition(tank->turret, pos);
 
@@ -347,18 +379,58 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 }
 #undef LOG_NEW_TANK_TURRET
 
+void push_shape_vertices_iter(cpBody *body, cpShape *shape, void *data) {
+    push_shape_vertices(data, shape);
+}
+
+void check_argsnum(lua_State *lua, int num) {
+    static char formated_msg[64] = {0, };
+    const char *msg = "Function should receive only %d argument(s).\n";
+    sprintf(formated_msg, msg, num);
+
+    int top = lua_gettop(lua);
+    if (top != num) {
+        lua_pushstring(lua, formated_msg);
+        lua_error(lua);
+    }
+}
+
+void tank_setup_constraints(Tank* tank) {
+    cpConstraint *joint = cpPivotJointNew(tank->body, tank->turret, cpvzero);
+
+    cpVect anchorA = { 0., 0. };
+    cpVect anchorB = { 0., 0. };
+
+    cpPivotJointSetAnchorA(joint, anchorA);
+    cpPivotJointSetAnchorB(joint, anchorB);
+    cpSpaceAddConstraint(cur_space->space, joint);
+}
+
+// Кладет на стек таблицу таблиц с вершинами фигур танка.
+void tank_push_debug_vertices(lua_State *lua, const Tank *tank) {
+    lua_newtable(lua);
+    int table_index = lua_gettop(lua);
+
+    cpBodyEachShape(tank->body, push_shape_vertices_iter, lua);
+    lua_rawseti(lua, table_index, 1);
+
+    cpBodyEachShape(tank->turret, push_shape_vertices_iter, lua);
+    lua_rawseti(lua, table_index, 2);
+}
+
 // добавить трения для тел так, что-бы они останавливались после приложения
 // импульса
-/*#define LOG_TANK_NEW*/
+#define LOG_TANK_NEW
 static int tank_new(lua_State *lua) {
     // [.., type, x, y, w, h, assoc_table]
     CHECK_SPACE;
-
-    int top = lua_gettop(lua);
-    if (top != 6) {
-        lua_pushstring(lua, "Function should receive only 3 arguments.\n");
-        lua_error(lua);
-    }
+    check_argsnum(lua, 6);
+    luaL_checktype(lua, 1, LUA_TSTRING); // type
+    luaL_checktype(lua, 2, LUA_TNUMBER); // x pos
+    luaL_checktype(lua, 3, LUA_TNUMBER); // y pos
+    luaL_checktype(lua, 4, LUA_TNUMBER); // w in pixels
+    luaL_checktype(lua, 5, LUA_TNUMBER); // h in pixels
+    luaL_checktype(lua, 6, LUA_TTABLE);  // associated table
 
 #ifdef LOG_TANK_NEW
     LOG("tank_new: 1 [%s]\n", stack_dump(lua));
@@ -381,13 +453,6 @@ static int tank_new(lua_State *lua) {
     LOG("tank_new: 2 [%s]\n", stack_dump(lua));
 #endif
 
-    luaL_checktype(lua, 1, LUA_TSTRING); // type
-    luaL_checktype(lua, 2, LUA_TNUMBER); // x pos
-    luaL_checktype(lua, 3, LUA_TNUMBER); // y pos
-    luaL_checktype(lua, 4, LUA_TNUMBER); // w in pixels
-    luaL_checktype(lua, 5, LUA_TNUMBER); // h in pixels
-    luaL_checktype(lua, 6, LUA_TTABLE);  // associated table
-
     tank_check_type(lua, "tank", 1);
 
     cpVect pos = {
@@ -397,7 +462,7 @@ static int tank_new(lua_State *lua) {
 
     if (pos.x != pos.x || pos.y != pos.y ) {
         LOG("tank_new: NaN in pos vector\n");
-        exit(10);
+        exit(101);
     }
 
     int w = (int)lua_tonumber(lua, 4);
@@ -422,12 +487,13 @@ static int tank_new(lua_State *lua) {
     lua_setmetatable(lua, -2);
     // [.., type, x, y, w, h, {ud}]
 
-    tank->body = cpSpaceAddBody(cur_space->space, cpBodyNew(mass, moment));
-
     lua_pushvalue(lua, -1);
     // [.., type, x, y, w, h, {ud}, {ud}]
     int body_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
     // [.., type, x, y, w, h, {ud}]
+    
+    tank->body = cpSpaceAddBody(cur_space->space, cpBodyNew(mass, moment));
+    tank->body->userData = tank;
 
     cpShape *shape = cpBoxShapeNew(tank->body, w, h, 0.f);
     cpShapeFilter filter = { 
@@ -437,7 +503,6 @@ static int tank_new(lua_State *lua) {
     };
     cpShapeSetFilter(shape, filter);
 
-    tank->body->userData = tank;
     tank->reg_index = body_reg_index;
     tank->assoc_table_reg_index = assoc_table_reg_index;
 
@@ -461,19 +526,11 @@ static int tank_new(lua_State *lua) {
 #endif
 
     tank_turret_new(lua, tank, collision_group);
-
-    cpConstraint *joint = cpPivotJointNew(tank->body, tank->turret, cpvzero);
-
-    cpVect anchorA = { 0., 0. };
-    cpVect anchorB = { 0., 0. };
-
-    cpPivotJointSetAnchorA(joint, anchorA);
-    cpPivotJointSetAnchorB(joint, anchorB);
-    cpSpaceAddConstraint(cur_space->space, joint);
+    tank_setup_constraints(tank);
 
     // Удалить все предшествующие возвращаемому значению элементы стека.
     // Не уверен в нужности вызова.
-    top = lua_gettop(lua);
+    int top = lua_gettop(lua);
     for(int i = 0; i <= top - 2; i++) {
         lua_remove(lua, 1);
         /*print_stack_dump(lua);*/
@@ -481,11 +538,15 @@ static int tank_new(lua_State *lua) {
     // [.., {ud}]
 
 #ifdef LOG_TANK_NEW
+    tank_push_debug_vertices(lua, tank);
     LOG("tank_new: return [%s]\n", stack_dump(lua));
-#endif
-
+    // [.., -> {ud}, -> {table}]
+    return 2;
+#else
+    LOG("tank_new: return [%s]\n", stack_dump(lua));
     // [.., -> {ud}]
     return 1;
+#endif
 }
 #undef LOG_TANK_NEW
 
@@ -495,7 +556,7 @@ static int tank_new(lua_State *lua) {
 // Вариант решения - вызывать функцию обратного вызова только если с момента
 // прошлого рисования произошло изменению положения, более чем на 0.5px
 // Как хранить данные о прошлом положении?
-/*#define LOG_ON_EACH_TANK_T*/
+#define LOG_ON_EACH_TANK_T
 void on_each_tank_t(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
@@ -567,7 +628,7 @@ void on_each_tank_t(cpBody *body, void *data) {
         lua_pushnumber(lua, body->p.y);
         lua_pushnumber(lua, body->a);
 
-        LOG("reg_index = %d\n", tank->reg_index);
+        /*LOG("reg_index = %d\n", tank->reg_index);*/
 
         /*lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);*/
         lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->assoc_table_reg_index);
@@ -578,10 +639,14 @@ void on_each_tank_t(cpBody *body, void *data) {
         lua_pushnumber(lua, turret->a);
 
 #ifdef LOG_ON_EACH_TANK_T
-        LOG("on_each_tank_t: before call [%s]\n", stack_dump(lua));
+        LOG("on_each_tank_t: before call 1 [%s]\n", stack_dump(lua));
+        tank_push_debug_vertices(lua, tank);
+        LOG("on_each_tank_t: before call 2 [%s]\n", stack_dump(lua));
+        lua_call(lua, 8, 0);
+#else
+        lua_call(lua, 7, 0);
 #endif
 
-        lua_call(lua, 7, 0);
     }
 
 #ifdef LOG_ON_EACH_TANK_T
@@ -731,7 +796,6 @@ void print_space_info(cpSpace *space) {
     printf("stamp %d\n", space->stamp);
 }
 
-//////////////////////////////////////////////////////////////////////////
 /*#define LOG_QUERY_ALL_TANKS_T*/
 static int query_all_tanks_t(lua_State *lua) {
     CHECK_SPACE;
@@ -761,7 +825,6 @@ static int query_all_tanks_t(lua_State *lua) {
 }
 #undef LOG_QUERY_ALL_TANKS_T
 
-//////////////////////////////////////////////////////////////////////////
 
 /*
 //#define LOG_QUERY_ALL_TANKS

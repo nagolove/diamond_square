@@ -749,7 +749,8 @@ end
 
 local function on_each_body_t(
     x: number, y: number, angle: number, obj: any,
-    tur_x: number, tur_y: number, tur_angle: number
+    tur_x: number, tur_y: number, tur_angle: number,
+    debug_vertices: {{number}}
 )
     local tank = obj as Tank
 
@@ -804,12 +805,42 @@ local function renderSegments()
     pipeline:close()
 end
 
+local function debug_draw_vertices(
+    x: number, y: number, angle: number, obj: any,
+    tur_x: number, tur_y: number, tur_angle: number,
+    debug_vertices: {{number}}
+)
+    if debug_vertices then
+        pipeline:push("new")
+
+        print(colorize("%{yellow}debug_draw_vertices"))
+
+        --pipeline:push("new", 2, 'enough')
+
+        --pipeline:push(2)
+        --pipeline:push({ 1, 2, 4, 5, 100, 100})
+        --pipeline:push({ 10, 20, 40, 50, 10, 10})
+
+        pipeline:push(#debug_vertices)
+        for i = 1, #debug_vertices do
+            pipeline:push(debug_vertices[i])
+        end
+        --]]
+    end
+end
+
 local function renderTanks()
+
     pipeline:open('base_shape')
     --wrp.query_all_tanks(on_each_body)
-
     wrp.query_all_tanks_t(on_each_body_t)
     pipeline:push('flush')
+    pipeline:close()
+
+    --wrp.query_all_tanks(on_each_body)
+    pipeline:open("debug_vertices")
+    wrp.query_all_tanks_t(debug_draw_vertices)
+    pipeline:push('enough')
     pipeline:close()
 end
 
@@ -1533,7 +1564,8 @@ local function initRenderCode()
     pipeline:pushCode("main_axises", [[
     local gr = love.graphics
     --local col = {0.3, 0.5, 1, 1}
-    local col = {0, 0, 0, 1}
+    --local col = {0, 0, 0, 1}
+    local col = {27. / 255, 94. / 255., 194. / 255}
     local rad = 100
     local size = 1000
 
@@ -1617,6 +1649,8 @@ local function initRenderCode()
     end
     ]])
 
+    pipeline:pushCodeFromFile("debug_vertices", "debug_vertices.lua")
+
     -- Рисование физических тел.
     pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
     -- Рисование физических тел.
@@ -1663,6 +1697,8 @@ local function initPipelineObjects()
     pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
 
     docsystem.init_render_stage2()
+
+    pipeline:openAndClose("debug_vertices")
 
     pipeline:sync()
 
