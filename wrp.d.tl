@@ -15,7 +15,10 @@ local record Wrapper
     -- Как лучше вызывать рисовку башни?
     type EachTankCallback = function(
         x: number, y: number, angle: number, obj: any,
-        tur_x: number, tur_y: number, tur_angle: number
+        tur_x: number, tur_y: number, tur_angle: number,
+        -- Тут лежат все вершины по телам. Если отладка выключена в wrapper, то
+        -- nil
+        debug_verts: {{number}} 
     )
 
     record FilterData
@@ -28,8 +31,10 @@ local record Wrapper
         "tank"
     end
 
-    query_all_shapes: function(EachBodyCallback)
+    --query_all_shapes: function(EachBodyCallback)
+    -- Работает без башни
     query_all_tanks: function(EachBodyCallback)
+    -- Работает с башней. Предпочтительный вариант.
     query_all_tanks_t: function(EachTankCallback)
 
     -- Создать поли-тело данной ширины и высоты, прикрепив к нему таблицу.
@@ -40,7 +45,8 @@ local record Wrapper
         xpos: number, ypos: number,
         w: number, h: number, 
         self: table
-    ): Tank
+        -- второй возвращаемый параметр - вершины фигур. Может быть nil
+    ): Tank, {{number}} 
 
     record Body
         set_position: function(b: Body, x: number, y: number)
