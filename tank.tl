@@ -2,6 +2,7 @@ require 'konstants'
 require 'common'
 require 'vector'
 
+local inspect = require 'inspect'
 local wrp = require "wrp"
 --local Bullet = require "bullet"
 
@@ -188,7 +189,16 @@ function Tank.new(pos: vector, w: number, h: number): Tank
         error("NaN in tank positon.")
     end
 
-    self.base = wrp.tank_new(self.type, pos.x, pos.y, w, h, self as table)
+    local debug_verts: {{number}} = nil
+    self.base, debug_verts = wrp.tank_new(
+        self.type, 
+        pos.x, pos.y, 
+        w, h, 
+        self as table
+    )
+    if debug_verts then
+        print("debug_verts:", inspect(debug_verts))
+    end
 
     print('self.base', self.base)
     
