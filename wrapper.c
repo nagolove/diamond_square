@@ -335,11 +335,12 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 
     // Как передавать значения?
     cpFloat w = 256., h = 256;
+    cpFloat hw = w / 2.0, hh = h / 2.0;
     cpVect verts[] = {
-        {w / 2., h / 2.},
-        {w / 2., 0.},
-        {0., 0.},
-        {0., h / 2.},
+        {w - hw, h - hh},
+        {w - hw, 0. - hh},
+        {0. - hw, 0. - hh},
+        {0. - hw, h - hh},
     };
     int verts_num = sizeof(verts) / sizeof(verts[0]);
 
