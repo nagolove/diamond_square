@@ -153,17 +153,22 @@ static void print_stack_dump(lua_State *lua) {
 }
 #endif
 
-/*static cpSpace *cur_space = NULL;*/
+void check_argsnum(lua_State *lua, int num) {
+    static char formated_msg[64] = {0, };
+    const char *msg = "Function should receive only %d argument(s).\n";
+    snprintf(formated_msg, sizeof(formated_msg), msg, num);
+
+    int top = lua_gettop(lua);
+    if (top != num) {
+        lua_pushstring(lua, formated_msg);
+        lua_error(lua);
+    }
+}
 
 static int space_new(lua_State *lua) {
     // [.. , damping]
     luaL_checktype(lua, 1, LUA_TNUMBER);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expects 1 argument.\n");
-        lua_error(lua);
-    }
+    check_argsnum(lua, 1);
 
     LOG("space_new\n");
     LOG_STACK_DUMP(lua);
@@ -172,20 +177,19 @@ static int space_new(lua_State *lua) {
     // [.. , damping, {ud}]
     memset(space, 0, sizeof(Space));
 
-    space->space = cpSpaceNew();
-    /*cpSpaceInit(cur_space);*/
-    
     luaL_getmetatable(lua, "_Space");
     // [.., damping, {ud}, {M}]
-   
     lua_setmetatable(lua, -2);
     // [... damping, {ud}]
 
+    space->space = cpSpaceNew();
+
     // Дублирую значени userdata на стеке т.к. lua_ref() снимает одно значение
     // с верхушки.
-    lua_pushvalue(lua, 2); // [.. , damping, {ud}, {ud}]
-
-    space->reg_index = luaL_ref(lua, LUA_REGISTRYINDEX); // [.., damping, {ud}]
+    lua_pushvalue(lua, 2); 
+    // [.. , damping, {ud}, {ud}]
+    space->reg_index = luaL_ref(lua, LUA_REGISTRYINDEX); 
+    // [.., damping, {ud}]
     double damping = luaL_checknumber(lua, 1);
 
 	/*cpSpaceSetIterations(space, 30);*/
@@ -197,7 +201,8 @@ static int space_new(lua_State *lua) {
 
     LOG_STACK_DUMP(lua);
 
-    return 1; // [.., damping, -> {ud}]
+     // [.., damping, -> {ud}]
+    return 1;
 }
 
 static void ConstraintFreeWrap(
@@ -230,13 +235,7 @@ static void PostConstraintFree(
 }
 
 static void ShapeFreeWrap(cpSpace *space, cpShape *shape, void *unused){
-    /*lua_State *lua = (lua_State*)unused;*/
-
 	cpSpaceRemoveShape(space, shape);
-
-    /*int index = GET_USER_DATA_UD(shape);*/
-    /*luaL_unref(lua, LUA_REGISTRYINDEX, index);*/
-
     cpShapeFree(shape);
 }
 
@@ -249,6 +248,7 @@ static void PostShapeFree(cpShape *shape, struct PostCallbackData *data){
     );
 }
 
+// Как грамотно удалять пространство?
 static int space_free(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     Space *space = (Space*)luaL_checkudata(lua, 1, "_Space");
@@ -271,14 +271,13 @@ static int space_free(lua_State *lua) {
     /*luaL_unref(lua, LUA_REGISTRYINDEX, index);*/
     luaL_unref(lua, LUA_REGISTRYINDEX, space->reg_index);
     cpSpaceFree(space->space);
-    /*cpSpaceFree(space);*/
     return 0;
 }
 
 void tank_check_type(lua_State *lua, const char *tname, int stack_index) {
     const char *object_type = lua_tostring(lua, stack_index);
     if (strcmp(object_type, tname) != 0) {
-        char buf[64];
+        char buf[64] = {0, };
         snprintf(buf, 
                 sizeof(buf), 
                 "Unknown object type literal '%s'\n", 
@@ -290,7 +289,8 @@ void tank_check_type(lua_State *lua, const char *tname, int stack_index) {
 
 // Кладет в стек таблицу с вершинами из фигуры вида {x1, y1, x2, y2, ..}
 /*#define PUSH_SHAPE_VERTICES*/
-void push_shape_vertices(lua_State *lua, cpShape *shape) {
+void push_shape_vertices(cpBody *body, cpShape *shape, void *data) {
+    lua_State *lua = data;
     assert(shape);
 #ifdef PUSH_SHAPE_VERTICES
     LOG("push_shape_vertices\n");
@@ -308,7 +308,6 @@ void push_shape_vertices(lua_State *lua, cpShape *shape) {
         lua_pushnumber(lua, vert.y);
         lua_rawseti(lua, top, index++);
     }
-    //*/
 }
 #undef PUSH_SHAPE_VERTICES
 
@@ -322,8 +321,6 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 #ifdef LOG_NEW_TANK_TURRET
     LOG("new_tank_turret: 1 [%s]\n", stack_dump(lua));
 #endif
-    /*CHECK_SPACE;*/
-
     // [.., tank_ud]
 
     // Как расчитать момент и массу для фигуры сложной формы?
@@ -352,6 +349,7 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 #endif
 
     tank->turret = cpBodyNew(mass, moment);
+    tank->turret->userData = NULL;
 
     cpShape *shape = cpPolyShapeNew(
             tank->turret, 
@@ -359,6 +357,7 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
             verts, cpTransformIdentity, 
             0.f
     );
+    shape->userData = NULL;
 
     cpShapeFilter filter = {
         collision_group, 
@@ -370,8 +369,7 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
     cpSpaceAddBody(cur_space->space, tank->turret);
     cpSpaceAddShape(cur_space->space, shape);
 
-    cpVect pos = tank->body->p;
-    cpBodySetPosition(tank->turret, pos);
+    cpBodySetPosition(tank->turret, tank->body->p);
 
 #ifdef LOG_NEW_TANK_TURRET
     LOG("new_tank_turret: return [%s]\n", stack_dump(lua));
@@ -380,23 +378,7 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 }
 #undef LOG_NEW_TANK_TURRET
 
-void push_shape_vertices_iter(cpBody *body, cpShape *shape, void *data) {
-    push_shape_vertices(data, shape);
-}
-
-void check_argsnum(lua_State *lua, int num) {
-    static char formated_msg[64] = {0, };
-    const char *msg = "Function should receive only %d argument(s).\n";
-    sprintf(formated_msg, msg, num);
-
-    int top = lua_gettop(lua);
-    if (top != num) {
-        lua_pushstring(lua, formated_msg);
-        lua_error(lua);
-    }
-}
-
-void tank_setup_constraints(Tank* tank) {
+void tank_setup_constraints(Tank *tank) {
     cpConstraint *joint = cpPivotJointNew(tank->body, tank->turret, cpvzero);
 
     cpVect anchorA = { 0., 0. };
@@ -412,14 +394,14 @@ void tank_push_debug_vertices(lua_State *lua, const Tank *tank) {
     lua_newtable(lua);
     int table_index = lua_gettop(lua);
 
-    cpBodyEachShape(tank->body, push_shape_vertices_iter, lua);
+    cpBodyEachShape(tank->body, push_shape_vertices, lua);
     lua_rawseti(lua, table_index, 1);
 
-    cpBodyEachShape(tank->turret, push_shape_vertices_iter, lua);
+    cpBodyEachShape(tank->turret, push_shape_vertices, lua);
     lua_rawseti(lua, table_index, 2);
 }
 
-// добавить трения для тел так, что-бы они останавливались после приложения
+// Добавить трения для тел так, что-бы они останавливались после приложения
 // импульса
 #define LOG_TANK_NEW
 static int tank_new(lua_State *lua) {
@@ -442,12 +424,13 @@ static int tank_new(lua_State *lua) {
     // [.., type, x, y, w, h, assoc_table, "id"]
     lua_gettable(lua, -2);
     // [.., type, x, y, w, h, assoc_table, {id}]
+    // Группа столкновений для корпуса и башни устанавливается из id танка.
     int collision_group = lua_tonumber(lua, -1);
     lua_remove(lua, -1);
     // [.., type, x, y, w, h, assoc_table]
     
 #ifdef LOG_TANK_NEW
-    LOG("tank_new: id = %d\n", collision_group);
+    LOG("tank_new: collision_group = %d\n", collision_group);
 #endif
 
 #ifdef LOG_TANK_NEW
@@ -463,7 +446,7 @@ static int tank_new(lua_State *lua) {
 
     if (pos.x != pos.x || pos.y != pos.y ) {
         LOG("tank_new: NaN in pos vector\n");
-        exit(101);
+        exit(1);
     }
 
     int w = (int)lua_tonumber(lua, 4);
@@ -471,8 +454,6 @@ static int tank_new(lua_State *lua) {
 
     lua_pushvalue(lua, -1);
     // [.., type, x, y, w, h, assoc_table, assoc_table]
-
-    // [.., type, x, y, w, h, -> assoc_table]
     int assoc_table_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
     // [.., type, x, y, w, h]
 
@@ -481,7 +462,6 @@ static int tank_new(lua_State *lua) {
 
     Tank *tank = lua_newuserdata(lua, sizeof(Tank));
     memset(tank, 0, sizeof(Tank));
-
     // [.., type, x, y, w, h, {ud}]
     luaL_getmetatable(lua, "_Tank");
     // [.., type, x, y, w, h, {ud}, {M}]
@@ -520,9 +500,8 @@ static int tank_new(lua_State *lua) {
     cpSpaceAddShape(cur_space->space, shape);
     cpBodySetPosition(tank->body, pos);
 
-    print_body_stat(tank->body);
-
 #ifdef LOG_TANK_NEW
+    print_body_stat(tank->body);
     LOG("tank_new: [%s]\n", stack_dump(lua));
 #endif
 
@@ -534,7 +513,6 @@ static int tank_new(lua_State *lua) {
     int top = lua_gettop(lua);
     for(int i = 0; i <= top - 2; i++) {
         lua_remove(lua, 1);
-        /*print_stack_dump(lua);*/
     }
     // [.., {ud}]
 
@@ -551,13 +529,11 @@ static int tank_new(lua_State *lua) {
 }
 #undef LOG_TANK_NEW
 
-//////////////////////////////////////////////////////////////////
-///
 // Как обеспечить более быструю рисовку?
 // Вариант решения - вызывать функцию обратного вызова только если с момента
 // прошлого рисования произошло изменению положения, более чем на 0.5px
 // Как хранить данные о прошлом положении?
-#define LOG_ON_EACH_TANK_T
+/*#define LOG_ON_EACH_TANK_T*/
 void on_each_tank_t(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
@@ -570,7 +546,6 @@ void on_each_tank_t(cpBody *body, void *data) {
     if (!tank) {
         return;
     }
-
     if (tank->assoc_table_reg_index == 0) {
         return;
     }
@@ -674,9 +649,6 @@ void on_each_tank_t(cpBody *body, void *data) {
 
 }
 #undef LOG_ON_EACH_TANK_T
-
-//////////////////////////////////////////////////////////////////
-
 
 // Как обеспечить более быструю рисовку?
 // Вариант решения - вызывать функцию обратного вызова только если с момента
@@ -800,18 +772,13 @@ void print_space_info(cpSpace *space) {
 /*#define LOG_QUERY_ALL_TANKS_T*/
 static int query_all_tanks_t(lua_State *lua) {
     CHECK_SPACE;
+    luaL_checktype(lua, 1, LUA_TFUNCTION);
 
 #ifdef LOG_QUERY_ALL_TANKS_T
     LOG("query_all_tanks_t: [%s]\n", stack_dump(lua));
 #endif
 
-    luaL_checktype(lua, 1, LUA_TFUNCTION);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expect 1 argument.\n");
-        lua_error(lua);
-    }
+    check_argsnum(lua, 1);
 
 #ifdef LOG_QUERY_ALL_TANKS_T
     LOG("query_all_tanks_t: [%s]\n", stack_dump(lua));
@@ -825,7 +792,6 @@ static int query_all_tanks_t(lua_State *lua) {
     return 0;
 }
 #undef LOG_QUERY_ALL_TANKS_T
-
 
 /*
 //#define LOG_QUERY_ALL_TANKS
@@ -887,12 +853,7 @@ static int space_step(lua_State *lua) {
 
 static int body_position_get(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expects 1 argument.\n");
-        lua_error(lua);
-    }
+    check_argsnum(lua, 1);
 
     Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
     lua_pushnumber(lua, tank->body->p.x);
@@ -911,11 +872,7 @@ static int body_position_set(lua_State *lua) {
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TNUMBER);
 
-    int top = lua_gettop(lua);
-    if (top != 3) {
-        lua_pushstring(lua, "Function expects 3 arguments.\n");
-        lua_error(lua);
-    }
+    check_argsnum(lua, 1);
 
     Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
     double x = lua_tonumber(lua, 2);
@@ -940,6 +897,7 @@ static int apply_force(lua_State *lua) {
     luaL_checktype(lua, 3, LUA_TNUMBER);
     luaL_checktype(lua, 4, LUA_TNUMBER);
     luaL_checktype(lua, 5, LUA_TNUMBER);
+    check_argsnum(lua, 5);
 
     cpVect force = { 
         .x = lua_tonumber(lua, 2),
@@ -950,12 +908,6 @@ static int apply_force(lua_State *lua) {
         .x = lua_tonumber(lua, 4),
         .y = lua_tonumber(lua, 5),
     };
-
-    int top = lua_gettop(lua);
-    if (top != 5) {
-        lua_pushstring(lua, "Function expects 5 arguments.\n");
-        lua_error(lua);
-    }
 
     Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
     cpBodyApplyForceAtLocalPoint(tank->body, force, point);
@@ -969,6 +921,7 @@ static int apply_impulse(lua_State *lua) {
     luaL_checktype(lua, 3, LUA_TNUMBER);
     luaL_checktype(lua, 4, LUA_TNUMBER);
     luaL_checktype(lua, 5, LUA_TNUMBER);
+    check_argsnum(lua, 5);
 
     cpVect impulse = { 
         .x = lua_tonumber(lua, 2),
@@ -980,12 +933,6 @@ static int apply_impulse(lua_State *lua) {
         .y = lua_tonumber(lua, 5),
     };
 
-    int top = lua_gettop(lua);
-    if (top != 5) {
-        lua_pushstring(lua, "Function expect 5 arguments.\n");
-        lua_error(lua);
-    }
-
     Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
     cpBodyApplyImpulseAtLocalPoint(tank->body, impulse, point);
 
@@ -993,19 +940,13 @@ static int apply_impulse(lua_State *lua) {
 }
 
 static int static_segment_new(lua_State *lua) {
+    CHECK_SPACE;
     // [.., x1, y1, x2, y2]
     luaL_checktype(lua, 1, LUA_TNUMBER);
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TNUMBER);
     luaL_checktype(lua, 4, LUA_TNUMBER);
-
-    int top = lua_gettop(lua);
-    if (top != 4) {
-        lua_pushstring(lua, "Function expect 4 arguments.\n");
-        lua_error(lua);
-    }
-
-    CHECK_SPACE;
+    check_argsnum(lua, 4);
 
     cpVect p1 = { .x = lua_tonumber(lua, 1), .y = lua_tonumber(lua, 2), };
     cpVect p2 = { .x = lua_tonumber(lua, 3), .y = lua_tonumber(lua, 4), };
@@ -1020,10 +961,7 @@ static int static_segment_new(lua_State *lua) {
     cpShapeSetFriction(shape, 1.0f);
     // что дает установка следующего фильтра?
     cpShapeSetFilter(shape, NOT_GRABBABLE_FILTER);
-
     cpSpaceAddShape(cur_space->space, shape);
-
-    /*lua_pushlightuserdata(lua, shape);*/
 
     // [.., x1, y1, x2, y2, -> ud]
     return 1;
@@ -1052,11 +990,8 @@ static int static_segment_free(lua_State *lua) {
 
 void on_segment_shape(cpBody *body, cpShape *shape, void *data) {
     lua_State *lua = (lua_State*)data;
-    /*printf("on_segment_shape\n");*/
-    /*printf("shape->klass = %d\n", shape->klass);*/
     if (shape->klass->type == CP_SEGMENT_SHAPE) {
         cpSegmentShape *seg = (cpSegmentShape*)shape;
-
         lua_pushvalue(lua, 1); // callback function
         lua_pushnumber(lua, seg->a.x);
         lua_pushnumber(lua, seg->a.y);
@@ -1067,19 +1002,11 @@ void on_segment_shape(cpBody *body, cpShape *shape, void *data) {
 }
 
 static int static_segments_draw(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TFUNCTION);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expect 1 argument.\n");
-        lua_error(lua);
-    }
-
     CHECK_SPACE;
-
+    luaL_checktype(lua, 1, LUA_TFUNCTION);
+    check_argsnum(lua, 1);
     cpBody *static_body = cpSpaceGetStaticBody(cur_space->space);
     cpBodyEachShape(static_body, on_segment_shape, lua);
-
     return 0;
 }
 
@@ -1102,9 +1029,6 @@ void on_point_query(
         return;
     }
 
-    // TODO Использовать тело вместо формы в lua коллбэке 
-    // cpBody *b = shape->body;
-
 #ifdef LOG_ON_POINT_QUERY
     LOG("stack 1: [%s]\n", stack_dump(lua));
 #endif
@@ -1113,7 +1037,20 @@ void on_point_query(
     /*lua_rawgeti(lua, LUA_REGISTRYINDEX, index);*/
 
     cpBody *body = shape->body;
+    if (!body) {
+        return;
+    }
+    if (shape->klass->type != CP_POLY_SHAPE) {
+        return;
+    }
     Tank *tank = (Tank*)body->userData;
+    if (!tank) {
+        return;
+    }
+    if (tank->reg_index == 0) {
+        LOG("on_point_query: tank->reg_index == 0");
+        return;
+    }
     lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);
 
 #ifdef LOG_ON_POINT_QUERY
@@ -1166,17 +1103,11 @@ void on_point_query(
 // Вызывает функцию обратного вызова для фигур под данной точно.
 // Не учитывает фильтры.
 static int get_body_under_point(lua_State *lua) {
+    CHECK_SPACE;
     luaL_checktype(lua, 1, LUA_TNUMBER);
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TFUNCTION);
-
-    int top = lua_gettop(lua);
-    if (top != 3) {
-        lua_pushstring(lua, "Function expects 3 arguments.\n");
-        lua_error(lua);
-    }
-
-    CHECK_SPACE;
+    check_argsnum(lua, 3);
 
     cpVect point = { 
         .x = lua_tonumber(lua, 1),
@@ -1239,20 +1170,18 @@ static int get_shape_body(lua_State *lua) {
 }
 */
 
+#define GET_BODY_STAT
 int get_body_stat(lua_State *lua) {
-    printf("get_body_stat() %s\n", stack_dump(lua));
     luaL_checktype(lua, 1, LUA_TUSERDATA);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expects 1 argument.\n");
-        lua_error(lua);
-    }
+    check_argsnum(lua, 1);
 
     cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
 
+#ifdef GET_BODY_STAT
+    printf("get_body_stat: [%s]\n", stack_dump(lua));
+    print_body_stat(b);
+#endif
     /*printf("get_body_stat()\n");*/
-    /*print_body_stat(b);*/
 
     // масса
     lua_pushnumber(lua, b->m);
@@ -1310,12 +1239,7 @@ int get_body_stat(lua_State *lua) {
 static int set_torque(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
-
-    int top = lua_gettop(lua);
-    if (top != 2) {
-        lua_pushstring(lua, "Function expects 2 arguments.\n");
-        lua_error(lua);
-    }
+    check_argsnum(lua, 2);
 
     cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     double torque = lua_tonumber(lua, 2);
@@ -1327,12 +1251,7 @@ static int set_torque(lua_State *lua) {
 
 static int get_body_type(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expects 1 argument.\n");
-        lua_error(lua);
-    }
+    check_argsnum(lua, 1);
     
     cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     cpBodyType btype = cpBodyGetType(body);
@@ -1352,12 +1271,7 @@ static int get_body_type(lua_State *lua) {
 
 static int get_body_vel(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expects 1 argument.\n");
-        lua_error(lua);
-    }
+    check_argsnum(lua, 1);
     
     cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     cpVect vel = cpBodyGetVelocity(body);
@@ -1371,12 +1285,7 @@ static int get_body_vel(lua_State *lua) {
 static int set_body_ang_vel(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
-
-    int top = lua_gettop(lua);
-    if (top != 2) {
-        lua_pushstring(lua, "Function expects 2 argument.\n");
-        lua_error(lua);
-    }
+    check_argsnum(lua, 2);
     
     cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     double ang_vel = lua_tonumber(lua, 2);
@@ -1387,16 +1296,9 @@ static int set_body_ang_vel(lua_State *lua) {
 
 static int get_body_ang_vel(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expects 1 argument.\n");
-        lua_error(lua);
-    }
-    
+    check_argsnum(lua, 1);
     cpBody *body = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
     lua_pushnumber(lua, cpBodyGetAngularVelocity(body));
-
     return 1;
 }
 
@@ -1434,25 +1336,18 @@ static const struct luaL_Reg Turret_methods[] =
 int get_turret_position(lua_State *lua) {
     // [.., ud]
     luaL_checktype(lua, 1, LUA_TUSERDATA);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expects 1 argument.\n");
-        lua_error(lua);
-    }
-
+    check_argsnum(lua, 1);
     Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
-    
     lua_pushnumber(lua, tank->turret->p.x);
     lua_pushnumber(lua, tank->turret->p.y);
     lua_pushnumber(lua, tank->turret->a);
-
     return 3;
 }
 
 int turret_rotate(lua_State *lua) {
     Tank *tank = luaL_checkudata(lua, 1, "_Tank");
     double k = luaL_checknumber(lua, 2);
+    // Как прикладывать силу что-бы башня вращалась через центр?
     cpVect point = { 
         .x = 128.,
         .y = 128.
