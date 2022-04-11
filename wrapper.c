@@ -274,14 +274,16 @@ static int space_free(lua_State *lua) {
     return 0;
 }
 
-void tank_check_type(lua_State *lua, const char *tname, int stack_index) {
-    const char *object_type = lua_tostring(lua, stack_index);
-    if (strcmp(object_type, tname) != 0) {
+void tank_check_type(lua_State *lua, 
+        const char *given, 
+        const char *should_be
+) {
+    if (strcmp(given, should_be) != 0) {
         char buf[64] = {0, };
         snprintf(buf, 
                 sizeof(buf), 
                 "Unknown object type literal '%s'\n", 
-                object_type);
+                given);
         lua_pushstring(lua, buf);
         lua_error(lua);
     }
@@ -316,23 +318,37 @@ void push_shape_vertices(cpBody *body, cpShape *shape, void *data) {
 Функция оставляет Lua стек без изменений.
 В связанной с танком таблице устанавливается поле _turret с userdata башни.
 */
-#define LOG_NEW_TANK_TURRET
-void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
-#ifdef LOG_NEW_TANK_TURRET
-    LOG("new_tank_turret: 1 [%s]\n", stack_dump(lua));
+#define TANK_TURRET_NEW
+void tank_turret_new(
+        lua_State *lua, 
+        Tank *tank, 
+        int collision_group, 
+        int init_table_index
+) {
+
+#ifdef TANK_TURRET_NEW
+    LOG("tank_turret_new: [%s]\n", stack_dump(lua));
 #endif
     // [.., tank_ud]
+    lua_pushvalue(lua, init_table_index);
+    // [.., tank_ud, init_table]
 
-    // Как расчитать момент и массу для фигуры сложной формы?
     cpFloat mass = 5.;
+    cpFloat w = 0., h = 0;
 
-#ifdef LOG_NEW_TANK_TURRET
-    LOG("new_tank_turret: 2 [%s]\n", stack_dump(lua));
-#endif
+    lua_pushstring(lua, "turret_w");
+    lua_gettable(lua, -2);
+    w = (int)lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
 
-    // Как передавать значения?
-    /*cpFloat w = 256., h = 256;*/
-    cpFloat w = 54., h = 160;
+    lua_pushstring(lua, "turret_h");
+    lua_gettable(lua, -2);
+    h = (int)lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
+
+    LOG("tank_turret_new: w = %f\n", w);
+    LOG("tank_turret_new: h = %f\n", h);
+
     cpFloat hw = w / 2.0, hh = h / 2.0;
     cpVect verts[] = {
         {w - hw, h - hh},
@@ -342,10 +358,14 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
     };
     int verts_num = sizeof(verts) / sizeof(verts[0]);
 
-    cpVect offset = cpvzero;
-    cpFloat moment = cpMomentForPoly(mass, verts_num, verts, offset, 0.0f);
+    cpVect poly_offset = cpvzero;
+    cpFloat moment = cpMomentForPoly(
+            mass, verts_num, 
+            verts, poly_offset, 
+            0.0f
+    );
 
-#ifdef LOG_NEW_TANK_TURRET
+#ifdef TANK_TURRET_NEW
     LOG("tank_turret_new: turret moment %f\n", moment);
 #endif
 
@@ -367,21 +387,37 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
     };
     cpShapeSetFilter(shape, filter);
 
+    cpVect turret_offset = { .x = 0., .y = 0. };
+
+    lua_pushstring(lua, "turret_dx");
+    lua_gettable(lua, -2);
+    turret_offset.x = (int)lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
+
+    lua_pushstring(lua, "turret_dy");
+    lua_gettable(lua, -2);
+    turret_offset.y = (int)lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
+
+    LOG("tank_turret_new: turret_dx = %f\n", turret_offset.x);
+    LOG("tank_turret_new: turret_dy = %f\n", turret_offset.y);
+
+    cpVect pos = cpvadd(tank->body->p, turret_offset);
+    cpBodySetPosition(tank->turret, pos);
+
     cpSpaceAddBody(cur_space->space, tank->turret);
     cpSpaceAddShape(cur_space->space, shape);
 
-    /*cpVect displacement = { .x = 102., .y = 0. };*/
-    cpVect displacement = { .x = 20., .y = 0. };
-    /*cpVect displacement = { .x = 0., .y = 0. };*/
-    cpVect pos = cpvadd(tank->body->p, displacement);
-    cpBodySetPosition(tank->turret, pos);
+    // [.., tank_ud, init_table]
+    lua_remove(lua, -1);
+    // [.., tank_ud]
 
-#ifdef LOG_NEW_TANK_TURRET
-    LOG("new_tank_turret: return [%s]\n", stack_dump(lua));
+#ifdef TANK_TURRET_NEW
+    LOG("tank_turret_new: return [%s]\n", stack_dump(lua));
 #endif
 
 }
-#undef LOG_NEW_TANK_TURRET
+#undef TANK_TURRET_NEW
 
 void tank_setup_constraints(Tank *tank) {
     cpConstraint *joint = cpPivotJointNew(tank->body, tank->turret, cpvzero);
@@ -413,13 +449,16 @@ void tank_push_debug_vertices(lua_State *lua, const Tank *tank) {
 static int tank_new(lua_State *lua) {
     // [.., type, x, y, w, h, assoc_table]
     CHECK_SPACE;
-    check_argsnum(lua, 6);
-    luaL_checktype(lua, 1, LUA_TSTRING); // type
-    luaL_checktype(lua, 2, LUA_TNUMBER); // x pos
-    luaL_checktype(lua, 3, LUA_TNUMBER); // y pos
-    luaL_checktype(lua, 4, LUA_TNUMBER); // w in pixels
-    luaL_checktype(lua, 5, LUA_TNUMBER); // h in pixels
-    luaL_checktype(lua, 6, LUA_TTABLE);  // associated table
+    check_argsnum(lua, 2);
+
+    /*luaL_checktype(lua, 1, LUA_TSTRING); // type*/
+    /*luaL_checktype(lua, 2, LUA_TNUMBER); // x pos*/
+    /*luaL_checktype(lua, 3, LUA_TNUMBER); // y pos*/
+    /*luaL_checktype(lua, 4, LUA_TNUMBER); // w in pixels*/
+    /*luaL_checktype(lua, 5, LUA_TNUMBER); // h in pixels*/
+
+    luaL_checktype(lua, 1, LUA_TTABLE);  // init table
+    luaL_checktype(lua, 2, LUA_TTABLE);  // associated table
 
 #ifdef LOG_TANK_NEW
     LOG("tank_new: 1 [%s]\n", stack_dump(lua));
@@ -427,13 +466,12 @@ static int tank_new(lua_State *lua) {
 
     // Получить id танка
     lua_pushstring(lua, "id");
-    // [.., type, x, y, w, h, assoc_table, "id"]
+    // [.., init_table, assoc_table, "id"]
     lua_gettable(lua, -2);
-    // [.., type, x, y, w, h, assoc_table, {id}]
+    // [.., init_table, assoc_table, {id}]
     // Группа столкновений для корпуса и башни устанавливается из id танка.
     int collision_group = lua_tonumber(lua, -1);
     lua_remove(lua, -1);
-    // [.., type, x, y, w, h, assoc_table]
     
 #ifdef LOG_TANK_NEW
     LOG("tank_new: collision_group = %d\n", collision_group);
@@ -443,20 +481,54 @@ static int tank_new(lua_State *lua) {
     LOG("tank_new: 2 [%s]\n", stack_dump(lua));
 #endif
 
-    tank_check_type(lua, "tank", 1);
+    // [.., init_table, assoc_table]
+    lua_pushvalue(lua, -2);
+    // [.., init_table, assoc_table, init_table]
+    
+    lua_pushstring(lua, "type");
+    lua_gettable(lua, -2);
+    // [.., init_table, assoc_table, init_table, type_value]
+    const char *type = lua_tostring(lua, -1);
+    tank_check_type(lua, type, "tank");
+    lua_remove(lua, -1);
+    // [.., init_table, assoc_table, init_table]
 
-    cpVect pos = {
-        .x = (int)lua_tonumber(lua, 2),
-        .y = (int)lua_tonumber(lua, 3),
-    };
+    cpVect pos = { .x = 0, .y = 0 };
+
+    lua_pushstring(lua, "x");
+    lua_gettable(lua, -2);
+    pos.x = (int)lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
+
+    lua_pushstring(lua, "y");
+    lua_gettable(lua, -2);
+    pos.y = (int)lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
+
+    LOG("tank_new: x, y = (%f, %f)\n", pos.x, pos.y);
 
     if (pos.x != pos.x || pos.y != pos.y ) {
         LOG("tank_new: NaN in pos vector\n");
         exit(1);
     }
 
-    int w = (int)lua_tonumber(lua, 4);
-    int h = (int)lua_tonumber(lua, 5);
+    int w = 0, h = 0;
+
+    lua_pushstring(lua, "w");
+    lua_gettable(lua, -2);
+    w = (int)lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
+
+    lua_pushstring(lua, "h");
+    lua_gettable(lua, -2);
+    h = (int)lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
+
+    LOG("tank_new: w, h = (%d, %d)\n", w, h);
+
+    // [.., init_table, assoc_table, init_table]
+    lua_remove(lua, -1);
+    // [.., init_table, assoc_table]
 
     lua_pushvalue(lua, -1);
     // [.., type, x, y, w, h, assoc_table, assoc_table]
@@ -508,10 +580,12 @@ static int tank_new(lua_State *lua) {
 
 #ifdef LOG_TANK_NEW
     print_body_stat(tank->body);
-    LOG("tank_new: [%s]\n", stack_dump(lua));
+    LOG("tank_new: before turret_new [%s]\n", stack_dump(lua));
 #endif
 
-    tank_turret_new(lua, tank, collision_group);
+    tank_turret_new(lua, tank, collision_group, 1);
+    LOG("tank_new: after turret_new [%s]\n", stack_dump(lua));
+
     tank_setup_constraints(tank);
 
     // Удалить все предшествующие возвращаемому значению элементы стека.

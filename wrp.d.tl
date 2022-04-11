@@ -37,13 +37,28 @@ local record Wrapper
     -- Работает с башней. Предпочтительный вариант.
     query_all_tanks_t: function(EachTankCallback)
 
+    record TankInit
+        -- {{{
+        type: ObjectType
+        x: number
+        y: number
+        w: number
+        h: number
+        turret_w: number
+        turret_h: number
+        turret_dx: number
+        turret_dy: number
+        -- }}}
+    end
+
     -- Создать поли-тело данной ширины и высоты, прикрепив к нему таблицу.
     -- Нужно указывать тип тела из перечисление ObjectType для соблюдений 
     -- внутренней логики работы модуля wrapper
     tank_new: function(
-        type: ObjectType, 
-        xpos: number, ypos: number,
-        w: number, h: number, 
+        --type: ObjectType, 
+        --xpos: number, ypos: number,
+        --w: number, h: number, 
+        init: TankInit,
         self: table
     ): Tank, {{number}} -- второй параметр - вершины фигур. Может быть nil
 

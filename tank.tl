@@ -8,7 +8,6 @@ local wrp = require "wrp"
 
 -- Класс основного боевого танка.
 local record Tank
-
     -- {{{
 
     -- _ префикс нижнего подчеркивания означает, что переменные могут быть
@@ -16,7 +15,7 @@ local record Tank
     _prev_x: number
     _prev_y: number
     -- Пушка
-    _turret: wrp.Body
+    --turret: wrp.Body
 
     -- цифры получены из картинки tank_body_small.png
     --self.rectXY = {86, 72}
@@ -190,12 +189,18 @@ function Tank.new(pos: vector, w: number, h: number): Tank
     end
 
     local debug_verts: {{number}} = nil
-    self.base, debug_verts = wrp.tank_new(
-        self.type, 
-        pos.x, pos.y, 
-        w, h, 
-        self as table
-    )
+
+    local init: wrp.TankInit = {
+        type = self.type, 
+        x = pos.x, y = pos.y, 
+        w = w, h = h, 
+        turret_dx = 0.,
+        turret_dy = 0.,
+        turret_w = 54,
+        turret_h = 160,
+    }
+    self.base, debug_verts = wrp.tank_new(init, self as table)
+
     if debug_verts then
         print("debug_verts:", inspect(debug_verts))
     end
