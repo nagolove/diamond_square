@@ -316,7 +316,7 @@ void push_shape_vertices(cpBody *body, cpShape *shape, void *data) {
 Функция оставляет Lua стек без изменений.
 В связанной с танком таблице устанавливается поле _turret с userdata башни.
 */
-/*#define LOG_NEW_TANK_TURRET*/
+#define LOG_NEW_TANK_TURRET
 void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 #ifdef LOG_NEW_TANK_TURRET
     LOG("new_tank_turret: 1 [%s]\n", stack_dump(lua));
@@ -324,7 +324,7 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
     // [.., tank_ud]
 
     // Как расчитать момент и массу для фигуры сложной формы?
-    cpFloat mass = 5., moment = 5.;
+    cpFloat mass = 5.;
 
 #ifdef LOG_NEW_TANK_TURRET
     LOG("new_tank_turret: 2 [%s]\n", stack_dump(lua));
@@ -342,7 +342,7 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
     int verts_num = sizeof(verts) / sizeof(verts[0]);
 
     cpVect offset = cpvzero;
-    moment = cpMomentForPoly(mass, verts_num, verts, offset, 0.0f);
+    cpFloat moment = cpMomentForPoly(mass, verts_num, verts, offset, 0.0f);
 
 #ifdef LOG_NEW_TANK_TURRET
     LOG("tank_turret_new: turret moment %f\n", moment);
@@ -404,6 +404,7 @@ void tank_push_debug_vertices(lua_State *lua, const Tank *tank) {
 // Добавить трения для тел так, что-бы они останавливались после приложения
 // импульса
 #define LOG_TANK_NEW
+#define PUSH_DEBUG_TANK_VERTICES
 static int tank_new(lua_State *lua) {
     // [.., type, x, y, w, h, assoc_table]
     CHECK_SPACE;
@@ -516,7 +517,7 @@ static int tank_new(lua_State *lua) {
     }
     // [.., {ud}]
 
-#ifdef LOG_TANK_NEW
+#ifdef PUSH_DEBUG_TANK_VERTICES
     tank_push_debug_vertices(lua, tank);
     LOG("tank_new: return [%s]\n", stack_dump(lua));
     // [.., -> {ud}, -> {table}]
@@ -528,12 +529,13 @@ static int tank_new(lua_State *lua) {
 #endif
 }
 #undef LOG_TANK_NEW
+#undef PUSH_DEBUG_TANK_VERTICES
 
 // Как обеспечить более быструю рисовку?
 // Вариант решения - вызывать функцию обратного вызова только если с момента
 // прошлого рисования произошло изменению положения, более чем на 0.5px
 // Как хранить данные о прошлом положении?
-/*#define LOG_ON_EACH_TANK_T*/
+#define LOG_ON_EACH_TANK_T
 void on_each_tank_t(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
