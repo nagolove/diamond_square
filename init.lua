@@ -1155,6 +1155,8 @@ end
 
 
 
+
+
 local function spawnTank(px, py)
    local tank = Tank.new(vec2(px, py), tank_width, tank_height)
    print("tank", inspect(tank))
@@ -1221,8 +1223,11 @@ local function spawnTanks()
 
    end
 
-   spawnTank(-100, 100)
-   spawnTank(300, 100)
+
+   local w, h = 256, 256
+   spawnTank(-w / 70, -h / 70)
+
+   spawnTank(380, 100)
    spawnTank(screenW / 2, screenH / 2)
 
 
@@ -1329,7 +1334,7 @@ local function spawnPlayer()
    camera:setPlayer(playerTank)
 
 
-   spawnTank(px + 300, py)
+   spawnTank(px + 400, py)
 end
 
 local function nextTankAsPlayer()

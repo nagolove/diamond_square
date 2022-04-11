@@ -115,7 +115,6 @@ local Tank = {}
 
 
 
-
 local px, py = 0, 0
 local impulse_amount = 100
 local force_amount = 200
@@ -190,11 +189,17 @@ function Tank.new(pos, w, h)
    end
 
    local debug_verts = nil
-   self.base, debug_verts = wrp.tank_new(
-   self.type,
-   pos.x, pos.y,
-   w, h,
-   self)
+
+   local init = {
+      type = self.type,
+      x = pos.x, y = pos.y,
+      w = w, h = h,
+      turret_dx = 0.,
+      turret_dy = 0.,
+      turret_w = 54,
+      turret_h = 160,
+   }
+   self.base, debug_verts = wrp.tank_new(init, self)
 
    if debug_verts then
       print("debug_verts:", inspect(debug_verts))
