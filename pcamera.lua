@@ -207,6 +207,7 @@ function Camera:checkScale(j)
       self.transform:scale(self.scale, self.scale)
       self.transform:translate(px, py)
    end
+
 end
 
 

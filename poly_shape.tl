@@ -117,8 +117,10 @@ local cmd_num = 0
 
 -- Корпус
 local quad = gr.newQuad(0, 0, 256, 256, texture)
+
 -- Башня
-local quad_t = gr.newQuad(0, 0, 256, 256, texture_t)
+--local quad_t = gr.newQuad(0, 0, 256, 256, texture_t)
+local quad_t = gr.newQuad(102, 0, 54, 160, texture_t)
 
 local function draw(
     texture: gr.Texture,

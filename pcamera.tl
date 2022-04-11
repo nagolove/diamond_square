@@ -207,6 +207,7 @@ function Camera:checkScale(j: Joystick)
         self.transform:scale(self.scale, self.scale)
         self.transform:translate(px, py)
     end
+    --]]
 end
 
 -- Проверяет, находится-ли центр танка игрока в пределах окружности 

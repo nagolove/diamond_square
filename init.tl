@@ -826,6 +826,8 @@ local function debug_draw_vertices(
             pipeline:push(debug_vertices[i])
         end
         --]]
+    else
+        --print("no debug vertices.")
     end
 end
 
@@ -1152,7 +1154,9 @@ local function processCommandModeKeys(key: string)
 end
 --]]
 
--- не добавляет в таблицу рисовки на стороне потока рендера
+-- Не добавляет в таблицу рисовки на стороне потока рендера.
+-- Необходимо проверять - есть ли другой танк под текущей точкой. Принимать во
+-- внимание ширину, высоту объекта и некоторый запас, 5-10 пикселей.
 local function spawnTank(px: number, py: number): Tank
     local tank = Tank.new(vec2(px, py), tank_width, tank_height)
     print("tank", inspect(tank))
@@ -1216,11 +1220,11 @@ local function spawnTanks()
             rng:random() * 2 * math.pi, 
             rad
         )
-        spawnTank(p.x, p.y)
+        --spawnTank(p.x, p.y)
     end
 
     spawnTank(-100, 100)
-    spawnTank(100, 100)
+    spawnTank(300, 100)
     spawnTank(screenW / 2, screenH / 2)
     --pipeline:push('enough')
     --pipeline:close()
@@ -1327,7 +1331,7 @@ local function spawnPlayer()
     camera:setPlayer(playerTank)
 
     -- near friend for debugger
-    spawnTank(px + 200, py)
+    spawnTank(px + 300, py)
 end
 
 local function nextTankAsPlayer()
@@ -1561,6 +1565,7 @@ local function initRenderCode()
     -- {{{
 
     -- рисовать ортогональные оси координат в левом верхнем углу экрана
+    -- {{{
     pipeline:pushCode("main_axises", [[
     local gr = love.graphics
     --local col = {0.3, 0.5, 1, 1}
@@ -1580,6 +1585,7 @@ local function initRenderCode()
         coroutine.yield()
     end
     ]])
+    -- }}}
 
     -- Буфер для вывода отладочной информации в левом верхнем углу экрана.
     pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
@@ -1588,6 +1594,7 @@ local function initRenderCode()
     docsystem.init_render_stage1(pipeline)
 
     -- Рисование прозрачного прямоугольника над определенным телом.
+    -- {{{
     pipeline:pushCode('selected_object', [[
     -- жесткие значения ширины и высоты, как проверить что они соответствуют
     -- действительным?
@@ -1620,16 +1627,20 @@ local function initRenderCode()
         coroutine.yield()
     end
     ]])
+    -- }}}
 
     -- Очистка экрана
+    -- {{{
     pipeline:pushCode('clear', [[
     while true do
         love.graphics.clear{0.5, 0.5, 0.5}
         coroutine.yield()
     end
     ]])
+    -- }}}
 
     -- Установить трансформацию
+    -- {{{
     pipeline:pushCode('set_transform', [[
     local gr = love.graphics
     local yield = coroutine.yield
@@ -1638,8 +1649,10 @@ local function initRenderCode()
         yield()
     end
     ]])
+    -- }}}
 
     -- Сброс трансформации
+    -- {{{
     pipeline:pushCode('origin_transform', [[
     local gr = love.graphics
     local yield = coroutine.yield
@@ -1648,6 +1661,7 @@ local function initRenderCode()
         yield()
     end
     ]])
+    -- }}}
 
     pipeline:pushCodeFromFile("debug_vertices", "debug_vertices.lua")
 
@@ -1800,6 +1814,68 @@ local function quit()
     -- }}}
 end
 
+local stat_push_counter = 0
+
+local function inc_push_counter(): integer
+    local prev_value = stat_push_counter
+    stat_push_counter = stat_push_counter + 1
+    return prev_value
+end
+
+local function push_tank_body_stat(object: Wrapper.Tank)
+    local msg = ""
+    local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
+        force_x, force_y, angle, w, torque = object:get_body_stat()
+
+    msg = sformat('mass, inertia: %.3f, %.3f', mass, inertia)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('cog (%.3f, %.3f)', cog_x, cog_y)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('position (%.3f, %.3f)', pos_x, pos_y)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('velocity (%.3f, %.3f)', v_x, v_y)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('force (%.3f, %.3f)', force_x, force_y)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('angle, ang. vel.: %.3f, %.3f)', angle, w)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('torque: %.3f', torque)
+    pipeline:push('add', inc_push_counter(), msg)
+end
+
+local function push_tank_turret_stat(object: Wrapper.Tank)
+    local msg = ""
+    local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
+        force_x, force_y, angle, w, torque = object:get_turret_stat()
+
+    msg = sformat('mass, inertia: %.3f, %.3f', mass, inertia)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('cog (%.3f, %.3f)', cog_x, cog_y)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('position (%.3f, %.3f)', pos_x, pos_y)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('velocity (%.3f, %.3f)', v_x, v_y)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('force (%.3f, %.3f)', force_x, force_y)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('angle, ang. vel.: %.3f, %.3f)', angle, w)
+    pipeline:push('add', inc_push_counter(), msg)
+
+    msg = sformat('torque: %.3f', torque)
+    pipeline:push('add', inc_push_counter(), msg)
+end
+
 local function mousemoved(x: number, y: number, dx: number, dy: number)
     metrics.mousemoved(x, y, dx, dy)
 
@@ -1828,55 +1904,29 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
         pipeline:open('object_lines_buf')
         --pipeline:push('pos', absx, absy)
         pipeline:push('pos', x + absx, y + absy)
-        --pipeline:push("add", 1, tostring(shape))
-        --pipeline:push('add', 1, 'on get_shape_under_point()')
-        pipeline:push('add', 2, 'object ' .. tostring(object))
+        pipeline:push('add', inc_push_counter(), 'object ' .. tostring(object))
 
         msg = sformat('point (%.3f, %.3f)', shape_x, shape_y)
-        pipeline:push('add', 3, msg)
+        pipeline:push('add', inc_push_counter(), msg)
 
-        pipeline:push('add', 4, 'distance ' .. dist)
-        pipeline:push('add', 5, sformat('gradient (%.3f, %.3f)', gradx, grady))
+        pipeline:push('add', inc_push_counter(), 'distance ' .. dist)
+        pipeline:push('add', inc_push_counter(), sformat('gradient (%.3f, %.3f)', gradx, grady))
 
-        pipeline:push('add', 6, "----------")
+        pipeline:push('add', inc_push_counter(), "----------")
 
         --wrp.shape_print_filter(shape)
-
-        local body: Wrapper.Tank = object as Wrapper.Tank
-
-        local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
-            force_x, force_y, angle, w, torque = body:get_stat()
-
-        msg = sformat('mass, inertia: %.3f, %.3f', mass, inertia)
-        pipeline:push('add', 7, msg)
-
-        msg = sformat('cog (%.3f, %.3f)', cog_x, cog_y)
-        pipeline:push('add', 8, msg)
-
-        msg = sformat('position (%.3f, %.3f)', pos_x, pos_y)
-        pipeline:push('add', 9, msg)
-
-        msg = sformat('velocity (%.3f, %.3f)', v_x, v_y)
-        pipeline:push('add', 10, msg)
-
-        msg = sformat('force (%.3f, %.3f)', force_x, force_y)
-        pipeline:push('add', 11, msg)
-
-        msg = sformat('angle, ang. vel.: %.3f, %.3f)', angle, w)
-        pipeline:push('add', 12, msg)
-
-        msg = sformat('torque: %.3f', torque)
-        pipeline:push('add', 13, msg)
+        push_tank_body_stat(object)
+        pipeline:push('add', inc_push_counter(), "----------")
+        push_tank_turret_stat(object)
 
         pipeline:push('enough')
         pipeline:close()
-        --]]
-
     end)
 
     if counter == 0 then
         pipeline:openPushAndClose('object_lines_buf', 'clear')
     end
+    stat_push_counter = 0
 
     --if mode == 'editor' then
         --arena:mousemoved(x, y, dx, dy)

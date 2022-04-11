@@ -331,7 +331,8 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
 #endif
 
     // Как передавать значения?
-    cpFloat w = 256., h = 256;
+    /*cpFloat w = 256., h = 256;*/
+    cpFloat w = 54., h = 160;
     cpFloat hw = w / 2.0, hh = h / 2.0;
     cpVect verts[] = {
         {w - hw, h - hh},
@@ -369,7 +370,11 @@ void tank_turret_new(lua_State *lua, Tank *tank, int collision_group) {
     cpSpaceAddBody(cur_space->space, tank->turret);
     cpSpaceAddShape(cur_space->space, shape);
 
-    cpBodySetPosition(tank->turret, tank->body->p);
+    /*cpVect displacement = { .x = 102., .y = 0. };*/
+    cpVect displacement = { .x = 20., .y = 0. };
+    /*cpVect displacement = { .x = 0., .y = 0. };*/
+    cpVect pos = cpvadd(tank->body->p, displacement);
+    cpBodySetPosition(tank->turret, pos);
 
 #ifdef LOG_NEW_TANK_TURRET
     LOG("new_tank_turret: return [%s]\n", stack_dump(lua));
