@@ -1172,14 +1172,65 @@ static int get_shape_body(lua_State *lua) {
 }
 */
 
-#define GET_BODY_STAT
-int get_body_stat(lua_State *lua) {
+#define TANK_BODY_STAT_GET
+int tank_body_stat_get(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     check_argsnum(lua, 1);
 
-    cpBody *b = (cpBody*)luaL_checkudata(lua, 1, "_Tank");
+    Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
+    cpBody *b = tank->body;
 
-#ifdef GET_BODY_STAT
+#ifdef TANK_BODY_STAT_GET
+    printf("get_body_stat: [%s]\n", stack_dump(lua));
+    print_body_stat(b);
+#endif
+
+    // масса
+    lua_pushnumber(lua, b->m);
+    // момент инерции
+    lua_pushnumber(lua, b->i);
+
+    // центр гравитации
+    lua_pushnumber(lua, b->cog.x);
+    lua_pushnumber(lua, b->cog.y);
+
+    // положение
+    lua_pushnumber(lua, b->p.x);
+    lua_pushnumber(lua, b->p.y);
+
+    if (isnan(b->p.x) || isnan(b->p.y)) {
+        lua_pushstring(lua, "Position vector component hash NaN value.\n");
+        lua_error(lua);
+    }
+
+    // скорость
+    lua_pushnumber(lua, b->v.x);
+    lua_pushnumber(lua, b->v.y);
+
+    // сила
+    lua_pushnumber(lua, b->f.x);
+    lua_pushnumber(lua, b->f.y);
+
+    // угол
+    lua_pushnumber(lua, b->a);
+    // угловая скорость
+    lua_pushnumber(lua, b->w);
+    // крутящий момент
+    lua_pushnumber(lua, b->t);
+
+    LOG("return from tank_body_stat_get() %s\n", stack_dump(lua));
+    return 13;
+}
+
+#define TANK_TURRET_STAT_GET
+int tank_turret_stat_get(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
+    check_argsnum(lua, 1);
+
+    Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
+    cpBody *b = tank->turret;
+
+#ifdef TANK_TURRET_STAT_GET
     printf("get_body_stat: [%s]\n", stack_dump(lua));
     print_body_stat(b);
 #endif
@@ -1218,23 +1269,7 @@ int get_body_stat(lua_State *lua) {
     // крутящий момент
     lua_pushnumber(lua, b->t);
 
-    /*cpVect p = cpBodyGetPosition(b);*/
-    /*cpVect cog = cpBodyGetCenterOfGravity(b);*/
-    /*cpVect v = cpBodyGetVelocity(b);*/
-
-    /*printf("mass %f moment %f px %f py %f\n", */
-            /*cpBodyGetMass(b), */
-            /*cpBodyGetMoment(b),*/
-            /*p.x, p.y);*/
-
-    /*printf(*/
-        /*"m %f, i %f, cog %f, cog %f, pos %f, pos %f, vel %f, vel %f, "*/
-        /*"for %f, for %f, ang %f, w %f, tor %f\n",*/
-        /*b->m, b->i, b->cog.x, b->cog.y, b->p.x, b->p.y, b->v.x, b->v.y, */
-        /*b->f.x, b->f.y, b->a, b->w, b->t*/
-    /*);*/
-
-    printf("return from get_body_stat() %s\n", stack_dump(lua));
+    LOG("return tank_turret_stat_get() %s\n", stack_dump(lua));
     return 13;
 }
 
@@ -1386,9 +1421,9 @@ static const struct luaL_Reg Tank_methods[] =
     // Установить угловую скорость тела
     {"set_ang_vel", set_body_ang_vel},
 
-    // получить разную информацию по телу
-    // используется для отладки
-    {"get_stat", get_body_stat},
+    // получить разную информацию по телу используется для отладки
+    {"get_body_stat", tank_turret_stat_get},
+    {"get_turret_stat", tank_body_stat_get},
     /*{"shape_print_filter", shape_print_filter},*/
 
     {NULL, NULL}
@@ -1431,9 +1466,8 @@ extern int luaopen_wrp(lua_State *lua) {
         // возвращает тело относящееся к фигуре
         /*{"get_shape_body", get_shape_body},*/
 
-        // получить разную информацию по телу
-        // используется для отладки
-        {"get_body_stat", get_body_stat},
+        // получить разную информацию по телу используется для отладки
+        /*{"get_body_stat", get_body_stat},*/
         {"shape_print_filter", shape_print_filter},
 
         {NULL, NULL}
