@@ -45,8 +45,7 @@ local record Wrapper
         xpos: number, ypos: number,
         w: number, h: number, 
         self: table
-        -- второй возвращаемый параметр - вершины фигур. Может быть nil
-    ): Tank, {{number}} 
+    ): Tank, {{number}} -- второй параметр - вершины фигур. Может быть nil
 
     record Body
         set_position: function(b: Body, x: number, y: number)
@@ -66,14 +65,6 @@ local record Wrapper
         get_ang_vel: function(Body): number
         -- Установить угловую скорость тела
         set_ang_vel: function(Body, w: number)
-
-        -- Возвращает данные о физическом теле.
-        -- Масса, момент инерции, центр гравитации(x, y), положение(x, y), 
-        -- скорость(x, y), сила под действием которой находится тело(x, y), 
-        -- угол, угловая скорость, крутящий момент.
-        get_stat: function(Body):   number, number, number, number, number, 
-                                    number, number, number, number, number, 
-                                    number, number, number
     end
     --]]
 
@@ -105,9 +96,14 @@ local record Wrapper
         -- Масса, момент инерции, центр гравитации(x, y), положение(x, y), 
         -- скорость(x, y), сила под действием которой находится тело(x, y), 
         -- угол, угловая скорость, крутящий момент.
-        get_stat: function(Tank):   number, number, number, number, number, 
-                                    number, number, number, number, number, 
-                                    number, number, number
+        get_body_stat: function(Tank): number, number, number, number, 
+                                        number, number, number, number, 
+                                        number, number, number, number, 
+                                        number
+        get_turret_stat: function(Tank): number, number, number, number, 
+                                        number, number, number, number, 
+                                        number, number, number, number, 
+                                        number
     end
 
     -- Создать новый сегмент. Сегмент тонкий(не имеет толщины) и крепится к
@@ -122,7 +118,7 @@ local record Wrapper
     --[[
     Какой тип должен быть у object? Body как базовый класс объектов.
     --]]
-    type EachShape = function(
+    type EachTank = function(
         object: Tank, 
         px: number, 
         py: number, 
@@ -131,7 +127,7 @@ local record Wrapper
         grady: number)
 
     -- Обратный вызов функции для фигур в данной точке
-    get_body_under_point: function(x: number, y: number, cb: EachShape)
+    get_body_under_point: function(x: number, y: number, cb: EachTank)
 
     -- Возвращает тело данной фигуры
     --get_shape_body: function(Shape): Body
