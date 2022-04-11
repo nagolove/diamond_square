@@ -1223,8 +1223,11 @@ local function spawnTanks()
         --spawnTank(p.x, p.y)
     end
 
-    spawnTank(-100, 100)
-    spawnTank(300, 100)
+    --spawnTank(-100, 100)
+    local w, h = 256, 256
+    spawnTank(-w / 70, - h / 70)
+
+    spawnTank(380, 100)
     spawnTank(screenW / 2, screenH / 2)
     --pipeline:push('enough')
     --pipeline:close()
@@ -1331,7 +1334,7 @@ local function spawnPlayer()
     camera:setPlayer(playerTank)
 
     -- near friend for debugger
-    spawnTank(px + 300, py)
+    spawnTank(px + 400, py)
 end
 
 local function nextTankAsPlayer()
