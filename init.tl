@@ -1572,8 +1572,37 @@ local function bindFullscreenSwitcher()
     -- }}}
 end
 
+local function phys_dbg_draw()
+    pipeline:open("dbg_phys")
+    --DbgDrawCircle,
+    --DbgDrawSegment,
+    --DbgDrawFatSegment,
+    --DbgDrawPolygon,
+    --DbgDrawDot
+    wrp.space_debug_draw(
+        function(px: number, py: number, angle: number, rad: number)
+            pipeline:push('circle', px, py, angle, rad)
+        end,
+        function(ax: number, ay: number, bx: number, by: number)
+            pipeline:push('segment', ax, ay, bx, by)
+        end,
+        function(ax: number, ay: number, bx: number, by: number, rad: number)
+            pipeline:push('fatsegment', ax, ay, bx, by, rad)
+        end,
+        function(polygon: {number}, rad: number)
+            pipeline:push('polygon', polygon, rad)
+        end,
+        function(size: number, px: number, py: number)
+            pipeline:push('dot', size, px, py)
+        end
+    )
+    pipeline:push("enough")
+    pipeline:close()
+end
+
 local function initRenderCode()
     -- {{{
+    pipeline:pushCodeFromFile('dgb_phys', 'dbg_phys.lua')
 
     -- рисовать ортогональные оси координат в левом верхнем углу экрана
     -- {{{
