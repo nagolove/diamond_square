@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include <lauxlib.h>
 #include <lua.h>
@@ -13,7 +14,6 @@
 #include "chipmunk/chipmunk.h"
 #include "chipmunk/chipmunk_structs.h"
 
-/*#include "mem_guard.h"*/
 #include "lua_tools.h"
 
 // Проверить указатель на текущее физическое пространство.
@@ -25,8 +25,14 @@ if (!cur_space) {                                       \
 }                                                       \
 
 typedef struct {
+    cpConstraint *turret_motor;
+    bool has_turret_motor;
+
     cpBody *body;
     cpBody *turret;
+
+    cpVect turret_rot_point;
+
     // индекс userdata на табличку связанную с танком
     int assoc_table_reg_index;
     // индекс userdata на танк
@@ -67,7 +73,7 @@ cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
     do {} while(0)
 #endif
 
-#define DENSITY (1.0/10000.0)
+#define DENSITY (1.0/4000.0)
 
 void uint64t_to_bitstr(uint64_t value, char *buf) {
     assert(buf && "buf should not be a nil");
@@ -333,17 +339,25 @@ void tank_turret_new(
     lua_pushvalue(lua, init_table_index);
     // [.., tank_ud, init_table]
 
-    cpFloat mass = 5.;
+    cpFloat mass = 0.0001;
     cpFloat w = 0., h = 0;
 
     lua_pushstring(lua, "turret_w");
     lua_gettable(lua, -2);
     w = (int)lua_tonumber(lua, -1);
+    if (lua_isnil(lua, -1)) {
+        LOG("tank_turret_new: turret_w is nil\n");
+        exit(1);
+    }
     lua_remove(lua, -1);
 
     lua_pushstring(lua, "turret_h");
     lua_gettable(lua, -2);
     h = (int)lua_tonumber(lua, -1);
+    if (lua_isnil(lua, -1)) {
+        LOG("tank_turret_new: turret_h is nil\n");
+        exit(1);
+    }
     lua_remove(lua, -1);
 
     LOG("tank_turret_new: w = %f\n", w);
@@ -392,17 +406,28 @@ void tank_turret_new(
     lua_pushstring(lua, "turret_dx");
     lua_gettable(lua, -2);
     turret_offset.x = (int)lua_tonumber(lua, -1);
+    if (lua_isnil(lua, -1)) {
+        LOG("tank_turret_new: turret_dx is nil\n");
+        exit(1);
+    }
     lua_remove(lua, -1);
 
     lua_pushstring(lua, "turret_dy");
     lua_gettable(lua, -2);
     turret_offset.y = (int)lua_tonumber(lua, -1);
+    if (lua_isnil(lua, -1)) {
+        LOG("tank_turret_new: turret_dy is nil\n");
+        exit(1);
+    }
     lua_remove(lua, -1);
 
     LOG("tank_turret_new: turret_dx = %f\n", turret_offset.x);
     LOG("tank_turret_new: turret_dy = %f\n", turret_offset.y);
 
-    cpVect pos = cpvadd(tank->body->p, turret_offset);
+    /*cpVect pos = cpvadd(tank->body->p, turret_offset);*/
+    cpVect pos = { .x = 0, .y = 0. };
+    pos.x += tank->body->p.x + turret_offset.x;
+    pos.y += tank->body->p.y + turret_offset.y;
     cpBodySetPosition(tank->turret, pos);
 
     cpSpaceAddBody(cur_space->space, tank->turret);
@@ -419,15 +444,56 @@ void tank_turret_new(
 }
 #undef TANK_TURRET_NEW
 
-void tank_setup_constraints(Tank *tank) {
+// Таблица инициализации танка должна быть на вершине стека!
+void fill_achor(lua_State *lua, const char *field_name, cpVect *anchor) {
+    // [.., tank_ud, {init_table}]
+    lua_pushstring(lua, field_name);
+    lua_gettable(lua, -2);
+    // [.., tank_ud, {init_table}, {anchorA}]
+
+    if (!lua_isnil(lua, -1)) {
+        // [.., tank_ud, {init_table}, {anchor}]
+        lua_rawgeti(lua, -1, 1);
+        // [.., tank_ud, {init_table}, {anchor}, anchor[1] ]
+        anchor->x = lua_tonumber(lua, -1);
+        lua_remove(lua, -1);
+
+        // [.., tank_ud, {init_table}, {anchor}]]
+        lua_rawgeti(lua, -1, 2);
+        // [.., tank_ud, {init_table}, {anchor}, anchor[2] ]
+        anchor->y = lua_tonumber(lua, -1);
+        lua_remove(lua, -1);
+
+        // [.., tank_ud, {init_table}, {anchor}]
+        lua_remove(lua, -1);
+        // [.., tank_ud, {init_table}]
+    }
+}
+
+void tank_setup_constraints(Tank *tank, lua_State *lua, int init_table_index) {
     cpConstraint *joint = cpPivotJointNew(tank->body, tank->turret, cpvzero);
 
     cpVect anchorA = { 0., 0. };
     cpVect anchorB = { 0., 0. };
 
+    // [.., tank_ud]
+    lua_pushvalue(lua, init_table_index);
+    // [.., tank_ud, init_table]
+    
+    fill_achor(lua, "anchorA", &anchorA);
+    fill_achor(lua, "anchorB", &anchorB);
+
+    lua_remove(lua, -1);
+    // [.., tank_ud]
+
     cpPivotJointSetAnchorA(joint, anchorA);
     cpPivotJointSetAnchorB(joint, anchorB);
     cpSpaceAddConstraint(cur_space->space, joint);
+
+    cpFloat offset = 0.;
+    tank->turret_motor = cpSimpleMotorNew(tank->body, tank->turret, offset);
+    tank->has_turret_motor = true;
+    cpSpaceAddConstraint(cur_space->space, tank->turret_motor);
 }
 
 // Кладет на стек таблицу таблиц с вершинами фигур танка.
@@ -451,14 +517,9 @@ static int tank_new(lua_State *lua) {
     CHECK_SPACE;
     check_argsnum(lua, 2);
 
-    /*luaL_checktype(lua, 1, LUA_TSTRING); // type*/
-    /*luaL_checktype(lua, 2, LUA_TNUMBER); // x pos*/
-    /*luaL_checktype(lua, 3, LUA_TNUMBER); // y pos*/
-    /*luaL_checktype(lua, 4, LUA_TNUMBER); // w in pixels*/
-    /*luaL_checktype(lua, 5, LUA_TNUMBER); // h in pixels*/
-
+    const int init_table_index = 1;
     luaL_checktype(lua, 1, LUA_TTABLE);  // init table
-    luaL_checktype(lua, 2, LUA_TTABLE);  // associated table
+    luaL_checktype(lua, 2, LUA_TTABLE);  // associated(self) table
 
 #ifdef LOG_TANK_NEW
     LOG("tank_new: 1 [%s]\n", stack_dump(lua));
@@ -471,6 +532,10 @@ static int tank_new(lua_State *lua) {
     // [.., init_table, assoc_table, {id}]
     // Группа столкновений для корпуса и башни устанавливается из id танка.
     int collision_group = lua_tonumber(lua, -1);
+    if (lua_isnil(lua, -1)) {
+        LOG("tank_new: there is no 'id' value\n");
+        exit(1);
+    }
     lua_remove(lua, -1);
     
 #ifdef LOG_TANK_NEW
@@ -504,6 +569,24 @@ static int tank_new(lua_State *lua) {
     lua_gettable(lua, -2);
     pos.y = (int)lua_tonumber(lua, -1);
     lua_remove(lua, -1);
+
+    cpVect turret_rot_point = { .x = 0., .y = 0. };
+
+    // [.., init_table, assoc_table, init_table]
+    lua_pushstring(lua, "turret_rot_point");
+    lua_gettable(lua, -2);
+    // [.., init_table, assoc_table, init_table, {turret_rot_point}]
+
+    lua_rawgeti(lua, -1, 1);
+    turret_rot_point.x = (int)lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
+
+    lua_rawgeti(lua, -1, 2);
+    turret_rot_point.y = (int)lua_tonumber(lua, -1);
+    lua_remove(lua, -1);
+
+    lua_remove(lua, -1);
+    // [.., init_table, assoc_table, init_table]
 
     LOG("tank_new: x, y = (%f, %f)\n", pos.x, pos.y);
 
@@ -553,6 +636,7 @@ static int tank_new(lua_State *lua) {
     
     tank->body = cpSpaceAddBody(cur_space->space, cpBodyNew(mass, moment));
     tank->body->userData = tank;
+    tank->turret_rot_point = turret_rot_point;
 
     cpShape *shape = cpBoxShapeNew(tank->body, w, h, 0.f);
     cpShapeFilter filter = { 
@@ -583,10 +667,10 @@ static int tank_new(lua_State *lua) {
     LOG("tank_new: before turret_new [%s]\n", stack_dump(lua));
 #endif
 
-    tank_turret_new(lua, tank, collision_group, 1);
+    tank_turret_new(lua, tank, collision_group, init_table_index);
     LOG("tank_new: after turret_new [%s]\n", stack_dump(lua));
 
-    tank_setup_constraints(tank);
+    tank_setup_constraints(tank, lua, init_table_index);
 
     // Удалить все предшествующие возвращаемому значению элементы стека.
     // Не уверен в нужности вызова.
@@ -614,7 +698,7 @@ static int tank_new(lua_State *lua) {
 // Вариант решения - вызывать функцию обратного вызова только если с момента
 // прошлого рисования произошло изменению положения, более чем на 0.5px
 // Как хранить данные о прошлом положении?
-#define LOG_ON_EACH_TANK_T
+/*#define LOG_ON_EACH_TANK_T*/
 void on_each_tank_t(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
@@ -854,11 +938,6 @@ void print_space_info(cpSpace *space) {
 static int query_all_tanks_t(lua_State *lua) {
     CHECK_SPACE;
     luaL_checktype(lua, 1, LUA_TFUNCTION);
-
-#ifdef LOG_QUERY_ALL_TANKS_T
-    LOG("query_all_tanks_t: [%s]\n", stack_dump(lua));
-#endif
-
     check_argsnum(lua, 1);
 
 #ifdef LOG_QUERY_ALL_TANKS_T
@@ -1016,6 +1095,10 @@ static int apply_impulse(lua_State *lua) {
 
     Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
     cpBodyApplyImpulseAtLocalPoint(tank->body, impulse, point);
+    if (!tank->has_turret_motor) {
+        cpSpaceAddConstraint(cur_space->space, tank->turret_motor);
+        tank->has_turret_motor = true;
+    }
 
     return 0;
 }
@@ -1463,15 +1546,16 @@ int get_turret_position(lua_State *lua) {
 int turret_rotate(lua_State *lua) {
     Tank *tank = luaL_checkudata(lua, 1, "_Tank");
     double k = luaL_checknumber(lua, 2);
-    // Как прикладывать силу что-бы башня вращалась через центр?
-    cpVect point = { 
-        .x = 128.,
-        .y = 128.
-    };
+    cpVect point = tank->turret_rot_point;
+    /*LOG("turret_rotate: point(%f, %f)\n", point.x, point.y);*/
     cpVect impulse = {
-        .x = k,
+        .x = k / 50000.,
         .y = 0.,
     };
+    if (tank->has_turret_motor) {
+        cpSpaceRemoveConstraint(cur_space->space, tank->turret_motor);
+        tank->has_turret_motor = false;
+    }
     cpBodyApplyImpulseAtLocalPoint(tank->turret, impulse, point);
     return 0;
 }
@@ -1508,6 +1592,155 @@ static const struct luaL_Reg Tank_methods[] =
     {NULL, NULL}
 };
 
+void dbg_drawCircle(
+        cpVect pos, 
+        cpFloat angle, 
+        cpFloat radius, 
+        cpSpaceDebugColor outlineColor, 
+        cpSpaceDebugColor fillColor, 
+        cpDataPointer data
+) {
+    lua_State *lua = data;
+    LOG("dbg_drawCircle: [%s]\n", stack_dump(lua));
+    lua_pushvalue(lua, 1);
+    lua_pushnumber(lua, pos.x);
+    lua_pushnumber(lua, pos.y);
+    lua_pushnumber(lua, radius);
+    lua_call(lua, 3, 0);
+    lua_remove(lua, -1);
+}
+
+void dbg_drawSegment(
+        cpVect a, 
+        cpVect b, 
+        cpSpaceDebugColor color, 
+        cpDataPointer data
+) {
+    lua_State *lua = data;
+    LOG("dbg_drawSegment: [%s]\n", stack_dump(lua));
+    lua_pushvalue(lua, 2);
+    lua_pushnumber(lua, a.x);
+    lua_pushnumber(lua, a.y);
+    lua_pushnumber(lua, b.x);
+    lua_pushnumber(lua, b.y);
+    lua_call(lua, 4, 0);
+    lua_remove(lua, -1);
+}
+
+void dbg_drawFatSegment(
+        cpVect a, 
+        cpVect b, 
+        cpFloat radius, 
+        cpSpaceDebugColor outlineColor, 
+        cpSpaceDebugColor fillColor, 
+        cpDataPointer data
+) {
+    lua_State *lua = data;
+    LOG("dbg_drawFatSegment: [%s]\n", stack_dump(lua));
+    lua_pushvalue(lua, 3);
+    lua_pushnumber(lua, a.x);
+    lua_pushnumber(lua, a.y);
+    lua_pushnumber(lua, b.x);
+    lua_pushnumber(lua, b.y);
+    lua_pushnumber(lua, radius);
+    lua_call(lua, 5, 0);
+    lua_remove(lua, -1);
+}
+
+/*#define DBG_DRAWPOLYGON*/
+void dbg_drawPolygon(
+        int count, 
+        const cpVect *verts, 
+        cpFloat radius, 
+        cpSpaceDebugColor outlineColor, 
+        cpSpaceDebugColor fillColor, 
+        cpDataPointer data
+) {
+    lua_State *lua = data;
+#ifdef DBG_DRAWPOLYGON
+    LOG("dbg_drawPolygon: [%s]\n", stack_dump(lua));
+#endif
+    lua_pushvalue(lua, 4);
+    lua_newtable(lua);
+    int table_index = lua_gettop(lua);
+    int arr_index = 1;
+    for (int i = 0; i < count; ++i) {
+        lua_pushnumber(lua, verts[i].x);
+        lua_rawseti(lua, table_index, arr_index++);
+        lua_pushnumber(lua, verts[i].y);
+        lua_rawseti(lua, table_index, arr_index++);
+    }
+    lua_pushnumber(lua, radius);
+    lua_call(lua, 2, 0);
+    /*lua_remove(lua, -1);*/
+}
+#undef DBG_DRAWPOLYGON
+
+/*#define DBG_DRAWDOT*/
+void dbg_drawDot(
+        cpFloat size, 
+        cpVect pos, 
+        cpSpaceDebugColor color, 
+        cpDataPointer data
+) {
+    lua_State *lua = data;
+#ifdef DBG_DRAWDOT
+    LOG("dbg_drawDot: [%s]\n", stack_dump(lua));
+#endif
+    lua_pushvalue(lua, 5);
+    /*const char *s = lua_tostring(lua, -1);*/
+    /*LOG("S = %s\n", s);*/
+    lua_pushnumber(lua, size);
+    lua_pushnumber(lua, pos.x);
+    lua_pushnumber(lua, pos.y);
+    lua_call(lua, 3, 0);
+    /*lua_remove(lua, -1);*/
+}
+#undef DBG_DRAWDOT
+
+cpSpaceDebugColor DebugDrawColorForShape(cpShape *shape, cpDataPointer data) {
+    cpSpaceDebugColor c = {1., 1., 1., 1.};
+    return c;
+}
+
+/*#define SPACE_DEBUG_DRAW*/
+static int space_debug_draw(lua_State *lua) {
+    CHECK_SPACE;
+    check_argsnum(lua, 5);
+
+    luaL_checktype(lua, 1, LUA_TFUNCTION); // circle
+    luaL_checktype(lua, 2, LUA_TFUNCTION); // segment
+    luaL_checktype(lua, 3, LUA_TFUNCTION); // fatsegment
+    luaL_checktype(lua, 4, LUA_TFUNCTION); // polygon
+    luaL_checktype(lua, 5, LUA_TFUNCTION); // dot
+
+#ifdef SPACE_DEBUG_DRAW
+    LOG("space_set_debug_draw: [%s]\n", stack_dump(lua));
+#endif
+
+    cpSpaceDebugDrawOptions options = {
+        .drawCircle = dbg_drawCircle,
+        .drawSegment = dbg_drawSegment,
+        .drawFatSegment = dbg_drawFatSegment,
+        .drawPolygon = dbg_drawPolygon,
+        .drawDot = dbg_drawDot,
+        .flags = CP_SPACE_DEBUG_DRAW_SHAPES | 
+            CP_SPACE_DEBUG_DRAW_CONSTRAINTS |
+            CP_SPACE_DEBUG_DRAW_COLLISION_POINTS,
+
+        .shapeOutlineColor = {1., 1., 1., 1.},
+        .colorForShape = DebugDrawColorForShape,
+        .constraintColor = {1., 1., 1., 1.},
+        .collisionPointColor = {1., 1., 1., 1.},
+        .data = lua,
+    };
+
+    cpSpaceDebugDraw(cur_space->space, &options);
+
+    return 0;
+}
+#undef SPACE_DEBUG_DRAW
+
 extern int luaopen_wrp(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
@@ -1518,6 +1751,7 @@ extern int luaopen_wrp(lua_State *lua) {
         // шаг симуляции
         {"space_step", space_step},
         {"space_set", space_set},
+        {"space_debug_draw", space_debug_draw},
 
         // вызов функции для всех тел в текущем пространстве
         /*{"query_all_shapes", query_all_shapes},*/
