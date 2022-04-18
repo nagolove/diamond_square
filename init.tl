@@ -385,6 +385,7 @@ end
 local base_tex_fname = 'tank_body.cut.png'
 local turret_text_fname = 'tank_tower.png'
 
+--[[
 local function getTankSize(): integer, integer
     local path = SCENE_PREFIX .. '/' .. base_tex_fname
     local image = love.image.newImageData(path)
@@ -393,8 +394,11 @@ local function getTankSize(): integer, integer
     end
     return image:getDimensions() as (integer, integer)
 end
+--]]
 
+--[[
 local tank_width, tank_height = getTankSize()
+--]]
 
 --[[
 Где находится обрабатывающая функция?
@@ -832,7 +836,6 @@ local function debug_draw_vertices(
 end
 
 local function renderTanks()
-
     pipeline:open('base_shape')
     --wrp.query_all_tanks(on_each_body)
     wrp.query_all_tanks_t(on_each_body_t)
@@ -1158,7 +1161,10 @@ end
 -- Необходимо проверять - есть ли другой танк под текущей точкой. Принимать во
 -- внимание ширину, высоту объекта и некоторый запас, 5-10 пикселей.
 local function spawnTank(px: number, py: number): Tank
-    local tank = Tank.new(vec2(px, py), tank_width, tank_height)
+    --local tank = Tank.new(vec2(px, py), tank_width, tank_height)
+    --init_table.x, init_table.y = math.floor(px), math.floor(py);
+    local tank = Tank.new(px, py)
+    --local tank = Tank.new(init)
     print("tank", inspect(tank))
     table.insert(tanks, tank)
     local tank_x, tank_y, angle = tank.base:get_position()
@@ -1180,6 +1186,7 @@ local function spawnTank(px: number, py: number): Tank
 
     -- Эти значения используются в C модуле для определения на сколько
     -- сдвинулся объект с момента предыдущей обработки.
+    --[[
     tank._prev_x, tank._prev_y = tank_x, tank_y
     pipeline:openPushAndClose(
         'base_shape',
@@ -1189,6 +1196,7 @@ local function spawnTank(px: number, py: number): Tank
         turret_x, turret_y, turret_angle,
         "flush"
     )
+    --]]
 
     return tank
 end
@@ -1669,7 +1677,7 @@ local function initRenderCode()
     pipeline:pushCodeFromFile("debug_vertices", "debug_vertices.lua")
 
     -- Рисование физических тел.
-    pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
+    --pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
     -- Рисование физических тел.
     --pipeline:pushCodeFromFile("turret_shape", 'poly_shape.lua')
 
@@ -1682,23 +1690,13 @@ end
 
 -- Инициализация параметрами объектов-корутин на стороне главного потока.
 local function initPipelineObjects()
-    pipeline:open('base_shape')
-    -- XXX Временное решение. Какие размеры башни?
-    local turret_width, turret_height = tank_width, tank_height
-    pipeline:push(
-        base_tex_fname, 
-        turret_text_fname, 
-        tank_width, 
-        tank_height,
-        turret_width,
-        turret_height
-    )
+    Tank.initPipelineObjects(pipeline)
+
     --[[
     Пиксели для вырезки
     82*108
     86(?), 74
     --]]
-    pipeline:close()
 
     --pipeline:open('turret_shape')
     --pipeline:push(turret_text_fname, tank_width, tank_height)
