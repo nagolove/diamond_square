@@ -2,9 +2,50 @@ require 'konstants'
 require 'common'
 require 'vector'
 
+local Pipeline = require 'pipeline'
 local inspect = require 'inspect'
 local wrp = require "wrp"
 --local Bullet = require "bullet"
+
+-- Кусок вырезаемый из текстуры
+local rect_body = {
+    x = 87,
+    y = 73,
+    w = 82,
+    h = 110,
+}
+
+-- Кусок вырезаемый из текстуры
+local rect_turret = {
+    x = 101,
+    y = 0,
+    w = 54,
+    h = 160,
+}
+
+local init_table = {
+    x = 0,
+    y = 0,
+
+    type = "tank",
+    w = rect_body.w,
+    h = rect_body.h,
+
+    -- Точки сочленения тел
+    anchorA = { 0., 0. },
+    anchorB = { 
+        0., 
+        -30., -- Смещение башни
+    },
+
+    -- Смещение координат турели
+    turret_dx = 0, -- Фактически не влияет
+    turret_dy = 0, -- Фактически не влияет
+    turret_rot_point = { rect_turret.w / 2., rect_turret.h / 2.},
+    -- Размеры турели
+    turret_w = rect_turret.w,
+    turret_h = rect_turret.h,
+} 
 
 -- Класс основного боевого танка.
 local record Tank
@@ -83,8 +124,10 @@ local record Tank
     --angle: number
     -- }}}
 
-    -- абсолютные координаты в пикселях
-    new: function(pos: vector, w: number, h: number): Tank
+    -- Абсолютные координаты в пикселях
+    new: function(x: number, y: number): Tank
+    -- Вызывается один раз для инициализации модуля.
+    initPipelineObjects: function(pl: Pipeline)
 
     -- Обновить логику, не физику.
     -- Если возвращается nil, то объект считается убитым.
@@ -163,43 +206,30 @@ end
 -- Счетчик живый танков
 local tankCounter = 0
 
--- местоположение передавать в метрах
--- направление шасси - нормализованный вектор
-function Tank.new(pos: vector, w: number, h: number): Tank
+local Tank_mt: metatable<Tank> = {
+    __index = Tank,
+}
+
+function Tank.new(x: number, y: number): Tank
     -- {{{
-    local Tank_mt: metatable<Tank> = {
-        __index = Tank,
-    }
+    if x ~= x or y ~= y then
+        error("NaN in tank positon.")
+    end
 
     local self: Tank = setmetatable({} as Tank, Tank_mt)
 
     tankCounter = tankCounter + 1
 
-    --local w, h = 
     self.strength = 1.
     self.fuel = 1.
     self.id = tankCounter
-
     self.color = {1, 1, 1, 1}
-
     self.type = "tank"
-
-    if pos.x ~= pos.x or pos.y ~= pos.y then
-        error("NaN in tank positon.")
-    end
 
     local debug_verts: {{number}} = nil
 
-    local init: wrp.TankInit = {
-        type = self.type, 
-        x = pos.x, y = pos.y, 
-        w = w, h = h, 
-        turret_dx = 0.,
-        turret_dy = 0.,
-        turret_w = 54,
-        turret_h = 160,
-    }
-    self.base, debug_verts = wrp.tank_new(init, self as table)
+    init_table.x, init_table.y = math.floor(x), math.floor(y)
+    self.base, debug_verts = wrp.tank_new(init_table, self as table)
 
     if debug_verts then
         print("debug_verts:", inspect(debug_verts))
@@ -281,6 +311,36 @@ function Tank:rotate_turret(dir: Tank.Direction)
         self.base:turret_rotate(1)
     end
     --]]
+end
+
+function Tank.initPipelineObjects(pipeline: Pipeline)
+    pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
+
+    pipeline:open('base_shape')
+    --[[
+    local turret_width, turret_height = tank_width, tank_height
+    pipeline:push(
+        base_tex_fname, 
+        turret_text_fname, 
+        tank_width, 
+        tank_height,
+        turret_width,
+        turret_height
+    )
+    --]]
+
+    local base_tex_fname = "gfx/body.png"
+    local turret_tex_fname = "gfx/turret.png"
+    pipeline:push(
+        base_tex_fname, 
+        turret_tex_fname, 
+        rect_body.w,
+        rect_body.h,
+        rect_turret.w,
+        rect_turret.h
+    )
+
+    pipeline:close()
 end
 
 return Tank
