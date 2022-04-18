@@ -44,10 +44,14 @@ local record Wrapper
         y: number
         w: number
         h: number
+        anchorA: {number}
+        anchorB: {number}
+
         turret_w: number
         turret_h: number
         turret_dx: number
         turret_dy: number
+        turret_rot_point: {number}
         -- }}}
     end
 
@@ -55,9 +59,6 @@ local record Wrapper
     -- Нужно указывать тип тела из перечисление ObjectType для соблюдений 
     -- внутренней логики работы модуля wrapper
     tank_new: function(
-        --type: ObjectType, 
-        --xpos: number, ypos: number,
-        --w: number, h: number, 
         init: TankInit,
         self: table
     ): Tank, {{number}} -- второй параметр - вершины фигур. Может быть nil
