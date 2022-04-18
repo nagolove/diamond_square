@@ -385,16 +385,20 @@ end
 local base_tex_fname = 'tank_body.cut.png'
 local turret_text_fname = 'tank_tower.png'
 
-local function getTankSize()
-   local path = SCENE_PREFIX .. '/' .. base_tex_fname
-   local image = love.image.newImageData(path)
-   if not image then
-      error('Could not load base_tex_fname: ' .. path)
-   end
-   return image:getDimensions()
-end
 
-local tank_width, tank_height = getTankSize()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -832,7 +836,6 @@ local function debug_draw_vertices(
 end
 
 local function renderTanks()
-
    pipeline:open('base_shape')
 
    wrp.query_all_tanks_t(on_each_body_t)
@@ -1158,7 +1161,10 @@ end
 
 
 local function spawnTank(px, py)
-   local tank = Tank.new(vec2(px, py), tank_width, tank_height)
+
+
+   local tank = Tank.new(px, py)
+
    print("tank", inspect(tank))
    table.insert(tanks, tank)
    local tank_x, tank_y, angle = tank.base:get_position()
@@ -1180,14 +1186,16 @@ local function spawnTank(px, py)
 
 
 
-   tank._prev_x, tank._prev_y = tank_x, tank_y
-   pipeline:openPushAndClose(
-   'base_shape',
-   'new_t',
-   tank.id,
-   tank_x, tank_y, angle,
-   turret_x, turret_y, turret_angle,
-   "flush")
+
+
+
+
+
+
+
+
+
+
 
 
    return tank
@@ -1564,8 +1572,37 @@ local function bindFullscreenSwitcher()
 
 end
 
+local function phys_dbg_draw()
+   pipeline:open("dbg_phys")
+
+
+
+
+
+   wrp.space_debug_draw(
+   function(px, py, angle, rad)
+      pipeline:push('circle', px, py, angle, rad)
+   end,
+   function(ax, ay, bx, by)
+      pipeline:push('segment', ax, ay, bx, by)
+   end,
+   function(ax, ay, bx, by, rad)
+      pipeline:push('fatsegment', ax, ay, bx, by, rad)
+   end,
+   function(polygon, rad)
+      pipeline:push('polygon', polygon, rad)
+   end,
+   function(size, px, py)
+      pipeline:push('dot', size, px, py)
+   end)
+
+   pipeline:push("enough")
+   pipeline:close()
+end
+
 local function initRenderCode()
 
+   pipeline:pushCodeFromFile('dgb_phys', 'dbg_phys.lua')
 
 
 
@@ -1669,7 +1706,7 @@ local function initRenderCode()
    pipeline:pushCodeFromFile("debug_vertices", "debug_vertices.lua")
 
 
-   pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
+
 
 
 
@@ -1682,23 +1719,13 @@ end
 
 
 local function initPipelineObjects()
-   pipeline:open('base_shape')
-
-   local turret_width, turret_height = tank_width, tank_height
-   pipeline:push(
-   base_tex_fname,
-   turret_text_fname,
-   tank_width,
-   tank_height,
-   turret_width,
-   turret_height)
+   Tank.initPipelineObjects(pipeline)
 
 
 
 
 
 
-   pipeline:close()
 
 
 

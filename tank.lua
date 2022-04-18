@@ -1,13 +1,56 @@
-require('konstants')
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local math = _tl_compat and _tl_compat.math or math; require('konstants')
 require('common')
 require('vector')
 
+local Pipeline = require('pipeline')
 local inspect = require('inspect')
 local wrp = require("wrp")
 
 
 
+local rect_body = {
+   x = 87,
+   y = 73,
+   w = 82,
+   h = 110,
+}
+
+
+local rect_turret = {
+   x = 101,
+   y = 0,
+   w = 54,
+   h = 160,
+}
+
+local init_table = {
+   x = 0,
+   y = 0,
+
+   type = "tank",
+   w = rect_body.w,
+   h = rect_body.h,
+
+
+   anchorA = { 0., 0. },
+   anchorB = {
+      0.,
+      -30.,
+   },
+
+
+   turret_dx = 0,
+   turret_dy = 0,
+   turret_rot_point = { rect_turret.w / 2., rect_turret.h / 2. },
+
+   turret_w = rect_turret.w,
+   turret_h = rect_turret.h,
+}
+
+
 local Tank = {}
+
+
 
 
 
@@ -163,43 +206,30 @@ end
 
 local tankCounter = 0
 
+local Tank_mt = {
+   __index = Tank,
+}
 
+function Tank.new(x, y)
 
-function Tank.new(pos, w, h)
-
-   local Tank_mt = {
-      __index = Tank,
-   }
+   if x ~= x or y ~= y then
+      error("NaN in tank positon.")
+   end
 
    local self = setmetatable({}, Tank_mt)
 
    tankCounter = tankCounter + 1
 
-
    self.strength = 1.
    self.fuel = 1.
    self.id = tankCounter
-
    self.color = { 1, 1, 1, 1 }
-
    self.type = "tank"
-
-   if pos.x ~= pos.x or pos.y ~= pos.y then
-      error("NaN in tank positon.")
-   end
 
    local debug_verts = nil
 
-   local init = {
-      type = self.type,
-      x = pos.x, y = pos.y,
-      w = w, h = h,
-      turret_dx = 0.,
-      turret_dy = 0.,
-      turret_w = 54,
-      turret_h = 160,
-   }
-   self.base, debug_verts = wrp.tank_new(init, self)
+   init_table.x, init_table.y = math.floor(x), math.floor(y)
+   self.base, debug_verts = wrp.tank_new(init_table, self)
 
    if debug_verts then
       print("debug_verts:", inspect(debug_verts))
@@ -281,6 +311,36 @@ function Tank:rotate_turret(dir)
       self.base:turret_rotate(1)
    end
 
+end
+
+function Tank.initPipelineObjects(pipeline)
+   pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
+
+   pipeline:open('base_shape')
+
+
+
+
+
+
+
+
+
+
+
+
+   local base_tex_fname = "gfx/body.png"
+   local turret_tex_fname = "gfx/turret.png"
+   pipeline:push(
+   base_tex_fname,
+   turret_tex_fname,
+   rect_body.w,
+   rect_body.h,
+   rect_turret.w,
+   rect_turret.h)
+
+
+   pipeline:close()
 end
 
 return Tank
