@@ -4,10 +4,30 @@ local record Wrapper
     record Space end
     --record Body end
 
+    type DbgDrawCircle = function(
+        px: number, py: number, angle: number, rad: number
+    )
+    type DbgDrawSegment = function(
+        ax: number, ay: number, bx: number, by: number
+    )
+    type DbgDrawFatSegment = function(
+        ax: number, ay: number, bx: number, by: number,
+        rad: number
+    )
+    type DbgDrawPolygon = function(polygon: {number}, rad: number)
+    type DbgDrawDot = function(size: number, px: number, py: number)
+
     space_new: function(damping: number): Space
     space_free: function(Space)
     space_set: function(Space)
     space_step: function(dt: number)
+    space_debug_draw: function(
+        DbgDrawCircle, 
+        DbgDrawSegment, 
+        DbgDrawFatSegment,
+        DbgDrawPolygon,
+        DbgDrawDot
+    )
 
     type EachSegmentCallback = function(x1: number, y1: number, x2: number, y2: number)
     type EachBodyCallback = function(x: number, y: number, angle: number, obj: any)
