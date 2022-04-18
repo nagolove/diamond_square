@@ -1,4 +1,6 @@
 tags
+nohup.out
+*~
 *.so
 *.bak
 *.a
