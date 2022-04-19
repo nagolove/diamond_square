@@ -1,9 +1,10 @@
 --[[
-Модуль корутины рисования polyshape полученного от физического движка.
+Модуль корутины рисования танка.
 --]]
 
 --local serpent = require 'serpent'
 
+local Tank = require "tank"
 local inspect = require 'inspect'
 local colorize = require('ansicolors2').ansicolors
 local format = string.format
@@ -18,83 +19,24 @@ global SCENE_PREFIX: string
 local timeout = 0.5
 
 -- Корпус
-local texture_msg: string = graphic_command_channel:demand(timeout) as string
--- Башня
-local texture_msg_t: string = graphic_command_channel:demand(timeout) as string
+local ser_full_info: string = graphic_command_channel:demand(timeout) as string
+local fun, errmsg = load(ser_full_info)
+if errmsg then
+    error(format("poly_shape.tl: load error '%s'", errmsg))
+end
+local full_info: Tank.FullInfo = fun() as Tank.FullInfo
 
--- Размеры корпуса
-local width = graphic_command_channel:demand(timeout) as number
-local height = graphic_command_channel:demand(timeout) as number
-
--- Размеры башни
-local width_t = graphic_command_channel:demand(timeout) as number
-local height_t = graphic_command_channel:demand(timeout) as number
---]]
-
---local texture_msg = 'tank_body.png'
---local width, height = 256, 256
-
-local errmsg = 'Not enough data received to ' ..
-               'initializate %s poly_shape renderer.'
+local rect_turret = full_info.rect_turret
+local rect_body = full_info.rect_body
+local init_tank = full_info.init_table
 
 --[[----------------------------------------------------------------------]]--
 
--- XXX Переписать блок проверки полученных данных для корпуса и башни.
+local path = SCENE_PREFIX .. '/' .. full_info.base_tex_fname
+local path_t = SCENE_PREFIX .. '/' .. full_info.turret_tex_fname
 
-if not texture_msg or not width or not height then
-    print("texture_msg, width, height", texture_msg, width, height)
-    error(format(errmsg, "body"))
-end
-
-if not texture_msg_t or not width_t or not height_t then
-    print("texture_msg_t, width_t, height_t", texture_msg_t, width_t, height_t)
-    error(format(errmsg, "turret"))
-end
-
-if type(texture_msg) ~= 'string' or type(texture_msg_t) ~= 'string' then
-    error('Wrong texture(t) type')
-end
-
-if type(width) ~= 'number' or type(width_t) ~= 'number' then
-    error('Wrong width(t) type')
-end
-
-if type(height) ~= 'number' or type(height_t) ~= 'number' then
-    error('Wrong height(t) type')
-end
-
---[[----------------------------------------------------------------------]]--
-
-local path = SCENE_PREFIX .. '/' .. texture_msg
-local path_t = SCENE_PREFIX .. '/' .. texture_msg_t
-
-print("path", path)
-print("path_t", path_t)
-
-local texture = love.graphics.newImage(path) as love.graphics.Texture
-local texture_t = love.graphics.newImage(path_t) as love.graphics.Texture
-
-local function check(tex: gr.Texture, tex_path: string)
-    if tex then
-        local w, h = tex:getDimensions()
-        local msg = format('"%s" loaded %dx%d', tex_path, w, h)
-        print(msg)
-    else
-        error('Could not load texture:' .. path)
-    end
-end
-
-check(texture, path)
-check(texture_t, path)
-
-print('width, height:', width, height)
-print('width_t, height_t:', width_t, height_t)
-
--- TODO Использовать соединенные треугольники
---local mesh_size = 6
---local mesh = love.graphics.newMesh(mesh_size, "triangles", "static")
---local mesh_verts: {{number}} = {}
---mesh:setTexture(texture)
+local tex_body = love.graphics.newImage(path) as love.graphics.Texture
+local tex_turret = love.graphics.newImage(path_t) as love.graphics.Texture
 
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------
@@ -110,19 +52,20 @@ yield()
 ---------------------------------------------------------------------
 
 local hash: {number: {number}} = {}
---local verts: {number} = nil
 
 -- счетчик команд
 local cmd_num = 0
 
 -- Корпус
-local quad = gr.newQuad(0, 0, 256, 256, texture)
-
+local quad_body = gr.newQuad(
+    rect_body.x, rect_body.y, rect_body.w, rect_body.h, tex_body
+)
 -- Башня
---local quad_t = gr.newQuad(0, 0, 256, 256, texture_t)
---local quad_t = gr.newQuad(102, 0, 54, 160, texture_t)
-local quad_t = gr.newQuad(102, 0, 54, 160, texture_t)
+local quad_turret = gr.newQuad(
+    rect_turret.x, rect_turret.y, rect_turret.w, rect_turret.h, tex_turret
+)
 
+--[[
 local function draw(
     texture: gr.Texture,
     quad: gr.Quad, 
@@ -136,6 +79,7 @@ local function draw(
     gr.draw(texture, quad, 0, 0)
     gr.pop()
 end
+--]]
 
 local function get_id(): number
     local id = graphic_command_channel:demand() as number
@@ -208,10 +152,41 @@ end
 
 -- Нарисовать все, выйти из цикла приема сообщений
 function commands.flush(): boolean
+    --[[
     for _, v in pairs(hash) do
         draw(texture as gr.Texture, quad, v[1], v[2], v[3])
         draw(texture_t as gr.Texture, quad_t, v[4], v[5], v[6])
     end
+    --]]
+    for _, v in pairs(hash) do
+        local x, y, angle = v[1], v[2], v[3]
+        local tur_x, tur_y, tur_angle = v[4], v[5], v[6]
+
+        gr.setColor {1, 1, 1, 1}
+        gr.push()
+        gr.translate(x, y)
+        gr.rotate(angle)
+        gr.translate(-rect_body.w / 2, -rect_body.h / 2)
+        --gr.draw(tex_body, quad_body, x, y, angle)
+        gr.draw(tex_body, quad_body, 0, 0)
+        gr.pop()
+
+        --tur_x = tur_x - rect_turret.w / 2
+        --tur_y = tur_y - rect_turret.h / 2
+
+        gr.push()
+        gr.translate(tur_x, tur_y)
+        --gr.translate(tur_x, tur_y)
+        gr.rotate(tur_angle + math.pi)
+        gr.translate(
+            -rect_turret.w / 2,
+            ---rect_turret.h / 2 + init_tank.anchorB[2]
+            -rect_turret.h / 2 + init_tank.anchorB[2]
+        )
+        gr.draw(tex_turret, quad_turret, 0, 0)
+        gr.pop()
+    end
+
     return false
 end
 
