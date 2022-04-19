@@ -911,7 +911,51 @@ end
 local is_draw_hotkeys_docs = false
 local is_draw_gamepad_docs = false
 
-local function renderInternal()
+local function phys_dbg_draw()
+    local ok, errmsg: boolean, string = pcall(function()
+
+    pipeline:open("dbg_phys")
+
+    --DbgDrawCircle,
+    --DbgDrawSegment,
+    --DbgDrawFatSegment,
+    --DbgDrawPolygon,
+    --DbgDrawDot
+
+    --[[
+    if wrp.space_debug_draw then
+        wrp.space_debug_draw(
+            function(px: number, py: number, angle: number, rad: number)
+                --pipeline:push('circle', px, py, angle, rad)
+            end,
+            function(ax: number, ay: number, bx: number, by: number)
+                --pipeline:push('segment', ax, ay, bx, by)
+            end,
+            function(ax: number, ay: number, bx: number, by: number, rad: number)
+                --pipeline:push('fatsegment', ax, ay, bx, by, rad)
+            end,
+            function(polygon: {number}, rad: number)
+                --pipeline:push('polygon', polygon, rad)
+            end,
+            function(size: number, px: number, py: number)
+                print('dot', size, px, py)
+                pipeline:push('dot', size, px, py)
+            end
+        )
+    end
+    --]]
+    pipeline:push("enough")
+
+    pipeline:close()
+
+end)
+if not ok then 
+    print("phys_dbg_draw:", errmsg)
+end
+
+end
+
+local function render_internal()
     pipeline:openAndClose('clear')
 
     -- Установка камеры
@@ -922,6 +966,11 @@ local function renderInternal()
 
     -- Танки
     renderTanks()
+
+    --print('render_internal 1:', pipeline.section_state)
+    --phys_dbg_draw()
+    --print('render_internal 2:', pipeline.section_state)
+
     -- Ограничители уровня, преграды в виде отрезков.
     renderSegments()
 
@@ -960,7 +1009,7 @@ local function renderScene()
 
     if diff >= fps_limit then
         last_render = nt
-        renderInternal()
+        render_internal()
         pipeline:sync()
     end
 end
@@ -1572,37 +1621,9 @@ local function bindFullscreenSwitcher()
     -- }}}
 end
 
-local function phys_dbg_draw()
-    pipeline:open("dbg_phys")
-    --DbgDrawCircle,
-    --DbgDrawSegment,
-    --DbgDrawFatSegment,
-    --DbgDrawPolygon,
-    --DbgDrawDot
-    wrp.space_debug_draw(
-        function(px: number, py: number, angle: number, rad: number)
-            pipeline:push('circle', px, py, angle, rad)
-        end,
-        function(ax: number, ay: number, bx: number, by: number)
-            pipeline:push('segment', ax, ay, bx, by)
-        end,
-        function(ax: number, ay: number, bx: number, by: number, rad: number)
-            pipeline:push('fatsegment', ax, ay, bx, by, rad)
-        end,
-        function(polygon: {number}, rad: number)
-            pipeline:push('polygon', polygon, rad)
-        end,
-        function(size: number, px: number, py: number)
-            pipeline:push('dot', size, px, py)
-        end
-    )
-    pipeline:push("enough")
-    pipeline:close()
-end
-
 local function initRenderCode()
     -- {{{
-    pipeline:pushCodeFromFile('dgb_phys', 'dbg_phys.lua')
+    pipeline:pushCodeFromFile('dbg_phys', 'dbg_phys.lua')
 
     -- рисовать ортогональные оси координат в левом верхнем углу экрана
     -- {{{
