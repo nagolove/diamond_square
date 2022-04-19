@@ -2,9 +2,136 @@ local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 th
 require('common')
 require('vector')
 
+local serpent = require("serpent")
 local Pipeline = require('pipeline')
 local inspect = require('inspect')
 local wrp = require("wrp")
+
+
+
+local Tank = {Rect = {}, FullInfo = {}, }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -35,7 +162,8 @@ local init_table = {
    anchorA = { 0., 0. },
    anchorB = {
       0.,
-      -30.,
+
+      -25.,
    },
 
 
@@ -48,119 +176,8 @@ local init_table = {
 }
 
 
-local Tank = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local px, py = 0, 0
 local impulse_amount = 100
-local force_amount = 200
 local vel_limit = 160
 local ang_vel_limit = 2
 
@@ -329,16 +346,15 @@ function Tank.initPipelineObjects(pipeline)
 
 
 
-   local base_tex_fname = "gfx/body.png"
-   local turret_tex_fname = "gfx/turret.png"
-   pipeline:push(
-   base_tex_fname,
-   turret_tex_fname,
-   rect_body.w,
-   rect_body.h,
-   rect_turret.w,
-   rect_turret.h)
-
+   local full_info = {
+      rect_body = rect_body,
+      rect_turret = rect_turret,
+      init_table = init_table,
+      base_tex_fname = "gfx/body.png",
+      turret_tex_fname = "gfx/turret.png",
+   }
+   local ser_full_info = serpent.dump(full_info)
+   pipeline:push(ser_full_info)
 
    pipeline:close()
 end

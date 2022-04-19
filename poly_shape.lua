@@ -1,9 +1,10 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local pairs = _tl_compat and _tl_compat.pairs or pairs; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local load = _tl_compat and _tl_compat.load or load; local math = _tl_compat and _tl_compat.math or math; local pairs = _tl_compat and _tl_compat.pairs or pairs; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
 
 
+local Tank = require("tank")
 local inspect = require('inspect')
 local colorize = require('ansicolors2').ansicolors
 local format = string.format
@@ -18,83 +19,24 @@ require('love')
 local timeout = 0.5
 
 
-local texture_msg = graphic_command_channel:demand(timeout)
-
-local texture_msg_t = graphic_command_channel:demand(timeout)
-
-
-local width = graphic_command_channel:demand(timeout)
-local height = graphic_command_channel:demand(timeout)
-
-
-local width_t = graphic_command_channel:demand(timeout)
-local height_t = graphic_command_channel:demand(timeout)
-
-
-
-
-
-local errmsg = 'Not enough data received to ' ..
-'initializate %s poly_shape renderer.'
-
-
-
-
-
-if not texture_msg or not width or not height then
-   print("texture_msg, width, height", texture_msg, width, height)
-   error(format(errmsg, "body"))
+local ser_full_info = graphic_command_channel:demand(timeout)
+local fun, errmsg = load(ser_full_info)
+if errmsg then
+   error(format("poly_shape.tl: load error '%s'", errmsg))
 end
+local full_info = fun()
 
-if not texture_msg_t or not width_t or not height_t then
-   print("texture_msg_t, width_t, height_t", texture_msg_t, width_t, height_t)
-   error(format(errmsg, "turret"))
-end
-
-if type(texture_msg) ~= 'string' or type(texture_msg_t) ~= 'string' then
-   error('Wrong texture(t) type')
-end
-
-if type(width) ~= 'number' or type(width_t) ~= 'number' then
-   error('Wrong width(t) type')
-end
-
-if type(height) ~= 'number' or type(height_t) ~= 'number' then
-   error('Wrong height(t) type')
-end
+local rect_turret = full_info.rect_turret
+local rect_body = full_info.rect_body
+local init_tank = full_info.init_table
 
 
 
-local path = SCENE_PREFIX .. '/' .. texture_msg
-local path_t = SCENE_PREFIX .. '/' .. texture_msg_t
+local path = SCENE_PREFIX .. '/' .. full_info.base_tex_fname
+local path_t = SCENE_PREFIX .. '/' .. full_info.turret_tex_fname
 
-print("path", path)
-print("path_t", path_t)
-
-local texture = love.graphics.newImage(path)
-local texture_t = love.graphics.newImage(path_t)
-
-local function check(tex, tex_path)
-   if tex then
-      local w, h = tex:getDimensions()
-      local msg = format('"%s" loaded %dx%d', tex_path, w, h)
-      print(msg)
-   else
-      error('Could not load texture:' .. path)
-   end
-end
-
-check(texture, path)
-check(texture_t, path)
-
-print('width, height:', width, height)
-print('width_t, height_t:', width_t, height_t)
-
-
-
-
-
-
+local tex_body = love.graphics.newImage(path)
+local tex_turret = love.graphics.newImage(path_t)
 
 
 
@@ -112,30 +54,32 @@ yield()
 local hash = {}
 
 
-
 local cmd_num = 0
 
 
-local quad = gr.newQuad(0, 0, 256, 256, texture)
+local quad_body = gr.newQuad(
+rect_body.x, rect_body.y, rect_body.w, rect_body.h, tex_body)
+
+
+local quad_turret = gr.newQuad(
+rect_turret.x, rect_turret.y, rect_turret.w, rect_turret.h, tex_turret)
 
 
 
 
-local quad_t = gr.newQuad(102, 0, 54, 160, texture_t)
 
-local function draw(
-   texture,
-   quad,
-   x, y, angle)
 
-   gr.push()
-   gr.translate(x, y)
-   gr.rotate(angle)
-   gr.translate(-width / 2, -height / 2)
-   gr.setColor({ 1, 1, 1, 1 })
-   gr.draw(texture, quad, 0, 0)
-   gr.pop()
-end
+
+
+
+
+
+
+
+
+
+
+
 
 local function get_id()
    local id = graphic_command_channel:demand()
@@ -208,10 +152,41 @@ end
 
 
 function commands.flush()
+
+
+
+
+
+
    for _, v in pairs(hash) do
-      draw(texture, quad, v[1], v[2], v[3])
-      draw(texture_t, quad_t, v[4], v[5], v[6])
+      local x, y, angle = v[1], v[2], v[3]
+      local tur_x, tur_y, tur_angle = v[4], v[5], v[6]
+
+      gr.setColor({ 1, 1, 1, 1 })
+      gr.push()
+      gr.translate(x, y)
+      gr.rotate(angle)
+      gr.translate(-rect_body.w / 2, -rect_body.h / 2)
+
+      gr.draw(tex_body, quad_body, 0, 0)
+      gr.pop()
+
+
+
+
+      gr.push()
+      gr.translate(tur_x, tur_y)
+
+      gr.rotate(tur_angle + math.pi)
+      gr.translate(
+      -rect_turret.w / 2,
+
+      -rect_turret.h / 2 + init_tank.anchorB[2])
+
+      gr.draw(tex_turret, quad_turret, 0, 0)
+      gr.pop()
    end
+
    return false
 end
 
