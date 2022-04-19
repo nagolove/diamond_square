@@ -177,7 +177,7 @@ local init_table = {
 
 
 local px, py = 0, 0
-local impulse_amount = 100
+local impulse_amount = 5
 local vel_limit = 160
 local ang_vel_limit = 2
 

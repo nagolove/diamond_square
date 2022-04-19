@@ -873,20 +873,18 @@ end
 
 
 
+local draw_selected_object = true
+
 local function renderSelectedObject()
    local player_x, player_y
    if playerTank then
-      pipeline:open('selected_object')
       local body = playerTank.base
       player_x, player_y = body:get_position()
-
-
-
-
-
-
-      pipeline:push(body:get_position())
-      pipeline:close()
+      if draw_selected_object then
+         pipeline:open('selected_object')
+         pipeline:push(body:get_position())
+         pipeline:close()
+      end
    else
       error('Player should not be nil')
    end
@@ -1466,6 +1464,10 @@ local function keypressed(key)
       changeWindowMode()
    end
 
+   if key == '2' then
+      draw_selected_object = not draw_selected_object
+   end
+
    if physics_pause then
 
       if key == 'q' then
@@ -1662,7 +1664,7 @@ local function initRenderCode()
     local width, height = 256, 256
     local selection_color = {0, 0.5, 1, 0.3}
     local border_color = {0, 0, 0, 1}
-    local linew = 5
+    local linew: integer = 5.
 
     local x, y, angle: number
     local gr = love.graphics
@@ -1779,7 +1781,7 @@ local function initPipelineObjects()
 
 end
 
-local function add_gamepad_docs()
+local function add_keyboard_docs()
    docsystem.add_keyboard_doc("escape", "exit")
    docsystem.add_keyboard_doc("r", "Rebuild map")
    docsystem.add_keyboard_doc('z', 'Decrease map size')
@@ -1790,10 +1792,11 @@ local function add_gamepad_docs()
    docsystem.add_keyboard_doc('f1', 'Show or hide this text')
    docsystem.add_keyboard_doc('q', "Fully reload map with objects.")
    docsystem.add_keyboard_doc('1', 'Reload static physics segments.')
+   docsystem.add_keyboard_doc('2', 'Show or hide selected object border.')
    docsystem.finish_keyboard_docs()
 end
 
-local function add_keyboard_docs()
+local function add_gamepad_docs()
    docsystem.add_gamepad_doc("start", "show this help")
    docsystem.add_gamepad_doc("left shift", "reset camera")
    docsystem.add_gamepad_doc('right shift', 'move camera to player')
