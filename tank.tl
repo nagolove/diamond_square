@@ -2,54 +2,30 @@ require 'konstants'
 require 'common'
 require 'vector'
 
+local serpent = require("serpent")
 local Pipeline = require 'pipeline'
 local inspect = require 'inspect'
 local wrp = require "wrp"
 --local Bullet = require "bullet"
 
--- Кусок вырезаемый из текстуры
-local rect_body = {
-    x = 87,
-    y = 73,
-    w = 82,
-    h = 110,
-}
-
--- Кусок вырезаемый из текстуры
-local rect_turret = {
-    x = 101,
-    y = 0,
-    w = 54,
-    h = 160,
-}
-
-local init_table = {
-    x = 0,
-    y = 0,
-
-    type = "tank",
-    w = rect_body.w,
-    h = rect_body.h,
-
-    -- Точки сочленения тел
-    anchorA = { 0., 0. },
-    anchorB = { 
-        0., 
-        -30., -- Смещение башни
-    },
-
-    -- Смещение координат турели
-    turret_dx = 0, -- Фактически не влияет
-    turret_dy = 0, -- Фактически не влияет
-    turret_rot_point = { rect_turret.w / 2., rect_turret.h / 2.},
-    -- Размеры турели
-    turret_w = rect_turret.w,
-    turret_h = rect_turret.h,
-} 
-
 -- Класс основного боевого танка.
 local record Tank
     -- {{{
+
+    record Rect
+        x: number
+        y: number
+        w: number
+        h: number
+    end
+
+    record FullInfo
+        rect_body: Rect
+        rect_turret: Rect
+        init_table: wrp.TankInit
+        base_tex_fname: string
+        turret_tex_fname: string
+    end
 
     -- _ префикс нижнего подчеркивания означает, что переменные могут быть
     -- изменены со стороны Lua C API
@@ -158,9 +134,50 @@ local record Tank
     -- }}}
 end
 
+-- Кусок вырезаемый из текстуры
+local rect_body: Tank.Rect = {
+    x = 87,
+    y = 73,
+    w = 82,
+    h = 110,
+}
+
+-- Кусок вырезаемый из текстуры
+local rect_turret: Tank.Rect = {
+    x = 101,
+    y = 0,
+    w = 54,
+    h = 160,
+}
+
+local init_table: wrp.TankInit = {
+    x = 0,
+    y = 0,
+
+    type = "tank",
+    w = rect_body.w,
+    h = rect_body.h,
+
+    -- Точки сочленения тел
+    anchorA = { 0., 0. },
+    anchorB = { 
+        0., 
+        ---30., -- Смещение башни
+        -25., -- Смещение башни
+    },
+
+    -- Смещение координат турели
+    turret_dx = 0, -- Фактически не влияет
+    turret_dy = 0, -- Фактически не влияет
+    turret_rot_point = { rect_turret.w / 2., rect_turret.h / 2.},
+    -- Размеры турели
+    turret_w = rect_turret.w,
+    turret_h = rect_turret.h,
+} 
+
+
 local px, py = 0, 0
 local impulse_amount = 100
-local force_amount = 200
 local vel_limit = 160
 local ang_vel_limit = 2
 
@@ -329,16 +346,15 @@ function Tank.initPipelineObjects(pipeline: Pipeline)
     )
     --]]
 
-    local base_tex_fname = "gfx/body.png"
-    local turret_tex_fname = "gfx/turret.png"
-    pipeline:push(
-        base_tex_fname, 
-        turret_tex_fname, 
-        rect_body.w,
-        rect_body.h,
-        rect_turret.w,
-        rect_turret.h
-    )
+    local full_info: Tank.FullInfo = {
+        rect_body = rect_body,
+        rect_turret = rect_turret,
+        init_table = init_table,
+        base_tex_fname = "gfx/body.png",
+        turret_tex_fname = "gfx/turret.png",
+    }
+    local ser_full_info = serpent.dump(full_info)
+    pipeline:push(ser_full_info)
 
     pipeline:close()
 end
