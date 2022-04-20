@@ -1,7 +1,11 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local math = _tl_compat and _tl_compat.math or math; require('konstants')
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local math = _tl_compat and _tl_compat.math or math
+
+
+require('konstants')
 require('common')
 require('vector')
 
+local PCamera = require("pcamera")
 local serpent = require("serpent")
 local Pipeline = require('pipeline')
 local inspect = require('inspect')
@@ -133,24 +137,23 @@ local Tank = {Rect = {}, FullInfo = {}, }
 
 
 
+local pipeline
+local camera
 
 
 local rect_body = {
-   x = 87,
-   y = 73,
-   w = 82,
-   h = 110,
+   x = 87, y = 73,
+   w = 82, h = 110,
 }
 
 
 local rect_turret = {
-   x = 101,
-   y = 0,
-   w = 54,
-   h = 160,
+   x = 101, y = 0,
+   w = 54, h = 160,
 }
 
 local init_table = {
+
    x = 0,
    y = 0,
 
@@ -173,15 +176,24 @@ local init_table = {
 
    turret_w = rect_turret.w,
    turret_h = rect_turret.h,
+
 }
 
 
 local px, py = 0, 0
 local impulse_amount = 5
+
 local vel_limit = 160
+
 local ang_vel_limit = 2
 
 function Tank:fire()
+   print('Tank:fire')
+   local x, y, angle = self.base:get_position()
+   print('x, y', x, y)
+
+
+   pipeline:openPushAndClose("fire_dir", x + camera.x, y + camera.y, angle)
 end
 
 function Tank:left()
@@ -228,7 +240,6 @@ local Tank_mt = {
 }
 
 function Tank.new(x, y)
-
    if x ~= x or y ~= y then
       error("NaN in tank positon.")
    end
@@ -253,6 +264,37 @@ function Tank.new(x, y)
    end
 
    print('self.base', self.base)
+
+
+
+   pipeline:pushCode("fire_dir", [[
+    local cos = math.cos
+    local sin = math.sin
+
+    local function fromPolar(angle: number, radius: number): number, number
+        radius = radius or 1
+        return cos(angle)*radius, sin(angle)*radius
+    end
+
+    local gr = love.graphics
+    local col = {1, 1, 1, 1}
+    local dist = 1000
+
+    while true do
+        local x1 = graphic_command_channel:demand() as number
+        local y1 = graphic_command_channel:demand() as number
+        local angle = graphic_command_channel:demand() as number
+
+        local x2, y2 = fromPolar(angle, dist)
+        x2, y2 = x1 + x2, y1 + y2
+
+        gr.setColor(col)
+        gr.setLineWidth(1)
+        gr.line(x1, y1, x2, y2)
+
+        coroutine.yield()
+    end
+    ]])
 
 
 
@@ -330,22 +372,14 @@ function Tank:rotate_turret(dir)
 
 end
 
-function Tank.initPipelineObjects(pipeline)
+function Tank.initPipelineObjects(pl, cam)
+   assert(pl)
+   assert(cam)
+   camera = cam
+   pipeline = pl
+
    pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
-
    pipeline:open('base_shape')
-
-
-
-
-
-
-
-
-
-
-
-
    local full_info = {
       rect_body = rect_body,
       rect_turret = rect_turret,
@@ -355,7 +389,6 @@ function Tank.initPipelineObjects(pipeline)
    }
    local ser_full_info = serpent.dump(full_info)
    pipeline:push(ser_full_info)
-
    pipeline:close()
 end
 

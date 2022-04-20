@@ -4,7 +4,6 @@ local Pipeline = require('pipeline')
 local lj = love.joystick
 local Joystick = lj.Joystick
 local sformat = string.format
-local Tank = require('tank')
 
 
 local Camera = {}
@@ -105,9 +104,9 @@ function Camera:setOrigin()
    self.pipeline:openAndClose('origin_transform')
 end
 
-function Camera:setPlayer(tank)
-   self.playerTank = tank
-end
+
+
+
 
 function Camera:checkInput(j)
    self:checkMovement(j)
@@ -219,12 +218,12 @@ function Camera:checkIsPlayerInCircle()
 end
 
 
-function Camera:moveToPlayer()
-   if not self.playerTank and self.playerTank.base then
-      return
-   end
+function Camera:moveToPlayer(px, py)
 
-   local px, py, _ = self.playerTank.base:get_position()
+
+
+
+
    print("camera x, y, scale", self.x, self.y, self.scale)
    print("tank x, y", px, py)
 

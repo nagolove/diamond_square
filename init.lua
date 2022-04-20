@@ -1368,7 +1368,7 @@ end
 local function spawnPlayer()
    local px, py = screenW / 3, screenH / 2
    playerTank = spawnTank(px, py)
-   camera:setPlayer(playerTank)
+
 
 
    spawnTank(px + 400, py)
@@ -1388,7 +1388,7 @@ local function nextTankAsPlayer()
    else
       playerTank = tanks[1]
    end
-   camera:setPlayer(playerTank)
+
 end
 
 local function prevTankAsPlayer()
@@ -1405,7 +1405,7 @@ local function prevTankAsPlayer()
    else
       playerTank = tanks[#tanks]
    end
-   camera:setPlayer(playerTank)
+
 end
 
 local function changePlayerTank(key)
@@ -1726,7 +1726,7 @@ end
 
 
 local function initPipelineObjects()
-   Tank.initPipelineObjects(pipeline)
+   Tank.initPipelineObjects(pipeline, camera)
 
 
 
@@ -2002,7 +2002,8 @@ local function joystickpressed(_, button)
    end
    if button == right_shift then
       print("moveToPlayer()")
-      camera:moveToPlayer()
+      local px, py = playerTank.base:get_position()
+      camera:moveToPlayer(px, py)
    end
    if button == start then
 
@@ -2073,6 +2074,7 @@ local function applyInput(j)
    end
 
    local left, right, up, down = 3, 2, 4, 1
+   local fire_axis = 3
 
 
 
@@ -2090,6 +2092,11 @@ local function applyInput(j)
       playerTank:backward()
    end
 
+   local fire_value = j:getAxis(fire_axis)
+   if fire_value > 0.5 then
+      playerTank:fire()
+   end
+
    local hut_num = 1
 
 
@@ -2100,6 +2107,11 @@ local function applyInput(j)
    elseif hut == "r" then
       playerTank:rotate_turret("right")
    end
+
+
+
+
+
 
    if joyState.state then
 

@@ -143,7 +143,7 @@ while true do
 
    repeat
       cmd = graphic_command_channel:demand()
-      push_cbuf(cmd)
+
 
       local fun = commands[cmd]
       if not fun then
