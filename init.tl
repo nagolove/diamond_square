@@ -1368,7 +1368,7 @@ end
 local function spawnPlayer()
     local px, py = screenW / 3, screenH / 2
     playerTank = spawnTank(px, py)
-    camera:setPlayer(playerTank)
+    --camera:setPlayer(playerTank)
 
     -- near friend for debugger
     spawnTank(px + 400, py)
@@ -1388,7 +1388,7 @@ local function nextTankAsPlayer()
     else
         playerTank = tanks[1]
     end
-    camera:setPlayer(playerTank)
+    --camera:setPlayer(playerTank)
 end
 
 local function prevTankAsPlayer()
@@ -1405,7 +1405,7 @@ local function prevTankAsPlayer()
     else
         playerTank = tanks[#tanks]
     end
-    camera:setPlayer(playerTank)
+    --camera:setPlayer(playerTank)
 end
 
 local function changePlayerTank(key: string)
@@ -1726,7 +1726,7 @@ end
 
 -- Инициализация параметрами объектов-корутин на стороне главного потока.
 local function initPipelineObjects()
-    Tank.initPipelineObjects(pipeline)
+    Tank.initPipelineObjects(pipeline, camera)
 
     --[[
     Пиксели для вырезки
@@ -2002,7 +2002,8 @@ local function joystickpressed(_: Joystick, button: integer)
     end
     if button == right_shift then
         print("moveToPlayer()")
-        camera:moveToPlayer()
+        local px, py = playerTank.base:get_position()
+        camera:moveToPlayer(px, py)
     end
     if button == start then
         -- Вывести справку по управлению
