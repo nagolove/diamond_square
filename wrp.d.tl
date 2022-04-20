@@ -1,8 +1,9 @@
+-- vim: set colorcolumn=85
+-- vim: fdm=marker
 
 local record Wrapper
     record Shape end
     record Space end
-    --record Body end
 
     type DbgDrawCircle = function(
         px: number, py: number, angle: number, rad: number
@@ -17,6 +18,13 @@ local record Wrapper
     type DbgDrawPolygon = function(polygon: {number}, rad: number)
     type DbgDrawDot = function(size: number, px: number, py: number)
 
+    type SegmentCallback = function(
+        t: Tank, 
+        px: number, py: number, 
+        nx: number, ny: number,
+        alpha: number
+    )
+
     space_new: function(damping: number): Space
     space_free: function(Space)
     space_set: function(Space)
@@ -27,6 +35,10 @@ local record Wrapper
         DbgDrawFatSegment,
         DbgDrawPolygon,
         DbgDrawDot
+    )
+    query_segment_first: function(
+        start_x: number, start_y: number, end_x: number, end_y: number, 
+        f: SegmentCallback
     )
 
     type EachSegmentCallback = function(x1: number, y1: number, x2: number, y2: number)
@@ -51,9 +63,8 @@ local record Wrapper
         "tank"
     end
 
-    --query_all_shapes: function(EachBodyCallback)
     -- Работает без башни
-    query_all_tanks: function(EachBodyCallback)
+    --query_all_tanks: function(EachBodyCallback)
     -- Работает с башней. Предпочтительный вариант.
     query_all_tanks_t: function(EachTankCallback)
 
@@ -84,6 +95,7 @@ local record Wrapper
     ): Tank, {{number}} -- второй параметр - вершины фигур. Может быть nil
 
     record Body
+        -- {{{
         set_position: function(b: Body, x: number, y: number)
         -- Получить положение тела и его угол поворота
         get_position: function(b: Body): number, number, number
@@ -101,10 +113,12 @@ local record Wrapper
         get_ang_vel: function(Body): number
         -- Установить угловую скорость тела
         set_ang_vel: function(Body, w: number)
+        -- }}}
     end
     --]]
 
     record Tank
+        -- {{{
         turret_rotate: function(b: Tank, k: number)
 
         -- Получить положение тела башни и угол ее поворота.
@@ -140,6 +154,7 @@ local record Wrapper
                                         number, number, number, number, 
                                         number, number, number, number, 
                                         number
+        -- }}}
     end
 
     -- Создать новый сегмент. Сегмент тонкий(не имеет толщины) и крепится к
