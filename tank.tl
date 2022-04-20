@@ -5,6 +5,7 @@ require 'konstants'
 require 'common'
 require 'vector'
 
+local PCamera = require "pcamera"
 local serpent = require("serpent")
 local Pipeline = require 'pipeline'
 local inspect = require 'inspect'
@@ -106,7 +107,7 @@ local record Tank
     -- Абсолютные координаты в пикселях
     new: function(x: number, y: number): Tank
     -- Вызывается один раз для инициализации модуля.
-    initPipelineObjects: function(pl: Pipeline)
+    initPipelineObjects: function(pl: Pipeline, cam: PCamera)
 
     -- Обновить логику, не физику.
     -- Если возвращается nil, то объект считается убитым.
@@ -137,6 +138,7 @@ local record Tank
 end -- Tank record
 
 local pipeline: Pipeline
+local camera: PCamera
 
 -- Кусок вырезаемый из текстуры
 local rect_body: Tank.Rect = {
@@ -186,6 +188,12 @@ local vel_limit = 160
 local ang_vel_limit = 2
 
 function Tank:fire()
+    print('Tank:fire')
+    local x, y, angle = self.base:get_position()
+    print('x, y', x, y)
+    -- Прибавлять координаты камеры
+    -- Учитывать масштаб
+    pipeline:openPushAndClose("fire_dir", x + camera.x, y + camera.y, angle)
 end
 
 function Tank:left()
@@ -260,6 +268,8 @@ function Tank.new(x: number, y: number): Tank
     --wrp.set_position(self.base, pos.x, pos.y)
 
     pipeline:pushCode("fire_dir", [[
+    local cos = math.cos
+    local sin = math.sin
 
     local function fromPolar(angle: number, radius: number): number, number
         radius = radius or 1
@@ -362,8 +372,10 @@ function Tank:rotate_turret(dir: Tank.Direction)
     --]]
 end
 
-function Tank.initPipelineObjects(pl: Pipeline)
+function Tank.initPipelineObjects(pl: Pipeline, cam: PCamera)
     assert(pl)
+    assert(cam)
+    camera = cam
     pipeline = pl
 
     pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
