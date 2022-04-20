@@ -1560,8 +1560,54 @@ int turret_rotate(lua_State *lua) {
     return 0;
 }
 
+#define SPACE_QUERY_SEGMENT_FIRST
+int space_query_segment_first(lua_State *lua) {
+    CHECK_SPACE;
+    /*Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");*/
+    cpVect start = {0, }, end = {0, };
+    cpShapeFilter filter = {
+        CP_NO_GROUP, // XXX Верное значени или нет?
+        CP_ALL_CATEGORIES, 
+        CP_ALL_CATEGORIES 
+    };
+    start.x = luaL_checknumber(lua, 2);
+    start.y = luaL_checknumber(lua, 3);
+    end.x = luaL_checknumber(lua, 4);
+    end.y = luaL_checknumber(lua, 5);
+    luaL_checktype(lua, 6, LUA_TFUNCTION);
+    cpFloat radius = 1.;
+    cpSegmentQueryInfo info = {0, };
+
+#ifdef SPACE_QUERY_SEGMENT_FIRST
+    LOG("space_query_segment_first: [%s]\n", stack_dump(lua));
+#endif
+    cpSpaceSegmentQueryFirst(
+            cur_space->space,
+            start, end,
+            radius,
+            filter,
+            &info
+    );
+
+    if (info.shape) {
+        Tank *tank = info.shape->body->userData;
+        lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);
+        lua_pushnumber(lua, info.point.x);
+        lua_pushnumber(lua, info.point.y);
+        lua_pushnumber(lua, info.normal.x);
+        lua_pushnumber(lua, info.normal.y);
+        lua_pushnumber(lua, info.alpha);
+        lua_call(lua, 6, 0);
+    }
+
+    return 0;
+}
+#undef SPACE_QUERY_SEGMENT_FIRST
+
 static const struct luaL_Reg Tank_methods[] =
 {
+    // {{{
+    /*{"query_segment_first", tank_query_segment_first},*/
     {"turret_rotate", turret_rotate},
 
     {"get_turret_position", get_turret_position},
@@ -1590,6 +1636,7 @@ static const struct luaL_Reg Tank_methods[] =
     /*{"shape_print_filter", shape_print_filter},*/
 
     {NULL, NULL}
+    // }}}
 };
 
 /*#define DBG_DRAWCIRCLE*/
@@ -1752,9 +1799,11 @@ static int space_debug_draw(lua_State *lua) {
 }
 #undef SPACE_DEBUG_DRAW
 
-extern int luaopen_wrp(lua_State *lua) {
+int register_module(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
+        // {{{
+        
         // создать пространство
         {"space_new", space_new},
         // удалить пространство и все тела на нем
@@ -1763,6 +1812,7 @@ extern int luaopen_wrp(lua_State *lua) {
         {"space_step", space_step},
         {"space_set", space_set},
         {"space_debug_draw", space_debug_draw},
+        {"space_query_segment_first", space_query_segment_first},
 
         // вызов функции для всех тел в текущем пространстве
         /*{"query_all_shapes", query_all_shapes},*/
@@ -1795,17 +1845,16 @@ extern int luaopen_wrp(lua_State *lua) {
         {"shape_print_filter", shape_print_filter},
 
         {NULL, NULL}
+        // }}}
     };
+    luaL_register(lua, "wrapper", functions);
+    return 1;
+}
 
+extern int luaopen_wrp(lua_State *lua) {
     register_methods(lua, "_Tank", Tank_methods);
     /*register_methods(lua, "_Turret", Turret_methods);*/
-
-    /*luaL_newmetatable(lua, "_Tank");*/
-    /*luaL_newmetatable(lua, "_Shape");*/
     luaL_newmetatable(lua, "_Space");
-    /*luaL_newmetatable(lua, "_Segment");*/
-
-    luaL_register(lua, "wrapper", functions);
     printf("wrp module opened [%s]\n", stack_dump(lua));
-    return 1;
+    return register_module(lua);
 }
