@@ -2073,6 +2073,7 @@ local function applyInput(j: Joystick)
     end
 
     local left, right, up, down = 3, 2, 4, 1
+    local fire_axis = 3
 
     --[[
     Как узнать направление движения и направление приложения силы?
@@ -2090,6 +2091,11 @@ local function applyInput(j: Joystick)
         playerTank:backward()
     end
 
+    local fire_value = j:getAxis(fire_axis) 
+    if fire_value > 0.5 then
+        playerTank:fire()
+    end
+
     local hut_num = 1
     --local msg = j:getHat(hut_num)
     --love.filesystem.append("hat", msg, #(msg as string))
@@ -2100,6 +2106,11 @@ local function applyInput(j: Joystick)
     elseif hut == "r" then
         playerTank:rotate_turret("right")
     end
+
+    --if joy:isDown(5) then
+        --print('os.exit(1)')
+        --os.exit(1)
+    --end
 
     if joyState.state then
         --love.filesystem.append("joystate", joyState.state, #joyState.state)
