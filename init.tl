@@ -288,9 +288,11 @@ rng:setSeed(300 * 123414)
 --rng:setSeed(os.time())
 
 local DiamonAndSquare = require 'diamondsquare'
---local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
 local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(5, rng, pipeline)
---local diamondSquare: DiamonAndSquare = nil
+--local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
+
+--diamondSquare:eval()
+--diamondSquare:save("map1.lua")
 
 --local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 --local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
@@ -910,47 +912,27 @@ local is_draw_hotkeys_docs = false
 local is_draw_gamepad_docs = false
 
 local function phys_dbg_draw()
-    local ok, errmsg: boolean, string = pcall(function()
-
     pipeline:open("dbg_phys")
-
-    --DbgDrawCircle,
-    --DbgDrawSegment,
-    --DbgDrawFatSegment,
-    --DbgDrawPolygon,
-    --DbgDrawDot
-
-    --[[
-    if wrp.space_debug_draw then
-        wrp.space_debug_draw(
-            function(px: number, py: number, angle: number, rad: number)
-                --pipeline:push('circle', px, py, angle, rad)
-            end,
-            function(ax: number, ay: number, bx: number, by: number)
-                --pipeline:push('segment', ax, ay, bx, by)
-            end,
-            function(ax: number, ay: number, bx: number, by: number, rad: number)
-                --pipeline:push('fatsegment', ax, ay, bx, by, rad)
-            end,
-            function(polygon: {number}, rad: number)
-                --pipeline:push('polygon', polygon, rad)
-            end,
-            function(size: number, px: number, py: number)
-                print('dot', size, px, py)
-                pipeline:push('dot', size, px, py)
-            end
-        )
-    end
-    --]]
+    wrp.space_debug_draw(
+        function(px: number, py: number, angle: number, rad: number)
+            pipeline:push('circle', px, py, angle, rad)
+        end,
+        function(ax: number, ay: number, bx: number, by: number)
+            pipeline:push('segment', ax, ay, bx, by)
+        end,
+        function(ax: number, ay: number, bx: number, by: number, rad: number)
+            pipeline:push('fatsegment', ax, ay, bx, by, rad)
+        end,
+        function(polygon: {number}, rad: number)
+            pipeline:push('polygon', polygon, rad)
+        end,
+        function(size: number, px: number, py: number)
+            --print('dot', size, px, py)
+            pipeline:push('dot', size, px, py)
+        end
+    )
     pipeline:push("enough")
-
     pipeline:close()
-
-end)
-if not ok then 
-    print("phys_dbg_draw:", errmsg)
-end
-
 end
 
 local function render_internal()
@@ -960,13 +942,13 @@ local function render_internal()
     camera:setTransform()
 
     -- Ландшафт
-    diamondSquare:render()
+    --diamondSquare:render()
 
     -- Танки
     renderTanks()
 
     --print('render_internal 1:', pipeline.section_state)
-    --phys_dbg_draw()
+    phys_dbg_draw()
     --print('render_internal 2:', pipeline.section_state)
 
     -- Ограничители уровня, преграды в виде отрезков.
@@ -1695,8 +1677,10 @@ local function initRenderCode()
     -- Очистка экрана
     -- {{{
     pipeline:pushCode('clear', [[
+    --local color = {0.5, 0.5, 0.5}
+    local color = {0.5, 0.9, 0.5}
     while true do
-        love.graphics.clear{0.5, 0.5, 0.5}
+        love.graphics.clear(color)
         coroutine.yield()
     end
     ]])
