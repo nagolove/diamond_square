@@ -1592,6 +1592,7 @@ static const struct luaL_Reg Tank_methods[] =
     {NULL, NULL}
 };
 
+/*#define DBG_DRAWCIRCLE*/
 void dbg_drawCircle(
         cpVect pos, 
         cpFloat angle, 
@@ -1601,7 +1602,9 @@ void dbg_drawCircle(
         cpDataPointer data
 ) {
     lua_State *lua = data;
+#ifdef DBG_DRAWCIRCLE
     LOG("dbg_drawCircle: [%s]\n", stack_dump(lua));
+#endif
     lua_pushvalue(lua, 1);
     lua_pushnumber(lua, pos.x);
     lua_pushnumber(lua, pos.y);
@@ -1609,7 +1612,9 @@ void dbg_drawCircle(
     lua_call(lua, 3, 0);
     lua_remove(lua, -1);
 }
+#undef DBG_DRAWCIRCLE
 
+/*#define DBG_DRAWSEGMENT*/
 void dbg_drawSegment(
         cpVect a, 
         cpVect b, 
@@ -1617,7 +1622,9 @@ void dbg_drawSegment(
         cpDataPointer data
 ) {
     lua_State *lua = data;
+#ifdef DBG_DRAWSEGMENT
     LOG("dbg_drawSegment: [%s]\n", stack_dump(lua));
+#endif
     lua_pushvalue(lua, 2);
     lua_pushnumber(lua, a.x);
     lua_pushnumber(lua, a.y);
@@ -1626,7 +1633,9 @@ void dbg_drawSegment(
     lua_call(lua, 4, 0);
     lua_remove(lua, -1);
 }
+#undef DBG_DRAWSEGMENT
 
+/*#define DBG_DRAWFATSEGMENT*/
 void dbg_drawFatSegment(
         cpVect a, 
         cpVect b, 
@@ -1636,7 +1645,9 @@ void dbg_drawFatSegment(
         cpDataPointer data
 ) {
     lua_State *lua = data;
+#ifdef DBG_DRAWFATSEGMENT
     LOG("dbg_drawFatSegment: [%s]\n", stack_dump(lua));
+#endif
     lua_pushvalue(lua, 3);
     lua_pushnumber(lua, a.x);
     lua_pushnumber(lua, a.y);
@@ -1644,8 +1655,8 @@ void dbg_drawFatSegment(
     lua_pushnumber(lua, b.y);
     lua_pushnumber(lua, radius);
     lua_call(lua, 5, 0);
-    lua_remove(lua, -1);
 }
+#undef DBG_DRAWFATSEGMENT
 
 /*#define DBG_DRAWPOLYGON*/
 void dbg_drawPolygon(
