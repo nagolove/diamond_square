@@ -4,7 +4,6 @@ local Pipeline = require 'pipeline'
 local lj = love.joystick
 local Joystick = lj.Joystick
 local sformat = string.format
-local Tank = require 'tank'
 
 -- TODO добавить инерцию к камере
 local record Camera
@@ -14,7 +13,7 @@ local record Camera
     new: function(pipeline: Pipeline, _screenW: number, _screenH: number): Camera
 
     -- Установка танка, который считается игроком.
-    setPlayer: function(Camera, tank: Tank)
+    --setPlayer: function(Camera, tank: Tank)
 
     -- Включить камеру
     setTransform: function(Camera)
@@ -37,7 +36,7 @@ local record Camera
     checkIsPlayerInCircle: function(Camera)
 
     -- Передвинуть к текущему игроку.
-    moveToPlayer: function(Camera)
+    moveToPlayer: function(Camera, px: number, py: number)
 
     -- Сбросить смещение в начальное положение.
     setToOrigin: function(Camera)
@@ -53,7 +52,7 @@ local record Camera
     checkMovement: function(Camera, j: Joystick)
     checkScale: function(Camera, j: Joystick)
 
-    playerTank: Tank
+    --playerTank: Tank
     screenW: number
     screenH: number
     pipeline: Pipeline
@@ -105,9 +104,9 @@ function Camera:setOrigin()
     self.pipeline:openAndClose('origin_transform')
 end
 
-function Camera:setPlayer(tank: Tank)
-    self.playerTank = tank
-end
+--function Camera:setPlayer(tank: Tank)
+    --self.playerTank = tank
+--end
 
 function Camera:checkInput(j: Joystick)
     self:checkMovement(j)
@@ -219,12 +218,12 @@ function Camera:checkIsPlayerInCircle()
 end
 
 -- камера перемещается на танк игрока
-function Camera:moveToPlayer()
-    if not self.playerTank and self.playerTank.base then
-        return
-    end
+function Camera:moveToPlayer(px: number, py: number)
+    --if not self.playerTank and self.playerTank.base then
+        --return
+    --end
 
-    local px, py, _ = self.playerTank.base:get_position()
+    --local px, py, _ = self.playerTank.base:get_position()
     print("camera x, y, scale", self.x, self.y, self.scale)
     print("tank x, y", px, py)
     --self.x, self.y = 0, 0
