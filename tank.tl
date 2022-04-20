@@ -1,3 +1,6 @@
+-- vim: set colorcolumn=85
+-- vim: fdm=marker
+
 require 'konstants'
 require 'common'
 require 'vector'
@@ -127,30 +130,28 @@ local record Tank
     end
     rotate_turret: function(Tank, dir: Direction)
 
-    fire: function(Tank)
-
     -- запустить сопрограмму движения по кругу
     --circleMove: function(Tank)
     -- }}}
-end
+
+end -- Tank record
+
+local pipeline: Pipeline
 
 -- Кусок вырезаемый из текстуры
 local rect_body: Tank.Rect = {
-    x = 87,
-    y = 73,
-    w = 82,
-    h = 110,
+    x = 87, y = 73,
+    w = 82, h = 110,
 }
 
 -- Кусок вырезаемый из текстуры
 local rect_turret: Tank.Rect = {
-    x = 101,
-    y = 0,
-    w = 54,
-    h = 160,
+    x = 101, y = 0,
+    w = 54, h = 160,
 }
 
 local init_table: wrp.TankInit = {
+    -- {{{ 
     x = 0,
     y = 0,
 
@@ -173,12 +174,15 @@ local init_table: wrp.TankInit = {
     -- Размеры турели
     turret_w = rect_turret.w,
     turret_h = rect_turret.h,
+    -- }}}
 } 
 
-
+-- Точка приложения импулься
 local px, py = 0, 0
 local impulse_amount = 5
+-- Предел скорости движения
 local vel_limit = 160
+-- Предел скорости вращения корпуса
 local ang_vel_limit = 2
 
 function Tank:fire()
@@ -228,7 +232,6 @@ local Tank_mt: metatable<Tank> = {
 }
 
 function Tank.new(x: number, y: number): Tank
-    -- {{{
     if x ~= x or y ~= y then
         error("NaN in tank positon.")
     end
@@ -255,6 +258,35 @@ function Tank.new(x: number, y: number): Tank
     print('self.base', self.base)
     
     --wrp.set_position(self.base, pos.x, pos.y)
+
+    pipeline:pushCode("fire_dir", [[
+
+    local function fromPolar(angle: number, radius: number): number, number
+        radius = radius or 1
+        return cos(angle)*radius, sin(angle)*radius
+    end
+
+    local gr = love.graphics
+    local col = {1, 1, 1, 1}
+    local dist = 1000
+
+    while true do
+        local x1 = graphic_command_channel:demand() as number
+        local y1 = graphic_command_channel:demand() as number
+        local angle = graphic_command_channel:demand() as number
+
+        local x2, y2 = fromPolar(angle, dist)
+        x2, y2 = x1 + x2, y1 + y2
+
+        gr.setColor(col)
+        gr.setLineWidth(1)
+        gr.line(x1, y1, x2, y2)
+
+        coroutine.yield()
+    end
+    ]])
+
+    -- }}}
 
     return self
 end
@@ -330,22 +362,12 @@ function Tank:rotate_turret(dir: Tank.Direction)
     --]]
 end
 
-function Tank.initPipelineObjects(pipeline: Pipeline)
+function Tank.initPipelineObjects(pl: Pipeline)
+    assert(pl)
+    pipeline = pl
+
     pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
-
     pipeline:open('base_shape')
-    --[[
-    local turret_width, turret_height = tank_width, tank_height
-    pipeline:push(
-        base_tex_fname, 
-        turret_text_fname, 
-        tank_width, 
-        tank_height,
-        turret_width,
-        turret_height
-    )
-    --]]
-
     local full_info: Tank.FullInfo = {
         rect_body = rect_body,
         rect_turret = rect_turret,
@@ -355,7 +377,6 @@ function Tank.initPipelineObjects(pipeline: Pipeline)
     }
     local ser_full_info = serpent.dump(full_info)
     pipeline:push(ser_full_info)
-
     pipeline:close()
 end
 
