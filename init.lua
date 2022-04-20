@@ -288,8 +288,10 @@ rng:setSeed(300 * 123414)
 
 
 local DiamonAndSquare = require('diamondsquare')
-
 local diamondSquare = DiamonAndSquare.new(5, rng, pipeline)
+
+
+
 
 
 
@@ -910,47 +912,27 @@ local is_draw_hotkeys_docs = false
 local is_draw_gamepad_docs = false
 
 local function phys_dbg_draw()
-   local ok, errmsg = pcall(function()
+   pipeline:open("dbg_phys")
+   wrp.space_debug_draw(
+   function(px, py, angle, rad)
+      pipeline:push('circle', px, py, angle, rad)
+   end,
+   function(ax, ay, bx, by)
+      pipeline:push('segment', ax, ay, bx, by)
+   end,
+   function(ax, ay, bx, by, rad)
+      pipeline:push('fatsegment', ax, ay, bx, by, rad)
+   end,
+   function(polygon, rad)
+      pipeline:push('polygon', polygon, rad)
+   end,
+   function(size, px, py)
 
-      pipeline:open("dbg_phys")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      pipeline:push("enough")
-
-      pipeline:close()
-
+      pipeline:push('dot', size, px, py)
    end)
-   if not ok then
-      print("phys_dbg_draw:", errmsg)
-   end
 
+   pipeline:push("enough")
+   pipeline:close()
 end
 
 local function render_internal()
@@ -960,13 +942,13 @@ local function render_internal()
    camera:setTransform()
 
 
-   diamondSquare:render()
+
 
 
    renderTanks()
 
 
-
+   phys_dbg_draw()
 
 
 
@@ -1695,8 +1677,10 @@ local function initRenderCode()
 
 
    pipeline:pushCode('clear', [[
+    --local color = {0.5, 0.5, 0.5}
+    local color = {0.5, 0.9, 0.5}
     while true do
-        love.graphics.clear{0.5, 0.5, 0.5}
+        love.graphics.clear(color)
         coroutine.yield()
     end
     ]])
