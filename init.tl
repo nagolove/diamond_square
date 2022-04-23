@@ -1197,7 +1197,7 @@ local function spawnTank(px: number, py: number): Tank
     print("tank", inspect(tank))
     table.insert(tanks, tank)
     local tank_x, tank_y, angle = tank.base:get_position()
-    local turret_x, turret_y, turret_angle = tank.base:get_turret_position()
+    local turret_x, turret_y, turret_angle = tank.base:turret_get_pos()
 
     --print(colorize(
         --"%{magenta}" .. 'body type: ' .. wrp.get_body_type(tank.base)
