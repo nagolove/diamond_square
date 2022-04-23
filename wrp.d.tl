@@ -36,7 +36,7 @@ local record Wrapper
         DbgDrawPolygon,
         DbgDrawDot
     )
-    query_segment_first: function(
+    space_query_segment_first: function(
         start_x: number, start_y: number, end_x: number, end_y: number, 
         f: SegmentCallback
     )
