@@ -201,9 +201,9 @@ function Tank:fire()
     local x2, y2 = fromPolar(angle, fire_dist)
     pipeline:open('fire_dir')
     pipeline:push('ray', x1 + camera.x, y1 + camera.y, angle)
-    wrp.query_segment_first(x1, y1, x1 + x2, y1 + y2, 
+    wrp.space_query_segment_first(x1, y1, x1 + x2, y1 + y2, 
         function(
-            tank: Tank, 
+            tank: wrp.Tank, 
             x: number, y: number, 
             nx: number, ny: number, 
             alpha: number
@@ -286,9 +286,6 @@ function Tank.new(x: number, y: number): Tank
     print('self.base', self.base)
     
     --wrp.set_position(self.base, pos.x, pos.y)
-
-    pipeline:pushCodeFromFile("fire_dir", 'fire_dir.lua')
-    pipeline:openPushAndClose('fire_dir', 'set_dist', fire_dist)
 
     -- }}}
 
@@ -384,6 +381,9 @@ function Tank.initPipelineObjects(pl: Pipeline, cam: PCamera)
     local ser_full_info = serpent.dump(full_info)
     pipeline:push(ser_full_info)
     pipeline:close()
+
+    pipeline:pushCodeFromFile("fire_dir", 'fire_dir.lua')
+    pipeline:openPushAndClose('fire_dir', 'set_dist', fire_dist)
 end
 
 return Tank
