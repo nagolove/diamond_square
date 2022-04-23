@@ -1563,19 +1563,20 @@ int turret_rotate(lua_State *lua) {
 #define SPACE_QUERY_SEGMENT_FIRST
 int space_query_segment_first(lua_State *lua) {
     CHECK_SPACE;
-    check_argsnum(lua, 6);
-    /*Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");*/
+    check_argsnum(lua, 5);
+
     cpVect start = {0, }, end = {0, };
     cpShapeFilter filter = {
         CP_NO_GROUP, // XXX Верное значени или нет?
         CP_ALL_CATEGORIES, 
         CP_ALL_CATEGORIES 
     };
-    start.x = luaL_checknumber(lua, 2);
-    start.y = luaL_checknumber(lua, 3);
-    end.x = luaL_checknumber(lua, 4);
-    end.y = luaL_checknumber(lua, 5);
-    luaL_checktype(lua, 6, LUA_TFUNCTION);
+
+    start.x = luaL_checknumber(lua, 1);
+    start.y = luaL_checknumber(lua, 2);
+    end.x = luaL_checknumber(lua, 3);
+    end.y = luaL_checknumber(lua, 4);
+    luaL_checktype(lua, 5, LUA_TFUNCTION);
     cpFloat radius = 1.;
     cpSegmentQueryInfo info = {0, };
 
@@ -1590,7 +1591,7 @@ int space_query_segment_first(lua_State *lua) {
             &info
     );
 
-    if (info.shape) {
+    if (info.shape && info.shape->body->userData) {
         Tank *tank = info.shape->body->userData;
         lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);
         lua_pushnumber(lua, info.point.x);
