@@ -37,6 +37,7 @@ local record Wrapper
         DbgDrawDot
     )
     space_query_segment_first: function(
+        filter_group: integer,
         start_x: number, start_y: number, end_x: number, end_y: number, 
         f: SegmentCallback
     )
