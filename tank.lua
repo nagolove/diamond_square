@@ -187,13 +187,33 @@ local vel_limit = 160
 
 local ang_vel_limit = 2
 
+local fromPolar = require('vector-light').fromPolar
+local fire_dist = 5000
+
 function Tank:fire()
    print('Tank:fire')
-   local x, y, angle = self.base:get_position()
-   print('x, y', x, y)
+
+   local x1, y1, angle = self.base:turret_get_pos()
+   angle = angle + math.pi / 2
+   print('x, y', x1, y1)
 
 
-   pipeline:openPushAndClose("fire_dir", x + camera.x, y + camera.y, angle)
+   local x2, y2 = fromPolar(angle, fire_dist)
+   pipeline:open('fire_dir')
+   pipeline:push('ray', x1 + camera.x, y1 + camera.y, angle)
+   wrp.space_query_segment_first(x1, y1, x1 + x2, y1 + y2,
+   function(
+      tank,
+      x, y,
+      nx, ny,
+      alpha)
+
+      pipeline:push('target', x, y)
+   end)
+
+   pipeline:push('enough')
+   pipeline:close()
+
 end
 
 function Tank:left()
@@ -266,35 +286,6 @@ function Tank.new(x, y)
    print('self.base', self.base)
 
 
-
-   pipeline:pushCode("fire_dir", [[
-    local cos = math.cos
-    local sin = math.sin
-
-    local function fromPolar(angle: number, radius: number): number, number
-        radius = radius or 1
-        return cos(angle)*radius, sin(angle)*radius
-    end
-
-    local gr = love.graphics
-    local col = {1, 1, 1, 1}
-    local dist = 1000
-
-    while true do
-        local x1 = graphic_command_channel:demand() as number
-        local y1 = graphic_command_channel:demand() as number
-        local angle = graphic_command_channel:demand() as number
-
-        local x2, y2 = fromPolar(angle, dist)
-        x2, y2 = x1 + x2, y1 + y2
-
-        gr.setColor(col)
-        gr.setLineWidth(1)
-        gr.line(x1, y1, x2, y2)
-
-        coroutine.yield()
-    end
-    ]])
 
 
 
@@ -390,6 +381,9 @@ function Tank.initPipelineObjects(pl, cam)
    local ser_full_info = serpent.dump(full_info)
    pipeline:push(ser_full_info)
    pipeline:close()
+
+   pipeline:pushCodeFromFile("fire_dir", 'fire_dir.lua')
+   pipeline:openPushAndClose('fire_dir', 'set_dist', fire_dist)
 end
 
 return Tank
