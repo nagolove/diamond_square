@@ -1563,6 +1563,7 @@ int turret_rotate(lua_State *lua) {
 #define SPACE_QUERY_SEGMENT_FIRST
 int space_query_segment_first(lua_State *lua) {
     CHECK_SPACE;
+    check_argsnum(lua, 6);
     /*Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");*/
     cpVect start = {0, }, end = {0, };
     cpShapeFilter filter = {
@@ -1609,8 +1610,8 @@ static const struct luaL_Reg Tank_methods[] =
     // {{{
     /*{"query_segment_first", tank_query_segment_first},*/
     {"turret_rotate", turret_rotate},
+    {"turret_get_pos", get_turret_position},
 
-    {"get_turret_position", get_turret_position},
     // установить положение тела
     {"set_position", body_position_set},
     // получить положение тела и угол поворота
