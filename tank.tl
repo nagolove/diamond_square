@@ -188,32 +188,36 @@ local vel_limit = 160
 local ang_vel_limit = 2
 
 local fromPolar = require 'vector-light'.fromPolar
-local fire_dist = 5000
+local fire_dist = 500
 
 function Tank:fire()
-    print('Tank:fire')
-    --local x, y, angle = self.base:get_position()
     local x1, y1, angle = self.base:turret_get_pos()
     angle = angle + math.pi / 2
-    print('x, y', x1, y1)
-    -- Прибавлять координаты камеры
-    -- Учитывать масштаб
+    -- TODO Учитывать масштаб
     local x2, y2 = fromPolar(angle, fire_dist)
+
     pipeline:open('fire_dir')
     pipeline:push('ray', x1 + camera.x, y1 + camera.y, angle)
-    wrp.space_query_segment_first(x1, y1, x1 + x2, y1 + y2, 
+
+    --camera:setOrigin()
+    wrp.space_query_segment_first(self.id, x1, y1, x1 + x2, y1 + y2, 
         function(
             tank: wrp.Tank, 
             x: number, y: number, 
             nx: number, ny: number, 
             alpha: number
         )
+            --print('target', x, y)
+            --print('tank', tank:get_position())
+            --pipeline:push('target', x - camera.x, y - camera.y)
+            -- XXX При сдвиге камеры точка попадания смещается непонятно как
             pipeline:push('target', x, y)
         end
     )
+    --camera:setTransform()
+
     pipeline:push('enough')
     pipeline:close()
-    --pipeline:openPushAndClose("fire_dir", x + camera.x, y + camera.y, angle)
 end
 
 function Tank:left()
