@@ -12,9 +12,6 @@ local record Camera
 
     new: function(pipeline: Pipeline, _screenW: number, _screenH: number): Camera
 
-    -- Установка танка, который считается игроком.
-    --setPlayer: function(Camera, tank: Tank)
-
     -- Включить камеру
     setTransform: function(Camera)
     -- Отключить камеру
@@ -52,7 +49,6 @@ local record Camera
     checkMovement: function(Camera, j: Joystick)
     checkScale: function(Camera, j: Joystick)
 
-    --playerTank: Tank
     screenW: number
     screenH: number
     pipeline: Pipeline
@@ -103,10 +99,6 @@ end
 function Camera:setOrigin()
     self.pipeline:openAndClose('origin_transform')
 end
-
---function Camera:setPlayer(tank: Tank)
-    --self.playerTank = tank
---end
 
 function Camera:checkInput(j: Joystick)
     self:checkMovement(j)
@@ -219,14 +211,8 @@ end
 
 -- камера перемещается на танк игрока
 function Camera:moveToPlayer(px: number, py: number)
-    --if not self.playerTank and self.playerTank.base then
-        --return
-    --end
-
-    --local px, py, _ = self.playerTank.base:get_position()
     print("camera x, y, scale", self.x, self.y, self.scale)
     print("tank x, y", px, py)
-    --self.x, self.y = 0, 0
     self.scale = 1.
     local dx = self.x - px + self.screenW / 2
     local dy = self.y - py + self.screenH / 2
