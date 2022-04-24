@@ -188,32 +188,32 @@ local vel_limit = 160
 local ang_vel_limit = 2
 
 local fromPolar = require('vector-light').fromPolar
-local fire_dist = 5000
+local fire_dist = 500
 
 function Tank:fire()
-   print('Tank:fire')
-
    local x1, y1, angle = self.base:turret_get_pos()
    angle = angle + math.pi / 2
-   print('x, y', x1, y1)
-
 
    local x2, y2 = fromPolar(angle, fire_dist)
+
    pipeline:open('fire_dir')
    pipeline:push('ray', x1 + camera.x, y1 + camera.y, angle)
-   wrp.space_query_segment_first(x1, y1, x1 + x2, y1 + y2,
+
+   wrp.space_query_segment_first(self.id, x1, y1, x1 + x2, y1 + y2,
    function(
       tank,
       x, y,
       nx, ny,
       alpha)
 
+      print('target', x, y)
+      print('tank', tank:get_position())
       pipeline:push('target', x, y)
    end)
 
+
    pipeline:push('enough')
    pipeline:close()
-
 end
 
 function Tank:left()
