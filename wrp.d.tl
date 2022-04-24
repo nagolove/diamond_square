@@ -62,12 +62,18 @@ local record Wrapper
 
     enum ObjectType
         "tank"
+        "bullet"
+        "segment"
     end
 
     -- Работает без башни
     --query_all_tanks: function(EachBodyCallback)
     -- Работает с башней. Предпочтительный вариант.
     query_all_tanks_t: function(EachTankCallback)
+    --space_query_bb: function(
+        --x: number, y: number, w: number, h: number,
+        --func: EachTankCallback
+    --)
 
     record TankInit
         -- {{{
@@ -87,9 +93,26 @@ local record Wrapper
         -- }}}
     end
 
-    -- Создать поли-тело данной ширины и высоты, прикрепив к нему таблицу.
-    -- Нужно указывать тип тела из перечисление ObjectType для соблюдений 
-    -- внутренней логики работы модуля wrapper
+    record BulletInit
+        type: ObjectType
+        -- Начальное положение снаряда
+        x: number
+        y: number
+        -- Дальность полета
+        dist: number
+        --[[
+        Снаряд может сталкиваться с танком, ангаром, другим существом
+        или с сегментом. Сегмент может быть граничный или высотный. 
+        Высотный сегмент определяет горы на ландшафте.
+        --]]
+        on_collison: function(ObjectType type, obj: any)
+    end
+
+    record Bullet
+    end
+
+    --bullet_new: function(init: BulletInit, self: table): Bullet
+
     tank_new: function(
         init: TankInit,
         self: table
