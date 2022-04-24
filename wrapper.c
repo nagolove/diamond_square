@@ -24,13 +24,28 @@ if (!cur_space) {                                       \
     lua_error(lua);                                     \
 }                                                       \
 
+typedef enum {
+    OBJT_TANK,
+    OBJT_BULLET,
+    OBJT_SEGMENT,
+} ObjType;
+
 typedef struct {
+    ObjType type;
+} Object;
+
+typedef struct {
+    Object obj;
+
+    // Не дает башне вертется при движении шасси.
     cpConstraint *turret_motor;
+    // Отключает turret_motor на время поворота башни.
     bool has_turret_motor;
 
     cpBody *body;
     cpBody *turret;
 
+    // Точка к которой прикладывается сила для поворота башни.
     cpVect turret_rot_point;
 
     // индекс userdata на табличку связанную с танком
@@ -40,16 +55,26 @@ typedef struct {
 } Tank;
 
 typedef struct {
+    Object obj;
+} Bullet;
+
+typedef struct {
+    Object obj;
+    int assoc_table_reg_index;
+} Segment;
+
+typedef struct {
     cpSpace *space;
     int reg_index;
 } Space;
 
-typedef struct {
-} Segment;
-
 static Space *cur_space = NULL;
 
-cpShapeFilter ALL_FILTER = { 1, CP_ALL_CATEGORIES, CP_ALL_CATEGORIES };
+cpShapeFilter ALL_FILTER = { 
+    CP_NO_GROUP, 
+    CP_ALL_CATEGORIES, 
+    CP_ALL_CATEGORIES 
+};
 
 // Что делает этот фильтр?
 #define GRABBABLE_MASK_BIT (1<<31)
@@ -623,6 +648,8 @@ static int tank_new(lua_State *lua) {
 
     Tank *tank = lua_newuserdata(lua, sizeof(Tank));
     memset(tank, 0, sizeof(Tank));
+    tank->obj->type = OBJT_TANK;
+
     // [.., type, x, y, w, h, {ud}]
     luaL_getmetatable(lua, "_Tank");
     // [.., type, x, y, w, h, {ud}, {M}]
@@ -754,10 +781,6 @@ void on_each_tank_t(cpBody *body, void *data) {
     double dx = fabs(prev_x - body->p.x);
     double dy = fabs(prev_y - body->p.y);
     */
-
-    // TODO Получить assoc_table
-    // Из assoc_table получить пользовательские данные _turret башни.
-    // Из данных башни получить ее координаты, угол и т.д.
 
     // Добавить проверку не только на движение, но и на изменение угла поворота
     // башни.
@@ -933,6 +956,54 @@ void print_space_info(cpSpace *space) {
     printf("curr_dt %f\n", space->curr_dt);
     printf("stamp %d\n", space->stamp);
 }
+
+void on_bb_query(cpShape *shape, void *data) {
+    lua_State *lua = data;
+    if (shape->body->userData) {
+        /*lua_pushvalue(lua, 5); // callback function*/
+
+        lua_pushnumber(lua, body->p.x);
+        lua_pushnumber(lua, body->p.y);
+        lua_pushnumber(lua, body->a);
+
+        lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->assoc_table_reg_index);
+
+        cpBody *turret = tank->turret;
+        lua_pushnumber(lua, turret->p.x);
+        lua_pushnumber(lua, turret->p.y);
+        lua_pushnumber(lua, turret->a);
+
+        lua_call(lua, 7, 0);
+    }
+}
+
+#define SPACE_QUERY_BB
+static int space_query_bb(lua_State *lua) {
+    CHECK_SPACE;
+    check_argsnum(lua, 5);
+    luaL_checktype(lua, 1, LUA_TNUMBER); // x
+    luaL_checktype(lua, 2, LUA_TNUMBER); // y
+    luaL_checktype(lua, 3, LUA_TNUMBER); // w
+    luaL_checktype(lua, 4, LUA_TNUMBER); // h
+    luaL_checktype(lua, 5, LUA_TFUNCTION);
+
+    cpShapeFilter filter = {
+        CP_NO_GROUP,
+        CP_ALL_CATEGORIES, 
+        CP_ALL_CATEGORIES 
+    };
+    cpBB bb;
+
+    bb.l = lua_tonumber(lua, 1);
+    bb.t = lua_tonumber(lua, 2);
+    bb.r = bb.l + lua_tonumber(lua, 3);
+    bb.b = bb.t + lua_tonumber(lua, 4);
+
+    cpSpaceBBQuery(cur_space->space, &bb, filter, on_bb_query, lua);
+
+    return 0;
+}
+#undef SPACE_QUERY_BB
 
 /*#define LOG_QUERY_ALL_TANKS_T*/
 static int query_all_tanks_t(lua_State *lua) {
@@ -1815,6 +1886,7 @@ int register_module(lua_State *lua) {
         {"space_set", space_set},
         {"space_debug_draw", space_debug_draw},
         {"space_query_segment_first", space_query_segment_first},
+        {"space_query_bb", space_query_bb},
 
         // вызов функции для всех тел в текущем пространстве
         /*{"query_all_shapes", query_all_shapes},*/
