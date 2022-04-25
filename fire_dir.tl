@@ -29,6 +29,8 @@ function commands.set_dist(): boolean
     dist = d
 end
 
+local lineWidth = 4
+
 function commands.ray(): boolean
     local x1 = graphic_command_channel:demand() as number
     local y1 = graphic_command_channel:demand() as number
@@ -38,7 +40,7 @@ function commands.ray(): boolean
     x2, y2 = x1 + x2, y1 + y2
 
     gr.setColor(ray_color)
-    gr.setLineWidth(1)
+    gr.setLineWidth(lineWidth)
     gr.line(x1, y1, x2, y2)
 
     return true

@@ -21,8 +21,14 @@ function commands.attach(): boolean
 
     --local w, h = 1920, 1080
     local w, h = gr.getDimensions()
+
+    --print('w, h', w, h)
     --local x, y = 0, 0
-    local cx, cy = x + w / 2, y + h / 2
+
+    local dx, dy = 0, 0
+    local cx, cy = dx + w / 2, dy + h / 2
+
+    print('cx, cy', cx, cy)
 
     print("camera.attach", x, y, scale)
 

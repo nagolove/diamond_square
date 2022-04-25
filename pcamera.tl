@@ -13,9 +13,10 @@ local record Camera
     new: function(pipeline: Pipeline, _screenW: number, _screenH: number): Camera
 
     -- Включить камеру
-    setTransform: function(Camera)
+    --setTransform: function(Camera)
     -- Отключить камеру
-    setOrigin: function(Camera)
+    --setOrigin: function(Camera)
+
     -- Проверка ввода с геймпада.
     -- TODO Вынести из камеры наружу.
     checkInput: function(Camera)
@@ -27,7 +28,8 @@ local record Camera
     detach: function(Camera)
 
     -- Из оконных координаты в абсолютные.
-    --fromLocal: function(Camera, x: number, y: number): number, number
+    fromLocal: function(Camera, x: number, y: number): number, number
+    fromLocal2: function(Camera, x: number, y: number): number, number
     -- Из абсолютных в оконные. 
     -- Что возвращать если точка лежит за пределами окна?
     --fromGlobal: function(Camera)
@@ -166,22 +168,27 @@ function Camera:reset()
 end
 
 function Camera:attach()
-    local w, h = 1920, 1080
-    local x, y = 0, 0
-    local cx, cy = x + w / 2, y + h / 2
-
-    --self.transform:translate(cx, cy)
-    --self.transform:scale(self.scale)
-    --self.transform:translate(-self.x, -self.y)
-
-    --self.pipeline:open('set_transform')
-    --self.pipeline:push(self.transform)
-    --self.pipeline:close()
-
-    print('self.x, self.y', self.x, self.y)
     self.pipeline:openPushAndClose(
         'camera', 'attach', self.x, self.y, self.scale
     )
+end
+
+function Camera:fromLocal2(x: number, y: number): number, number
+    --local w, h = 1920, 1080
+    --x, y = (x - w / 2) / self.scale, (y - h / 2) / self.scale
+    --return self.x + x, self.y + y
+	--local c,s = cos(self.rot), sin(self.rot)
+    local w, h = 1920, 1020
+	x,y = x - self.x, y - self.y
+	x,y = x - y, x + y
+    local ox, oy = 0, 0
+	return x*self.scale + w/2 + ox, y*self.scale + h/2 + oy
+end
+
+function Camera:fromLocal(x: number, y: number): number, number
+    local w, h = 1920, 1080
+    x, y = (x - w / 2) / self.scale, (y - h / 2) / self.scale
+    return self.x + x, self.y + y
 end
 
 function Camera:detach()
@@ -216,8 +223,10 @@ function Camera:checkMovement(j: Joystick)
     end
 
     if changed then
-        self.x = self.x + tx
-        self.y = self.y + ty
+        self.x = self.x - tx
+        self.y = self.y - ty
+        --self.x = self.x + tx
+        --self.y = self.y + ty
     end
 end
 

@@ -197,9 +197,7 @@ function Tank:fire()
     local x2, y2 = fromPolar(angle, fire_dist)
 
     pipeline:open('fire_dir')
-    pipeline:push('ray', x1 + camera.x, y1 + camera.y, angle)
-    --pipeline:push('ray', camera.x - x1, camera.y - y1, angle)
-    --pipeline:push('ray', x1, y1, angle)
+    pipeline:push('ray', x1, y1, angle)
 
     --camera:setOrigin()
     wrp.space_query_segment_first(self.id, x1, y1, x1 + x2, y1 + y2, 
@@ -209,13 +207,37 @@ function Tank:fire()
             nx: number, ny: number, 
             alpha: number
         )
-            --print('target', x, y)
-            --print('tank', tank:get_position())
-            --pipeline:push('target', x - camera.x, y - camera.y)
-            -- XXX При сдвиге камеры точка попадания смещается непонятно как
             pipeline:push('target', x, y)
         end
     )
+
+    local can_fire = self.loaded and self.shots > 0
+
+    --[[
+    if can_fire then
+        wrp.bullet_new(
+            {
+                x = x,
+                y = y,
+                a = angle,
+                damage = 100,
+                on_collison = function(
+                    type: wrp.ObjectType, b_init: wrp.BulletInit obj: any
+                )
+                    if type == "tank" then
+                        local tank = obj as Tank
+                        tank.strength = tank.strength - b_init.damage
+                        if tank.strength < 0 then
+                            tank.strength = 0
+                        end
+                    end
+                end
+            }, {
+            }
+        )
+    end
+    --]]
+
     --camera:setTransform()
 
     pipeline:push('enough')
@@ -375,8 +397,8 @@ function Tank.initPipelineObjects(pl: Pipeline, cam: PCamera)
     camera = cam
     pipeline = pl
 
-    pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
-    pipeline:open('base_shape')
+    pipeline:pushCodeFromFile("tank", 'rdr_tank.lua')
+    pipeline:open('tank')
     local full_info: Tank.FullInfo = {
         rect_body = rect_body,
         rect_turret = rect_turret,

@@ -838,7 +838,7 @@ local function debug_draw_vertices(
 end
 
 local function renderTanks()
-    pipeline:open('base_shape')
+    pipeline:open('tank')
     --wrp.query_all_tanks(on_each_body)
     wrp.query_all_tanks_t(on_each_body_t)
     pipeline:push('flush')
@@ -938,12 +938,10 @@ end
 local function render_internal()
     pipeline:openAndClose('clear')
 
-    -- Установка камеры
-    --camera:setTransform()
     camera:attach()
 
     -- Ландшафт
-    --diamondSquare:render()
+    diamondSquare:render()
 
     -- Танки
     renderTanks()
@@ -964,8 +962,6 @@ local function render_internal()
     -- Инфа об объекте под мышкой
     pipeline:openPushAndClose('object_lines_buf', 'flush')
 
-    -- Сброс трансформации камеры
-    --camera:setOrigin()
     camera:detach()
 
     -- Строчки с отладочной инфой.
@@ -1248,10 +1244,6 @@ local function spawnTanks()
     bordersArea.x1, bordersArea.y1 = minx, miny
     bordersArea.x2, bordersArea.y2 = maxx, maxy
 
-    -- информация о танчиках записывается в таблицу на стороне потока рисования
-    -- что-бы позже передавать данные только от изменивших положение объектах
-    --pipeline:open('base_shape')
-
     local rad = 1000
     for _ = 1, tanks_num do
         --local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
@@ -1329,7 +1321,7 @@ end
 -- Посылаются сообщения всем используемым объектам об очистке текущего 
 -- состояния в начальное.
 local function render_reset_state()
-    pipeline:openPushAndClose('base_shape', 'clear')
+    pipeline:openPushAndClose('tank', 'clear')
 end
 
 -- Создать сегменты ограничивающие карту
@@ -1687,11 +1679,6 @@ local function initRenderCode()
 
     pipeline:pushCodeFromFile("debug_vertices", "debug_vertices.lua")
 
-    -- Рисование физических тел.
-    --pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
-    -- Рисование физических тел.
-    --pipeline:pushCodeFromFile("turret_shape", 'poly_shape.lua')
-
     -- Рисование линий физических сегментов используемых для ограничения 
     -- игрового поля.
     pipeline:pushCodeFromFile('border_segments', 'border_segments.lua')
@@ -1892,7 +1879,9 @@ end
 local function mousemoved(x: number, y: number, dx: number, dy: number)
     metrics.mousemoved(x, y, dx, dy)
 
-    local absx, absy = -camera.x, -camera.y
+    --local absx, absy = -camera.x, -camera.y
+    --local absx, absy = camera:fromLocal2(x, y)
+    local absx, absy = camera:fromLocal(x, y)
 
     --print('absx, absy', absx, absy)
     local counter = 0
@@ -2067,7 +2056,9 @@ local function applyInput(j: Joystick)
 
     local fire_value = j:getAxis(fire_axis) 
     if fire_value > 0.5 then
+        camera:attach()
         playerTank:fire()
+        camera:detach()
     end
 
     local hut_num = 1
