@@ -939,7 +939,8 @@ local function render_internal()
     pipeline:openAndClose('clear')
 
     -- Установка камеры
-    camera:setTransform()
+    --camera:setTransform()
+    camera:attach()
 
     -- Ландшафт
     --diamondSquare:render()
@@ -964,13 +965,14 @@ local function render_internal()
     pipeline:openPushAndClose('object_lines_buf', 'flush')
 
     -- Сброс трансформации камеры
-    camera:setOrigin()
+    --camera:setOrigin()
+    camera:detach()
 
     -- Строчки с отладочной инфой.
     renderLinesBuf(player_x, player_y)
 
     -- Оси через центр экрана
-    camera:draw_axises()
+    --camera:draw_axises()
     --]]
 
     if is_draw_hotkeys_docs then
@@ -1368,7 +1370,6 @@ end
 local function spawnPlayer()
     local px, py = screenW / 3, screenH / 2
     playerTank = spawnTank(px, py)
-    --camera:setPlayer(playerTank)
 
     -- near friend for debugger
     spawnTank(px + 400, py)
@@ -1388,7 +1389,6 @@ local function nextTankAsPlayer()
     else
         playerTank = tanks[1]
     end
-    --camera:setPlayer(playerTank)
 end
 
 local function prevTankAsPlayer()
@@ -1405,7 +1405,6 @@ local function prevTankAsPlayer()
     else
         playerTank = tanks[#tanks]
     end
-    --camera:setPlayer(playerTank)
 end
 
 local function changePlayerTank(key: string)
@@ -1682,30 +1681,6 @@ local function initRenderCode()
     while true do
         love.graphics.clear(color)
         coroutine.yield()
-    end
-    ]])
-    -- }}}
-
-    -- Установить трансформацию
-    -- {{{
-    pipeline:pushCode('set_transform', [[
-    local gr = love.graphics
-    local yield = coroutine.yield
-    while true do
-        gr.applyTransform(graphic_command_channel:demand())
-        yield()
-    end
-    ]])
-    -- }}}
-
-    -- Сброс трансформации
-    -- {{{
-    pipeline:pushCode('origin_transform', [[
-    local gr = love.graphics
-    local yield = coroutine.yield
-    while true do
-        gr.origin()
-        yield()
     end
     ]])
     -- }}}
@@ -1997,13 +1972,11 @@ local function joystickpressed(_: Joystick, button: integer)
     local start = 8
 
     if button == left_shift then
-        print("setToOrigin()")
-        camera:setToOrigin()
+        camera:reset()
     end
     if button == right_shift then
-        print("moveToPlayer()")
         local px, py = playerTank.base:get_position()
-        camera:moveToPlayer(px, py)
+        camera:moveTo(px, py)
     end
     if button == start then
         -- Вывести справку по управлению
