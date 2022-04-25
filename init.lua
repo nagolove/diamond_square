@@ -838,7 +838,7 @@ local function debug_draw_vertices(
 end
 
 local function renderTanks()
-   pipeline:open('base_shape')
+   pipeline:open('tank')
 
    wrp.query_all_tanks_t(on_each_body_t)
    pipeline:push('flush')
@@ -938,12 +938,10 @@ end
 local function render_internal()
    pipeline:openAndClose('clear')
 
-
-
    camera:attach()
 
 
-
+   diamondSquare:render()
 
 
    renderTanks()
@@ -963,8 +961,6 @@ local function render_internal()
 
 
    pipeline:openPushAndClose('object_lines_buf', 'flush')
-
-
 
    camera:detach()
 
@@ -1248,10 +1244,6 @@ local function spawnTanks()
    bordersArea.x1, bordersArea.y1 = minx, miny
    bordersArea.x2, bordersArea.y2 = maxx, maxy
 
-
-
-
-
    local rad = 1000
    for _ = 1, tanks_num do
 
@@ -1329,7 +1321,7 @@ end
 
 
 local function render_reset_state()
-   pipeline:openPushAndClose('base_shape', 'clear')
+   pipeline:openPushAndClose('tank', 'clear')
 end
 
 
@@ -1689,11 +1681,6 @@ local function initRenderCode()
 
 
 
-
-
-
-
-
    pipeline:pushCodeFromFile('border_segments', 'border_segments.lua')
 
 
@@ -1892,7 +1879,9 @@ end
 local function mousemoved(x, y, dx, dy)
    metrics.mousemoved(x, y, dx, dy)
 
-   local absx, absy = -camera.x, -camera.y
+
+
+   local absx, absy = camera:fromLocal(x, y)
 
 
    local counter = 0
@@ -2067,7 +2056,9 @@ local function applyInput(j)
 
    local fire_value = j:getAxis(fire_axis)
    if fire_value > 0.5 then
+      camera:attach()
       playerTank:fire()
+      camera:detach()
    end
 
    local hut_num = 1

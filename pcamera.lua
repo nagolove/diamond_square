@@ -63,6 +63,8 @@ local Camera = {}
 
 
 
+
+
 local Camera_mt = {
    __index = Camera,
 }
@@ -166,22 +168,27 @@ function Camera:reset()
 end
 
 function Camera:attach()
-   local w, h = 1920, 1080
-   local x, y = 0, 0
-   local cx, cy = x + w / 2, y + h / 2
-
-
-
-
-
-
-
-
-
-   print('self.x, self.y', self.x, self.y)
    self.pipeline:openPushAndClose(
    'camera', 'attach', self.x, self.y, self.scale)
 
+end
+
+function Camera:fromLocal2(x, y)
+
+
+
+
+   local w, h = 1920, 1020
+   x, y = x - self.x, y - self.y
+   x, y = x - y, x + y
+   local ox, oy = 0, 0
+   return x * self.scale + w / 2 + ox, y * self.scale + h / 2 + oy
+end
+
+function Camera:fromLocal(x, y)
+   local w, h = 1920, 1080
+   x, y = (x - w / 2) / self.scale, (y - h / 2) / self.scale
+   return self.x + x, self.y + y
 end
 
 function Camera:detach()
@@ -216,8 +223,10 @@ function Camera:checkMovement(j)
    end
 
    if changed then
-      self.x = self.x + tx
-      self.y = self.y + ty
+      self.x = self.x - tx
+      self.y = self.y - ty
+
+
    end
 end
 

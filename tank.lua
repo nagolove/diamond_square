@@ -197,9 +197,7 @@ function Tank:fire()
    local x2, y2 = fromPolar(angle, fire_dist)
 
    pipeline:open('fire_dir')
-   pipeline:push('ray', x1 + camera.x, y1 + camera.y, angle)
-
-
+   pipeline:push('ray', x1, y1, angle)
 
 
    wrp.space_query_segment_first(self.id, x1, y1, x1 + x2, y1 + y2,
@@ -209,12 +207,36 @@ function Tank:fire()
       nx, ny,
       alpha)
 
-
-
-
-
       pipeline:push('target', x, y)
    end)
+
+
+   local can_fire = self.loaded and self.shots > 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -375,8 +397,8 @@ function Tank.initPipelineObjects(pl, cam)
    camera = cam
    pipeline = pl
 
-   pipeline:pushCodeFromFile("base_shape", 'poly_shape.lua')
-   pipeline:open('base_shape')
+   pipeline:pushCodeFromFile("tank", 'rdr_tank.lua')
+   pipeline:open('tank')
    local full_info = {
       rect_body = rect_body,
       rect_turret = rect_turret,

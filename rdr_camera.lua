@@ -22,7 +22,13 @@ function commands.attach()
 
    local w, h = gr.getDimensions()
 
-   local cx, cy = x + w / 2, y + h / 2
+
+
+
+   local dx, dy = 0, 0
+   local cx, cy = dx + w / 2, dy + h / 2
+
+   print('cx, cy', cx, cy)
 
    print("camera.attach", x, y, scale)
 
