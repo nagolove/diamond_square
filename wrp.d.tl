@@ -98,6 +98,8 @@ local record Wrapper
         -- Начальное положение снаряда
         x: number
         y: number
+        a: number
+        impulse: number -- 0..1 - влияет на скорость полета
         -- Дальность полета
         dist: number
         --[[
@@ -111,7 +113,7 @@ local record Wrapper
     record Bullet
     end
 
-    --bullet_new: function(init: BulletInit, self: table): Bullet
+    bullet_new: function(init: BulletInit, self: table): Bullet
 
     tank_new: function(
         init: TankInit,
