@@ -648,7 +648,7 @@ static int tank_new(lua_State *lua) {
 
     Tank *tank = lua_newuserdata(lua, sizeof(Tank));
     memset(tank, 0, sizeof(Tank));
-    tank->obj->type = OBJT_TANK;
+    tank->obj.type = OBJT_TANK;
 
     // [.., type, x, y, w, h, {ud}]
     luaL_getmetatable(lua, "_Tank");
@@ -961,6 +961,8 @@ void on_bb_query(cpShape *shape, void *data) {
     lua_State *lua = data;
     if (shape->body->userData) {
         /*lua_pushvalue(lua, 5); // callback function*/
+        cpBody *body = shape->body;
+        Tank *tank = (Tank*)body->userData;
 
         lua_pushnumber(lua, body->p.x);
         lua_pushnumber(lua, body->p.y);
@@ -992,14 +994,14 @@ static int space_query_bb(lua_State *lua) {
         CP_ALL_CATEGORIES, 
         CP_ALL_CATEGORIES 
     };
-    cpBB bb;
 
+    cpBB bb = {0, };
     bb.l = lua_tonumber(lua, 1);
     bb.t = lua_tonumber(lua, 2);
     bb.r = bb.l + lua_tonumber(lua, 3);
     bb.b = bb.t + lua_tonumber(lua, 4);
 
-    cpSpaceBBQuery(cur_space->space, &bb, filter, on_bb_query, lua);
+    cpSpaceBBQuery(cur_space->space, bb, filter, on_bb_query, lua);
 
     return 0;
 }
