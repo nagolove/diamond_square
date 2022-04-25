@@ -111,77 +111,99 @@ local function draw(): boolean
     return false
 end
 
-local commands: {string: function(): boolean} = {
-    ['add'] = function(): boolean
-        local id = graphic_command_channel:demand() as string
-        local message = graphic_command_channel:demand() as string
+local enum Command
+    "add"
+    "border"
+    "align_center"
+    "pos"
+    "remove"
+    "clear"
+    "enough"
+    'flush'
+end
 
-        if type(id) ~= 'string' and type(id) ~= 'number' then
-            print('id, type(id)', id, type(id))
-            error('id in lines_buf should be a string or number')
-        end
-        if type(message) ~= 'string' then
-            error('message in lines_buf should be a string')
-        end
+local commands = {}
 
-        buffer[id] = message
-        buffer_num = buffer_num + 1
+function commands.add(): boolean
+    local id = graphic_command_channel:demand() as string
+    local message = graphic_command_channel:demand() as string
 
-        return true
-    end,
-    ['border'] = function(): boolean
-        print(colorize('%{yellow}cmd == border'))
-        local state = graphic_command_channel:demand() as boolean
-        if type(state) ~= 'boolean' then
-            error('lines_buf: border should be a boolean value')
-        end
-        use_border = state
-        if use_border then
-            calculate_border_witdh()
-        end
-        return true
-    end,
-    ['align_center'] = align_center,
-    ['pos'] = function(): boolean
-        local x = graphic_command_channel:demand() as number
-        local y = graphic_command_channel:demand() as number
+    if type(id) ~= 'string' and type(id) ~= 'number' then
+        print('id, type(id)', id, type(id))
+        error('id in lines_buf should be a string or number')
+    end
+    if type(message) ~= 'string' then
+        error('message in lines_buf should be a string')
+    end
 
-        if type(x) ~= 'number' then
-            error('x should be a number in lines_buf->add')
-        end
-        if type(y) ~= 'number' then
-            error('y should be a number in lines_buf->add')
-        end
+    buffer[id] = message
+    buffer_num = buffer_num + 1
 
-        posx, posy = x, y
-        return true
-    end,
-    ['remove'] = function(): boolean
-        local id = graphic_command_channel:demand() as string
-        if buffer[id] then
-            buffer[id] = nil
-            buffer_num = buffer_num - 1
-        end
-        return true
-    end,
-    ['clear'] = function(): boolean
-        buffer = {}
-        buffer_num = 0
-        return false
-    end,
-    ['enough'] = function(): boolean
-        return false
-    end,
-    ['flush'] = draw,
-}
+    return true
+end
+
+function commands.border(): boolean
+    print(colorize('%{yellow}cmd == border'))
+    local state = graphic_command_channel:demand() as boolean
+    if type(state) ~= 'boolean' then
+        error('lines_buf: border should be a boolean value')
+    end
+    use_border = state
+    if use_border then
+        calculate_border_witdh()
+    end
+    return true
+end
+
+function commands.align_center(): boolean
+    return align_center();
+end
+
+function commands.pos(): boolean
+    local x = graphic_command_channel:demand() as number
+    local y = graphic_command_channel:demand() as number
+
+    if type(x) ~= 'number' then
+        error('x should be a number in lines_buf->add')
+    end
+    if type(y) ~= 'number' then
+        error('y should be a number in lines_buf->add')
+    end
+
+    posx, posy = x, y
+    return true
+end
+
+function commands.remove(): boolean
+    local id = graphic_command_channel:demand() as string
+    if buffer[id] then
+        buffer[id] = nil
+        buffer_num = buffer_num - 1
+    end
+    return true
+end
+
+function commands.clear(): boolean
+    buffer = {}
+    buffer_num = 0
+    return false
+end
+
+function commands.enough(): boolean
+    return false
+end
+
+function commands.flush(): boolean
+    return draw()
+end
 
 while true do
-    local cmd: string
+    local cmd: Command
     --print('lines_buf: cmd', cmd)
 
     local oldfont = gr.getFont()
     repeat
-        cmd = graphic_command_channel:demand() as string
+        cmd = graphic_command_channel:demand() as Command
 
         --[[
         Добавить цветной текст? В каком виде?
