@@ -200,6 +200,8 @@ function Tank:fire()
    pipeline:push('ray', x1 + camera.x, y1 + camera.y, angle)
 
 
+
+
    wrp.space_query_segment_first(self.id, x1, y1, x1 + x2, y1 + y2,
    function(
       tank,

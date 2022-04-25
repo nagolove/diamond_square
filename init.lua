@@ -939,7 +939,8 @@ local function render_internal()
    pipeline:openAndClose('clear')
 
 
-   camera:setTransform()
+
+   camera:attach()
 
 
 
@@ -964,13 +965,14 @@ local function render_internal()
    pipeline:openPushAndClose('object_lines_buf', 'flush')
 
 
-   camera:setOrigin()
+
+   camera:detach()
 
 
    renderLinesBuf(player_x, player_y)
 
 
-   camera:draw_axises()
+
 
 
    if is_draw_hotkeys_docs then
@@ -1370,7 +1372,6 @@ local function spawnPlayer()
    playerTank = spawnTank(px, py)
 
 
-
    spawnTank(px + 400, py)
 end
 
@@ -1388,7 +1389,6 @@ local function nextTankAsPlayer()
    else
       playerTank = tanks[1]
    end
-
 end
 
 local function prevTankAsPlayer()
@@ -1405,7 +1405,6 @@ local function prevTankAsPlayer()
    else
       playerTank = tanks[#tanks]
    end
-
 end
 
 local function changePlayerTank(key)
@@ -1682,30 +1681,6 @@ local function initRenderCode()
     while true do
         love.graphics.clear(color)
         coroutine.yield()
-    end
-    ]])
-
-
-
-
-   pipeline:pushCode('set_transform', [[
-    local gr = love.graphics
-    local yield = coroutine.yield
-    while true do
-        gr.applyTransform(graphic_command_channel:demand())
-        yield()
-    end
-    ]])
-
-
-
-
-   pipeline:pushCode('origin_transform', [[
-    local gr = love.graphics
-    local yield = coroutine.yield
-    while true do
-        gr.origin()
-        yield()
     end
     ]])
 
@@ -1997,13 +1972,11 @@ local function joystickpressed(_, button)
    local start = 8
 
    if button == left_shift then
-      print("setToOrigin()")
-      camera:setToOrigin()
+      camera:reset()
    end
    if button == right_shift then
-      print("moveToPlayer()")
       local px, py = playerTank.base:get_position()
-      camera:moveToPlayer(px, py)
+      camera:moveTo(px, py)
    end
    if button == start then
 

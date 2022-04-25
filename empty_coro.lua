@@ -8,7 +8,7 @@ local inspect = require('inspect')
 local colorize = require('ansicolors2').ansicolors
 local format = string.format
 local yield = coroutine.yield
-local gr = love.graphics
+
 
 require('love')
 

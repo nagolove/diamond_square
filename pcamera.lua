@@ -59,6 +59,10 @@ local Camera = {}
 
 
 
+
+
+
+
 local Camera_mt = {
    __index = Camera,
 }
@@ -72,6 +76,9 @@ function Camera.new(pipeline, _screenW, _screenH)
    self.dt = 0
    self.transform = love.math.newTransform()
    self.pipeline = pipeline
+
+   self.pipeline:pushCodeFromFile('camera', "rdr_camera.lua")
+
    self.pipeline:pushCode("camera_axises", [[
     local yield = coroutine.yield
     local linew = 1.
@@ -87,17 +94,44 @@ function Camera.new(pipeline, _screenW, _screenH)
         yield()
     end
     ]])
+
+
+
+   pipeline:pushCode('set_transform', [[
+    local gr = love.graphics
+    local yield = coroutine.yield
+    while true do
+        gr.applyTransform(graphic_command_channel:demand())
+        yield()
+    end
+    ]])
+
+
+
+
+   pipeline:pushCode('origin_transform', [[
+    local gr = love.graphics
+    local yield = coroutine.yield
+    while true do
+        gr.origin()
+        yield()
+    end
+    ]])
+
+
    return self
 end
 
 function Camera:setTransform()
-   self.pipeline:open('set_transform')
-   self.pipeline:push(self.transform)
-   self.pipeline:close()
+
+
+
+
+
 end
 
 function Camera:setOrigin()
-   self.pipeline:openAndClose('origin_transform')
+
 end
 
 function Camera:checkInput(j)
@@ -117,28 +151,42 @@ function Camera:push2lines_buf()
    local fmt2 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f"
    msg = sformat(
    "camera mat: (" .. fmt1 .. fmt2 .. ")",
-   mat[1],
-   mat[2],
-   mat[3],
-   mat[4],
-   mat[5],
-   mat[6],
-   mat[7],
-   mat[8],
-   mat[9],
-   mat[10],
-   mat[11],
-   mat[12],
-   mat[13],
-   mat[14],
-   mat[15],
-   mat[16])
+   mat[1], mat[2], mat[3], mat[4], mat[5], mat[6], mat[7], mat[8],
+   mat[9], mat[10], mat[11], mat[12], mat[13], mat[14], mat[15], mat[16])
 
    self.pipeline:push("add", "camera_mat", msg)
 end
 
 function Camera:update(dt)
    self.dt = dt
+end
+
+function Camera:reset()
+   self.x, self.y, self.scale = 0., 0., 1.
+end
+
+function Camera:attach()
+   local w, h = 1920, 1080
+   local x, y = 0, 0
+   local cx, cy = x + w / 2, y + h / 2
+
+
+
+
+
+
+
+
+
+   print('self.x, self.y', self.x, self.y)
+   self.pipeline:openPushAndClose(
+   'camera', 'attach', self.x, self.y, self.scale)
+
+end
+
+function Camera:detach()
+
+   self.pipeline:openPushAndClose('camera', 'detach')
 end
 
 function Camera:checkMovement(j)
@@ -170,7 +218,6 @@ function Camera:checkMovement(j)
    if changed then
       self.x = self.x + tx
       self.y = self.y + ty
-      self.transform:translate(tx, ty)
    end
 end
 
@@ -189,14 +236,13 @@ function Camera:checkScale(j)
 
       self.scale = 1 + factor
 
-      self.transform:scale(self.scale, self.scale)
 
-      self.transform:translate(-px, -py)
+
    elseif dy == 1 then
       self.scale = 1 - factor
 
-      self.transform:scale(self.scale, self.scale)
-      self.transform:translate(px, py)
+
+
    end
 
 end
@@ -210,28 +256,33 @@ function Camera:checkIsPlayerInCircle()
 end
 
 
-function Camera:moveToPlayer(px, py)
+function Camera:moveTo(px, py)
+   print("moveTo x, y", px, py)
    print("camera x, y, scale", self.x, self.y, self.scale)
-   print("tank x, y", px, py)
-   self.scale = 1.
-   local dx = self.x - px + self.screenW / 2
-   local dy = self.y - py + self.screenH / 2
-   self.x, self.y = self.x + dx, self.y + dy
-   if self.x ~= dx or self.y ~= dy then
+   self.x, self.y = px, py
 
-      self.transform:reset()
-      self.transform:scale(self.scale)
 
-      self.transform:translate(dx, dy)
-   end
+
+
+
+
+
+
+
+
+
+
+
 end
 
 function Camera:setToOrigin()
-   self.x, self.y = 0, 0
-   self.scale = 1,
-   self.transform:translate(self.x, self.y)
-   self.transform:reset()
-   self.transform:scale(self.scale, self.scale)
+
+
+
+
+
+
+
 end
 
 return Camera
