@@ -117,22 +117,8 @@ function Camera:push2lines_buf()
     local fmt2 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f"
     msg = sformat(
         "camera mat: (" .. fmt1 .. fmt2 .. ")",
-        mat[1],
-        mat[2],
-        mat[3],
-        mat[4],
-        mat[5],
-        mat[6],
-        mat[7],
-        mat[8],
-        mat[9],
-        mat[10],
-        mat[11],
-        mat[12],
-        mat[13],
-        mat[14],
-        mat[15],
-        mat[16]
+        mat[1], mat[2], mat[3], mat[4], mat[5], mat[6], mat[7], mat[8],
+        mat[9], mat[10], mat[11], mat[12], mat[13], mat[14], mat[15], mat[16]
     )
     self.pipeline:push("add", "camera_mat", msg)
 end
