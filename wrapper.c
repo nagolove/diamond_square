@@ -27,7 +27,7 @@ if (!cur_space) {                                       \
 typedef enum {
     OBJT_TANK,
     OBJT_BULLET,
-    OBJT_SEGMENT,
+    OBJT_SEGMENT, // Отрезок, ограничивающиц движение
 } ObjType;
 
 typedef struct {
