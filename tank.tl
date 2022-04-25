@@ -198,6 +198,8 @@ function Tank:fire()
 
     pipeline:open('fire_dir')
     pipeline:push('ray', x1 + camera.x, y1 + camera.y, angle)
+    --pipeline:push('ray', camera.x - x1, camera.y - y1, angle)
+    --pipeline:push('ray', x1, y1, angle)
 
     --camera:setOrigin()
     wrp.space_query_segment_first(self.id, x1, y1, x1 + x2, y1 + y2, 
