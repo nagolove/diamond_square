@@ -22,11 +22,15 @@ local record Camera
     -- Обновить состояние.
     update: function(Camera, dt: number)
 
+    reset: function(Camera)
+    attach: function(Camera)
+    detach: function(Camera)
+
     -- Из оконных координаты в абсолютные.
-    fromLocal: function(Camera, x: number, y: number): number, number
+    --fromLocal: function(Camera, x: number, y: number): number, number
     -- Из абсолютных в оконные. 
     -- Что возвращать если точка лежит за пределами окна?
-    fromGlobal: function(Camera)
+    --fromGlobal: function(Camera)
 
     -- Проверить, не выехал ли игрок за круг в локальной системе координат.
     -- Если выехал, то вернуть его обратно.
@@ -72,6 +76,9 @@ function Camera.new(pipeline: Pipeline, _screenW: number, _screenH: number): Cam
     self.dt = 0
     self.transform = love.math.newTransform()
     self.pipeline = pipeline
+
+    self.pipeline:pushCodeFromFile('camera', "rdr_camera.lua")
+
     self.pipeline:pushCode("camera_axises", [[
     local yield = coroutine.yield
     local linew = 1.
@@ -87,17 +94,44 @@ function Camera.new(pipeline: Pipeline, _screenW: number, _screenH: number): Cam
         yield()
     end
     ]])
+
+    -- Установить трансформацию
+    -- {{{
+    pipeline:pushCode('set_transform', [[
+    local gr = love.graphics
+    local yield = coroutine.yield
+    while true do
+        gr.applyTransform(graphic_command_channel:demand())
+        yield()
+    end
+    ]])
+    -- }}}
+
+    -- Сброс трансформации
+    -- {{{
+    pipeline:pushCode('origin_transform', [[
+    local gr = love.graphics
+    local yield = coroutine.yield
+    while true do
+        gr.origin()
+        yield()
+    end
+    ]])
+    -- }}}
+
     return self
 end
 
 function Camera:setTransform()
+    --[[
     self.pipeline:open('set_transform')
     self.pipeline:push(self.transform)
     self.pipeline:close()
+    --]]
 end
 
 function Camera:setOrigin()
-    self.pipeline:openAndClose('origin_transform')
+    --self.pipeline:openAndClose('origin_transform')
 end
 
 function Camera:checkInput(j: Joystick)
@@ -125,6 +159,34 @@ end
 
 function Camera:update(dt: number)
     self.dt = dt
+end
+
+function Camera:reset()
+    self.x, self.y, self.scale = 0., 0., 1.
+end
+
+function Camera:attach()
+    local w, h = 1920, 1080
+    local x, y = 0, 0
+    local cx, cy = x + w / 2, y + h / 2
+
+    --self.transform:translate(cx, cy)
+    --self.transform:scale(self.scale)
+    --self.transform:translate(-self.x, -self.y)
+
+    --self.pipeline:open('set_transform')
+    --self.pipeline:push(self.transform)
+    --self.pipeline:close()
+
+    print('self.x, self.y', self.x, self.y)
+    self.pipeline:openPushAndClose(
+        'camera', 'attach', self.x, self.y, self.scale
+    )
+end
+
+function Camera:detach()
+    --self.pipeline:openAndClose('origin_transform')
+    self.pipeline:openPushAndClose('camera', 'detach')
 end
 
 function Camera:checkMovement(j: Joystick)
@@ -156,7 +218,6 @@ function Camera:checkMovement(j: Joystick)
     if changed then
         self.x = self.x + tx
         self.y = self.y + ty
-        self.transform:translate(tx, ty)
     end
 end
 
@@ -175,14 +236,13 @@ function Camera:checkScale(j: Joystick)
         -- приходилось на центр экрана
         self.scale = 1 + factor
         --self.transform:scale(1 + factor, 1 + factor)
-        self.transform:scale(self.scale, self.scale)
-
-        self.transform:translate(-px, -py)
+        --self.transform:scale(self.scale, self.scale)
+        --self.transform:translate(-px, -py)
     elseif dy == 1 then
         self.scale = 1 - factor
         --self.transform:scale(1 - factor, 1 - factor)
-        self.transform:scale(self.scale, self.scale)
-        self.transform:translate(px, py)
+        --self.transform:scale(self.scale, self.scale)
+        --self.transform:translate(px, py)
     end
     --]]
 end
@@ -196,10 +256,12 @@ function Camera:checkIsPlayerInCircle()
 end
 
 -- камера перемещается на танк игрока
-function Camera:moveToPlayer(px: number, py: number)
+function Camera:moveTo(px: number, py: number)
+    print("moveTo x, y", px, py)
     print("camera x, y, scale", self.x, self.y, self.scale)
-    print("tank x, y", px, py)
-    self.scale = 1.
+    self.x, self.y = px, py
+    --self.scale = 1.
+    --[[
     local dx = self.x - px + self.screenW / 2
     local dy = self.y - py + self.screenH / 2
     self.x, self.y = self.x + dx, self.y + dy
@@ -210,14 +272,17 @@ function Camera:moveToPlayer(px: number, py: number)
         --self.transform:translate(-x, -y)
         self.transform:translate(dx, dy)
     end
+    --]]
 end
 
 function Camera:setToOrigin()
+    --[[
     self.x, self.y = 0, 0
     self.scale = 1,
     self.transform:translate(self.x, self.y)
     self.transform:reset()
     self.transform:scale(self.scale, self.scale)
+    --]]
 end
 
 return Camera
