@@ -105,7 +105,7 @@ local record Wrapper
         или с сегментом. Сегмент может быть граничный или высотный. 
         Высотный сегмент определяет горы на ландшафте.
         --]]
-        on_collison: function(ObjectType type, obj: any)
+        on_collison: function(type: ObjectType, obj: any)
     end
 
     record Bullet
