@@ -199,6 +199,7 @@ function Tank:fire()
    pipeline:open('fire_dir')
    pipeline:push('ray', x1 + camera.x, y1 + camera.y, angle)
 
+
    wrp.space_query_segment_first(self.id, x1, y1, x1 + x2, y1 + y2,
    function(
       tank,
@@ -206,10 +207,13 @@ function Tank:fire()
       nx, ny,
       alpha)
 
-      print('target', x, y)
-      print('tank', tank:get_position())
+
+
+
+
       pipeline:push('target', x, y)
    end)
+
 
 
    pipeline:push('enough')

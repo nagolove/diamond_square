@@ -59,10 +59,6 @@ local Camera = {}
 
 
 
-
-
-
-
 local Camera_mt = {
    __index = Camera,
 }
@@ -103,10 +99,6 @@ end
 function Camera:setOrigin()
    self.pipeline:openAndClose('origin_transform')
 end
-
-
-
-
 
 function Camera:checkInput(j)
    self:checkMovement(j)
@@ -219,14 +211,8 @@ end
 
 
 function Camera:moveToPlayer(px, py)
-
-
-
-
-
    print("camera x, y, scale", self.x, self.y, self.scale)
    print("tank x, y", px, py)
-
    self.scale = 1.
    local dx = self.x - px + self.screenW / 2
    local dy = self.y - py + self.screenH / 2
