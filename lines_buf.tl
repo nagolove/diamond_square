@@ -91,26 +91,6 @@ end
 local text_color = {0, 0, 0, 1}
 local border_color = {0, 0, 0, 1}
 
--- Перерасчет posx, posy для рисования текущей таблицы по центру экрана.
-local function align_center(): boolean
-    local w, h = gr.getDimensions()
-    posx = (w - border_w) / 2
-    posy = (h - buffer_num * font:getHeight()) / 2
-    print('posx, posy', posx, posy)
-    return true
-end
-
-local function draw(): boolean
-    gr.setFont(font)
-    gr.setColor(text_color)
-    local y = posy
-    for _, v in pairs(buffer) do
-        gr.print(v, posx, y)
-        y = y + font:getHeight()
-    end
-    return false
-end
-
 local enum Command
     "add"
     "border"
@@ -156,7 +136,11 @@ function commands.border(): boolean
 end
 
 function commands.align_center(): boolean
-    return align_center();
+    local w, h = gr.getDimensions()
+    posx = (w - border_w) / 2
+    posy = (h - buffer_num * font:getHeight()) / 2
+    print('posx, posy', posx, posy)
+    return true
 end
 
 function commands.pos(): boolean
@@ -194,7 +178,14 @@ function commands.enough(): boolean
 end
 
 function commands.flush(): boolean
-    return draw()
+    gr.setFont(font)
+    gr.setColor(text_color)
+    local y = posy
+    for _, v in pairs(buffer) do
+        gr.print(v, posx, y)
+        y = y + font:getHeight()
+    end
+    return false
 end
 
 while true do
