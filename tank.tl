@@ -107,7 +107,9 @@ local record Tank
     -- Абсолютные координаты в пикселях
     new: function(x: number, y: number): Tank
     -- Вызывается один раз для инициализации модуля.
-    initPipelineObjects: function(pl: Pipeline, cam: PCamera)
+    initPipelineObjects: function(
+        pl: Pipeline, cam: PCamera, bp: wrp.BulletPool
+    )
 
     -- Обновить логику, не физику.
     -- Если возвращается nil, то объект считается убитым.
@@ -391,11 +393,18 @@ function Tank:rotate_turret(dir: Tank.Direction)
     --]]
 end
 
-function Tank.initPipelineObjects(pl: Pipeline, cam: PCamera)
+local bulletPool: wrp.BulletPool
+
+function Tank.initPipelineObjects(
+    pl: Pipeline, cam: PCamera, bp: wrp.BulletPool
+)
     assert(pl)
     assert(cam)
+    --assert(bp)
+
     camera = cam
     pipeline = pl
+    bulletPool = bp
 
     pipeline:pushCodeFromFile("tank", 'rdr_tank.lua')
     pipeline:open('tank')
