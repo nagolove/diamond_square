@@ -19,18 +19,10 @@ function commands.attach()
    local y = graphic_command_channel:demand()
    local scale = graphic_command_channel:demand()
 
-
    local w, h = gr.getDimensions()
-
-
-
 
    local dx, dy = 0, 0
    local cx, cy = dx + w / 2, dy + h / 2
-
-   print('cx, cy', cx, cy)
-
-   print("camera.attach", x, y, scale)
 
    gr.push()
    gr.translate(cx, cy)

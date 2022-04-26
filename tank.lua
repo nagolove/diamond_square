@@ -137,6 +137,8 @@ local Tank = {Rect = {}, FullInfo = {}, }
 
 
 
+
+
 local pipeline
 local camera
 
@@ -391,11 +393,18 @@ function Tank:rotate_turret(dir)
 
 end
 
-function Tank.initPipelineObjects(pl, cam)
+local bulletPool
+
+function Tank.initPipelineObjects(
+   pl, cam, bp)
+
    assert(pl)
    assert(cam)
+
+
    camera = cam
    pipeline = pl
+   bulletPool = bp
 
    pipeline:pushCodeFromFile("tank", 'rdr_tank.lua')
    pipeline:open('tank')

@@ -284,8 +284,8 @@ local Borders = {}
 
 local rng = love.math.newRandomGenerator()
 
-rng:setSeed(300 * 123414)
-
+local bullet_pool_capacity = 2048
+local bulletPool
 
 local DiamonAndSquare = require('diamondsquare')
 local diamondSquare = DiamonAndSquare.new(5, rng, pipeline)
@@ -1688,7 +1688,7 @@ end
 
 
 local function initPipelineObjects()
-   Tank.initPipelineObjects(pipeline, camera)
+   Tank.initPipelineObjects(pipeline, camera, bulletPool)
 
 
 
@@ -1756,9 +1756,13 @@ end
 local function init()
 
    print('init started')
+
+   rng:setSeed(300 * 123414)
+
    metrics.init()
    space = wrp.space_new(space_damping)
    wrp.space_set(space)
+   bulletPool = wrp.bullet_pool_new(bullet_pool_capacity)
 
    screenW, screenH = pipeline:getDimensions()
    print('screenW, screenH', screenW, screenH)
@@ -2026,9 +2030,6 @@ end
 
 
 
-
-
-
 local function applyInput(j)
 
    if not j and not playerTank then
@@ -2142,23 +2143,6 @@ local function mainloop()
       love.timer.sleep(timeout)
    end
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 init()
 mainloop()
