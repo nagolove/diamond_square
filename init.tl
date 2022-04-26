@@ -284,8 +284,8 @@ end
 
 local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
-rng:setSeed(300 * 123414)
---rng:setSeed(os.time())
+local bullet_pool_capacity = 2048
+local bulletPool: wrp.BulletPool
 
 local DiamonAndSquare = require 'diamondsquare'
 local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(5, rng, pipeline)
@@ -1688,7 +1688,7 @@ end
 
 -- Инициализация параметрами объектов-корутин на стороне главного потока.
 local function initPipelineObjects()
-    Tank.initPipelineObjects(pipeline, camera)
+    Tank.initPipelineObjects(pipeline, camera, bulletPool)
 
     --[[
     Пиксели для вырезки
@@ -1756,9 +1756,13 @@ end
 local function init()
     -- {{{
     print('init started')
+
+    rng:setSeed(300 * 123414)
+
     metrics.init()
     space = wrp.space_new(space_damping)
     wrp.space_set(space)
+    bulletPool = wrp.bullet_pool_new(bullet_pool_capacity)
 
     screenW, screenH = pipeline:getDimensions()
     print('screenW, screenH', screenW, screenH)
@@ -2025,9 +2029,6 @@ end
 Задача: написать модуль, встроенный в бинарный файл love, для замены
 pipeline.tl
 --]]
---local pp = require "mtpipeline"
---pp.init()
---pp.free()
 
 local function applyInput(j: Joystick)
     -- Нужно and или or?
@@ -2142,23 +2143,6 @@ local function mainloop()
         love.timer.sleep(timeout)
     end
 end
-
---[[
--- {{{ BulletPool prototype
-local record BulletPool
-    new: function(BulletPool, num: integer): BulletPool
-    spaw: function(x: number, y: number): Bullet
-end
-
-function BulletPool.new(num: integer): BulletPool
-    local BulletPool_mt: metatable<BulletPool> = {
-        __index = BulletPool,
-    }
-    local self = setmetatable({} as BulletPool, BulletPool_mt)
-    return self
-end
--- }}}
---]]
 
 init()
 mainloop()
