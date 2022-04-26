@@ -94,6 +94,7 @@ local record Wrapper
     end
 
     record BulletInit
+        -- {{{
         type: ObjectType
         -- Начальное положение снаряда
         x: number
@@ -108,12 +109,18 @@ local record Wrapper
         Высотный сегмент определяет горы на ландшафте.
         --]]
         on_collison: function(type: ObjectType, obj: any)
+        -- }}}
     end
 
     record Bullet
     end
 
-    bullet_new: function(init: BulletInit, self: table): Bullet
+    record BulletPool
+        new: function(init: BulletInit)
+    end
+
+    bullet_pool_new: function(bullet_num: integer): BulletPool
+    --bullet_new: function(init: BulletInit, self: table): Bullet
 
     tank_new: function(
         init: TankInit,
