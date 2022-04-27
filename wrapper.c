@@ -25,6 +25,7 @@ if (!cur_space) {                                       \
 }                                                       \
 
 typedef enum {
+    OBJT_ERROR,
     OBJT_TANK,
     OBJT_BULLET,
     OBJT_SEGMENT, // Отрезок, ограничивающиц движение
@@ -341,6 +342,7 @@ void tank_check_type(lua_State *lua,
 }
 
 // Кладет в стек таблицу с вершинами из фигуры вида {x1, y1, x2, y2, ..}
+// Если тип формы неподходящий, то кладет на стек пустую таблицу.
 /*#define PUSH_SHAPE_VERTICES*/
 void push_shape_vertices(cpBody *body, cpShape *shape, void *data) {
     lua_State *lua = data;
@@ -348,10 +350,10 @@ void push_shape_vertices(cpBody *body, cpShape *shape, void *data) {
 #ifdef PUSH_SHAPE_VERTICES
     LOG("push_shape_vertices\n");
 #endif
+    lua_newtable(lua);
     if (shape->klass->type != CP_POLY_SHAPE) {
         return;
     }
-    lua_newtable(lua);
     int top = lua_gettop(lua);
     int index = 1;
     for (int i = 0; i < cpPolyShapeGetCount(shape); ++i) {
@@ -555,8 +557,8 @@ void tank_push_debug_vertices(lua_State *lua, const Tank *tank) {
 
 // Добавить трения для тел так, что-бы они останавливались после приложения
 // импульса
-#define LOG_TANK_NEW
-#define PUSH_DEBUG_TANK_VERTICES
+/*#define LOG_TANK_NEW*/
+/*#define PUSH_DEBUG_TANK_VERTICES*/
 static int tank_new(lua_State *lua) {
     // [.., type, x, y, w, h, assoc_table]
     CHECK_SPACE;
@@ -753,15 +755,19 @@ void on_each_tank_t(cpBody *body, void *data) {
     LOG_STACK_DUMP(lua);
 #endif
 
-    Tank *tank = (Tank*)body->userData;
-
     /*if (tank && */
         /*tank->obj.type == OBJT_TANK && */
         /*tank->assoc_table_reg_index != 0) {*/
         /*return;*/
     /*}*/
 
-    LOG("on_each_tank_t: tank = %p\n");
+    /*if (!body->userData) {*/
+        /*return;*/
+    /*}*/
+
+    Tank *tank = (Tank*)body->userData;
+    LOG("on_each_tank_t: tank = %p\n", tank);
+
     if (tank) {
         LOG("on_each_tank_t: tank->obj.type = %d\n", tank->obj.type);
         LOG("on_each_tank_t: tank->assoc_table_reg_index = %d\n", 
@@ -1877,16 +1883,17 @@ int bullet_pool_new(lua_State *lua) {
     // {{{
     CHECK_SPACE;
     int num = ceil(luaL_checknumber(lua, 1));
+    LOG("bulletpool_new: num = %d\n", num);
 
     BulletPool *pool = lua_newuserdata(lua, sizeof(BulletPool));
-    memset(pool, 0, sizeof(*pool));
+    memset(pool, 0, sizeof(BulletPool));
 
-    LOG("bullet_pool_new: [%s]", stack_dump(lua));
+    LOG("bullet_pool_new: [%s]\n", stack_dump(lua));
 
     luaL_getmetatable(lua, "_BulletPool");
     lua_setmetatable(lua, -2);
 
-    LOG("bullet_pool_new: [%s]", stack_dump(lua));
+    LOG("bullet_pool_new: [%s]\n", stack_dump(lua));
 
     pool->pool = calloc(num, sizeof(Bullet));
     pool->num = num;
@@ -1905,12 +1912,14 @@ int bullet_pool_new(lua_State *lua) {
     for (int i = 0; i < num; ++i) {
         Bullet *b = &pool->pool[i];
         b->obj.type = OBJT_BULLET;
+
         b->body = cpBodyNew(mass, moment);
         b->body->userData = b;
         b->shape = cpCircleShapeNew(b->body, radius, cpvzero);
         cpShapeSetFilter(b->shape, CP_SHAPE_FILTER_NONE);
         cpSpaceAddBody(cur_space->space, b->body);
         cpSpaceAddShape(cur_space->space, b->shape);
+        cpBodySleep(b->body);
     }
 
     return 1;
