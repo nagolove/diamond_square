@@ -116,7 +116,7 @@ local record Wrapper
     end
 
     record BulletPool
-        new: function(init: BulletInit)
+        new: function(BulletPool, init: BulletInit)
     end
 
     bullet_pool_new: function(bullet_num: integer): BulletPool
