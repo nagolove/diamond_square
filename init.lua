@@ -40,8 +40,6 @@ print("package.cpath", package.cpath)
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
 local wrp = require("wrp")
-local Wrapper = wrp
-
 
 require("love")
 require('konstants')
@@ -60,7 +58,7 @@ local inspect = require("inspect")
 
 
 local metrics = require("metrics")
-local vec2 = require("vector")
+
 
 
 
@@ -382,10 +380,6 @@ function Arena.new(_)
 
    return self
 end
-
-
-local base_tex_fname = 'tank_body.cut.png'
-local turret_text_fname = 'tank_tower.png'
 
 
 
@@ -756,13 +750,15 @@ end
 local function on_each_body_t(
    x, y, angle, obj,
    tur_x, tur_y, tur_angle,
-   debug_vertices)
+   _)
 
    local tank = obj
 
    if type(tank) ~= "table" then
       error("tank should be a table, not a " .. type(tank))
    end
+
+
 
 
 
@@ -812,8 +808,8 @@ local function renderSegments()
 end
 
 local function debug_draw_vertices(
-   x, y, angle, obj,
-   tur_x, tur_y, tur_angle,
+   _, _, _, _,
+   _, _, _,
    debug_vertices)
 
    if debug_vertices then
@@ -850,6 +846,8 @@ local function renderTanks()
    pipeline:push('enough')
    pipeline:close()
 end
+
+
 
 
 
@@ -1244,12 +1242,9 @@ local function spawnTanks()
    bordersArea.x1, bordersArea.y1 = minx, miny
    bordersArea.x2, bordersArea.y2 = maxx, maxy
 
-   local rad = 1000
+
    for _ = 1, tanks_num do
 
-      local p = vec2.fromPolar(
-      rng:random() * 2 * math.pi,
-      rad)
 
 
    end
@@ -1330,11 +1325,14 @@ local function initBorders()
    local borders_data
 
 
-   if #segments ~= 0 then
-      for _, v in ipairs(segments) do
 
-      end
-   end
+
+
+
+
+
+
+
 
    local ok, msg = pcall(function()
       local path = SCENE_PREFIX .. "/borders_data.lua"
@@ -1349,10 +1347,10 @@ local function initBorders()
    if borders_data then
       for _, b in ipairs(borders_data) do
          print('border', inspect(b))
+         table.insert(
+         segments,
+         wrp.static_segment_new(b.x1, b.y1, b.x2, b.y2))
 
-
-
-         wrp.static_segment_new(b.x1, b.y1, b.x2, b.y2)
       end
    else
       print(colorize("${red}" .. "no borders data"))
@@ -1762,7 +1760,10 @@ local function init()
    metrics.init()
    space = wrp.space_new(space_damping)
    wrp.space_set(space)
+
    bulletPool = wrp.bullet_pool_new(bullet_pool_capacity)
+
+
 
    screenW, screenH = pipeline:getDimensions()
    print('screenW, screenH', screenW, screenH)
