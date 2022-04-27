@@ -1760,7 +1760,10 @@ local function init()
     metrics.init()
     space = wrp.space_new(space_damping)
     wrp.space_set(space)
+
     bulletPool = wrp.bullet_pool_new(bullet_pool_capacity)
+    --print('os.exit()')
+    --os.exit()
 
     screenW, screenH = pipeline:getDimensions()
     print('screenW, screenH', screenW, screenH)
