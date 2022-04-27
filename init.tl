@@ -40,8 +40,6 @@ print("package.cpath", package.cpath)
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
 local wrp = require "wrp"
-local Wrapper = wrp
---print('wrp', inspect(wrp))
 
 require "love"
 require 'konstants'
@@ -60,7 +58,7 @@ local inspect = require "inspect"
 --local serpent = require 'serpent'
 --local i18n = require "i18n"
 local metrics = require "metrics"
-local vec2 = require "vector"
+--local vec2 = require "vector"
 --local vecl = require "vector-light"
 
 -- Вывод в строку
@@ -243,7 +241,7 @@ end
 
 local screenW, screenH: number, number
 
-local space: Wrapper.Space
+local space: wrp.Space
 local space_damping = 0.02
 
 -- {{{ Konsole editing
@@ -382,10 +380,6 @@ function Arena.new(_: string): Arena
 
     return self
 end
-
---local base_tex_fname = 'tank_body_small.png'
-local base_tex_fname = 'tank_body.cut.png'
-local turret_text_fname = 'tank_tower.png'
 
 --[[
 local function getTankSize(): integer, integer
@@ -756,7 +750,7 @@ end
 local function on_each_body_t(
     x: number, y: number, angle: number, obj: any,
     tur_x: number, tur_y: number, tur_angle: number,
-    debug_vertices: {{number}}
+    _: {{number}}
 )
     local tank = obj as Tank
 
@@ -765,6 +759,7 @@ local function on_each_body_t(
     end
 
     --[[
+    -- {{{
     print(
         colorize("%{red}on_each_body_t: %{reset}"),
         "\n     tank.id", tank.id,
@@ -776,6 +771,7 @@ local function on_each_body_t(
         "\n     tur_y", tur_y, 
         "\n     tur_angle", tur_angle
     )
+    -- }}}
     --]]
 
     if tank then
@@ -812,8 +808,8 @@ local function renderSegments()
 end
 
 local function debug_draw_vertices(
-    x: number, y: number, angle: number, obj: any,
-    tur_x: number, tur_y: number, tur_angle: number,
+    _: number, _: number, _: number, _: any,
+    _: number, _: number, _: number,
     debug_vertices: {{number}}
 )
     if debug_vertices then
@@ -852,7 +848,8 @@ local function renderTanks()
 end
 
 --[[
-local function print_body_stat(body: Wrapper.Body)
+-- {{{
+local function print_body_stat(body: wrp.Body)
     print('body', body)
     local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
         force_x, force_y, angle, w, torque = wrp.get_body_stat(body)
@@ -873,6 +870,7 @@ local function print_body_stat(body: Wrapper.Body)
     print("torque", torque)
 
 end
+-- }}}
 --]]
 
 local draw_selected_object = true
@@ -1244,13 +1242,10 @@ local function spawnTanks()
     bordersArea.x1, bordersArea.y1 = minx, miny
     bordersArea.x2, bordersArea.y2 = maxx, maxy
 
-    local rad = 1000
+    --local rad = 1000
     for _ = 1, tanks_num do
         --local px, py = rng:random(minx, maxx), rng:random(miny, maxy)
-        local p = vec2.fromPolar(
-            rng:random() * 2 * math.pi, 
-            rad
-        )
+        --local p = vec2.fromPolar(rng:random() * 2 * math.pi, rad)
         --spawnTank(p.x, p.y)
     end
 
@@ -1330,11 +1325,14 @@ local function initBorders()
     local borders_data: {Borders}
 
     -- Удалить существующие сегменты если они созданы.
+    --[[
+    -- XXX Здесь происходит падение
     if #segments ~= 0 then
         for _, v in ipairs(segments) do
             --wrp.free_static_segment(v)
         end
     end
+    --]]
 
     local ok, msg = pcall(function()
         local path = SCENE_PREFIX .. "/borders_data.lua" 
@@ -1349,10 +1347,10 @@ local function initBorders()
     if borders_data then
         for _, b in ipairs(borders_data) do
             print('border', inspect(b))
-            --local segment = wrp.new_static_segment(b.x1, b.y1, b.x2, b.y2)
-            --table.insert(segments, segment)
-            -- XXX сделать добавление сегментов в таблицу
-            wrp.static_segment_new(b.x1, b.y1, b.x2, b.y2)
+            table.insert(
+                segments, 
+                wrp.static_segment_new(b.x1, b.y1, b.x2, b.y2)
+            )
         end
     else
         print(colorize("${red}" .. "no borders data"))
@@ -1826,7 +1824,7 @@ local function inc_push_counter(): integer
     return prev_value
 end
 
-local function push_tank_body_stat(object: Wrapper.Tank)
+local function push_tank_body_stat(object: wrp.Tank)
     local msg = ""
     local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
         force_x, force_y, angle, w, torque = object:get_body_stat()
@@ -1853,7 +1851,7 @@ local function push_tank_body_stat(object: Wrapper.Tank)
     pipeline:push('add', inc_push_counter(), msg)
 end
 
-local function push_tank_turret_stat(object: Wrapper.Tank)
+local function push_tank_turret_stat(object: wrp.Tank)
     local msg = ""
     local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, 
         force_x, force_y, angle, w, torque = object:get_turret_stat()
@@ -1891,7 +1889,7 @@ local function mousemoved(x: number, y: number, dx: number, dy: number)
     local counter = 0
     wrp.get_body_under_point(x + absx, y + absy, 
         function(
-            object: Wrapper.Tank,
+            object: wrp.Tank,
             shape_x: number,
             shape_y: number,
             dist: number,
