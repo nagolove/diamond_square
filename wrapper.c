@@ -250,6 +250,8 @@ static int space_new(lua_State *lua) {
 	/*cpSpaceSetCollisionSlop(space, 0.5f);*/
 
     cpSpaceSetDamping(space->space, damping);
+    /*cpSpaceSetSleepTimeThreshold(cur_space->space, 0.5f);*/
+    /*cpSpaceSetSleepTimeThreshold(cur_space->space, 0.5f);*/
 
     LOG_STACK_DUMP(lua);
 
@@ -1919,7 +1921,7 @@ int bullet_pool_new(lua_State *lua) {
         cpShapeSetFilter(b->shape, CP_SHAPE_FILTER_NONE);
         cpSpaceAddBody(cur_space->space, b->body);
         cpSpaceAddShape(cur_space->space, b->shape);
-        cpBodySleep(b->body);
+        /*cpBodySleep(b->body);*/
     }
 
     return 1;
