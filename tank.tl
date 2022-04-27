@@ -188,9 +188,25 @@ local impulse_amount = 5
 local vel_limit = 160
 -- Предел скорости вращения корпуса
 local ang_vel_limit = 2
+-- Дальность стрельбы в пикселях
+local fire_dist = 3500
+local bulletPool: wrp.BulletPool
+
+local function bullet_on_collison(_type: wrp.ObjectType, obj: any)
+    print('bullet_on_collision', _type, inspect(obj))
+end
+
+local bullet_init: wrp.BulletInit = {
+    type = "bullet",
+    x = 0,
+    y = 0,
+    a = 0,
+    impulse = 0.5,
+    dist = fire_dist,
+    on_collison = bullet_on_collison,
+}
 
 local fromPolar = require 'vector-light'.fromPolar
-local fire_dist = 500
 
 function Tank:fire()
     local x1, y1, angle = self.base:turret_get_pos()
@@ -201,7 +217,8 @@ function Tank:fire()
     pipeline:open('fire_dir')
     pipeline:push('ray', x1, y1, angle)
 
-    --camera:setOrigin()
+    local can_fire = self.loaded and self.shots > 0
+
     wrp.space_query_segment_first(self.id, x1, y1, x1 + x2, y1 + y2, 
         function(
             tank: wrp.Tank, 
@@ -213,7 +230,12 @@ function Tank:fire()
         end
     )
 
-    local can_fire = self.loaded and self.shots > 0
+    if can_fire then
+        bullet_init.x = x1
+        bullet_init.y = y1
+        bullet_init.a = angle
+        bulletPool:new(bullet_init)
+    end
 
     --[[
     if can_fire then
@@ -298,6 +320,8 @@ function Tank.new(x: number, y: number): Tank
 
     tankCounter = tankCounter + 1
 
+    self.loaded = true
+    self.shots = 38
     self.strength = 1.
     self.fuel = 1.
     self.id = tankCounter
@@ -392,8 +416,6 @@ function Tank:rotate_turret(dir: Tank.Direction)
     end
     --]]
 end
-
-local bulletPool: wrp.BulletPool
 
 function Tank.initPipelineObjects(
     pl: Pipeline, cam: PCamera, bp: wrp.BulletPool
