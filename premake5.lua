@@ -11,7 +11,7 @@ workspace "wrapper"
         targetprefix ""
         targetdir "."
 
-        files { "**.h", "**.c" }
+        files { "**.h", "wrapper.c" }
         includedirs { 
             "/usr/include/luajit-2.1",
             --"~/projects/Chipmunk2D/include"
@@ -23,9 +23,11 @@ workspace "wrapper"
             "-Wall",
             "-Werror",
             "-Wno-strict-aliasing",
+            "-Wno-unused-function",
         }
         links { 
-            "luajit-5.1", 
+            --"luajit-5.1", 
+            "lua5.1",
             "chipmunk",
             "mem_guard",
             "lua_tools",
