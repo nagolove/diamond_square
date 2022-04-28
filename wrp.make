@@ -19,10 +19,10 @@ ifeq ($(config),debug)
   INCLUDES += -I/usr/include/luajit-2.1 -I../../../../projects/Chipmunk2D/include -I../../../lua_capi
   FORCE_INCLUDE +=
   ALL_CPPFLAGS += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC -Wall -Werror -Wno-strict-aliasing
-  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC -Wall -Werror -Wno-strict-aliasing
+  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC -Wall -Werror -Wno-strict-aliasing -Wno-unused-function
+  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC -Wall -Werror -Wno-strict-aliasing -Wno-unused-function
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -lluajit-5.1 -lchipmunk -lmem_guard -llua_tools
+  LIBS += -llua5.1 -lchipmunk -lmem_guard -llua_tools
   LDDEPS +=
   ALL_LDFLAGS += $(LDFLAGS) -L../../../../projects/Chipmunk2D/src -L../../../c_guard -L../../../lua_capi -shared -Wl,-soname=wrp.so
   LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
@@ -46,10 +46,10 @@ ifeq ($(config),release)
   INCLUDES += -I/usr/include/luajit-2.1 -I../../../../projects/Chipmunk2D/include -I../../../lua_capi
   FORCE_INCLUDE +=
   ALL_CPPFLAGS += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing
-  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing
+  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing -Wno-unused-function
+  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing -Wno-unused-function
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -lluajit-5.1 -lchipmunk -lmem_guard -llua_tools
+  LIBS += -llua5.1 -lchipmunk -lmem_guard -llua_tools
   LDDEPS +=
   ALL_LDFLAGS += $(LDFLAGS) -L../../../../projects/Chipmunk2D/src -L../../../c_guard -L../../../lua_capi -shared -Wl,-soname=wrp.so -s
   LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
