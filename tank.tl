@@ -214,11 +214,10 @@ function Tank:fire()
     -- TODO Учитывать масштаб
     local x2, y2 = fromPolar(angle, fire_dist)
 
-    pipeline:open('fire_dir')
-    pipeline:push('ray', x1, y1, angle)
-
     local can_fire = self.loaded and self.shots > 0
 
+    pipeline:open('fire_dir')
+    pipeline:push('ray', x1, y1, angle)
     wrp.space_query_segment_first(self.id, x1, y1, x1 + x2, y1 + y2, 
         function(
             tank: wrp.Tank, 
@@ -229,12 +228,16 @@ function Tank:fire()
             pipeline:push('target', x, y)
         end
     )
+    pipeline:push('enough')
+    pipeline:close()
 
     if can_fire then
         bullet_init.x = x1
         bullet_init.y = y1
         bullet_init.a = angle
-        bulletPool:new(bullet_init)
+        if bulletPool then
+            bulletPool:new(bullet_init)
+        end
     end
 
     --[[
@@ -263,9 +266,6 @@ function Tank:fire()
     --]]
 
     --camera:setTransform()
-
-    pipeline:push('enough')
-    pipeline:close()
 end
 
 function Tank:left()
@@ -312,6 +312,7 @@ local Tank_mt: metatable<Tank> = {
 }
 
 function Tank.new(x: number, y: number): Tank
+    -- {{{
     if x ~= x or y ~= y then
         error("NaN in tank positon.")
     end
@@ -341,9 +342,8 @@ function Tank.new(x: number, y: number): Tank
     
     --wrp.set_position(self.base, pos.x, pos.y)
 
-    -- }}}
-
     return self
+    -- }}}
 end
 
 function Tank:update(): Tank
@@ -364,6 +364,7 @@ end
 
 function Tank:pushTrack()
     --[[
+    -- {{{
     if self.x4 and self.y4 and self.x1 and self.y1 then
         local trackNode = {}
         local len = 15
@@ -392,11 +393,13 @@ function Tank:pushTrack()
             table.remove(self.track, 1)
         end
     end
+    -- }}}
     --]]
 end
 
 function Tank:drawDirectionVector()
     --[[
+    -- {{{
     -- Использовать self.angle
     if self.dir then
         local x, y = 0, 0
@@ -405,6 +408,7 @@ function Tank:drawDirectionVector()
         --x, y = x * M2PIX, y * M2PIX
         --arrow.draw(x, y, x + self.dir.x * scale, y + self.dir.y * scale, color)
     end
+    -- }}}
     --]]
 end
 
@@ -417,16 +421,16 @@ function Tank:rotate_turret(dir: Tank.Direction)
     --]]
 end
 
-function Tank.initPipelineObjects(
-    pl: Pipeline, cam: PCamera, bp: wrp.BulletPool
-)
+--local bullet_pool_capacity = 2048
+
+function Tank.initPipelineObjects(pl: Pipeline, cam: PCamera)
     assert(pl)
     assert(cam)
-    --assert(bp)
 
     camera = cam
     pipeline = pl
-    bulletPool = bp
+    --bulletPool = wrp.bullet_pool_new(bullet_pool_capacity)
+    bulletPool = wrp.bullet_pool_new(0)
 
     pipeline:pushCodeFromFile("tank", 'rdr_tank.lua')
     pipeline:open('tank')
