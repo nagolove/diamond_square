@@ -31,6 +31,27 @@ typedef enum {
     OBJT_SEGMENT, // Отрезок, ограничивающиц движение
 } ObjType;
 
+static const char* get_obj_type(int type) {
+    static struct {
+        ObjType t;
+        char *name;
+    } type_names[] = {
+        {OBJT_ERROR, "OBJT_ERROR"},
+        {OBJT_TANK, "OBJT_TANK"},
+        {OBJT_BULLET, "OBJT_BULLET"},
+        {OBJT_SEGMENT, "OBJT_SEGMENT"},
+        {-1, NULL},
+    };
+    int i = 0;
+    static char* unknown = "unknown";
+    while (type_names[i].t >= 0) {
+        if (type_names[i].t == type) {
+            return type_names[i].name;
+        }
+    }
+    return unknown;
+}
+
 typedef struct {
     ObjType type;
 } Object;
@@ -97,23 +118,17 @@ cpShapeFilter ALL_FILTER = {
 
 #ifdef DEBUG
 // {{{
-#define LOG(...)        \
-    term_color_set();   \
-    printf(__VA_ARGS__);        \
-    term_color_reset(); \
 
-#define LOG_STACK_DUMP(lua) \
-    term_color_set();       \
-    print_stack_dump(lua);  \
-    term_color_reset();     \
+#define LOG(...)        \
+    printf(__VA_ARGS__);\
 
 #else
+
 #define LOG(...) \
     do {} while(0)
-#define LOG_STACK_DUMP(lua) \
-    do {} while(0)
+
 // }}}
-#endif
+#endif // DEBUG
 
 #define DENSITY (1.0/4000.0)
 
@@ -165,22 +180,12 @@ cpShapeFilter NOT_GRABBABLE_FILTER = {
 
 void term_color_set() {
     // cyan color
-    printf("\033[36m");
+    /*printf("\033[36m");*/
 }
 
 void term_color_reset() {
-    printf("\033[0m");
+    /*printf("\033[0m");*/
 }
-
-/*
-void print_userData(void *data) {
-    int index_ud = ((Parts*)&data)->regindex_ud;
-    int index_table = ((Parts*)&data)->regindex_table;
-    term_color_set();
-    printf("regindex_ud = %d, regindex_table = %d\n", index_ud, index_table);
-    term_color_reset();
-}
-*/
 
 void print_body_stat(cpBody *b) {
     // {{{
@@ -222,8 +227,7 @@ static int space_new(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TNUMBER);
     check_argsnum(lua, 1);
 
-    LOG("space_new\n");
-    LOG_STACK_DUMP(lua);
+    LOG("space_new: [%s]\n", stack_dump(lua));
 
     Space *space = lua_newuserdata(lua, sizeof(Space)); 
     // [.. , damping, {ud}]
@@ -246,14 +250,12 @@ static int space_new(lua_State *lua) {
 
 	/*cpSpaceSetIterations(space, 30);*/
 	/*cpSpaceSetGravity(space, cpv(0, -500));*/
-	/*cpSpaceSetSleepTimeThreshold(space, 0.5f);*/
+    /*cpSpaceSetSleepTimeThreshold(cur_space->space, 0.5f);*/
 	/*cpSpaceSetCollisionSlop(space, 0.5f);*/
 
     cpSpaceSetDamping(space->space, damping);
-    /*cpSpaceSetSleepTimeThreshold(cur_space->space, 0.5f);*/
-    /*cpSpaceSetSleepTimeThreshold(cur_space->space, 0.5f);*/
 
-    LOG_STACK_DUMP(lua);
+    LOG("space_new: [%s]\n", stack_dump(lua));
 
      // [.., damping, -> {ud}]
     return 1;
@@ -395,7 +397,7 @@ void tank_turret_new(
     lua_gettable(lua, -2);
     w = (int)lua_tonumber(lua, -1);
     if (lua_isnil(lua, -1)) {
-        LOG("tank_turret_new: turret_w is nil\n");
+        printf("tank_turret_new: turret_w is nil\n");
         exit(1);
     }
     lua_remove(lua, -1);
@@ -404,7 +406,7 @@ void tank_turret_new(
     lua_gettable(lua, -2);
     h = (int)lua_tonumber(lua, -1);
     if (lua_isnil(lua, -1)) {
-        LOG("tank_turret_new: turret_h is nil\n");
+        printf("tank_turret_new: turret_h is nil\n");
         exit(1);
     }
     lua_remove(lua, -1);
@@ -456,7 +458,7 @@ void tank_turret_new(
     lua_gettable(lua, -2);
     turret_offset.x = (int)lua_tonumber(lua, -1);
     if (lua_isnil(lua, -1)) {
-        LOG("tank_turret_new: turret_dx is nil\n");
+        printf("tank_turret_new: turret_dx is nil\n");
         exit(1);
     }
     lua_remove(lua, -1);
@@ -465,7 +467,7 @@ void tank_turret_new(
     lua_gettable(lua, -2);
     turret_offset.y = (int)lua_tonumber(lua, -1);
     if (lua_isnil(lua, -1)) {
-        LOG("tank_turret_new: turret_dy is nil\n");
+        printf("tank_turret_new: turret_dy is nil\n");
         exit(1);
     }
     lua_remove(lua, -1);
@@ -582,7 +584,7 @@ static int tank_new(lua_State *lua) {
     // Группа столкновений для корпуса и башни устанавливается из id танка.
     int collision_group = lua_tonumber(lua, -1);
     if (lua_isnil(lua, -1)) {
-        LOG("tank_new: there is no 'id' value\n");
+        printf("tank_new: there is no 'id' value\n");
         exit(1);
     }
     lua_remove(lua, -1);
@@ -640,7 +642,7 @@ static int tank_new(lua_State *lua) {
     LOG("tank_new: x, y = (%f, %f)\n", pos.x, pos.y);
 
     if (pos.x != pos.x || pos.y != pos.y ) {
-        LOG("tank_new: NaN in pos vector\n");
+        printf("tank_new: NaN in pos vector\n");
         exit(1);
     }
 
@@ -754,7 +756,7 @@ void on_each_tank_t(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
 #ifdef LOG_ON_EACH_TANK_T
-    LOG_STACK_DUMP(lua);
+    LOG("on_each_tank_t: [%s]\n", stack_dump(lua));
 #endif
 
     /*if (tank && */
@@ -771,14 +773,17 @@ void on_each_tank_t(cpBody *body, void *data) {
     LOG("on_each_tank_t: tank = %p\n", tank);
 
     if (tank) {
-        LOG("on_each_tank_t: tank->obj.type = %d\n", tank->obj.type);
+        LOG(
+            "on_each_tank_t: tank->obj.type = %s\n", 
+            get_obj_type(tank->obj.type)
+        );
         LOG("on_each_tank_t: tank->assoc_table_reg_index = %d\n", 
-                tank->assoc_table_reg_index);
+            tank->assoc_table_reg_index);
     }
 
     if (!(tank && 
         tank->obj.type == OBJT_TANK &&
-        tank->assoc_table_reg_index != 0)) {
+        tank->assoc_table_reg_index > 0)) {
         return;
     }
 
@@ -790,7 +795,7 @@ void on_each_tank_t(cpBody *body, void *data) {
 #endif
 
 #ifdef LOG_ON_EACH_TANK_T
-    LOG_STACK_DUMP(lua);
+    LOG("on_each_tank_t: [%s]\n", stack_dump(lua));
 #endif
 
     /*
@@ -809,7 +814,7 @@ void on_each_tank_t(cpBody *body, void *data) {
     */
 
 #ifdef LOG_ON_EACH_TANK_T
-    LOG_STACK_DUMP(lua);
+    LOG("on_each_tank_t: [%s]\n", stack_dump(lua));
 #endif
 
 #ifdef LOG_ON_EACH_TANK_T
@@ -853,10 +858,6 @@ void on_each_tank_t(cpBody *body, void *data) {
 
     }
 
-#ifdef LOG_ON_EACH_TANK_T
-    LOG_STACK_DUMP(lua);
-#endif
-
     /*
     lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);
 
@@ -877,117 +878,6 @@ void on_each_tank_t(cpBody *body, void *data) {
 
 }
 #undef LOG_ON_EACH_TANK_T
-
-// Как обеспечить более быструю рисовку?
-// Вариант решения - вызывать функцию обратного вызова только если с момента
-// прошлого рисования произошло изменению положения, более чем на 0.5px
-// Как хранить данные о прошлом положении?
-/*#define LOG_ON_EACH_TANK*/
-/*
-void on_each_tank(cpBody *body, void *data) {
-    lua_State *lua = (lua_State*)data;
-
-#ifdef LOG_ON_EACH_TANK
-    LOG_STACK_DUMP(lua);
-#endif
-
-    // TODO Убрать лишние операции со стеком, получать таблицу связанную с 
-    // телом один раз.
-
-    int table_reg_index = GET_USER_DATA_TABLE(body);
-
-    if (table_reg_index == 0) {
-        return;
-    }
-
-    lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
-
-#ifdef LOG_ON_EACH_TANK
-    LOG_STACK_DUMP(lua);
-#endif
-
-    lua_pushstring(lua, "_prev_x");
-    lua_gettable(lua, -2);
-    double prev_x = lua_tonumber(lua, -1);
-    lua_remove(lua, -1); // remove last result
-
-    lua_pushstring(lua, "_prev_y");
-    lua_gettable(lua, -2);
-    double prev_y = lua_tonumber(lua, -1);
-    lua_remove(lua, -1); // remove last result
-
-#ifdef LOG_ON_EACH_TANK
-    LOG_STACK_DUMP(lua);
-#endif
-
-    lua_remove(lua, -1); // body->userData table
-
-#ifdef LOG_ON_EACH_TANK
-    LOG("on_each_tank: prev_x, prev_y %.3f, %.3f \n", prev_x, prev_y);
-#endif
-
-    double epsilon = 0.001;
-    double dx = fabs(prev_x - body->p.x);
-    double dy = fabs(prev_y - body->p.y);
-
-    // TODO Получить assoc_table
-    // Из assoc_table получить пользовательские данные _turret башни.
-    // Из данных башни получить ее координаты, угол и т.д.
-
-    // Добавить проверку не только на движение, но и на изменение угла поворота
-    // башни.
-    if (dx > epsilon || dy > epsilon) {
-        lua_pushvalue(lua, 1); // callback function
-        lua_pushnumber(lua, body->p.x);
-        lua_pushnumber(lua, body->p.y);
-        lua_pushnumber(lua, body->a);
-        lua_rawgeti(lua, LUA_REGISTRYINDEX, GET_USER_DATA_TABLE(body));
-        lua_call(lua, 4, 0);
-    }
-
-#ifdef LOG_ON_EACH_TANK
-    LOG_STACK_DUMP(lua);
-#endif
-
-    lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
-
-    lua_pushstring(lua, "_prev_x"); //key
-    lua_pushnumber(lua, body->p.x); //value
-    lua_settable(lua, -3);
-
-    lua_pushstring(lua, "_prev_y"); //key
-    lua_pushnumber(lua, body->p.y); //value
-    lua_settable(lua, -3);
-
-    lua_remove(lua, -1);
-
-#ifdef LOG_ON_EACH_TANK
-    LOG("on_each_tank: [%s]\n", stack_dump);
-#endif
-
-}
-#undef LOG_ON_EACH_TANK
-*/
-
-/*
-void on_each_body(cpBody *body, void *data) {
-    lua_State *lua = (lua_State*)data;
-
-    lua_pushvalue(lua, 1); // callback function
-    lua_pushnumber(lua, body->p.x);
-    lua_pushnumber(lua, body->p.y);
-    lua_pushnumber(lua, body->a);
-    //int table_reg_index = ((Parts*)(&body->userData))->table;
-
-    int table_reg_index = GET_USER_DATA_TABLE(body);
-    printf("table_reg_index = %d\n", table_reg_index);
-    lua_rawgeti(lua, LUA_REGISTRYINDEX, table_reg_index);
-
-    lua_call(lua, 4, 0);
-
-    printf("on_each_body\n");
-}
-*/
 
 void print_space_info(cpSpace *space) {
     printf("iterations %d\n", space->iterations);
@@ -1088,26 +978,6 @@ static int query_all_tanks(lua_State *lua) {
     return 0;
 }
 #undef LOG_QUERY_ALL_TANKS
-*/
-
-/*
-static int query_all_shapes(lua_State *lua) {
-    luaL_checktype(lua, 1, LUA_TFUNCTION);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Space pointer is null.\n");
-        lua_error(lua);
-    }
-
-    //printf("cur_space %p\n", cur_space);
-    //print_space_info(cur_space);
-    assert(cur_space && "space is NULL");
-
-    //cpSpaceEachBody(cur_space, on_each_body, lua);
-
-    return 0;
-}
 */
 
 static int space_set(lua_State *lua) {
@@ -1721,7 +1591,7 @@ static const struct luaL_Reg Tank_methods[] =
 };
 
 /*#define DBG_DRAWCIRCLE*/
-void dbg_drawCircle(
+static void dbg_drawCircle(
         cpVect pos, 
         cpFloat angle, 
         cpFloat radius, 
@@ -1743,7 +1613,7 @@ void dbg_drawCircle(
 #undef DBG_DRAWCIRCLE
 
 /*#define DBG_DRAWSEGMENT*/
-void dbg_drawSegment(
+static void dbg_drawSegment(
         cpVect a, 
         cpVect b, 
         cpSpaceDebugColor color, 
@@ -1764,7 +1634,7 @@ void dbg_drawSegment(
 #undef DBG_DRAWSEGMENT
 
 /*#define DBG_DRAWFATSEGMENT*/
-void dbg_drawFatSegment(
+static void dbg_drawFatSegment(
         cpVect a, 
         cpVect b, 
         cpFloat radius, 
@@ -1787,7 +1657,7 @@ void dbg_drawFatSegment(
 #undef DBG_DRAWFATSEGMENT
 
 /*#define DBG_DRAWPOLYGON*/
-void dbg_drawPolygon(
+static void dbg_drawPolygon(
         int count, 
         const cpVect *verts, 
         cpFloat radius, 
@@ -1816,7 +1686,7 @@ void dbg_drawPolygon(
 #undef DBG_DRAWPOLYGON
 
 /*#define DBG_DRAWDOT*/
-void dbg_drawDot(
+static void dbg_drawDot(
         cpFloat size, 
         cpVect pos, 
         cpSpaceDebugColor color, 
@@ -1837,7 +1707,7 @@ void dbg_drawDot(
 }
 #undef DBG_DRAWDOT
 
-cpSpaceDebugColor DebugDrawColorForShape(cpShape *shape, cpDataPointer data) {
+static cpSpaceDebugColor DebugDrawColorForShape(cpShape *shape, cpDataPointer data) {
     cpSpaceDebugColor c = {1., 1., 1., 1.};
     return c;
 }
@@ -1884,8 +1754,8 @@ static int space_debug_draw(lua_State *lua) {
 int bullet_pool_new(lua_State *lua) {
     // {{{
     CHECK_SPACE;
-    int num = ceil(luaL_checknumber(lua, 1));
-    LOG("bulletpool_new: num = %d\n", num);
+    /*int num = ceil(luaL_checknumber(lua, 1));*/
+    /*LOG("bulletpool_new: num = %d\n", num);*/
 
     BulletPool *pool = lua_newuserdata(lua, sizeof(BulletPool));
     memset(pool, 0, sizeof(BulletPool));
@@ -1897,15 +1767,15 @@ int bullet_pool_new(lua_State *lua) {
 
     LOG("bullet_pool_new: [%s]\n", stack_dump(lua));
 
+    /*
+     
     pool->pool = calloc(num, sizeof(Bullet));
     pool->num = num;
     pool->used = 0;
 
-    /*
-    Как удалять объекты после столкновения?
-    Таймер на время существования
-    ПРоверка вылета за границу карты
-    */
+    // Как удалять объекты после столкновения?
+    // Таймер на время существования
+    // ПРоверка вылета за границу карты
 
     cpFloat mass = 1, radius = 1;
     cpFloat moment = cpMomentForCircle(mass, 0.0f, radius, cpvzero);
@@ -1921,8 +1791,9 @@ int bullet_pool_new(lua_State *lua) {
         cpShapeSetFilter(b->shape, CP_SHAPE_FILTER_NONE);
         cpSpaceAddBody(cur_space->space, b->body);
         cpSpaceAddShape(cur_space->space, b->shape);
-        /*cpBodySleep(b->body);*/
+        //cpBodySleep(b->body);
     }
+    */
 
     return 1;
     // }}}
@@ -1944,12 +1815,6 @@ int register_module(lua_State *lua) {
         {"space_debug_draw", space_debug_draw},
         {"space_query_segment_first", space_query_segment_first},
         {"space_query_bb", space_query_bb},
-
-        // вызов функции для всех тел в текущем пространстве
-        /*{"query_all_shapes", query_all_shapes},*/
-
-        // вызов функции для всех танков в текущем пространстве
-        /*{"query_all_tanks", query_all_tanks},*/
 
         // Вызов функции для всех танков в текущем пространстве с учетом башни.
         {"query_all_tanks_t", query_all_tanks_t},
@@ -1995,8 +1860,9 @@ int static bulletpool_new(lua_State *lua) {
     BulletPool *pool = (BulletPool*)luaL_checkudata(lua, 1, "_BulletPool");
 
     if (pool->used + 1 >= pool->num) {
-        lua_pushstring(lua, "No free bullets in pool\n");
-        lua_error(lua);
+        /*lua_pushstring(lua, "No free bullets in pool\n");*/
+        /*lua_error(lua);*/
+        return 0;
     }
 
     Bullet *bullet = &pool->pool[pool->used++];
