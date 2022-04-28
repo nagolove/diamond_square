@@ -282,9 +282,6 @@ end
 
 local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
-local bullet_pool_capacity = 2048
-local bulletPool: wrp.BulletPool
-
 local DiamonAndSquare = require 'diamondsquare'
 local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(5, rng, pipeline)
 --local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
@@ -1686,7 +1683,7 @@ end
 
 -- Инициализация параметрами объектов-корутин на стороне главного потока.
 local function initPipelineObjects()
-    Tank.initPipelineObjects(pipeline, camera, bulletPool)
+    Tank.initPipelineObjects(pipeline, camera)
 
     --[[
     Пиксели для вырезки
@@ -1760,10 +1757,6 @@ local function init()
     metrics.init()
     space = wrp.space_new(space_damping)
     wrp.space_set(space)
-
-    bulletPool = wrp.bullet_pool_new(bullet_pool_capacity)
-    --print('os.exit()')
-    --os.exit()
 
     screenW, screenH = pipeline:getDimensions()
     print('screenW, screenH', screenW, screenH)
