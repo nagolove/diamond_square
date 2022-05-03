@@ -53,6 +53,7 @@ local record Wrapper
         -- nil
         debug_verts: {{number}} 
     )
+    type EachBulletCallback = function(x: number, y: number)
 
     record FilterData
         categories: integer
@@ -70,10 +71,15 @@ local record Wrapper
     --query_all_tanks: function(EachBodyCallback)
     -- Работает с башней. Предпочтительный вариант.
     query_all_tanks_t: function(EachTankCallback)
-    --space_query_bb: function(
-        --x: number, y: number, w: number, h: number,
-        --func: EachTankCallback
-    --)
+    space_query_bb_type: function(
+        x: number, y: number, w: number, h: number,
+        type: integer,
+        func: EachTankCallback
+    )
+    space_query_bb_bullets: function(
+        x: number, y: number, w: number, h: number,
+        func: EachBulletCallback
+    )
 
     record TankInit
         -- {{{
