@@ -237,11 +237,12 @@ function Tank:fire()
         bullet_init.a = angle
         if bulletPool then
             print("bulletPool:new()")
-            bulletPool:new(bullet_init)
+            --bulletPool:new(bullet_init)
         end
     end
 
-    --[[
+    --[[ 
+    -- {{{
     if can_fire then
         wrp.bullet_new(
             {
@@ -264,6 +265,7 @@ function Tank:fire()
             }
         )
     end
+    -- }}}
     --]]
 
     --camera:setTransform()
