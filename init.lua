@@ -756,17 +756,16 @@ local function on_each_body_t(
    end
 
 
-
-
-
-
-
-
-
-
-
-
-
+   print(
+   colorize("%{red}on_each_body_t: %{reset}"),
+   "\n     tank.id", tank.id,
+   "\n     x", x,
+   "\n     y", y,
+   "\n     angle", angle,
+   "\n     obj", obj,
+   "\n     tur_x", tur_x,
+   "\n     tur_y", tur_y,
+   "\n     tur_angle", tur_angle)
 
 
 
@@ -830,13 +829,19 @@ local function debug_draw_vertices(
    end
 end
 
+local OBJT_ERROR = 0
+local OBJT_TANK = 0
+local OBJT_BULLET = 0
+local OBJT_SEGMENT = 0
+
 local function renderTanks()
    pipeline:open('tank')
 
-   wrp.query_all_tanks_t(on_each_body_t)
+
+   wrp.space_query_bb_type(-30000, -30000, 30000, 30000, OBJT_TANK,
+   on_each_body_t)
    pipeline:push('flush')
    pipeline:close()
-
 
    pipeline:open("debug_vertices")
    wrp.query_all_tanks_t(debug_draw_vertices)
@@ -942,8 +947,6 @@ local function render_internal()
    renderTanks()
 
 
-   phys_dbg_draw()
-
 
 
    renderSegments()
@@ -983,6 +986,13 @@ local function renderScene()
    if diff >= fps_limit then
       last_render = nt
       render_internal()
+
+
+
+
+
+
+
       pipeline:sync()
    end
 end
