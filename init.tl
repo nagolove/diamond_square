@@ -755,7 +755,6 @@ local function on_each_body_t(
         error("tank should be a table, not a " .. type(tank))
     end
 
-    --[[
     -- {{{
     print(
         colorize("%{red}on_each_body_t: %{reset}"),
@@ -830,14 +829,20 @@ local function debug_draw_vertices(
     end
 end
 
+local OBJT_ERROR = 0
+local OBJT_TANK = 0
+local OBJT_BULLET = 0
+local OBJT_SEGMENT = 0
+
 local function renderTanks()
     pipeline:open('tank')
-    --wrp.query_all_tanks(on_each_body)
-    wrp.query_all_tanks_t(on_each_body_t)
+    --wrp.query_all_tanks_t(on_each_body_t)
+    --wrp.space_query_bb(-3000, -3000, 3000, 3000, OBJT_TANK,
+    wrp.space_query_bb_type(-30000, -30000, 30000, 30000, OBJT_TANK,
+        on_each_body_t)
     pipeline:push('flush')
     pipeline:close()
 
-    --wrp.query_all_tanks(on_each_body)
     pipeline:open("debug_vertices")
     wrp.query_all_tanks_t(debug_draw_vertices)
     pipeline:push('enough')
@@ -941,9 +946,7 @@ local function render_internal()
     -- Танки
     renderTanks()
 
-    --print('render_internal 1:', pipeline.section_state)
-    phys_dbg_draw()
-    --print('render_internal 2:', pipeline.section_state)
+    --phys_dbg_draw()
 
     -- Ограничители уровня, преграды в виде отрезков.
     renderSegments()
@@ -983,6 +986,13 @@ local function renderScene()
     if diff >= fps_limit then
         last_render = nt
         render_internal()
+
+        --local ok, errmsg: boolean, string = pcall(render_internal)
+        --if not ok then
+            --print('renderScene:' .. errmsg)
+            --os.exit(10)
+        --end
+
         pipeline:sync()
     end
 end
