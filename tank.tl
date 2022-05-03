@@ -236,6 +236,7 @@ function Tank:fire()
         bullet_init.y = y1
         bullet_init.a = angle
         if bulletPool then
+            print("bulletPool:new()")
             bulletPool:new(bullet_init)
         end
     end
@@ -421,7 +422,7 @@ function Tank:rotate_turret(dir: Tank.Direction)
     --]]
 end
 
---local bullet_pool_capacity = 2048
+local bullet_pool_capacity = 2048
 
 function Tank.initPipelineObjects(pl: Pipeline, cam: PCamera)
     assert(pl)
@@ -429,8 +430,7 @@ function Tank.initPipelineObjects(pl: Pipeline, cam: PCamera)
 
     camera = cam
     pipeline = pl
-    --bulletPool = wrp.bullet_pool_new(bullet_pool_capacity)
-    bulletPool = wrp.bullet_pool_new(0)
+    bulletPool = wrp.bullet_pool_new(bullet_pool_capacity)
 
     pipeline:pushCodeFromFile("tank", 'rdr_tank.lua')
     pipeline:open('tank')
