@@ -830,16 +830,20 @@ local function debug_draw_vertices(
 end
 
 local OBJT_ERROR = 0
-local OBJT_TANK = 0
-local OBJT_BULLET = 0
-local OBJT_SEGMENT = 0
+local OBJT_TANK = 1
+local OBJT_BULLET = 2
+local OBJT_SEGMENT = 4
 
 local function renderTanks()
    pipeline:open('tank')
+   wrp.query_all_tanks_t(on_each_body_t)
 
 
-   wrp.space_query_bb_type(-30000, -30000, 30000, 30000, OBJT_TANK,
-   on_each_body_t)
+
+
+
+
+
    pipeline:push('flush')
    pipeline:close()
 
