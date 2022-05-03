@@ -13,6 +13,7 @@
 
 #include "chipmunk/chipmunk.h"
 #include "chipmunk/chipmunk_structs.h"
+/*#include "chipmunk/chipmunk_private.h"*/
 
 #include "lua_tools.h"
 
@@ -30,27 +31,6 @@ typedef enum {
     OBJT_BULLET,
     OBJT_SEGMENT, // Отрезок, ограничивающиц движение
 } ObjType;
-
-static const char* get_obj_type(int type) {
-    static struct {
-        ObjType t;
-        char *name;
-    } type_names[] = {
-        {OBJT_ERROR, "OBJT_ERROR"},
-        {OBJT_TANK, "OBJT_TANK"},
-        {OBJT_BULLET, "OBJT_BULLET"},
-        {OBJT_SEGMENT, "OBJT_SEGMENT"},
-        {-1, NULL},
-    };
-    int i = 0;
-    static char* unknown = "unknown";
-    while (type_names[i].t >= 0) {
-        if (type_names[i].t == type) {
-            return type_names[i].name;
-        }
-    }
-    return unknown;
-}
 
 typedef struct {
     ObjType type;
@@ -96,6 +76,8 @@ typedef struct {
 
 typedef struct {
     cpSpace *space;
+    cpShape *camera_sensor;
+    cpBody *camera_body;
     int reg_index;
 } Space;
 
@@ -125,12 +107,69 @@ cpShapeFilter ALL_FILTER = {
 #else
 
 #define LOG(...) \
-    do {} while(0)
+    do {} while(0);
 
 // }}}
 #endif // DEBUG
 
 #define DENSITY (1.0/4000.0)
+
+static const char* get_obj_type(int type) {
+    static struct {
+        ObjType t;
+        char *name;
+    } type_names[] = {
+        {OBJT_ERROR, "OBJT_ERROR"},
+        {OBJT_TANK, "OBJT_TANK"},
+        {OBJT_BULLET, "OBJT_BULLET"},
+        {OBJT_SEGMENT, "OBJT_SEGMENT"},
+        {-1, NULL},
+    };
+    int i = 0;
+    static char* unknown = "unknown";
+    while (type_names[i].t >= 0) {
+        if (type_names[i].t == type) {
+            return type_names[i].name;
+        }
+        i++;
+    }
+    return unknown;
+}
+
+
+/////////////////////////////////////////////////
+/*struct BBQueryContext {*/
+	/*cpBB bb;*/
+	/*cpShapeFilter filter;*/
+	/*cpSpaceBBQueryFunc func;*/
+/*};*/
+
+/*static cpCollisionID*/
+/*BBQuery(struct BBQueryContext *context, cpShape *shape, cpCollisionID id, void *data)*/
+/*{*/
+	/*if(*/
+		/*!cpShapeFilterReject(shape->filter, context->filter) &&*/
+		/*cpBBIntersects(context->bb, shape->bb)*/
+	/*){*/
+		/*context->func(shape, data);*/
+	/*}*/
+	
+	/*return id;*/
+/*}*/
+
+/*void*/
+/*cpSpaceBBQuery_mod(cpSpace *space, cpBB bb, cpShapeFilter filter, cpSpaceBBQueryFunc func, void *data)*/
+/*{*/
+	/*struct BBQueryContext context = {bb, filter, func};*/
+	
+	/*cpSpaceLock(space); {*/
+    /*cpSpatialIndexQuery(space->dynamicShapes, &context, bb, (cpSpatialIndexQueryFunc)BBQuery, data);*/
+    /*cpSpatialIndexQuery(space->staticShapes, &context, bb, (cpSpatialIndexQueryFunc)BBQuery, data);*/
+	/*} cpSpaceUnlock(space, cpTrue);*/
+/*}*/
+////////////////////////////////////////////////
+
+
 
 void uint64t_to_bitstr(uint64_t value, char *buf) {
     // {{{
@@ -204,12 +243,6 @@ void print_body_stat(cpBody *b) {
     // }}}
 }
 
-#ifdef DEBUG
-static void print_stack_dump(lua_State *lua) {
-    printf("[%s]\n", stack_dump(lua));
-}
-#endif
-
 void check_argsnum(lua_State *lua, int num) {
     static char formated_msg[64] = {0, };
     const char *msg = "Function should receive only %d argument(s).\n";
@@ -220,6 +253,27 @@ void check_argsnum(lua_State *lua, int num) {
         lua_pushstring(lua, formated_msg);
         lua_error(lua);
     }
+}
+
+void space_camera_sensor_init(Space *space) {
+    space->camera_body = cpBodyNewKinematic();
+    int w = 1920, h = 1080;
+    cpFloat hw = w / 2.0, hh = h / 2.0;
+    cpVect verts[] = {
+        {w - hw, h - hh},
+        {w - hw, 0. - hh},
+        {0. - hw, 0. - hh},
+        {0. - hw, h - hh},
+    };
+    int verts_num = sizeof(verts) / sizeof(verts[0]);
+    space->camera_sensor = cpPolyShapeNew(
+            space->camera_body,
+            verts_num, 
+            verts, cpTransformIdentity, 
+            0.f
+    );
+    cpSpaceAddBody(space->space, space->camera_body);
+    cpSpaceAddShape(space->space, space->camera_sensor);
 }
 
 static int space_new(lua_State *lua) {
@@ -254,9 +308,9 @@ static int space_new(lua_State *lua) {
 	/*cpSpaceSetCollisionSlop(space, 0.5f);*/
 
     cpSpaceSetDamping(space->space, damping);
-
     LOG("space_new: [%s]\n", stack_dump(lua));
 
+    space_camera_sensor_init(space);
      // [.., damping, -> {ud}]
     return 1;
 }
@@ -716,7 +770,7 @@ static int tank_new(lua_State *lua) {
     cpBodySetPosition(tank->body, pos);
 
 #ifdef LOG_TANK_NEW
-    print_body_stat(tank->body);
+    /*print_body_stat(tank->body);*/
     LOG("tank_new: before turret_new [%s]\n", stack_dump(lua));
 #endif
 
@@ -759,28 +813,23 @@ void on_each_tank_t(cpBody *body, void *data) {
     LOG("on_each_tank_t: [%s]\n", stack_dump(lua));
 #endif
 
-    /*if (tank && */
-        /*tank->obj.type == OBJT_TANK && */
-        /*tank->assoc_table_reg_index != 0) {*/
-        /*return;*/
-    /*}*/
+    Object *obj = (Object*)body->userData;
+    if (obj && obj->type == OBJT_BULLET) {
+        return;
+    }
 
-    /*if (!body->userData) {*/
-        /*return;*/
+    /*LOG("on_each_tank_t: obj = %p\n", obj);*/
+    /*if (obj) {*/
+        /*Tank *tank = (Tank*)body->userData;*/
+        /*LOG(*/
+            /*"on_each_tank_t: obj->obj.type = %s\n", */
+            /*get_obj_type(tank->obj.type)*/
+        /*);*/
+        /*LOG("on_each_tank_t: obj->assoc_table_reg_index = %d\n", */
+            /*tank->assoc_table_reg_index);*/
     /*}*/
 
     Tank *tank = (Tank*)body->userData;
-    LOG("on_each_tank_t: tank = %p\n", tank);
-
-    if (tank) {
-        LOG(
-            "on_each_tank_t: tank->obj.type = %s\n", 
-            get_obj_type(tank->obj.type)
-        );
-        LOG("on_each_tank_t: tank->assoc_table_reg_index = %d\n", 
-            tank->assoc_table_reg_index);
-    }
-
     if (!(tank && 
         tank->obj.type == OBJT_TANK &&
         tank->assoc_table_reg_index > 0)) {
@@ -882,16 +931,30 @@ void on_each_tank_t(cpBody *body, void *data) {
 void print_space_info(cpSpace *space) {
     printf("iterations %d\n", space->iterations);
     printf("damping %f\n", space->damping);
-    printf("data %p\n", space->userData);
+    printf("userData %p\n", space->userData);
     printf("curr_dt %f\n", space->curr_dt);
     printf("stamp %d\n", space->stamp);
 }
 
-void on_bb_query(cpShape *shape, void *data) {
-    lua_State *lua = data;
+typedef struct {
+    lua_State *lua;
+    ObjType type;
+} BBQueryData;
+
+void on_type_bb_query(cpShape *shape, void *data) {
+    BBQueryData *queryData = data;
+    lua_State *lua = queryData->lua;
+    LOG("on_type_bb_query\n");
     if (shape->body->userData) {
         /*lua_pushvalue(lua, 5); // callback function*/
         cpBody *body = shape->body;
+
+        Object *obj = (Object*)body->userData;
+        LOG("on_type_bb_query: type = %s\n", get_obj_type(obj->type));
+        if (obj->type != queryData->type) {
+            return;
+        }
+
         Tank *tank = (Tank*)body->userData;
 
         lua_pushnumber(lua, body->p.x);
@@ -909,15 +972,82 @@ void on_bb_query(cpShape *shape, void *data) {
     }
 }
 
+void on_bullet_bb_query(cpShape *shape, void *data) {
+    lua_State *lua = data;
+    if (shape->body->userData) {
+        /*lua_pushvalue(lua, 5); // callback function*/
+        cpBody *body = shape->body;
+
+        Object *obj = (Object*)body->userData;
+        if (obj->type != OBJT_BULLET) {
+            return;
+        }
+
+        /*Bullet *b = (Bullet*)body->userData;*/
+        lua_pushnumber(lua, body->p.x);
+        lua_pushnumber(lua, body->p.y);
+        lua_call(lua, 2, 0);
+    }
+}
+
+static const char* get_bb_xywh(cpBB bb) {
+    static char buf[128] = {0, };
+    sprintf(buf, "(%f, %f, %f, %f)", bb.l, bb.t, bb.r - bb.l, bb.b - bb.t);
+    return buf;
+}
+
+void on_sensor_shape(cpShape *shape, cpContactPointSet *points, void *data) {
+    LOG("on_sensor_shape\n");
+}
+
 #define SPACE_QUERY_BB
-static int space_query_bb(lua_State *lua) {
+static int space_query_bb_type(lua_State *lua) {
     CHECK_SPACE;
-    check_argsnum(lua, 5);
+    check_argsnum(lua, 6);
     luaL_checktype(lua, 1, LUA_TNUMBER); // x
     luaL_checktype(lua, 2, LUA_TNUMBER); // y
     luaL_checktype(lua, 3, LUA_TNUMBER); // w
     luaL_checktype(lua, 4, LUA_TNUMBER); // h
-    luaL_checktype(lua, 5, LUA_TFUNCTION);
+    luaL_checktype(lua, 5, LUA_TNUMBER); // ObjType
+    luaL_checktype(lua, 6, LUA_TFUNCTION);
+
+    /*cpShapeFilter filter = {*/
+        /*CP_NO_GROUP,*/
+        /*CP_ALL_CATEGORIES, */
+        /*CP_ALL_CATEGORIES */
+    /*};*/
+
+    cpBB bb = {0, };
+    bb.l = lua_tonumber(lua, 1);
+    bb.t = lua_tonumber(lua, 2);
+    bb.r = bb.l + lua_tonumber(lua, 3);
+    bb.b = bb.t + lua_tonumber(lua, 4);
+
+    /*BBQueryData queryData = {*/
+        /*.lua = lua,*/
+        /*.type = ceil(lua_tonumber(lua, 5)),*/
+    /*};*/
+    LOG("space_query_bb: bb = %s\n", get_bb_xywh(bb));
+    /*cpSpaceBBQuery(cur_space->space, bb, filter, on_type_bb_query, &queryData);*/
+    cpSpaceShapeQuery(
+            cur_space->space, 
+            cur_space->camera_sensor,
+            on_sensor_shape,
+            lua);
+
+    return 0;
+}
+#undef SPACE_QUERY_BB
+
+#define SPACE_QUERY_BB_BULLETS
+static int space_query_bb_bullets(lua_State *lua) {
+    CHECK_SPACE;
+    check_argsnum(lua, 6);
+    luaL_checktype(lua, 1, LUA_TNUMBER); // x
+    luaL_checktype(lua, 2, LUA_TNUMBER); // y
+    luaL_checktype(lua, 3, LUA_TNUMBER); // w
+    luaL_checktype(lua, 4, LUA_TNUMBER); // h
+    luaL_checktype(lua, 6, LUA_TFUNCTION);
 
     cpShapeFilter filter = {
         CP_NO_GROUP,
@@ -931,11 +1061,11 @@ static int space_query_bb(lua_State *lua) {
     bb.r = bb.l + lua_tonumber(lua, 3);
     bb.b = bb.t + lua_tonumber(lua, 4);
 
-    cpSpaceBBQuery(cur_space->space, bb, filter, on_bb_query, lua);
+    cpSpaceBBQuery(cur_space->space, bb, filter, on_bullet_bb_query, lua);
 
     return 0;
 }
-#undef SPACE_QUERY_BB
+#undef SPACE_QUERY_BB_BULLETS
 
 /*#define LOG_QUERY_ALL_TANKS_T*/
 static int query_all_tanks_t(lua_State *lua) {
@@ -1169,16 +1299,7 @@ void on_point_query(
     lua_State *lua = (lua_State*)data;
 
 #ifdef LOG_ON_POINT_QUERY
-    LOG("on_point_query\n");
-#endif
-
-    // XXX Костыли или нет? Функция иногда вызывается с пустой фигурой.
-    if (!shape) {
-        return;
-    }
-
-#ifdef LOG_ON_POINT_QUERY
-    LOG("stack 1: [%s]\n", stack_dump(lua));
+    LOG("on_point_query: [%s]\n", stack_dump(lua));
 #endif
 
     cpBody *body = shape->body;
@@ -1188,10 +1309,13 @@ void on_point_query(
     if (shape->klass->type != CP_POLY_SHAPE) {
         return;
     }
-    Tank *tank = (Tank*)body->userData;
-    if (!tank) {
+
+    Object *obj = (Object*)body->userData;
+    if (obj && obj->type != OBJT_BULLET) {
         return;
     }
+
+    Tank *tank = (Tank*)body->userData;
     if (tank->reg_index == 0) {
         LOG("on_point_query: tank->reg_index == 0");
         return;
@@ -1541,14 +1665,17 @@ int space_query_segment_first(lua_State *lua) {
     );
 
     if (info.shape && info.shape->body->userData) {
-        Tank *tank = info.shape->body->userData;
-        lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);
-        lua_pushnumber(lua, info.point.x);
-        lua_pushnumber(lua, info.point.y);
-        lua_pushnumber(lua, info.normal.x);
-        lua_pushnumber(lua, info.normal.y);
-        lua_pushnumber(lua, info.alpha);
-        lua_call(lua, 6, 0);
+        Object *obj = (Object*)info.shape->body->userData;
+        if (obj->type == OBJT_TANK) {
+            Tank *tank = info.shape->body->userData;
+            lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);
+            lua_pushnumber(lua, info.point.x);
+            lua_pushnumber(lua, info.point.y);
+            lua_pushnumber(lua, info.normal.x);
+            lua_pushnumber(lua, info.normal.y);
+            lua_pushnumber(lua, info.alpha);
+            lua_call(lua, 6, 0);
+        }
     }
 
     return 0;
@@ -1754,8 +1881,8 @@ static int space_debug_draw(lua_State *lua) {
 int bullet_pool_new(lua_State *lua) {
     // {{{
     CHECK_SPACE;
-    /*int num = ceil(luaL_checknumber(lua, 1));*/
-    /*LOG("bulletpool_new: num = %d\n", num);*/
+    int num = ceil(luaL_checknumber(lua, 1));
+    LOG("bulletpool_new: num = %d\n", num);
 
     BulletPool *pool = lua_newuserdata(lua, sizeof(BulletPool));
     memset(pool, 0, sizeof(BulletPool));
@@ -1767,12 +1894,11 @@ int bullet_pool_new(lua_State *lua) {
 
     LOG("bullet_pool_new: [%s]\n", stack_dump(lua));
 
-    /*
-     
     pool->pool = calloc(num, sizeof(Bullet));
     pool->num = num;
     pool->used = 0;
 
+    /*
     // Как удалять объекты после столкновения?
     // Таймер на время существования
     // ПРоверка вылета за границу карты
@@ -1814,7 +1940,8 @@ int register_module(lua_State *lua) {
         {"space_set", space_set},
         {"space_debug_draw", space_debug_draw},
         {"space_query_segment_first", space_query_segment_first},
-        {"space_query_bb", space_query_bb},
+        {"space_query_bb_type", space_query_bb_type},
+        {"space_query_bb_bullets", space_query_bb_bullets},
 
         // Вызов функции для всех танков в текущем пространстве с учетом башни.
         {"query_all_tanks_t", query_all_tanks_t},
@@ -1855,17 +1982,21 @@ int static bulletpool_new(lua_State *lua) {
     luaL_checktype(lua, 2, LUA_TTABLE);
     check_argsnum(lua, 2);
 
-    LOG("bulletpool_new: [%s]", stack_dump(lua));
+    printf("bulletpool_new: [%s]\n", stack_dump(lua));
 
     BulletPool *pool = (BulletPool*)luaL_checkudata(lua, 1, "_BulletPool");
 
     if (pool->used + 1 >= pool->num) {
         /*lua_pushstring(lua, "No free bullets in pool\n");*/
         /*lua_error(lua);*/
+        printf("No free space in pool array.\n");
         return 0;
     }
 
+    /*Bullet *bullet = &pool->pool[pool->used++];*/
     Bullet *bullet = &pool->pool[pool->used++];
+
+    printf("bullet_pool_new: remain %d shots\n", pool->num - pool->used);
 
     // [bulletPool, {init} ]
     lua_pushstring(lua, "on_collision");
@@ -1897,21 +2028,39 @@ int static bulletpool_new(lua_State *lua) {
     
     lua_remove(lua, -1);
     // [bulletPool]
+    
+    cpFloat mass = 1, radius = 1;
+    cpFloat moment = cpMomentForCircle(mass, 0.0f, radius, cpvzero);
+    LOG("bullet_pool_new: moment = %f\n", moment);
 
-    LOG("bullet.start_x = %f\n", bullet->start_x);
-    LOG("bullet.start_y = %f\n", bullet->start_y);
-    LOG("bullet.dist = %f\n", bullet->dist);
-    LOG("bullet.impulse = %f\n", bullet->impulse);
-    LOG("bullet.on_collision_reg_index = %d\n", bullet->on_collision_reg_index);
+    bullet->obj.type = OBJT_BULLET;
+    bullet->body = cpBodyNew(mass, moment);
+    bullet->body->userData = bullet;
+    bullet->shape = cpCircleShapeNew(bullet->body, radius, cpvzero);
 
-    LOG("bulletpool_new: [%s]\n", stack_dump(lua));
+    cpSpaceAddBody(cur_space->space, bullet->body);
+    cpSpaceAddShape(cur_space->space, bullet->shape);
 
-    cpVect pos = { .x = bullet->start_x, .y = bullet->start_y };
-    cpBodySetPosition(bullet->body, pos);
-    cpShapeSetFilter(bullet->shape, CP_SHAPE_FILTER_ALL);
-    cpVect impulse = { .x = 1, .y = 1 };
-    cpVect point = { .x = 0., .y = 0. };
-    cpBodyApplyImpulseAtLocalPoint(bullet->body, impulse, point);
+    //cpBodySleep(bullet->body);
+
+    printf("bullet.start_x = %f\n", bullet->start_x);
+    printf("bullet.start_y = %f\n", bullet->start_y);
+    printf("bullet.dist = %f\n", bullet->dist);
+    printf("bullet.impulse = %f\n", bullet->impulse);
+    printf("bullet.on_collision_reg_index = %d\n", 
+            bullet->on_collision_reg_index);
+
+    /*cpVect pos = { .x = bullet->start_x, .y = bullet->start_y };*/
+    /*cpBodySetPosition(bullet->body, pos);*/
+
+    /*cpShapeSetFilter(bullet->shape, CP_SHAPE_FILTER_NONE);*/
+
+    /*cpVect impulse = { .x = 1, .y = 1 };*/
+    /*cpVect point = { .x = 0., .y = 0. };*/
+    /*cpBodyApplyImpulseAtLocalPoint(bullet->body, impulse, point);*/
+
+    printf("bulletpool_new: [%s]\n", stack_dump(lua));
+    printf("----\n");
 
     return 0;
     // }}}
