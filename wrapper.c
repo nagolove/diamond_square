@@ -26,10 +26,10 @@ if (!cur_space) {                                       \
 }                                                       \
 
 typedef enum {
-    OBJT_ERROR,
-    OBJT_TANK,
-    OBJT_BULLET,
-    OBJT_SEGMENT, // Отрезок, ограничивающиц движение
+    OBJT_ERROR      = 0b0000,
+    OBJT_TANK       = 0b0001,
+    OBJT_BULLET     = 0b0010,
+    OBJT_SEGMENT    = 0b0100, // Отрезок, ограничивающиц движение
 } ObjType;
 
 typedef struct {
@@ -942,11 +942,12 @@ typedef struct {
 } BBQueryData;
 
 void on_type_bb_query(cpShape *shape, void *data) {
+    // {{{
     BBQueryData *queryData = data;
     lua_State *lua = queryData->lua;
-    LOG("on_type_bb_query\n");
+    LOG("on_type_bb_query: [%s]\n", stack_dump(lua));
     if (shape->body->userData) {
-        /*lua_pushvalue(lua, 5); // callback function*/
+        lua_pushvalue(lua, 6); // callback function
         cpBody *body = shape->body;
 
         Object *obj = (Object*)body->userData;
@@ -955,24 +956,42 @@ void on_type_bb_query(cpShape *shape, void *data) {
             return;
         }
 
-        Tank *tank = (Tank*)body->userData;
+        if (queryData->type == OBJT_TANK) {
+            Tank *tank = (Tank*)body->userData;
 
-        lua_pushnumber(lua, body->p.x);
-        lua_pushnumber(lua, body->p.y);
-        lua_pushnumber(lua, body->a);
+            lua_pushnumber(lua, body->p.x);
+            lua_pushnumber(lua, body->p.y);
+            lua_pushnumber(lua, body->a);
 
-        lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->assoc_table_reg_index);
+            lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->assoc_table_reg_index);
 
-        cpBody *turret = tank->turret;
-        lua_pushnumber(lua, turret->p.x);
-        lua_pushnumber(lua, turret->p.y);
-        lua_pushnumber(lua, turret->a);
+            cpBody *turret = tank->turret;
+            if (turret) {
+                lua_pushnumber(lua, turret->p.x);
+                lua_pushnumber(lua, turret->p.y);
+                lua_pushnumber(lua, turret->a);
+            }
 
-        lua_call(lua, 7, 0);
+            LOG("on_type_bb_query: [%s]\n", stack_dump(lua));
+            lua_call(lua, 7, 0);
+            LOG("on_type_bb_query: [%s]\n", stack_dump(lua));
+        }
     }
+    // }}}
+}
+
+static const char* get_bb_xywh(cpBB bb) {
+    static char buf[128] = {0, };
+    sprintf(buf, "(%f, %f, %f, %f)", bb.l, bb.t, bb.r - bb.l, bb.b - bb.t);
+    return buf;
+}
+
+void on_sensor_shape(cpShape *shape, cpContactPointSet *points, void *data) {
+    LOG("on_sensor_shape\n");
 }
 
 void on_bullet_bb_query(cpShape *shape, void *data) {
+    // {{{
     lua_State *lua = data;
     if (shape->body->userData) {
         /*lua_pushvalue(lua, 5); // callback function*/
@@ -988,52 +1007,49 @@ void on_bullet_bb_query(cpShape *shape, void *data) {
         lua_pushnumber(lua, body->p.y);
         lua_call(lua, 2, 0);
     }
-}
-
-static const char* get_bb_xywh(cpBB bb) {
-    static char buf[128] = {0, };
-    sprintf(buf, "(%f, %f, %f, %f)", bb.l, bb.t, bb.r - bb.l, bb.b - bb.t);
-    return buf;
-}
-
-void on_sensor_shape(cpShape *shape, cpContactPointSet *points, void *data) {
-    LOG("on_sensor_shape\n");
+    // }}}
 }
 
 #define SPACE_QUERY_BB
 static int space_query_bb_type(lua_State *lua) {
     CHECK_SPACE;
     check_argsnum(lua, 6);
-    luaL_checktype(lua, 1, LUA_TNUMBER); // x
-    luaL_checktype(lua, 2, LUA_TNUMBER); // y
-    luaL_checktype(lua, 3, LUA_TNUMBER); // w
-    luaL_checktype(lua, 4, LUA_TNUMBER); // h
+    luaL_checktype(lua, 1, LUA_TNUMBER); // l
+    luaL_checktype(lua, 2, LUA_TNUMBER); // t
+    luaL_checktype(lua, 3, LUA_TNUMBER); // r
+    luaL_checktype(lua, 4, LUA_TNUMBER); // b
     luaL_checktype(lua, 5, LUA_TNUMBER); // ObjType
     luaL_checktype(lua, 6, LUA_TFUNCTION);
 
-    /*cpShapeFilter filter = {*/
-        /*CP_NO_GROUP,*/
-        /*CP_ALL_CATEGORIES, */
-        /*CP_ALL_CATEGORIES */
-    /*};*/
+    cpShapeFilter filter = {
+        CP_NO_GROUP,
+        CP_ALL_CATEGORIES, 
+        CP_ALL_CATEGORIES 
+    };
 
     cpBB bb = {0, };
     bb.l = lua_tonumber(lua, 1);
     bb.t = lua_tonumber(lua, 2);
-    bb.r = bb.l + lua_tonumber(lua, 3);
-    bb.b = bb.t + lua_tonumber(lua, 4);
+    bb.r = lua_tonumber(lua, 3);
+    bb.b = lua_tonumber(lua, 4);
 
-    /*BBQueryData queryData = {*/
-        /*.lua = lua,*/
-        /*.type = ceil(lua_tonumber(lua, 5)),*/
-    /*};*/
-    LOG("space_query_bb: bb = %s\n", get_bb_xywh(bb));
-    /*cpSpaceBBQuery(cur_space->space, bb, filter, on_type_bb_query, &queryData);*/
+    BBQueryData queryData = {
+        .lua = lua,
+        .type = ceil(lua_tonumber(lua, 5)),
+    };
+    /*LOG("space_query_bb: bb = %s\n", get_bb_xywh(bb));*/
+
+    LOG("space_query_bb_type: [%s]\n", stack_dump(lua));
+
+    cpSpaceBBQuery(cur_space->space, bb, filter, on_type_bb_query, &queryData);
+
+    /*
     cpSpaceShapeQuery(
             cur_space->space, 
             cur_space->camera_sensor,
             on_sensor_shape,
             lua);
+    */
 
     return 0;
 }
@@ -1316,6 +1332,11 @@ void on_point_query(
     }
 
     Tank *tank = (Tank*)body->userData;
+
+    if (!tank) {
+        return;
+    }
+
     if (tank->reg_index == 0) {
         LOG("on_point_query: tank->reg_index == 0");
         return;
