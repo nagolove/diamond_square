@@ -43,7 +43,6 @@ local wrp = require "wrp"
 
 require "love"
 require 'konstants'
-require 'joystate'
 require 'pipeline'
 require "common"
 
@@ -308,6 +307,9 @@ local bordersArea: Borders = {}
 
 local segments: {wrp.Shape} = {}
 
+local JoyState = require 'joystate'
+local DummyJoyState = require 'dummyjoystate'
+
 local lj = love.joystick
 local Joystick = lj.Joystick
 local joyState: JoyState
@@ -322,7 +324,11 @@ local function initJoy()
         debug_print("joy", colorize('%{green}avaible ' .. joy:getButtonCount() .. ' buttons'))
         debug_print("joy", colorize('%{green}hats num: ' .. joy:getHatCount()))
     end
-    joyState = JoyState.new(joy)
+    if joy then
+        joyState = JoyState.new(joy)
+    else 
+        joyState = DummyJoyState.new(joy) as JoyState
+    end
 end
 
 local function print_fps()
@@ -2041,7 +2047,7 @@ pipeline.tl
 
 local function applyInput(j: Joystick)
     -- Нужно and или or?
-    if not j and not playerTank then
+    if not j or not playerTank then
         return
     end
 

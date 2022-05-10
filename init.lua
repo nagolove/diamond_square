@@ -43,7 +43,6 @@ local wrp = require("wrp")
 
 require("love")
 require('konstants')
-require('joystate')
 require('pipeline')
 require("common")
 
@@ -308,6 +307,9 @@ local bordersArea = {}
 
 local segments = {}
 
+local JoyState = require('joystate')
+local DummyJoyState = require('dummyjoystate')
+
 local lj = love.joystick
 local Joystick = lj.Joystick
 local joyState
@@ -322,7 +324,11 @@ local function initJoy()
       debug_print("joy", colorize('%{green}avaible ' .. joy:getButtonCount() .. ' buttons'))
       debug_print("joy", colorize('%{green}hats num: ' .. joy:getHatCount()))
    end
-   joyState = JoyState.new(joy)
+   if joy then
+      joyState = JoyState.new(joy)
+   else
+      joyState = DummyJoyState.new(joy)
+   end
 end
 
 local function print_fps()
@@ -836,13 +842,14 @@ local OBJT_SEGMENT = 4
 
 local function renderTanks()
    pipeline:open('tank')
-   wrp.query_all_tanks_t(on_each_body_t)
 
 
 
 
 
 
+   wrp.space_query_bb_type(-30000, 30000, 30000, -30000, OBJT_TANK,
+   on_each_body_t)
 
    pipeline:push('flush')
    pipeline:close()
@@ -2040,7 +2047,7 @@ end
 
 local function applyInput(j)
 
-   if not j and not playerTank then
+   if not j or not playerTank then
       return
    end
 

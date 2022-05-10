@@ -197,6 +197,10 @@ function Camera:detach()
 end
 
 function Camera:checkMovement(j)
+   if not j then
+      return
+   end
+
    local axes = { j:getAxes() }
    local dx, dy = axes[4], axes[5]
 
@@ -232,6 +236,10 @@ end
 
 
 function Camera:checkScale(j)
+   if not j then
+      return
+   end
+
    local axes = { j:getAxes() }
    local dy = axes[2]
    local factor = 1 * self.dt
