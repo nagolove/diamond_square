@@ -40,6 +40,7 @@ print("package.cpath", package.cpath)
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
 local wrp = require("wrp")
+local joy_conf = require('joy_conf')
 
 require("love")
 require('konstants')
@@ -762,16 +763,17 @@ local function on_each_body_t(
    end
 
 
-   print(
-   colorize("%{red}on_each_body_t: %{reset}"),
-   "\n     tank.id", tank.id,
-   "\n     x", x,
-   "\n     y", y,
-   "\n     angle", angle,
-   "\n     obj", obj,
-   "\n     tur_x", tur_x,
-   "\n     tur_y", tur_y,
-   "\n     tur_angle", tur_angle)
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2052,7 +2054,6 @@ local function applyInput(j)
    end
 
    local left, right, up, down = 3, 2, 4, 1
-   local fire_axis = 3
 
 
 
@@ -2070,7 +2071,7 @@ local function applyInput(j)
       playerTank:backward()
    end
 
-   local fire_value = j:getAxis(fire_axis)
+   local fire_value = j:getAxis(joy_conf.fire_axis)
    if fire_value > 0.5 then
       camera:attach()
       playerTank:fire()

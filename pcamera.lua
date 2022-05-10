@@ -1,12 +1,22 @@
 local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local string = _tl_compat and _tl_compat.string or string; require('love')
 
+local inspect = require('inspect')
 local Pipeline = require('pipeline')
 local lj = love.joystick
 local Joystick = lj.Joystick
 local sformat = string.format
 
 
+
+
+
+
+local joy_conf = require('joy_conf')
+
+
 local Camera = {}
+
+
 
 
 
@@ -76,7 +86,7 @@ function Camera.new(pipeline, _screenW, _screenH)
    self.x, self.y = 0, 0
    self.scale = 1.
    self.dt = 0
-   self.transform = love.math.newTransform()
+
    self.pipeline = pipeline
 
    self.pipeline:pushCodeFromFile('camera', "rdr_camera.lua")
@@ -148,13 +158,15 @@ end
 function Camera:push2lines_buf()
    local msg = sformat("camera: (%.3f, %.3f, %.4f)", self.x, self.y, self.scale)
    self.pipeline:push("add", "camera", msg)
-   local mat = { self.transform:getMatrix() }
+
    local fmt1 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f,"
    local fmt2 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f"
-   msg = sformat(
-   "camera mat: (" .. fmt1 .. fmt2 .. ")",
-   mat[1], mat[2], mat[3], mat[4], mat[5], mat[6], mat[7], mat[8],
-   mat[9], mat[10], mat[11], mat[12], mat[13], mat[14], mat[15], mat[16])
+
+
+
+
+
+
 
    self.pipeline:push("add", "camera_mat", msg)
 end
@@ -202,7 +214,11 @@ function Camera:checkMovement(j)
    end
 
    local axes = { j:getAxes() }
-   local dx, dy = axes[4], axes[5]
+   local dx, dy = axes[joy_conf.dx_axis_index], axes[joy_conf.dy_axis_index]
+
+   print('axes', inspect(axes))
+   print('dx, dy', dx, dy)
+
 
    local amount_x, amount_y = 3000 * self.dt, 3000 * self.dt
    local tx, ty = 0., 0.
@@ -241,7 +257,7 @@ function Camera:checkScale(j)
    end
 
    local axes = { j:getAxes() }
-   local dy = axes[2]
+   local dy = axes[joy_conf.scale_axis_index]
    local factor = 1 * self.dt
    local px, py = self.screenW * factor / 2, self.screenH * factor / 2
 
