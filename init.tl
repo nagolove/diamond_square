@@ -40,6 +40,7 @@ print("package.cpath", package.cpath)
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
 local wrp = require "wrp"
+local joy_conf = require 'joy_conf'
 
 require "love"
 require 'konstants'
@@ -761,6 +762,7 @@ local function on_each_body_t(
         error("tank should be a table, not a " .. type(tank))
     end
 
+    --[[
     -- {{{
     print(
         colorize("%{red}on_each_body_t: %{reset}"),
@@ -2052,7 +2054,6 @@ local function applyInput(j: Joystick)
     end
 
     local left, right, up, down = 3, 2, 4, 1
-    local fire_axis = 3
 
     --[[
     Как узнать направление движения и направление приложения силы?
@@ -2070,7 +2071,7 @@ local function applyInput(j: Joystick)
         playerTank:backward()
     end
 
-    local fire_value = j:getAxis(fire_axis) 
+    local fire_value = j:getAxis(joy_conf.fire_axis) 
     if fire_value > 0.5 then
         camera:attach()
         playerTank:fire()
