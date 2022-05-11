@@ -26,7 +26,7 @@ local record Camera
     -- TODO Вынести из камеры наружу.
     checkInput: function(Camera)
     -- Обновить состояние.
-    update: function(Camera, dt: number)
+    update: function(Camera, dt: number, px: number, py: number)
 
     reset: function(Camera)
     attach: function(Camera)
@@ -168,8 +168,32 @@ function Camera:push2lines_buf()
     -- }}}
 end
 
-function Camera:update(dt: number)
+function Camera:update(dt: number, px: number, py: number)
+    -- {{{
     self.dt = dt
+    local dx, dy = 0., 0.
+
+    --[[
+    if px < self.bbox_pix.x then
+        dx = self.bbox_pix.x - px
+    end
+    local right = self.bbox_pix.x + self.bbox_pix.w
+    if px > right then
+        dx = px - right
+    end
+
+    if py < self.bbox_pix.y then
+        dy = self.bbox_pix.y - py
+    end
+    local bottom = self.bbox_pix.y + self.bbox_pix.h
+    if py > bottom then
+        dy = py - bottom
+    end
+
+    print('px, py', px, py)
+    --]]
+
+    -- }}}
 end
 
 function Camera:reset()
@@ -219,8 +243,8 @@ function Camera:checkMovement(j: Joystick)
     local axes = {j:getAxes()}
     local dx, dy = axes[joy_conf.dx_axis_index], axes[joy_conf.dy_axis_index]
 
-    print('axes', inspect(axes))
-    print('dx, dy', dx, dy)
+    --print('axes', inspect(axes))
+    --print('dx, dy', dx, dy)
 
     -- количество пикселей на которые передвигается камера
     local amount_x, amount_y = 3000 * self.dt, 3000 * self.dt
