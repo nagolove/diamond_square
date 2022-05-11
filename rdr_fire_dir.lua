@@ -1,6 +1,8 @@
 local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local math = _tl_compat and _tl_compat.math or math; local table = _tl_compat and _tl_compat.table or table; require('love')
 
 
+
+
 local inspect = require('inspect')
 local colorize = require('ansicolors2').ansicolors
 local cos = math.cos
@@ -9,6 +11,8 @@ local fromPolar = require('vector-light').fromPolar
 local gr = love.graphics
 local yield = coroutine.yield
 local ray_color = { 1, 1, 1, 1 }
+
+local target_img = gr.newImage(SCENE_PREFIX .. "/aim_selector.png")
 
 local Command = {}
 
@@ -56,8 +60,12 @@ function commands.target()
    local x = graphic_command_channel:demand()
    local y = graphic_command_channel:demand()
    local radius = 10
-   gr.setColor(target_color)
-   gr.circle("fill", x, y, radius)
+
+
+   gr.setColor({ 1, 1, 1, 1 })
+   local tw, th = target_img:getDimensions()
+   gr.draw(target_img, x - tw / 2, y - th / 2)
+
    return true
 end
 

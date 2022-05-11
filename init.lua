@@ -41,6 +41,7 @@ print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
 local wrp = require("wrp")
 local joy_conf = require('joy_conf')
+local fire_threshold = 0.5
 
 require("love")
 require('konstants')
@@ -2072,7 +2073,7 @@ local function applyInput(j)
    end
 
    local fire_value = j:getAxis(joy_conf.fire_axis)
-   if fire_value > 0.5 then
+   if fire_value > fire_threshold then
       camera:attach()
       playerTank:fire()
       camera:detach()
@@ -2083,6 +2084,7 @@ local function applyInput(j)
 
 
    local hut = j:getHat(hut_num)
+   print('hut', hut)
    if hut == "l" then
       playerTank:rotate_turret("left")
    elseif hut == "r" then
