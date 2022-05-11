@@ -447,7 +447,7 @@ function Tank.initPipelineObjects(pl: Pipeline, cam: PCamera)
     pipeline:push(ser_full_info)
     pipeline:close()
 
-    pipeline:pushCodeFromFile("fire_dir", 'fire_dir.lua')
+    pipeline:pushCodeFromFile("fire_dir", 'rdr_fire_dir.lua')
     pipeline:openPushAndClose('fire_dir', 'set_dist', fire_dist)
 end
 
