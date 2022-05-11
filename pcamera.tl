@@ -1,5 +1,9 @@
+-- vim: set colorcolumn=85
+-- vim: fdm=marker
+
 require 'love'
 
+local cam_common = require 'camera_common'
 local inspect = require 'inspect'
 local Pipeline = require 'pipeline'
 local lj = love.joystick
@@ -7,9 +11,6 @@ local Joystick = lj.Joystick
 local sformat = string.format
 
 -- TODO Диалог для настройки клавиш геймпада
---local scale_axis_index = 2
---local dx_axis_index = 4
---local dy_axis_index = 5
 
 local joy_conf = require 'joy_conf'
 
@@ -21,11 +22,6 @@ local record Camera
 
     new: function(pipeline: Pipeline, _screenW: number, _screenH: number): Camera
 
-    -- Включить камеру
-    --setTransform: function(Camera)
-    -- Отключить камеру
-    --setOrigin: function(Camera)
-
     -- Проверка ввода с геймпада.
     -- TODO Вынести из камеры наружу.
     checkInput: function(Camera)
@@ -35,6 +31,7 @@ local record Camera
     reset: function(Camera)
     attach: function(Camera)
     detach: function(Camera)
+    draw_bbox: function(Camera)
 
     -- Из оконных координаты в абсолютные.
     fromLocal: function(Camera, x: number, y: number): number, number
@@ -71,7 +68,7 @@ local record Camera
     y: number
     scale: number
     dt: number
-    --transform: love.math.Transform
+    bbox_pix: BBox_pix
     -- }}}
 end
 
@@ -79,18 +76,34 @@ local Camera_mt: metatable<Camera> = {
     __index = Camera,
 }
 
-function Camera.new(pipeline: Pipeline, _screenW: number, _screenH: number): Camera
+local cam_bbox = {
+    w = 0.8,
+    h = 0.8
+}
+
+function Camera.new(
+    pipeline: Pipeline,
+    _screenW: number,
+    _screenH: number
+): Camera
+
     local self: Camera = setmetatable({} as Camera, Camera_mt)
     self.screenW = _screenW
     self.screenH = _screenH
     self.x, self.y = 0, 0
     self.scale = 1.
     self.dt = 0
-    --self.transform = love.math.newTransform()
     self.pipeline = pipeline
-
+    self.bbox_pix = cam_common.calc_bbox_pix(
+        cam_bbox,
+        self.screenW,
+        self.screenH,
+        self.x,
+        self.y
+    )
     self.pipeline:pushCodeFromFile('camera', "rdr_camera.lua")
 
+    -- {{{
     self.pipeline:pushCode("camera_axises", [[
     local yield = coroutine.yield
     local linew = 1.
@@ -106,29 +119,6 @@ function Camera.new(pipeline: Pipeline, _screenW: number, _screenH: number): Cam
         yield()
     end
     ]])
-
-    -- Установить трансформацию
-    -- {{{
-    pipeline:pushCode('set_transform', [[
-    local gr = love.graphics
-    local yield = coroutine.yield
-    while true do
-        gr.applyTransform(graphic_command_channel:demand())
-        yield()
-    end
-    ]])
-    -- }}}
-
-    -- Сброс трансформации
-    -- {{{
-    pipeline:pushCode('origin_transform', [[
-    local gr = love.graphics
-    local yield = coroutine.yield
-    while true do
-        gr.origin()
-        yield()
-    end
-    ]])
     -- }}}
 
     return self
@@ -136,9 +126,11 @@ end
 
 function Camera:setTransform()
     --[[
+    -- {{{
     self.pipeline:open('set_transform')
     self.pipeline:push(self.transform)
     self.pipeline:close()
+    -- }}}
     --]]
 end
 
@@ -156,7 +148,11 @@ function Camera:draw_axises()
 end
 
 function Camera:push2lines_buf()
-    local msg = sformat("camera: (%.3f, %.3f, %.4f)", self.x, self.y, self.scale)
+    -- {{{
+    local msg = sformat(
+        "camera: (%.3f, %.3f, %.4f)",
+        self.x, self.y, self.scale
+    )
     self.pipeline:push("add", "camera", msg)
     --local mat = {self.transform:getMatrix()}
     local fmt1 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f,"
@@ -169,6 +165,7 @@ function Camera:push2lines_buf()
     )
     --]]
     self.pipeline:push("add", "camera_mat", msg)
+    -- }}}
 end
 
 function Camera:update(dt: number)
@@ -190,7 +187,8 @@ function Camera:fromLocal2(x: number, y: number): number, number
     --x, y = (x - w / 2) / self.scale, (y - h / 2) / self.scale
     --return self.x + x, self.y + y
 	--local c,s = cos(self.rot), sin(self.rot)
-    local w, h = 1920, 1020
+    --local w, h = 1920, 1020
+    local w, h = self.screenW, self.screenH
 	x,y = x - self.x, y - self.y
 	x,y = x - y, x + y
     local ox, oy = 0, 0
@@ -198,7 +196,8 @@ function Camera:fromLocal2(x: number, y: number): number, number
 end
 
 function Camera:fromLocal(x: number, y: number): number, number
-    local w, h = 1920, 1080
+    --local w, h = 1920, 1080
+    local w, h = self.screenW, self.screenH
     x, y = (x - w / 2) / self.scale, (y - h / 2) / self.scale
     return self.x + x, self.y + y
 end
@@ -206,6 +205,10 @@ end
 function Camera:detach()
     --self.pipeline:openAndClose('origin_transform')
     self.pipeline:openPushAndClose('camera', 'detach')
+end
+
+function Camera:draw_bbox()
+    self.pipeline:openPushAndClose('camera', 'draw_bbox')
 end
 
 function Camera:checkMovement(j: Joystick)
@@ -245,8 +248,6 @@ function Camera:checkMovement(j: Joystick)
     if changed then
         self.x = self.x - tx
         self.y = self.y - ty
-        --self.x = self.x + tx
-        --self.y = self.y + ty
     end
 end
 

@@ -989,6 +989,8 @@ local function render_internal()
     if is_draw_gamepad_docs then
         docsystem.draw_gamepad()
     end
+
+    camera:draw_bbox()
 end
 
 local function renderScene()
