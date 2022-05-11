@@ -843,6 +843,14 @@ local OBJT_TANK = 1
 local OBJT_BULLET = 2
 local OBJT_SEGMENT = 4
 
+local function move_camera2player()
+   if playerTank then
+      local px, py = playerTank.base:get_position()
+      print('camera was centered to', px, py)
+      camera:moveTo(px, py)
+   end
+end
+
 local function renderTanks()
    pipeline:open('tank')
 
@@ -892,13 +900,14 @@ end
 local draw_selected_object = true
 
 local function renderSelectedObject()
-   local player_x, player_y
+   local player_x, player_y, player_angle
    if playerTank then
       local body = playerTank.base
-      player_x, player_y = body:get_position()
+      player_x, player_y, player_angle = body:get_position()
       if draw_selected_object then
          pipeline:open('selected_object')
-         pipeline:push(body:get_position())
+
+         pipeline:push(player_x, player_y, player_angle)
          pipeline:close()
       end
    else
@@ -989,6 +998,8 @@ local function render_internal()
    if is_draw_gamepad_docs then
       docsystem.draw_gamepad()
    end
+
+   camera:draw_bbox()
 end
 
 local function renderScene()
@@ -1382,6 +1393,8 @@ local function spawnPlayer()
    local px, py = screenW / 3, screenH / 2
    playerTank = spawnTank(px, py)
 
+   move_camera2player()
+
 
    spawnTank(px + 400, py)
 end
@@ -1709,21 +1722,6 @@ end
 local function initPipelineObjects()
    Tank.initPipelineObjects(pipeline, camera)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    local dejavu_mono = "DejaVuSansMono.ttf"
    pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
    pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
@@ -1744,9 +1742,12 @@ local function initPipelineObjects()
 
 
 
+
+
 end
 
 local function add_keyboard_docs()
+
    docsystem.add_keyboard_doc("escape", "exit")
    docsystem.add_keyboard_doc("r", "Rebuild map")
    docsystem.add_keyboard_doc('z', 'Decrease map size')
@@ -1759,9 +1760,11 @@ local function add_keyboard_docs()
    docsystem.add_keyboard_doc('1', 'Reload static physics segments.')
    docsystem.add_keyboard_doc('2', 'Show or hide selected object border.')
    docsystem.finish_keyboard_docs()
+
 end
 
 local function add_gamepad_docs()
+
    docsystem.add_gamepad_doc("start", "show this help")
    docsystem.add_gamepad_doc("left shift", "reset camera")
    docsystem.add_gamepad_doc('right shift', 'move camera to player')
@@ -1770,6 +1773,16 @@ local function add_gamepad_docs()
    docsystem.add_gamepad_doc('Y', 'move forward')
    docsystem.add_gamepad_doc('A', 'move backward')
    docsystem.finish_gamepad_docs()
+
+end
+
+local function spawnHangars()
+   local corners = getTerrainCorners()
+   if corners then
+      for _, c in ipairs(corners) do
+         spawnHangar(c)
+      end
+   end
 end
 
 local function init()
@@ -1816,15 +1829,10 @@ local function init()
 
 
 
-   local corners = getTerrainCorners()
-   if corners then
-      for _, c in ipairs(corners) do
-         spawnHangar(c)
-      end
-   end
 
 
    last_render = love.timer.getTime()
+
    print('init finished')
 end
 
@@ -1845,6 +1853,7 @@ local function inc_push_counter()
 end
 
 local function push_tank_body_stat(object)
+
    local msg = ""
    local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, force_x, force_y, angle, w, torque =
 object:get_body_stat()
@@ -1869,9 +1878,11 @@ object:get_body_stat()
 
    msg = sformat('torque: %.3f', torque)
    pipeline:push('add', inc_push_counter(), msg)
+
 end
 
 local function push_tank_turret_stat(object)
+
    local msg = ""
    local mass, inertia, cog_x, cog_y, pos_x, pos_y, v_x, v_y, force_x, force_y, angle, w, torque =
 object:get_turret_stat()
@@ -1896,6 +1907,7 @@ object:get_turret_stat()
 
    msg = sformat('torque: %.3f', torque)
    pipeline:push('add', inc_push_counter(), msg)
+
 end
 
 local function mousemoved(x, y, dx, dy)
@@ -1915,6 +1927,8 @@ local function mousemoved(x, y, dx, dy)
       dist,
       gradx,
       grady)
+
+
 
 
       if not object then
@@ -1945,6 +1959,8 @@ local function mousemoved(x, y, dx, dy)
 
       pipeline:push('enough')
       pipeline:close()
+
+
    end)
 
    if counter == 0 then
@@ -1986,8 +2002,7 @@ local function joystickpressed(_, button)
       camera:reset()
    end
    if button == right_shift then
-      local px, py = playerTank.base:get_position()
-      camera:moveTo(px, py)
+      move_camera2player()
    end
    if button == start then
 
@@ -2084,7 +2099,8 @@ local function applyInput(j)
 
 
    local hut = j:getHat(hut_num)
-   print('hut', hut)
+
+
    if hut == "l" then
       playerTank:rotate_turret("left")
    elseif hut == "r" then
@@ -2105,6 +2121,7 @@ end
 local stateCoro = coroutine.create(function(dt)
 
    initBorders()
+   spawnHangars()
    spawnTanks()
    spawnPlayer()
 
@@ -2122,7 +2139,15 @@ local stateCoro = coroutine.create(function(dt)
 
 
          camera:checkInput(joy)
-         camera:update(dt)
+         local px, py
+         if playerTank then
+
+
+
+
+            px, py = playerTank.base:get_position()
+         end
+         camera:update(dt, px, py)
 
 
          if not physics_pause then

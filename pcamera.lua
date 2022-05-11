@@ -1,13 +1,14 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local string = _tl_compat and _tl_compat.string or string; require('love')
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local string = _tl_compat and _tl_compat.string or string
 
+
+require('love')
+
+local cam_common = require('camera_common')
 local inspect = require('inspect')
 local Pipeline = require('pipeline')
 local lj = love.joystick
 local Joystick = lj.Joystick
 local sformat = string.format
-
-
-
 
 
 
@@ -71,25 +72,37 @@ local Camera = {}
 
 
 
-
-
-
-
 local Camera_mt = {
    __index = Camera,
 }
 
-function Camera.new(pipeline, _screenW, _screenH)
+local cam_bbox = {
+   w = 0.8,
+   h = 0.8,
+}
+
+function Camera.new(
+   pipeline,
+   _screenW,
+   _screenH)
+
+
    local self = setmetatable({}, Camera_mt)
    self.screenW = _screenW
    self.screenH = _screenH
    self.x, self.y = 0, 0
    self.scale = 1.
    self.dt = 0
-
    self.pipeline = pipeline
+   self.bbox_pix = cam_common.calc_bbox_pix(
+   cam_bbox,
+   self.screenW,
+   self.screenH,
+   self.x,
+   self.y)
 
    self.pipeline:pushCodeFromFile('camera', "rdr_camera.lua")
+
 
    self.pipeline:pushCode("camera_axises", [[
     local yield = coroutine.yield
@@ -108,33 +121,12 @@ function Camera.new(pipeline, _screenW, _screenH)
     ]])
 
 
-
-   pipeline:pushCode('set_transform', [[
-    local gr = love.graphics
-    local yield = coroutine.yield
-    while true do
-        gr.applyTransform(graphic_command_channel:demand())
-        yield()
-    end
-    ]])
-
-
-
-
-   pipeline:pushCode('origin_transform', [[
-    local gr = love.graphics
-    local yield = coroutine.yield
-    while true do
-        gr.origin()
-        yield()
-    end
-    ]])
-
-
    return self
 end
 
 function Camera:setTransform()
+
+
 
 
 
@@ -156,7 +148,11 @@ function Camera:draw_axises()
 end
 
 function Camera:push2lines_buf()
-   local msg = sformat("camera: (%.3f, %.3f, %.4f)", self.x, self.y, self.scale)
+
+   local msg = sformat(
+   "camera: (%.3f, %.3f, %.4f)",
+   self.x, self.y, self.scale)
+
    self.pipeline:push("add", "camera", msg)
 
    local fmt1 = "%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f,"
@@ -169,10 +165,35 @@ function Camera:push2lines_buf()
 
 
    self.pipeline:push("add", "camera_mat", msg)
+
 end
 
-function Camera:update(dt)
+function Camera:update(dt, px, py)
+
    self.dt = dt
+   local dx, dy = 0., 0.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 end
 
 function Camera:reset()
@@ -190,7 +211,8 @@ function Camera:fromLocal2(x, y)
 
 
 
-   local w, h = 1920, 1020
+
+   local w, h = self.screenW, self.screenH
    x, y = x - self.x, y - self.y
    x, y = x - y, x + y
    local ox, oy = 0, 0
@@ -198,7 +220,8 @@ function Camera:fromLocal2(x, y)
 end
 
 function Camera:fromLocal(x, y)
-   local w, h = 1920, 1080
+
+   local w, h = self.screenW, self.screenH
    x, y = (x - w / 2) / self.scale, (y - h / 2) / self.scale
    return self.x + x, self.y + y
 end
@@ -206,6 +229,10 @@ end
 function Camera:detach()
 
    self.pipeline:openPushAndClose('camera', 'detach')
+end
+
+function Camera:draw_bbox()
+   self.pipeline:openPushAndClose('camera', 'draw_bbox')
 end
 
 function Camera:checkMovement(j)
@@ -216,8 +243,8 @@ function Camera:checkMovement(j)
    local axes = { j:getAxes() }
    local dx, dy = axes[joy_conf.dx_axis_index], axes[joy_conf.dy_axis_index]
 
-   print('axes', inspect(axes))
-   print('dx, dy', dx, dy)
+
+
 
 
    local amount_x, amount_y = 3000 * self.dt, 3000 * self.dt
@@ -245,8 +272,6 @@ function Camera:checkMovement(j)
    if changed then
       self.x = self.x - tx
       self.y = self.y - ty
-
-
    end
 end
 

@@ -60,12 +60,11 @@ function commands.target()
    local x = graphic_command_channel:demand()
    local y = graphic_command_channel:demand()
    local radius = 10
-
-
    gr.setColor({ 1, 1, 1, 1 })
    local tw, th = target_img:getDimensions()
    gr.draw(target_img, x - tw / 2, y - th / 2)
-
+   gr.setColor(target_color)
+   gr.circle("fill", x, y, radius)
    return true
 end
 
