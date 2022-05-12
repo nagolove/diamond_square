@@ -35,9 +35,7 @@ function DocSystem.init_render_stage1(pl)
 
    pipeline:pushCodeFromFile('keyboard_render', 'rdr_lines_buf_ordered.lua')
 
-
    pipeline:pushCodeFromFile('gamepad_render', 'rdr_lines_buf_ordered.lua')
-
 end
 
 function DocSystem.init_render_stage2()
