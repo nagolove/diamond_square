@@ -172,6 +172,19 @@ function Camera:update(dt, px, py)
 
    self.dt = dt
    local dx, dy = 0., 0.
+   local move = false
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

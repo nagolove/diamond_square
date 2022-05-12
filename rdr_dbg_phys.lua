@@ -31,8 +31,6 @@ require('love')
 
 local cmd_num = 0
 
-local commands = {}
-
 local Command = {}
 
 
@@ -45,6 +43,8 @@ local Command = {}
 
 local dbg_color = { 0, 0.7, 0, 1 }
 local dbg_dot_color = { 0.1, 0.6, 0.1 }
+
+local commands = {}
 
 function commands.circle()
    local px = graphic_command_channel:demand()

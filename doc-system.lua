@@ -33,9 +33,11 @@ local font_size = 40
 function DocSystem.init_render_stage1(pl)
    pipeline = pl
 
-   pipeline:pushCodeFromFile('keyboard_render', 'lines_buf_ordered.lua')
+   pipeline:pushCodeFromFile('keyboard_render', 'rdr_lines_buf_ordered.lua')
 
-   pipeline:pushCodeFromFile('gamepad_render', 'lines_buf_ordered.lua')
+
+   pipeline:pushCodeFromFile('gamepad_render', 'rdr_lines_buf_ordered.lua')
+
 end
 
 function DocSystem.init_render_stage2()

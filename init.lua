@@ -852,18 +852,14 @@ local function move_camera2player()
 end
 
 local function renderTanks()
+
    pipeline:open('tank')
-
-
-
-
-
 
    wrp.space_query_bb_type(-30000, 30000, 30000, -30000, OBJT_TANK,
    on_each_body_t)
-
    pipeline:push('flush')
    pipeline:close()
+
 
    pipeline:open("debug_vertices")
    wrp.query_all_tanks_t(debug_draw_vertices)
@@ -938,20 +934,19 @@ local function phys_dbg_draw()
    pipeline:open("dbg_phys")
    wrp.space_debug_draw(
    function(px, py, angle, rad)
-      pipeline:push('circle', px, py, angle, rad)
+
    end,
    function(ax, ay, bx, by)
-      pipeline:push('segment', ax, ay, bx, by)
+
    end,
    function(ax, ay, bx, by, rad)
-      pipeline:push('fatsegment', ax, ay, bx, by, rad)
+
    end,
    function(polygon, rad)
-      pipeline:push('polygon', polygon, rad)
+
    end,
    function(size, px, py)
 
-      pipeline:push('dot', size, px, py)
    end)
 
    pipeline:push("enough")
@@ -1393,10 +1388,13 @@ local function spawnPlayer()
    local px, py = screenW / 3, screenH / 2
    playerTank = spawnTank(px, py)
 
+
+   spawnTank(px + 400, py)
+
    move_camera2player()
 
 
-   spawnTank(px + 400, py)
+
 end
 
 local function nextTankAsPlayer()
@@ -1630,7 +1628,7 @@ end
 
 local function initRenderCode()
 
-   pipeline:pushCodeFromFile('dbg_phys', 'dbg_phys.lua')
+   pipeline:pushCodeFromFile('dbg_phys', 'rdr_dbg_phys.lua')
 
 
 
