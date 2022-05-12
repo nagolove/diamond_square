@@ -805,7 +805,7 @@ static int tank_new(lua_State *lua) {
 // Вариант решения - вызывать функцию обратного вызова только если с момента
 // прошлого рисования произошло изменению положения, более чем на 0.5px
 // Как хранить данные о прошлом положении?
-/*#define LOG_ON_EACH_TANK_T*/
+#define LOG_ON_EACH_TANK_T
 void on_each_tank_t(cpBody *body, void *data) {
     lua_State *lua = (lua_State*)data;
 
@@ -941,17 +941,26 @@ typedef struct {
     ObjType type;
 } BBQueryData;
 
+/*#define ON_TYPE_BB_QUERY*/
 void on_type_bb_query(cpShape *shape, void *data) {
     // {{{
     BBQueryData *queryData = data;
     lua_State *lua = queryData->lua;
+
+#ifdef ON_TYPE_BB_QUERY
     LOG("on_type_bb_query: [%s]\n", stack_dump(lua));
+#endif
+
     if (shape->body->userData) {
         lua_pushvalue(lua, 6); // callback function
         cpBody *body = shape->body;
 
         Object *obj = (Object*)body->userData;
+
+#ifdef ON_TYPE_BB_QUERY
         LOG("on_type_bb_query: type = %s\n", get_obj_type(obj->type));
+#endif
+
         if (obj->type != queryData->type) {
             return;
         }
@@ -972,22 +981,26 @@ void on_type_bb_query(cpShape *shape, void *data) {
                 lua_pushnumber(lua, turret->a);
             }
 
+#ifdef ON_TYPE_BB_QUERY
             LOG("on_type_bb_query: [%s]\n", stack_dump(lua));
+#endif
+
             lua_call(lua, 7, 0);
+
+#ifdef ON_TYPE_BB_QUERY
             LOG("on_type_bb_query: [%s]\n", stack_dump(lua));
+#endif
         }
     }
+
     // }}}
 }
+#undef ON_TYPE_BB_QUERY
 
 static const char* get_bb_xywh(cpBB bb) {
     static char buf[128] = {0, };
     sprintf(buf, "(%f, %f, %f, %f)", bb.l, bb.t, bb.r - bb.l, bb.b - bb.t);
     return buf;
-}
-
-void on_sensor_shape(cpShape *shape, cpContactPointSet *points, void *data) {
-    LOG("on_sensor_shape\n");
 }
 
 void on_bullet_bb_query(cpShape *shape, void *data) {
@@ -1010,7 +1023,7 @@ void on_bullet_bb_query(cpShape *shape, void *data) {
     // }}}
 }
 
-#define SPACE_QUERY_BB
+/*#define SPACE_QUERY_BB*/
 static int space_query_bb_type(lua_State *lua) {
     CHECK_SPACE;
     check_argsnum(lua, 6);
@@ -1037,19 +1050,12 @@ static int space_query_bb_type(lua_State *lua) {
         .lua = lua,
         .type = ceil(lua_tonumber(lua, 5)),
     };
-    /*LOG("space_query_bb: bb = %s\n", get_bb_xywh(bb));*/
 
+#ifdef SPACE_QUERY_BB
     LOG("space_query_bb_type: [%s]\n", stack_dump(lua));
+#endif
 
     cpSpaceBBQuery(cur_space->space, bb, filter, on_type_bb_query, &queryData);
-
-    /*
-    cpSpaceShapeQuery(
-            cur_space->space, 
-            cur_space->camera_sensor,
-            on_sensor_shape,
-            lua);
-    */
 
     return 0;
 }
