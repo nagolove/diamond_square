@@ -852,19 +852,15 @@ local function move_camera2player()
 end
 
 local function renderTanks()
+
     pipeline:open('tank')
-    --wrp.query_all_tanks_t(on_each_body_t)
-
-    --wrp.space_query_bb(-3000, -3000, 3000, 3000, OBJT_TANK,
-    --wrp.space_query_bb_type(-30000, -30000, 30000, 30000, OBJT_TANK,
-
     -- Сделать разумное описание ограничивающего прямоугольника
     wrp.space_query_bb_type(-30000, 30000, 30000, -30000, OBJT_TANK,
         on_each_body_t)
-
     pipeline:push('flush')
     pipeline:close()
 
+    -- Почему не работает?
     pipeline:open("debug_vertices")
     wrp.query_all_tanks_t(debug_draw_vertices)
     pipeline:push('enough')
@@ -938,20 +934,19 @@ local function phys_dbg_draw()
     pipeline:open("dbg_phys")
     wrp.space_debug_draw(
         function(px: number, py: number, angle: number, rad: number)
-            pipeline:push('circle', px, py, angle, rad)
+            --pipeline:push('circle', px, py, angle, rad)
         end,
         function(ax: number, ay: number, bx: number, by: number)
-            pipeline:push('segment', ax, ay, bx, by)
+            --pipeline:push('segment', ax, ay, bx, by)
         end,
         function(ax: number, ay: number, bx: number, by: number, rad: number)
-            pipeline:push('fatsegment', ax, ay, bx, by, rad)
+            --pipeline:push('fatsegment', ax, ay, bx, by, rad)
         end,
         function(polygon: {number}, rad: number)
-            pipeline:push('polygon', polygon, rad)
+            --pipeline:push('polygon', polygon, rad)
         end,
         function(size: number, px: number, py: number)
-            --print('dot', size, px, py)
-            pipeline:push('dot', size, px, py)
+            --pipeline:push('dot', size, px, py)
         end
     )
     pipeline:push("enough")
@@ -1393,10 +1388,13 @@ local function spawnPlayer()
     local px, py = screenW / 3, screenH / 2
     playerTank = spawnTank(px, py)
 
-    move_camera2player()
-
     -- near friend for debugger
     spawnTank(px + 400, py)
+
+    move_camera2player()
+    --camera:attach()
+    --camera:detach()
+    --pipeline:sync()
 end
 
 local function nextTankAsPlayer()
@@ -1630,7 +1628,7 @@ end
 
 local function initRenderCode()
     -- {{{
-    pipeline:pushCodeFromFile('dbg_phys', 'dbg_phys.lua')
+    pipeline:pushCodeFromFile('dbg_phys', 'rdr_dbg_phys.lua')
 
     -- рисовать ортогональные оси координат в левом верхнем углу экрана
     -- {{{

@@ -172,25 +172,38 @@ function Camera:update(dt: number, px: number, py: number)
     -- {{{
     self.dt = dt
     local dx, dy = 0., 0.
+    local move = false
 
     --[[
     if px < self.bbox_pix.x then
         dx = self.bbox_pix.x - px
+        move = true
     end
     local right = self.bbox_pix.x + self.bbox_pix.w
     if px > right then
         dx = px - right
+        move = true
     end
 
     if py < self.bbox_pix.y then
         dy = self.bbox_pix.y - py
+        move = true
     end
     local bottom = self.bbox_pix.y + self.bbox_pix.h
     if py > bottom then
         dy = py - bottom
+        move = true
     end
 
     print('px, py', px, py)
+    --self.x = self.x + px
+    --self.y = self.y + py
+    if move then
+        --self.x = self.x + px
+        --self.y = self.y + py
+        self.x = px
+        self.y = py
+    end
     --]]
 
     -- }}}

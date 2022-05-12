@@ -236,7 +236,7 @@ function Tank:fire()
         bullet_init.y = y1
         bullet_init.a = angle
         if bulletPool then
-            print("bulletPool:new()")
+            --print("bulletPool:new()")
             --bulletPool:new(bullet_init)
         end
     end
