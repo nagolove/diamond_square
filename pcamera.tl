@@ -69,6 +69,7 @@ local record Camera
     scale: number
     dt: number
     bbox_pix: BBox_pix
+    bbox_rel: BBox_relative
     -- }}}
 end
 
