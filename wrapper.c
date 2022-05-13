@@ -76,8 +76,8 @@ typedef struct {
 
 typedef struct {
     cpSpace *space;
-    cpShape *camera_sensor;
-    cpBody *camera_body;
+    /*cpShape *camera_sensor;*/
+    /*cpBody *camera_body;*/
     int reg_index;
 } Space;
 
@@ -255,6 +255,7 @@ void check_argsnum(lua_State *lua, int num) {
     }
 }
 
+/*
 void space_camera_sensor_init(Space *space) {
     space->camera_body = cpBodyNewKinematic();
     int w = 1920, h = 1080;
@@ -275,6 +276,7 @@ void space_camera_sensor_init(Space *space) {
     cpSpaceAddBody(space->space, space->camera_body);
     cpSpaceAddShape(space->space, space->camera_sensor);
 }
+*/
 
 static int space_new(lua_State *lua) {
     // [.. , damping]
@@ -310,7 +312,7 @@ static int space_new(lua_State *lua) {
     cpSpaceSetDamping(space->space, damping);
     LOG("space_new: [%s]\n", stack_dump(lua));
 
-    space_camera_sensor_init(space);
+    /*space_camera_sensor_init(space);*/
      // [.., damping, -> {ud}]
     return 1;
 }
@@ -1744,7 +1746,11 @@ static const struct luaL_Reg Tank_methods[] =
     // }}}
 };
 
-/*#define DBG_DRAWCIRCLE*/
+/*#define DBG_DRAW_ALL*/
+
+#ifdef DBG_DRAW_ALL
+#define DBG_DRAWCIRCLE
+#endif
 static void dbg_drawCircle(
         cpVect pos, 
         cpFloat angle, 
@@ -1762,11 +1768,13 @@ static void dbg_drawCircle(
     lua_pushnumber(lua, pos.y);
     lua_pushnumber(lua, radius);
     lua_call(lua, 3, 0);
-    lua_remove(lua, -1);
+    /*lua_remove(lua, -1);*/
 }
 #undef DBG_DRAWCIRCLE
 
-/*#define DBG_DRAWSEGMENT*/
+#ifdef DBG_DRAW_ALL
+#define DBG_DRAWSEGMENT
+#endif
 static void dbg_drawSegment(
         cpVect a, 
         cpVect b, 
@@ -1783,11 +1791,13 @@ static void dbg_drawSegment(
     lua_pushnumber(lua, b.x);
     lua_pushnumber(lua, b.y);
     lua_call(lua, 4, 0);
-    lua_remove(lua, -1);
+    /*lua_remove(lua, -1);*/
 }
 #undef DBG_DRAWSEGMENT
 
-/*#define DBG_DRAWFATSEGMENT*/
+#ifdef DBG_DRAW_ALL
+#define DBG_DRAWFATSEGMENT
+#endif
 static void dbg_drawFatSegment(
         cpVect a, 
         cpVect b, 
@@ -1810,7 +1820,9 @@ static void dbg_drawFatSegment(
 }
 #undef DBG_DRAWFATSEGMENT
 
-/*#define DBG_DRAWPOLYGON*/
+#ifdef DBG_DRAW_ALL
+#define DBG_DRAWPOLYGON
+#endif
 static void dbg_drawPolygon(
         int count, 
         const cpVect *verts, 
@@ -1839,7 +1851,9 @@ static void dbg_drawPolygon(
 }
 #undef DBG_DRAWPOLYGON
 
-/*#define DBG_DRAWDOT*/
+#ifdef DBG_DRAW_ALL
+#define DBG_DRAWDOT
+#endif
 static void dbg_drawDot(
         cpFloat size, 
         cpVect pos, 
@@ -1860,6 +1874,8 @@ static void dbg_drawDot(
     /*lua_remove(lua, -1);*/
 }
 #undef DBG_DRAWDOT
+
+#undef DBG_DRAW_ALL
 
 static cpSpaceDebugColor DebugDrawColorForShape(cpShape *shape, cpDataPointer data) {
     cpSpaceDebugColor c = {1., 1., 1., 1.};
