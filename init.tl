@@ -26,17 +26,14 @@ require "love_inc".require_pls_nographic()
 
 debug_print('thread', 'love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
---local require_path = SCENE_PREFIX .. "/?.lua;?.lua;?/init.lua;"
 local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
-print('require_path', require_path)
+
 love.filesystem.setRequirePath(require_path)
-
-print('getCRequirePath()', love.filesystem.getCRequirePath())
-
 love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
 
+print('require_path', require_path)
+print('getCRequirePath()', love.filesystem.getCRequirePath())
 print("package.cpath", package.cpath)
-
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
 local wrp = require "wrp"
@@ -107,25 +104,6 @@ end
     --self: any
 --end
 
---[[
-local record TurretCommon
-    -- {{{
-    barrelRectXY: {number}
-    barrelRectWH: {number}
-    towerRectXY: {number}
-    towerRectWH: {number}
-end
---]]
-
---[[
-local turretCommon: TurretCommon = {
-    barrelRectXY = {124, 0},
-    barrelRectWH = {8, 109},
-    towerRectXY = {101, 103},
-    towerRectWH = {54, 58},
-}
---]]
-
 -- }}}
 
 --[[
@@ -154,25 +132,6 @@ local enum Particles
     "gauss"
 end
 --]]
-
---[[
-Ангар - место порождения техники и ее ремонта.
---]]
-local record Hangar
-    vertices: {number}
-    id: integer
-    --objectType: ObjectType
-    color: {number}
-    --physbody: Physics.Body
-    --polyshape: lp.PolygonShape
-    rectXY: {number}
-    rectWH: {number}
-    --fixture: Physics.Fixture
-
-    new: function(): Hangar
-    update: function(Hangar)
-    present: function(Hangar)
-end
 
 local Tank = require 'tank'
 
@@ -225,6 +184,7 @@ local particles: ParticlesMap= {
 --]]
 
 -- То, что создается когда происходит попадание снаряда в танк.
+-- Должен содержать анимацию попадания?
 local record Hit 
     -- {{{
     -- в пикселях
@@ -249,6 +209,7 @@ local space_damping = 0.02
 --local historyfname = "cmdhistory.txt"
 
 --[[
+
 global mode: Mode = "normal"
 global cmdline: string = ""
 local cmdhistory: {string} = {}
@@ -264,6 +225,8 @@ local physics_pause = false
 
 -- Все танки, в том числе и тот, которым управляет игрок.
 local tanks: {Tank} = {}
+
+local Hangar = require 'hangar'
 
 -- Ангары(точки для ремонта, также точки появления техники
 local hangars: {Hangar} = {}
@@ -286,9 +249,6 @@ local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 local DiamonAndSquare = require 'diamondsquare'
 local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(5, rng, pipeline)
 --local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
-
---diamondSquare:eval()
---diamondSquare:save("map1.lua")
 
 --local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
 --local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
@@ -317,6 +277,17 @@ local Joystick = lj.Joystick
 local joyState: JoyState
 local joy: Joystick
 
+local OBJT_ERROR = 0
+local OBJT_TANK = 1
+local OBJT_BULLET = 2
+local OBJT_SEGMENT = 4
+
+local draw_selected_object = true
+
+local is_draw_hotkeys_docs = false
+local is_draw_gamepad_docs = false
+local is_draw_debug_phys = true
+
 local function initJoy()
     for _, j in ipairs(lj.getJoysticks()) do
         debug_print("joy", colorize('%{green}' .. inspect(j)))
@@ -342,22 +313,6 @@ local function print_io_rate()
     local bytes = pipeline:get_received_in_sec()
     local msg = sformat("передано за секунду Килобайт = %d", math.floor(bytes / 1024))
     pipeline:push('add', 'data_received', msg)
-end
-
-function Hangar.new(_: vector): Hangar
-    local Hangar_mt: metatable<Hangar> = {
-        __index = Hangar,
-    }
-    local self = setmetatable({} as Hangar, Hangar_mt)
-    --self.objectType = "Hangar"
-    return self
-end
-
-function Hangar:update()
-
-end
-
-function Hangar:present()
 end
 
 function Hit.new(x: number, y: number): Hit
@@ -464,6 +419,7 @@ end
 
 --[[
 local function bindDeveloperKeys()
+    -- {{{
     local kc = KeyConfig
     kc.bind(
         --'keypressed', { key = "p" },
@@ -498,11 +454,13 @@ local function bindDeveloperKeys()
         end,
         --i18n("mt" .. "right"))
         'spawn Hit')
+    -- }}}
 end
 --]]
 
 --[[
 local function bindTerrainControlKeys()
+    -- {{{
     local kc = KeyConfig
     kc.bind(
         'keypressed', { key = "t" },
@@ -516,6 +474,7 @@ local function bindTerrainControlKeys()
         end,
         --i18n("mt" .. "right"))
         'draw terrain or not')
+    -- }}}
 end
 --]]
 
@@ -532,6 +491,7 @@ end
 --local currentParticesType: integer = 0
 
 --[[
+-- {{{
 local function selectParticleType(): string
     local v: number
     local st: boolean
@@ -549,11 +509,13 @@ local function selectParticleType(): string
     end
     return 'default'
 end
+-- }}}
 --]]
 
 global str: string = ""
 
 --[[
+-- {{{
 local function drawParticlesEditor()
     imgui.Begin(i18n('effecteditor'), false, "AlwaysAutoResize")
     local v: number
@@ -607,6 +569,7 @@ local function drawParticlesEditor()
 
     imgui.End()
 end
+-- }}}
 --]]
 
 local function spawnHangar(pos: vector): Hangar
@@ -624,6 +587,7 @@ local tmpColumns = {
 --]]
 
 --[[
+-- {{{
 local function drawArenaPallete()
     imgui.Begin('арена', false, "AlwaysAutoResize")
     if imgui.Button('выгрузить на накопитель нжмд') then
@@ -654,6 +618,7 @@ local function drawArenaPallete()
 
     imgui.End()
 end
+-- }}}
 --]]
 
 --[[
@@ -838,11 +803,6 @@ local function debug_draw_vertices(
     end
 end
 
-local OBJT_ERROR = 0
-local OBJT_TANK = 1
-local OBJT_BULLET = 2
-local OBJT_SEGMENT = 4
-
 local function move_camera2player()
     if playerTank then
         local px, py = playerTank.base:get_position()
@@ -860,11 +820,10 @@ local function renderTanks()
     pipeline:push('flush')
     pipeline:close()
 
-    -- Почему не работает?
-    pipeline:open("debug_vertices")
-    wrp.query_all_tanks_t(debug_draw_vertices)
-    pipeline:push('enough')
-    pipeline:close()
+    --pipeline:open("debug_vertices")
+    --wrp.query_all_tanks_t(debug_draw_vertices)
+    --pipeline:push('enough')
+    --pipeline:close()
 end
 
 --[[
@@ -892,8 +851,6 @@ local function print_body_stat(body: wrp.Body)
 end
 -- }}}
 --]]
-
-local draw_selected_object = true
 
 local function renderSelectedObject(): number, number
     local player_x, player_y, player_angle: number, number, number
@@ -927,26 +884,23 @@ local function renderLinesBuf(player_x: number, player_y: number)
     pipeline:close()
 end
 
-local is_draw_hotkeys_docs = false
-local is_draw_gamepad_docs = false
-
 local function phys_dbg_draw()
     pipeline:open("dbg_phys")
     wrp.space_debug_draw(
         function(px: number, py: number, angle: number, rad: number)
-            --pipeline:push('circle', px, py, angle, rad)
+            pipeline:push('circle', px, py, angle, rad)
         end,
         function(ax: number, ay: number, bx: number, by: number)
-            --pipeline:push('segment', ax, ay, bx, by)
+            pipeline:push('segment', ax, ay, bx, by)
         end,
         function(ax: number, ay: number, bx: number, by: number, rad: number)
-            --pipeline:push('fatsegment', ax, ay, bx, by, rad)
+            pipeline:push('fatsegment', ax, ay, bx, by, rad)
         end,
         function(polygon: {number}, rad: number)
-            --pipeline:push('polygon', polygon, rad)
+            pipeline:push('polygon', polygon, rad)
         end,
         function(size: number, px: number, py: number)
-            --pipeline:push('dot', size, px, py)
+            pipeline:push('dot', size, px, py)
         end
     )
     pipeline:push("enough")
@@ -964,7 +918,9 @@ local function render_internal()
     -- Танки
     renderTanks()
 
-    --phys_dbg_draw()
+    if is_draw_debug_phys then
+        phys_dbg_draw()
+    end
 
     -- Ограничители уровня, преграды в виде отрезков.
     renderSegments()
@@ -1067,6 +1023,7 @@ end
 --]]
 
 --[[
+-- {{{
 function attach(varname: string)
     if type(varname) == "string" then
         attachedVarsList[varname] = function()
@@ -1087,6 +1044,7 @@ function attach(varname: string)
         end
     end
 end
+-- }}}
 --]]
 
 --[[
@@ -1239,6 +1197,7 @@ local function spawnTank(px: number, py: number): Tank
     -- Эти значения используются в C модуле для определения на сколько
     -- сдвинулся объект с момента предыдущей обработки.
     --[[
+    -- {{{
     tank._prev_x, tank._prev_y = tank_x, tank_y
     pipeline:openPushAndClose(
         'base_shape',
@@ -1248,6 +1207,7 @@ local function spawnTank(px: number, py: number): Tank
         turret_x, turret_y, turret_angle,
         "flush"
     )
+    -- }}}
     --]]
 
     return tank
@@ -1268,6 +1228,10 @@ local function spawnTanks()
 
     bordersArea.x1, bordersArea.y1 = minx, miny
     bordersArea.x2, bordersArea.y2 = maxx, maxy
+
+    -- Генерация танков проводится после генерации карты.
+    -- Сперва создавать танки NPC случайным образом в подходящих местах карты.
+    -- Затем добавить ангары.
 
     --local rad = 1000
     for _ = 1, tanks_num do
@@ -1300,6 +1264,8 @@ end
 
 -- Клавиши для управления генератором ландшафта.
 local function processLandscapeKeys(key: string)
+    -- Имеет смысл перенести в imgui?
+
     if not diamondSquare then
         return
     end
@@ -1333,6 +1299,9 @@ end
 
 -- Сброс физики - удаление пространства, всех тел и фигур
 local function physics_reset()
+    -- Здесь должны удаляться все тела. Значит необходимо пересоздать все
+    -- структуры данных на lua стороне во избежании использования ссылок на
+    -- старые данные
     wrp.space_free(space)
     space = wrp.space_new(space_damping)
     wrp.space_set(space)
@@ -1340,8 +1309,13 @@ local function physics_reset()
 end
 
 -- Сброс состояния рендера. 
--- Посылаются сообщения всем используемым объектам об очистке текущего 
--- состояния в начальное.
+--[[ 
+Посылаются сообщения всем используемым объектам об очистке текущего состояния 
+в начальное. 
+Какие состояния могут быть? 
+Что сбрасывать? 
+Как запомнить все состояния которые нужно сбрасывать?
+--]]
 local function render_reset_state()
     pipeline:openPushAndClose('tank', 'clear')
 end
@@ -1469,6 +1443,10 @@ local function keypressed(key: string)
 
     if key == '2' then
         draw_selected_object = not draw_selected_object
+    end
+
+    if key == 'a' then
+        is_draw_debug_phys = not is_draw_debug_phys
     end
 
     if physics_pause then
@@ -1752,6 +1730,7 @@ local function add_keyboard_docs()
     docsystem.add_keyboard_doc('x', 'Increase map size')
     docsystem.add_keyboard_doc('shift+left', 'Previous tank as player')
     docsystem.add_keyboard_doc('shift+right', 'Next tank as player')
+    docsystem.add_keyboard_doc('a', 'Enable or disable debug phys drawing')
     docsystem.add_keyboard_doc('p', 'Pause for physics engine. "P" - mode')
     docsystem.add_keyboard_doc('f1', 'Show or hide this text')
     docsystem.add_keyboard_doc('q', "Fully reload map with objects.")
@@ -1787,6 +1766,7 @@ local function init()
     -- {{{
     print('init started')
 
+    -- Начальное значение генератора для определенной карты
     rng:setSeed(300 * 123414)
 
     metrics.init()
