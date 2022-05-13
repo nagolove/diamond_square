@@ -26,17 +26,14 @@ require("love_inc").require_pls_nographic()
 
 debug_print('thread', 'love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
-
 local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
-print('require_path', require_path)
+
 love.filesystem.setRequirePath(require_path)
-
-print('getCRequirePath()', love.filesystem.getCRequirePath())
-
 love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
 
+print('require_path', require_path)
+print('getCRequirePath()', love.filesystem.getCRequirePath())
 print("package.cpath", package.cpath)
-
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
 local wrp = require("wrp")
@@ -122,25 +119,6 @@ local state = 'map'
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local Arena = {}
 
 
@@ -155,26 +133,8 @@ local Arena = {}
 
 
 
-
-
-
-local Hangar = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local Tank = require('tank')
+
 
 
 
@@ -258,12 +218,15 @@ local space_damping = 0.02
 
 
 
+
 require("Timer")
 
 local physics_pause = false
 
 
 local tanks = {}
+
+local Hangar = require('hangar')
 
 
 local hangars = {}
@@ -285,9 +248,6 @@ local rng = love.math.newRandomGenerator()
 
 local DiamonAndSquare = require('diamondsquare')
 local diamondSquare = DiamonAndSquare.new(5, rng, pipeline)
-
-
-
 
 
 
@@ -317,6 +277,17 @@ local Joystick = lj.Joystick
 local joyState
 local joy
 
+local OBJT_ERROR = 0
+local OBJT_TANK = 1
+local OBJT_BULLET = 2
+local OBJT_SEGMENT = 4
+
+local draw_selected_object = true
+
+local is_draw_hotkeys_docs = false
+local is_draw_gamepad_docs = false
+local is_draw_debug_phys = true
+
 local function initJoy()
    for _, j in ipairs(lj.getJoysticks()) do
       debug_print("joy", colorize('%{green}' .. inspect(j)))
@@ -342,22 +313,6 @@ local function print_io_rate()
    local bytes = pipeline:get_received_in_sec()
    local msg = sformat("передано за секунду Килобайт = %d", math.floor(bytes / 1024))
    pipeline:push('add', 'data_received', msg)
-end
-
-function Hangar.new(_)
-   local Hangar_mt = {
-      __index = Hangar,
-   }
-   local self = setmetatable({}, Hangar_mt)
-
-   return self
-end
-
-function Hangar:update()
-
-end
-
-function Hangar:present()
 end
 
 function Hit.new(x, y)
@@ -551,7 +506,15 @@ end
 
 
 
+
+
+
+
+
+
 str = ""
+
+
 
 
 
@@ -614,6 +577,8 @@ local function spawnHangar(pos)
    table.insert(hangars, hangar)
    return hangar
 end
+
+
 
 
 
@@ -838,11 +803,6 @@ local function debug_draw_vertices(
    end
 end
 
-local OBJT_ERROR = 0
-local OBJT_TANK = 1
-local OBJT_BULLET = 2
-local OBJT_SEGMENT = 4
-
 local function move_camera2player()
    if playerTank then
       local px, py = playerTank.base:get_position()
@@ -861,10 +821,9 @@ local function renderTanks()
    pipeline:close()
 
 
-   pipeline:open("debug_vertices")
-   wrp.query_all_tanks_t(debug_draw_vertices)
-   pipeline:push('enough')
-   pipeline:close()
+
+
+
 end
 
 
@@ -892,8 +851,6 @@ end
 
 
 
-
-local draw_selected_object = true
 
 local function renderSelectedObject()
    local player_x, player_y, player_angle
@@ -927,26 +884,23 @@ local function renderLinesBuf(player_x, player_y)
    pipeline:close()
 end
 
-local is_draw_hotkeys_docs = false
-local is_draw_gamepad_docs = false
-
 local function phys_dbg_draw()
    pipeline:open("dbg_phys")
    wrp.space_debug_draw(
    function(px, py, angle, rad)
-
+      pipeline:push('circle', px, py, angle, rad)
    end,
    function(ax, ay, bx, by)
-
+      pipeline:push('segment', ax, ay, bx, by)
    end,
    function(ax, ay, bx, by, rad)
-
+      pipeline:push('fatsegment', ax, ay, bx, by, rad)
    end,
    function(polygon, rad)
-
+      pipeline:push('polygon', polygon, rad)
    end,
    function(size, px, py)
-
+      pipeline:push('dot', size, px, py)
    end)
 
    pipeline:push("enough")
@@ -964,7 +918,9 @@ local function render_internal()
 
    renderTanks()
 
-
+   if is_draw_debug_phys then
+      phys_dbg_draw()
+   end
 
 
    renderSegments()
@@ -1212,6 +1168,8 @@ end
 
 
 
+
+
 local function spawnTank(px, py)
 
 
@@ -1250,6 +1208,8 @@ local function spawnTank(px, py)
 
 
 
+
+
    return tank
 end
 
@@ -1268,6 +1228,10 @@ local function spawnTanks()
 
    bordersArea.x1, bordersArea.y1 = minx, miny
    bordersArea.x2, bordersArea.y2 = maxx, maxy
+
+
+
+
 
 
    for _ = 1, tanks_num do
@@ -1300,6 +1264,8 @@ end
 
 
 local function processLandscapeKeys(key)
+
+
    if not diamondSquare then
       return
    end
@@ -1333,11 +1299,19 @@ end
 
 
 local function physics_reset()
+
+
+
    wrp.space_free(space)
    space = wrp.space_new(space_damping)
    wrp.space_set(space)
    print(colorize("%{blue}physics reseted"))
 end
+
+
+
+
+
 
 
 
@@ -1469,6 +1443,10 @@ local function keypressed(key)
 
    if key == '2' then
       draw_selected_object = not draw_selected_object
+   end
+
+   if key == 'a' then
+      is_draw_debug_phys = not is_draw_debug_phys
    end
 
    if physics_pause then
@@ -1752,6 +1730,7 @@ local function add_keyboard_docs()
    docsystem.add_keyboard_doc('x', 'Increase map size')
    docsystem.add_keyboard_doc('shift+left', 'Previous tank as player')
    docsystem.add_keyboard_doc('shift+right', 'Next tank as player')
+   docsystem.add_keyboard_doc('a', 'Enable or disable debug phys drawing')
    docsystem.add_keyboard_doc('p', 'Pause for physics engine. "P" - mode')
    docsystem.add_keyboard_doc('f1', 'Show or hide this text')
    docsystem.add_keyboard_doc('q', "Fully reload map with objects.")
@@ -1786,6 +1765,7 @@ end
 local function init()
 
    print('init started')
+
 
    rng:setSeed(300 * 123414)
 
