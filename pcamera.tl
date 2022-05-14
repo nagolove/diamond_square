@@ -4,10 +4,10 @@
 require 'love'
 
 local cam_common = require 'camera_common'
-local inspect = require 'inspect'
+--local inspect = require 'inspect'
 local Pipeline = require 'pipeline'
 local lj = love.joystick
-local Joystick = lj.Joystick
+--local Joystick = lj.Joystick
 local sformat = string.format
 
 -- TODO Диалог для настройки клавиш геймпада
@@ -23,10 +23,16 @@ local record Camera
     new: function(pipeline: Pipeline, _screenW: number, _screenH: number): Camera
 
     -- Проверка ввода с геймпада.
-    -- TODO Вынести из камеры наружу.
-    checkInput: function(Camera)
     -- Обновить состояние.
-    update: function(Camera, dt: number, px: number, py: number)
+    update: function(
+        Camera,
+        dt: number, 
+        dx: number,
+        dy: number,
+        dscale: number,
+        px: number, 
+        py: number
+    )
 
     reset: function(Camera)
     attach: function(Camera)
@@ -58,8 +64,8 @@ local record Camera
     draw_axises: function(Camera)
 
     -- PRIVATE
-    checkMovement: function(Camera, j: Joystick)
-    checkScale: function(Camera, j: Joystick)
+    checkMovement: function(Camera, dx: number, dy: number)
+    checkScale: function(Camera, dscale: number)
 
     screenW: number
     screenH: number
@@ -139,11 +145,6 @@ function Camera:setOrigin()
     --self.pipeline:openAndClose('origin_transform')
 end
 
-function Camera:checkInput(j: Joystick)
-    self:checkMovement(j)
-    self:checkScale(j)
-end
-
 function Camera:draw_axises()
     self.pipeline:openAndClose("camera_axises")
 end
@@ -169,30 +170,41 @@ function Camera:push2lines_buf()
     -- }}}
 end
 
-function Camera:update(dt: number, px: number, py: number)
+function Camera:update(
+    dt: number, 
+    dx: number,         -- ось геймпада, перемещение камера
+    dy: number,         -- ось геймпада, перемещение камеры
+    dscale: number,     -- ось геймпада, масшраб камеры
+    px: number,         -- положение игрока
+    py: number
+)
+
     -- {{{
+    self:checkMovement(dx, dy)
+    self:checkScale(dscale)
+
     self.dt = dt
-    local dx, dy = 0., 0.
+    local cam_dx, cam_dy = 0., 0.
     local move = false
 
     --[[
     if px < self.bbox_pix.x then
-        dx = self.bbox_pix.x - px
+        cam_dx = self.bbox_pix.x - px
         move = true
     end
     local right = self.bbox_pix.x + self.bbox_pix.w
     if px > right then
-        dx = px - right
+        cam_dx = px - right
         move = true
     end
 
     if py < self.bbox_pix.y then
-        dy = self.bbox_pix.y - py
+        cam_dy = self.bbox_pix.y - py
         move = true
     end
     local bottom = self.bbox_pix.y + self.bbox_pix.h
     if py > bottom then
-        dy = py - bottom
+        cam_dy = py - bottom
         move = true
     end
 
@@ -249,17 +261,7 @@ function Camera:draw_bbox()
     self.pipeline:openPushAndClose('camera', 'draw_bbox')
 end
 
-function Camera:checkMovement(j: Joystick)
-    if not j then
-        return
-    end
-
-    local axes = {j:getAxes()}
-    local dx, dy = axes[joy_conf.dx_axis_index], axes[joy_conf.dy_axis_index]
-
-    --print('axes', inspect(axes))
-    --print('dx, dy', dx, dy)
-
+function Camera:checkMovement(dx: number, dy: number)
     -- количество пикселей на которые передвигается камера
     local amount_x, amount_y = 3000 * self.dt, 3000 * self.dt
     local tx, ty = 0., 0.
@@ -290,27 +292,21 @@ function Camera:checkMovement(j: Joystick)
 end
 
 -- как лучше учитывать положение джойстика что-бы не было рывков?
-function Camera:checkScale(j: Joystick)
-    if not j then
-        return
-    end
-
-    local axes = {j:getAxes()}
-    local dy = axes[joy_conf.scale_axis_index]
+function Camera:checkScale(dscale: number)
     local factor = 1 * self.dt
     local px, py = self.screenW * factor / 2, self.screenH * factor / 2
 
     --print("factor", factor)
     --print("self.scale", self.scale)
 
-    if dy == -1 then
+    if dscale == -1 then
         -- TODO добавить смещение по осям что-бы приближение и удаление 
         -- приходилось на центр экрана
         self.scale = 1 + factor
         --self.transform:scale(1 + factor, 1 + factor)
         --self.transform:scale(self.scale, self.scale)
         --self.transform:translate(-px, -py)
-    elseif dy == 1 then
+    elseif dscale == 1 then
         self.scale = 1 - factor
         --self.transform:scale(1 - factor, 1 - factor)
         --self.transform:scale(self.scale, self.scale)
