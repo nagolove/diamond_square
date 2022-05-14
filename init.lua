@@ -37,6 +37,7 @@ print("package.cpath", package.cpath)
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
 local wrp = require("wrp")
+
 local joy_conf = require('joy_conf')
 local fire_threshold = 0.5
 
@@ -57,7 +58,7 @@ local inspect = require("inspect")
 
 local metrics = require("metrics")
 
-
+local vecl = require("vector-light")
 
 
 
@@ -221,8 +222,6 @@ local space_damping = 0.02
 
 require("Timer")
 
-local physics_pause = false
-
 
 local tanks = {}
 
@@ -256,7 +255,6 @@ local diamondSquare = DiamonAndSquare.new(5, rng, pipeline)
 local event_channel = love.thread.getChannel("event_channel")
 local main_channel = love.thread.getChannel("main_channel")
 
-local is_stop = false
 local last_render = love.timer.getTime()
 
 local PCamera = require("pcamera")
@@ -284,6 +282,8 @@ local OBJT_SEGMENT = 4
 
 local draw_selected_object = true
 
+local is_stop = false
+local is_physics_paused = false
 local is_draw_hotkeys_docs = false
 local is_draw_gamepad_docs = false
 local is_draw_debug_phys = true
@@ -877,6 +877,12 @@ local function renderLinesBuf(player_x, player_y)
    local msg = sformat("player pos (%.3f, %.3f)", player_x, player_y)
    pipeline:push("add", "player_pos", msg)
 
+   if joy then
+      local axes = { joy:getAxes() }
+      local msg = table.concat(axes, ",")
+      pipeline:push("add", 'joy_axes', msg)
+   end
+
 
 
    pipeline:push('flush')
@@ -1429,7 +1435,7 @@ local function keypressed(key)
 
 
    if key == "p" then
-      physics_pause = not physics_pause
+      is_physics_paused = not is_physics_paused
    end
 
    if key == 'f1' then
@@ -1449,7 +1455,7 @@ local function keypressed(key)
       is_draw_debug_phys = not is_draw_debug_phys
    end
 
-   if physics_pause then
+   if is_physics_paused then
 
       if key == 'q' then
 
@@ -1967,7 +1973,8 @@ end
 local function updateJoyState()
    joyState:update()
    if joyState.state and joyState.state ~= "" then
-      debug_print('joy', joyState.state)
+
+      print('joy', joyState.state)
    end
 end
 
@@ -2041,7 +2048,48 @@ end
 
 
 
+local min_angle = 1000.
+local max_angle = -19999.
+local last_angle = 0.
+
+local function player_rotate_turret(j)
+   local axes = { j:getAxes() }
+   local x_axis_index = 3
+   local y_axis_index = 4
+
+   local angle, _ = vecl.toPolar(axes[x_axis_index], axes[y_axis_index])
+
+   if min_angle > angle then
+      min_angle = angle
+   end
+   if max_angle < angle then
+      max_angle = angle
+   end
+
+
+   print(min_angle, max_angle)
+   local diff = math.abs(last_angle - angle) / 5.
+   print('diff', diff)
+   local num = 5
+
+   if last_angle ~= angle then
+      if angle > -math.pi and angle < 0 then
+         for i = 1, num do
+            playerTank:rotate_turret("left")
+         end
+
+      else
+         for i = 1, num do
+            playerTank:rotate_turret("right")
+         end
+      end
+   end
+   last_angle = angle
+
+end
+
 local function applyInput(j)
+
 
    if not j or not playerTank then
       return
@@ -2072,28 +2120,49 @@ local function applyInput(j)
       camera:detach()
    end
 
-   local hut_num = 1
+   player_rotate_turret(j)
 
 
 
-   local hut = j:getHat(hut_num)
 
 
-   if hut == "l" then
-      playerTank:rotate_turret("left")
-   elseif hut == "r" then
-      playerTank:rotate_turret("right")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+end
+
+local function processCamera(dt)
+   local axes = { joy:getAxes() }
+   local dscale = axes[joy_conf.scale_axis_index]
+   local dx = axes[joy_conf.dx_axis_index]
+   local dy = axes[joy_conf.dy_axis_index]
+   local px, py
+   if playerTank then
+
+
+      px, py = playerTank.base:get_position()
    end
-
-
-
-
-
-
-   if joyState.state then
-
-
-   end
+   camera:update(dt, dx, dy, dscale, px, py)
 end
 
 local stateCoro = coroutine.create(function(dt)
@@ -2108,6 +2177,7 @@ local stateCoro = coroutine.create(function(dt)
 
 
    while true do
+
       if state == 'map' then
          process_events()
          renderScene()
@@ -2116,19 +2186,10 @@ local stateCoro = coroutine.create(function(dt)
 
 
 
-         camera:checkInput(joy)
-         local px, py
-         if playerTank then
+         processCamera(dt)
 
 
-
-
-            px, py = playerTank.base:get_position()
-         end
-         camera:update(dt, px, py)
-
-
-         if not physics_pause then
+         if not is_physics_paused then
             wrp.space_step(dt);
          end
 
@@ -2144,6 +2205,7 @@ local stateCoro = coroutine.create(function(dt)
       elseif state == 'garage' then
 
       end
+
 
    end
 end)

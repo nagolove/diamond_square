@@ -4,10 +4,10 @@ local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 th
 require('love')
 
 local cam_common = require('camera_common')
-local inspect = require('inspect')
+
 local Pipeline = require('pipeline')
 local lj = love.joystick
-local Joystick = lj.Joystick
+
 local sformat = string.format
 
 
@@ -16,6 +16,12 @@ local joy_conf = require('joy_conf')
 
 
 local Camera = {}
+
+
+
+
+
+
 
 
 
@@ -139,11 +145,6 @@ function Camera:setOrigin()
 
 end
 
-function Camera:checkInput(j)
-   self:checkMovement(j)
-   self:checkScale(j)
-end
-
 function Camera:draw_axises()
    self.pipeline:openAndClose("camera_axises")
 end
@@ -169,10 +170,20 @@ function Camera:push2lines_buf()
 
 end
 
-function Camera:update(dt, px, py)
+function Camera:update(   dt,
+   dx,
+   dy,
+   dscale,
+   px,
+   py)
+
+
+
+   self:checkMovement(dx, dy)
+   self:checkScale(dscale)
 
    self.dt = dt
-   local dx, dy = 0., 0.
+   local cam_dx, cam_dy = 0., 0.
    local move = false
 
 
@@ -249,17 +260,7 @@ function Camera:draw_bbox()
    self.pipeline:openPushAndClose('camera', 'draw_bbox')
 end
 
-function Camera:checkMovement(j)
-   if not j then
-      return
-   end
-
-   local axes = { j:getAxes() }
-   local dx, dy = axes[joy_conf.dx_axis_index], axes[joy_conf.dy_axis_index]
-
-
-
-
+function Camera:checkMovement(dx, dy)
 
    local amount_x, amount_y = 3000 * self.dt, 3000 * self.dt
    local tx, ty = 0., 0.
@@ -290,27 +291,21 @@ function Camera:checkMovement(j)
 end
 
 
-function Camera:checkScale(j)
-   if not j then
-      return
-   end
-
-   local axes = { j:getAxes() }
-   local dy = axes[joy_conf.scale_axis_index]
+function Camera:checkScale(dscale)
    local factor = 1 * self.dt
    local px, py = self.screenW * factor / 2, self.screenH * factor / 2
 
 
 
 
-   if dy == -1 then
+   if dscale == -1 then
 
 
       self.scale = 1 + factor
 
 
 
-   elseif dy == 1 then
+   elseif dscale == 1 then
       self.scale = 1 - factor
 
 
