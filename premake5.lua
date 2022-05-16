@@ -23,7 +23,7 @@ workspace "wrapper"
             "-Wall",
             "-Werror",
             "-Wno-strict-aliasing",
-            "-Wno-unused-function",
+            --"-Wno-unused-function",
         }
         links { 
             --"luajit-5.1", 
