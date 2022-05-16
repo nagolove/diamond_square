@@ -243,6 +243,8 @@ local Borders = {}
 
 
 
+local stick_x, stick_y = 0., 0.
+
 local rng = love.math.newRandomGenerator()
 
 local DiamonAndSquare = require('diamondsquare')
@@ -288,6 +290,11 @@ local is_draw_hotkeys_docs = false
 local is_draw_gamepad_docs = false
 local is_draw_debug_phys = true
 
+local min_angle = 1000.
+local max_angle = -19999.
+local last_angle = 0.
+local last_tur_angle = 0.
+
 local function initJoy()
    for _, j in ipairs(lj.getJoysticks()) do
       debug_print("joy", colorize('%{green}' .. inspect(j)))
@@ -296,8 +303,6 @@ local function initJoy()
    if joy then
       debug_print("joy", colorize('%{green}avaible ' .. joy:getButtonCount() .. ' buttons'))
       debug_print("joy", colorize('%{green}hats num: ' .. joy:getHatCount()))
-   end
-   if joy then
       joyState = JoyState.new(joy)
    else
       joyState = DummyJoyState.new(joy)
@@ -942,6 +947,8 @@ local function render_internal()
 
    camera:detach()
 
+   pipeline:openPushAndClose('joy_stick', stick_x, stick_y)
+
 
    renderLinesBuf(player_x, player_y)
 
@@ -1438,6 +1445,12 @@ local function keypressed(key)
       is_physics_paused = not is_physics_paused
    end
 
+   if key == 's' then
+      love.filesystem.append('turret.txt', tostring(last_angle) .. '\n')
+      love.filesystem.append('turret.txt', tostring(last_tur_angle) .. '\n')
+      love.filesystem.append('turret.txt', '\n')
+   end
+
    if key == 'f1' then
       is_draw_hotkeys_docs = not is_draw_hotkeys_docs
       if is_draw_hotkeys_docs then
@@ -1636,6 +1649,23 @@ local function initRenderCode()
     end
     ]])
 
+
+   pipeline:pushCode("joy_stick", [[
+    local gr = love.graphics
+    local w, h = gr.getDimensions()
+    local color = {1, 1, 1, 1}
+    local rad = 10
+
+    while true do
+        local x = graphic_command_channel:demand() as number
+        local y = graphic_command_channel:demand() as number
+
+        gr.setColor(color)
+        gr.circle("fill", x, y, rad)
+
+        coroutine.yield()
+    end
+    ]])
 
 
    pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
@@ -2048,16 +2078,13 @@ end
 
 
 
-local min_angle = 1000.
-local max_angle = -19999.
-local last_angle = 0.
-
 local function player_rotate_turret(j)
    local axes = { j:getAxes() }
    local x_axis_index = 3
    local y_axis_index = 4
 
    local angle, _ = vecl.toPolar(axes[x_axis_index], axes[y_axis_index])
+   angle = angle + math.pi
 
    if min_angle > angle then
       min_angle = angle
@@ -2067,10 +2094,51 @@ local function player_rotate_turret(j)
    end
 
 
-   print(min_angle, max_angle)
-   local diff = math.abs(last_angle - angle) / 5.
-   print('diff', diff)
-   local num = 5
+
+
+   local stick_range = 2.
+   local stick_scale_x = stick_range / screenW
+   local stick_scale_y = stick_range / screenH
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   stick_x = screenW / 2. + axes[x_axis_index] / stick_scale_x
+   stick_y = screenH / 2. + axes[y_axis_index] / stick_scale_y
+
+
+
+
+
+
+
+
+
+
+
+
+   local num = 1
+
+   local tmpx, tmpy, turret_angle = playerTank.base:turret_get_pos()
+   last_tur_angle = turret_angle
+
+   turret_angle = turret_angle - math.floor(turret_angle / (math.pi * 2)) *
+   (math.pi * 2)
+
+   print('angle', angle)
+   print('turret angle', turret_angle)
+
 
    if last_angle ~= angle then
       if angle > -math.pi and angle < 0 then
@@ -2152,6 +2220,9 @@ local function applyInput(j)
 end
 
 local function processCamera(dt)
+   if not joy then
+      return
+   end
    local axes = { joy:getAxes() }
    local dscale = axes[joy_conf.scale_axis_index]
    local dx = axes[joy_conf.dx_axis_index]
