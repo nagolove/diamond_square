@@ -15,6 +15,7 @@
 #include "chipmunk/chipmunk_structs.h"
 /*#include "chipmunk/chipmunk_private.h"*/
 
+#include "cpVect.h"
 #include "lua_tools.h"
 
 // Проверить указатель на текущее физическое пространство.
@@ -114,7 +115,9 @@ cpShapeFilter ALL_FILTER = {
 
 #define DENSITY (1.0/4000.0)
 
+/*
 static const char* get_obj_type(int type) {
+// {{{
     static struct {
         ObjType t;
         char *name;
@@ -134,42 +137,9 @@ static const char* get_obj_type(int type) {
         i++;
     }
     return unknown;
+// }}}
 }
-
-
-/////////////////////////////////////////////////
-/*struct BBQueryContext {*/
-	/*cpBB bb;*/
-	/*cpShapeFilter filter;*/
-	/*cpSpaceBBQueryFunc func;*/
-/*};*/
-
-/*static cpCollisionID*/
-/*BBQuery(struct BBQueryContext *context, cpShape *shape, cpCollisionID id, void *data)*/
-/*{*/
-	/*if(*/
-		/*!cpShapeFilterReject(shape->filter, context->filter) &&*/
-		/*cpBBIntersects(context->bb, shape->bb)*/
-	/*){*/
-		/*context->func(shape, data);*/
-	/*}*/
-	
-	/*return id;*/
-/*}*/
-
-/*void*/
-/*cpSpaceBBQuery_mod(cpSpace *space, cpBB bb, cpShapeFilter filter, cpSpaceBBQueryFunc func, void *data)*/
-/*{*/
-	/*struct BBQueryContext context = {bb, filter, func};*/
-	
-	/*cpSpaceLock(space); {*/
-    /*cpSpatialIndexQuery(space->dynamicShapes, &context, bb, (cpSpatialIndexQueryFunc)BBQuery, data);*/
-    /*cpSpatialIndexQuery(space->staticShapes, &context, bb, (cpSpatialIndexQueryFunc)BBQuery, data);*/
-	/*} cpSpaceUnlock(space, cpTrue);*/
-/*}*/
-////////////////////////////////////////////////
-
-
+*/
 
 void uint64t_to_bitstr(uint64_t value, char *buf) {
     // {{{
@@ -257,6 +227,7 @@ void check_argsnum(lua_State *lua, int num) {
 
 /*
 void space_camera_sensor_init(Space *space) {
+    // {{{
     space->camera_body = cpBodyNewKinematic();
     int w = 1920, h = 1080;
     cpFloat hw = w / 2.0, hh = h / 2.0;
@@ -275,10 +246,12 @@ void space_camera_sensor_init(Space *space) {
     );
     cpSpaceAddBody(space->space, space->camera_body);
     cpSpaceAddShape(space->space, space->camera_sensor);
+    // }}}
 }
 */
 
 static int space_new(lua_State *lua) {
+    // {{{
     // [.. , damping]
     luaL_checktype(lua, 1, LUA_TNUMBER);
     check_argsnum(lua, 1);
@@ -315,6 +288,7 @@ static int space_new(lua_State *lua) {
     /*space_camera_sensor_init(space);*/
      // [.., damping, -> {ud}]
     return 1;
+    // }}}
 }
 
 static void ConstraintFreeWrap(
@@ -362,6 +336,7 @@ static void PostShapeFree(cpShape *shape, struct PostCallbackData *data){
 
 // Как грамотно удалять пространство?
 static int space_free(lua_State *lua) {
+    // {{{
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     Space *space = (Space*)luaL_checkudata(lua, 1, "_Space");
 
@@ -384,6 +359,7 @@ static int space_free(lua_State *lua) {
     luaL_unref(lua, LUA_REGISTRYINDEX, space->reg_index);
     cpSpaceFree(space->space);
     return 0;
+    // }}}
 }
 
 void tank_check_type(lua_State *lua, 
@@ -405,6 +381,7 @@ void tank_check_type(lua_State *lua,
 // Если тип формы неподходящий, то кладет на стек пустую таблицу.
 /*#define PUSH_SHAPE_VERTICES*/
 void push_shape_vertices(cpBody *body, cpShape *shape, void *data) {
+    // {{{
     lua_State *lua = data;
     assert(shape);
 #ifdef PUSH_SHAPE_VERTICES
@@ -423,6 +400,7 @@ void push_shape_vertices(cpBody *body, cpShape *shape, void *data) {
         lua_pushnumber(lua, vert.y);
         lua_rawseti(lua, top, index++);
     }
+    // }}}
 }
 #undef PUSH_SHAPE_VERTICES
 
@@ -438,6 +416,7 @@ void tank_turret_new(
         int collision_group, 
         int init_table_index
 ) {
+    // {{{
 
 #ifdef TANK_TURRET_NEW
     LOG("tank_turret_new: [%s]\n", stack_dump(lua));
@@ -548,11 +527,13 @@ void tank_turret_new(
     LOG("tank_turret_new: return [%s]\n", stack_dump(lua));
 #endif
 
+    // }}}
 }
 #undef TANK_TURRET_NEW
 
 // Таблица инициализации танка должна быть на вершине стека!
 void fill_achor(lua_State *lua, const char *field_name, cpVect *anchor) {
+    // {{{
     // [.., tank_ud, {init_table}]
     lua_pushstring(lua, field_name);
     lua_gettable(lua, -2);
@@ -575,9 +556,11 @@ void fill_achor(lua_State *lua, const char *field_name, cpVect *anchor) {
         lua_remove(lua, -1);
         // [.., tank_ud, {init_table}]
     }
+    // }}}
 }
 
 void tank_setup_constraints(Tank *tank, lua_State *lua, int init_table_index) {
+    // {{{
     cpConstraint *joint = cpPivotJointNew(tank->body, tank->turret, cpvzero);
 
     cpVect anchorA = { 0., 0. };
@@ -601,6 +584,7 @@ void tank_setup_constraints(Tank *tank, lua_State *lua, int init_table_index) {
     tank->turret_motor = cpSimpleMotorNew(tank->body, tank->turret, offset);
     tank->has_turret_motor = true;
     cpSpaceAddConstraint(cur_space->space, tank->turret_motor);
+    // }}}
 }
 
 // Кладет на стек таблицу таблиц с вершинами фигур танка.
@@ -620,11 +604,12 @@ void tank_push_debug_vertices(lua_State *lua, const Tank *tank) {
 /*#define LOG_TANK_NEW*/
 /*#define PUSH_DEBUG_TANK_VERTICES*/
 static int tank_new(lua_State *lua) {
-    // [.., type, x, y, w, h, assoc_table]
+    // {{{
     CHECK_SPACE;
     check_argsnum(lua, 2);
 
     const int init_table_index = 1;
+    // [.., init table, assoc_table]
     luaL_checktype(lua, 1, LUA_TTABLE);  // init table
     luaL_checktype(lua, 2, LUA_TTABLE);  // associated(self) table
 
@@ -799,6 +784,8 @@ static int tank_new(lua_State *lua) {
     // [.., -> {ud}]
     return 1;
 #endif
+
+    // }}}
 }
 #undef LOG_TANK_NEW
 #undef PUSH_DEBUG_TANK_VERTICES
@@ -809,6 +796,7 @@ static int tank_new(lua_State *lua) {
 // Как хранить данные о прошлом положении?
 #define LOG_ON_EACH_TANK_T
 void on_each_tank_t(cpBody *body, void *data) {
+    // {{{
     lua_State *lua = (lua_State*)data;
 
 #ifdef LOG_ON_EACH_TANK_T
@@ -927,6 +915,7 @@ void on_each_tank_t(cpBody *body, void *data) {
     LOG("on_each_tank_t: [%s]\n", stack_dump(lua));
 #endif
 
+    // }}}
 }
 #undef LOG_ON_EACH_TANK_T
 
@@ -999,11 +988,13 @@ void on_type_bb_query(cpShape *shape, void *data) {
 }
 #undef ON_TYPE_BB_QUERY
 
+/*
 static const char* get_bb_xywh(cpBB bb) {
     static char buf[128] = {0, };
     sprintf(buf, "(%f, %f, %f, %f)", bb.l, bb.t, bb.r - bb.l, bb.b - bb.t);
     return buf;
 }
+*/
 
 void on_bullet_bb_query(cpShape *shape, void *data) {
     // {{{
@@ -1027,6 +1018,7 @@ void on_bullet_bb_query(cpShape *shape, void *data) {
 
 /*#define SPACE_QUERY_BB*/
 static int space_query_bb_type(lua_State *lua) {
+    // {{{
     CHECK_SPACE;
     check_argsnum(lua, 6);
     luaL_checktype(lua, 1, LUA_TNUMBER); // l
@@ -1060,11 +1052,13 @@ static int space_query_bb_type(lua_State *lua) {
     cpSpaceBBQuery(cur_space->space, bb, filter, on_type_bb_query, &queryData);
 
     return 0;
+    // }}}
 }
 #undef SPACE_QUERY_BB
 
 #define SPACE_QUERY_BB_BULLETS
 static int space_query_bb_bullets(lua_State *lua) {
+    // {{{
     CHECK_SPACE;
     check_argsnum(lua, 6);
     luaL_checktype(lua, 1, LUA_TNUMBER); // x
@@ -1088,6 +1082,7 @@ static int space_query_bb_bullets(lua_State *lua) {
     cpSpaceBBQuery(cur_space->space, bb, filter, on_bullet_bb_query, lua);
 
     return 0;
+    // }}}
 }
 #undef SPACE_QUERY_BB_BULLETS
 
@@ -1109,30 +1104,6 @@ static int query_all_tanks_t(lua_State *lua) {
     return 0;
 }
 #undef LOG_QUERY_ALL_TANKS_T
-
-/*
-//#define LOG_QUERY_ALL_TANKS
-static int query_all_tanks(lua_State *lua) {
-    CHECK_SPACE;
-    luaL_checktype(lua, 1, LUA_TFUNCTION);
-
-    int top = lua_gettop(lua);
-    if (top != 1) {
-        lua_pushstring(lua, "Function expect 1 argument.\n");
-        lua_error(lua);
-    }
-
-#ifdef LOG_QUERY_ALL_TANKS
-    LOG("query_all_tanks: [%s]\n", stack_dump(lua));
-#endif
-    cpSpaceEachBody(cur_space, on_each_tank, lua);
-#ifdef LOG_QUERY_ALL_TANKS
-    LOG("query_all_tanks: return [%s]\n", stack_dump(lua));
-#endif
-    return 0;
-}
-#undef LOG_QUERY_ALL_TANKS
-*/
 
 static int space_set(lua_State *lua) {
     luaL_checktype(lua, 1, LUA_TUSERDATA);
@@ -1162,6 +1133,7 @@ static int body_position_get(lua_State *lua) {
 
 /*#define BODY_POSITION_SET*/
 static int body_position_set(lua_State *lua) {
+    // {{{
 #ifdef BODY_POSITION_SET
     LOG("body_position_set: [%s]\n", stack_dump(lua));
 #endif
@@ -1185,10 +1157,12 @@ static int body_position_set(lua_State *lua) {
     /*print_body_stat(b);*/
     
     return 0;
+    // }}}
 }
 #undef BODY_POSITION_SET
 
 static int apply_force(lua_State *lua) {
+    // {{{
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TNUMBER);
@@ -1210,9 +1184,11 @@ static int apply_force(lua_State *lua) {
     cpBodyApplyForceAtLocalPoint(tank->body, force, point);
 
     return 0;
+    // }}}
 }
 
 static int apply_impulse(lua_State *lua) {
+    // {{{
     luaL_checktype(lua, 1, LUA_TUSERDATA);
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TNUMBER);
@@ -1238,9 +1214,11 @@ static int apply_impulse(lua_State *lua) {
     }
 
     return 0;
+    // }}}
 }
 
 static int static_segment_new(lua_State *lua) {
+    // {{{
     CHECK_SPACE;
     // [.., x1, y1, x2, y2]
     luaL_checktype(lua, 1, LUA_TNUMBER);
@@ -1266,6 +1244,7 @@ static int static_segment_new(lua_State *lua) {
 
     // [.., x1, y1, x2, y2, -> ud]
     return 1;
+    // }}}
 }
 
 /*
@@ -1738,8 +1717,8 @@ static const struct luaL_Reg Tank_methods[] =
     {"set_ang_vel", set_body_ang_vel},
 
     // получить разную информацию по телу используется для отладки
-    {"get_body_stat", tank_turret_stat_get},
-    {"get_turret_stat", tank_body_stat_get},
+    {"get_body_stat", tank_body_stat_get},
+    /*{"get_turret_stat", tank_body_stat_get},*/
     /*{"shape_print_filter", shape_print_filter},*/
 
     {NULL, NULL}
@@ -1969,10 +1948,104 @@ int bullet_pool_new(lua_State *lua) {
 }
 #undef BULLET_POOL_NEW
 
+int stickobj_new(lua_State *lua) {
+    // {{{
+    CHECK_SPACE;
+
+    int collision_group = 100; //XXX??
+    cpVect pos = { .x = 0, .y = 0 };
+    cpVect turret_rot_point = { .x = 0., .y = 0. };
+    int w = 0, h = 0;
+    cpFloat rad = 10;
+    cpFloat mass = w * h * DENSITY;
+    cpFloat moment = cpMomentForCircle(mass, 0., rad, cpvzero);
+
+    typedef struct StickObj {
+        Object obj;
+        cpBody *body;
+    };
+
+    StickObj *stickobj = lua_newuserdata(lua, sizeof(StickObj));
+    memset(stickobj, 0, sizeof(StickObj));
+    stickobj->obj.type = OBJT_TANK;
+
+    // [.., type, x, y, w, h, {ud}]
+    luaL_getmetatable(lua, "_Tank");
+    // [.., type, x, y, w, h, {ud}, {M}]
+    lua_setmetatable(lua, -2);
+    // [.., type, x, y, w, h, {ud}]
+
+    lua_pushvalue(lua, -1);
+    // [.., type, x, y, w, h, {ud}, {ud}]
+    int body_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
+    // [.., type, x, y, w, h, {ud}]
+    
+    tank->body = cpSpaceAddBody(cur_space->space, cpBodyNew(mass, moment));
+    tank->body->userData = tank;
+    tank->turret_rot_point = turret_rot_point;
+
+    cpShape *shape = cpBoxShapeNew(tank->body, w, h, 0.f);
+    cpShapeFilter filter = { 
+        collision_group, 
+        CP_ALL_CATEGORIES, 
+        CP_ALL_CATEGORIES
+    };
+    cpShapeSetFilter(shape, filter);
+
+    tank->reg_index = body_reg_index;
+    tank->assoc_table_reg_index = assoc_table_reg_index;
+
+#ifdef LOG_TANK_NEW
+    LOG(
+        "tank_new: reg_index = %d, assoc_table_reg_index = %d\n", 
+        tank->reg_index, tank->assoc_table_reg_index
+    );
+#endif
+
+    /*cpShapeSetFriction(shape, 10000.);*/
+    /*cpShapeSetFriction(shape, 1);*/
+
+    cpSpaceAddShape(cur_space->space, shape);
+    cpBodySetPosition(tank->body, pos);
+
+#ifdef LOG_TANK_NEW
+    /*print_body_stat(tank->body);*/
+    LOG("tank_new: before turret_new [%s]\n", stack_dump(lua));
+#endif
+
+    tank_turret_new(lua, tank, collision_group, init_table_index);
+    LOG("tank_new: after turret_new [%s]\n", stack_dump(lua));
+
+    tank_setup_constraints(tank, lua, init_table_index);
+
+    // Удалить все предшествующие возвращаемому значению элементы стека.
+    // Не уверен в нужности вызова.
+    int top = lua_gettop(lua);
+    for(int i = 0; i <= top - 2; i++) {
+        lua_remove(lua, 1);
+    }
+    // [.., {ud}]
+
+#ifdef PUSH_DEBUG_TANK_VERTICES
+    tank_push_debug_vertices(lua, tank);
+    LOG("tank_new: return [%s]\n", stack_dump(lua));
+    // [.., -> {ud}, -> {table}]
+    return 2;
+#else
+    LOG("tank_new: return [%s]\n", stack_dump(lua));
+    // [.., -> {ud}]
+    return 1;
+#endif
+
+    // }}}
+    return 1;
+}
+
 int register_module(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
         // {{{
+        {"stickobj_new", stickobj_new},
         
         // создать пространство
         {"space_new", space_new},
