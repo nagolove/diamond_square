@@ -206,6 +206,12 @@ local record Wrapper
     -- Вызвать функцию для рисования всех сегментов.
     static_segments_draw: function(EachSegmentCallback)
 
+    record Stick
+    end
+
+    stickobj_new: function(): Stick
+    stickobj_position_set: function(Stick, x: number, y: number)
+
     --[[
     Какой тип должен быть у object? Body как базовый класс объектов.
     --]]
