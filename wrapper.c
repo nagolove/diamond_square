@@ -1681,9 +1681,18 @@ int space_query_segment_first(lua_State *lua) {
 
     if (info.shape && info.shape->body->userData) {
         Object *obj = (Object*)info.shape->body->userData;
-        if (obj->type == OBJT_TANK || obj->type == OBJT_TANK_STICK) {
+        if (obj->type == OBJT_TANK) {
             Tank *tank = info.shape->body->userData;
             lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);
+            lua_pushnumber(lua, info.point.x);
+            lua_pushnumber(lua, info.point.y);
+            lua_pushnumber(lua, info.normal.x);
+            lua_pushnumber(lua, info.normal.y);
+            lua_pushnumber(lua, info.alpha);
+            lua_call(lua, 6, 0);
+        } else if (obj->type == OBJT_TANK_STICK) {
+            StickObj *stickobj = info.shape->body->userData;
+            lua_rawgeti(lua, LUA_REGISTRYINDEX, stickobj->reg_index);
             lua_pushnumber(lua, info.point.x);
             lua_pushnumber(lua, info.point.y);
             lua_pushnumber(lua, info.normal.x);
@@ -2055,6 +2064,13 @@ int stickobj_position_set(lua_State *lua) {
     return 0;
 }
 
+int get_object_type(lua_State *lua) {
+    luaL_checktype(lua, 1, LUA_TUSERDATA);
+    Object *obj = lua_touserdata(lua, 1);
+    lua_pushnumber(lua, obj->type);
+    return 1;
+}
+
 int register_module(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
@@ -2089,6 +2105,8 @@ int register_module(lua_State *lua) {
 
         // обратный вызов функции для рисования всех сегментов
         {"static_segments_draw", static_segments_draw},
+
+        {"get_object_type", get_object_type},
 
         // вызвать коллббэк для всех фигур под данной точкой
         {"get_body_under_point", get_body_under_point},
