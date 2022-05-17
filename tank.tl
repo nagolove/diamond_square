@@ -93,6 +93,7 @@ local record Tank
 
     type: ObjectType
     base: wrp.Tank
+    hit_handlers: {HitHandler}
     --turret: wrp.Body
 
     -- {{{ px, py, angle используются в eachShape для проверки на необходимсоть 
@@ -106,10 +107,21 @@ local record Tank
 
     -- Абсолютные координаты в пикселях
     new: function(x: number, y: number): Tank
+
+    ------------------- STATIC FUNCTIONS ------------------- 
     -- Вызывается один раз для инициализации модуля.
     initPipelineObjects: function(
         pl: Pipeline, cam: PCamera, bp: wrp.BulletPool
     )
+    ------------------- STATIC FUNCTIONS ------------------- 
+
+    type HitHandler = function(
+            tank: wrp.Tank, 
+            x: number, y: number, 
+            nx: number, ny: number, 
+            alpha: number
+    )
+    register_hit_handler: function(HitHandler)
 
     -- Обновить логику, не физику.
     -- Если возвращается nil, то объект считается убитым.
@@ -136,7 +148,6 @@ local record Tank
     -- запустить сопрограмму движения по кругу
     --circleMove: function(Tank)
     -- }}}
-
 end -- Tank record
 
 local pipeline: Pipeline
@@ -181,7 +192,7 @@ local init_table: wrp.TankInit = {
     -- }}}
 } 
 
--- Точка приложения импулься
+-- Точка приложения импульса
 local px, py = 0, 0
 local impulse_amount = 5
 -- Предел скорости движения
@@ -226,6 +237,9 @@ function Tank:fire()
             alpha: number
         )
             pipeline:push('target', x, y)
+            for _, handler in ipairs(self.hit_handlers) do
+                handler(tank, x, y, nx, ny, alpha)
+            end
         end
     )
     pipeline:push('enough')
@@ -331,6 +345,7 @@ function Tank.new(x: number, y: number): Tank
     self.id = tankCounter
     self.color = {1, 1, 1, 1}
     self.type = "tank"
+    self.hit_handlers = {}
 
     local debug_verts: {{number}} = nil
 
@@ -422,6 +437,10 @@ function Tank:rotate_turret(dir: Tank.Direction)
         self.base:turret_rotate(1)
     end
     --]]
+end
+
+function Tank:register_hit_handler(h: HitHandler)
+    table.insert(self.hit_handlers)
 end
 
 local bullet_pool_capacity = 2048
