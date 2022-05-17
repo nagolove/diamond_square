@@ -439,8 +439,8 @@ function Tank:rotate_turret(dir: Tank.Direction)
     --]]
 end
 
-function Tank:register_hit_handler(h: HitHandler)
-    table.insert(self.hit_handlers)
+function Tank:register_hit_handler(handler: Tank.HitHandler)
+    table.insert(self.hit_handlers, handler)
 end
 
 local bullet_pool_capacity = 2048
