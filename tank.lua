@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local math = _tl_compat and _tl_compat.math or math
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local assert = _tl_compat and _tl_compat.assert or assert; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local table = _tl_compat and _tl_compat.table or table
 
 
 require('konstants')
@@ -237,6 +237,9 @@ function Tank:fire()
       alpha)
 
       pipeline:push('target', x, y)
+      for _, handler in ipairs(self.hit_handlers) do
+         handler(tank, x, y, nx, ny, alpha)
+      end
    end)
 
    pipeline:push('enough')
@@ -342,6 +345,7 @@ function Tank.new(x, y)
    self.id = tankCounter
    self.color = { 1, 1, 1, 1 }
    self.type = "tank"
+   self.hit_handlers = {}
 
    local debug_verts = nil
 
@@ -433,6 +437,10 @@ function Tank:rotate_turret(dir)
       self.base:turret_rotate(1)
    end
 
+end
+
+function Tank:register_hit_handler(handler)
+   table.insert(self.hit_handlers, handler)
 end
 
 local bullet_pool_capacity = 2048

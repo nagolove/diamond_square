@@ -654,9 +654,27 @@ local function initBorders()
    end
 end
 
+local function writeTurretAngles()
+   love.filesystem.append('turret.txt', tostring(last_angle) .. '\n')
+   love.filesystem.append('turret.txt', tostring(last_tur_angle) .. '\n')
+   love.filesystem.append('turret.txt', '\n')
+end
+
 local function spawnPlayer()
    local px, py = screenW / 3, screenH / 2
    playerTank = spawnTank(px, py)
+
+   playerTank:register_hit_handler(
+   function(
+      tank,
+      x, y,
+      nx, ny,
+      alpha)
+
+      print('tank', tank)
+      print('intersection with: ', wrp.get_object_type(tank))
+      writeTurretAngles()
+   end)
 
    if not spawn_only_player then
 
@@ -731,9 +749,7 @@ local function keypressed(key)
    end
 
    if key == 's' then
-      love.filesystem.append('turret.txt', tostring(last_angle) .. '\n')
-      love.filesystem.append('turret.txt', tostring(last_tur_angle) .. '\n')
-      love.filesystem.append('turret.txt', '\n')
+      writeTurretAngles()
    end
 
    if key == 'f1' then
@@ -1302,10 +1318,10 @@ local function player_rotate_turret(j)
 
 
 
+   stick_x = screenW / 2. + axes[x_axis_index] / stick_scale_x
+   stick_y = screenH / 2. + axes[y_axis_index] / stick_scale_y
 
 
-   stick_x = 0. + axes[x_axis_index] / stick_scale_x
-   stick_y = 0. + axes[y_axis_index] / stick_scale_y
 
    wrp.stickobj_position_set(stickObj, stick_x, stick_y)
 
