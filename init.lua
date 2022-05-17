@@ -45,7 +45,9 @@ require("love")
 require('konstants')
 require('pipeline')
 require("common")
+require("Timer")
 
+require('logo')
 
 require("keyconfig")
 
@@ -85,142 +87,12 @@ local State = {}
 
 local state = 'map'
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local Arena = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
 local Tank = require('tank')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local Hit = {}
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 local screenW, screenH
 
 local space
 local space_damping = 0.02
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-require("Timer")
 
 
 local tanks = {}
@@ -233,8 +105,7 @@ local hangars = {}
 
 local playerTank
 
-
-require('logo')
+local stickObj
 
 local Borders = {}
 
@@ -279,10 +150,13 @@ local joy
 
 local OBJT_ERROR = 0
 local OBJT_TANK = 1
-local OBJT_BULLET = 2
-local OBJT_SEGMENT = 4
+local OBJT_TANK_STICK = 2
+local OBJT_BULLET = 4
+local OBJT_SEGMENT = 8
 
 local draw_selected_object = true
+
+local spawn_only_player = true
 
 local is_stop = false
 local is_physics_paused = false
@@ -320,407 +194,16 @@ local function print_io_rate()
    pipeline:push('add', 'data_received', msg)
 end
 
-function Hit.new(x, y)
-   local Hit_mt = {
-      __index = Hit,
-   }
-   local self = setmetatable({}, Hit_mt)
-
-   self.ps = nil
-   error('self.ps = nil')
-
-
-
-   self.x = x
-   self.y = y
-
-   return self
-end
-
-function Arena.new(_)
-   local Arena_mt = { __index = Arena }
-   local self = setmetatable({}, Arena_mt)
-
-
-
-   return self
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 function getTerrainCorners()
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-str = ""
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 local function spawnHangar(pos)
    local hangar = Hangar.new(pos)
    table.insert(hangars, hangar)
    return hangar
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 local function on_each_body_t(
    x, y, angle, obj,
@@ -831,32 +314,6 @@ local function renderTanks()
 
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local function renderSelectedObject()
    local player_x, player_y, player_angle
    if playerTank then
@@ -899,7 +356,9 @@ local function phys_dbg_draw()
    pipeline:open("dbg_phys")
    wrp.space_debug_draw(
    function(px, py, angle, rad)
-      pipeline:push('circle', px, py, angle, rad)
+
+
+      pipeline:push('circle', px, py, rad, angle)
    end,
    function(ax, ay, bx, by)
       pipeline:push('segment', ax, ay, bx, by)
@@ -924,7 +383,7 @@ local function render_internal()
    camera:attach()
 
 
-   diamondSquare:render()
+
 
 
    renderTanks()
@@ -1004,185 +463,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local function spawnTank(px, py)
 
 
@@ -1255,10 +535,13 @@ local function spawnTanks()
 
 
    local w, h = 256, 256
-   spawnTank(-w / 70, -h / 70)
 
-   spawnTank(380, 100)
-   spawnTank(screenW / 2, screenH / 2)
+   if not spawn_only_player then
+      spawnTank(-w / 70, -h / 70)
+      spawnTank(380, 100)
+      spawnTank(screenW / 2, screenH / 2)
+   end
+
 
 
 end
@@ -1375,8 +658,10 @@ local function spawnPlayer()
    local px, py = screenW / 3, screenH / 2
    playerTank = spawnTank(px, py)
 
+   if not spawn_only_player then
 
-   spawnTank(px + 400, py)
+      spawnTank(px + 400, py)
+   end
 
    move_camera2player()
 
@@ -1506,103 +791,6 @@ local function keypressed(key)
 
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local function bindFullscreenSwitcher()
 
    KeyConfig.bind(
@@ -1712,8 +900,8 @@ local function initRenderCode()
 
 
    pipeline:pushCode('clear', [[
-    --local color = {0.5, 0.5, 0.5}
-    local color = {0.5, 0.9, 0.5}
+    local color = {0.5, 0.5, 0.5}
+    --local color = {0.5, 0.9, 0.5}
     while true do
         love.graphics.clear(color)
         coroutine.yield()
@@ -2114,8 +1302,12 @@ local function player_rotate_turret(j)
 
 
 
-   stick_x = screenW / 2. + axes[x_axis_index] / stick_scale_x
-   stick_y = screenH / 2. + axes[y_axis_index] / stick_scale_y
+
+
+   stick_x = 0. + axes[x_axis_index] / stick_scale_x
+   stick_y = 0. + axes[y_axis_index] / stick_scale_y
+
+   wrp.stickobj_position_set(stickObj, stick_x, stick_y)
 
 
 
@@ -2238,10 +1430,16 @@ end
 
 local stateCoro = coroutine.create(function(dt)
 
+
    initBorders()
+
    spawnHangars()
+
    spawnTanks()
+
    spawnPlayer()
+
+   stickObj = wrp.stickobj_new()
 
    diamondSquare:eval()
    diamondSquare:send2render()

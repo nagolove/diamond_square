@@ -139,6 +139,17 @@ local Tank = {Rect = {}, FullInfo = {}, }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 local pipeline
 local camera
 
