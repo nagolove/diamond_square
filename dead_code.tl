@@ -520,3 +520,306 @@ local function print_body_stat(body: wrp.Body)
 end
 --]]
 
+--[[
+local function backspaceCmdLine()
+    -- {{{
+    local u8 = require "utf8"
+    -- get the byte offset to the last UTF-8 character in the string.
+    local byteoffset = u8.offset(cmdline, -1)
+    if byteoffset then
+        -- remove the last UTF-8 character.
+        -- string.sub operates on bytes rather than UTF-8 characters, 
+        -- so we couldn't do string.sub(text, 1, -2).
+        cmdline = string.sub(cmdline, 1, byteoffset - 1)
+        if cursorpos - 1 >= 1 then
+            cursorpos = cursorpos - 1
+        end
+    end
+    -- }}}
+end
+--]]
+
+--local function enterCommandMode()
+--end
+
+--[[
+local function leaveCommandMode()
+    -- {{{
+    print("command mode disabled.")
+    mode = "normal"
+    love.keyboard.setKeyRepeat(false)
+    love.keyboard.setTextInput(false)
+    cmdline = ""
+    -- }}}
+end
+--]]
+
+--[[
+-- {{{
+function attach(varname: string)
+    if type(varname) == "string" then
+        attachedVarsList[varname] = function()
+            local ok, errmsg: boolean, string = pcall(function()
+                local l = (_G as {any:any})[varname]
+                local output = tabular.show2(l)
+                if output then 
+
+                else
+
+                end
+            end)
+            if not ok then
+                print("attach callback error:", errmsg)
+                print('attach removed')
+                attachedVarsList[varname] = nil
+            end
+        end
+    end
+end
+-- }}}
+--]]
+
+--[[
+function detach(varname: string)
+    if type(varname) == "string" then
+        attachedVarsList[varname] = nil
+    end
+end
+--]]
+
+--[[
+local function evalCommand()
+    -- {{{
+
+    -- {{{ preload
+    local path = SCENE_PREFIX .. '/eval_preload.lua'
+    local content = love.filesystem.read(path)
+    if not content then
+        error('Could not load: ' .. path)
+    end
+
+    local preload = content
+    -- }}}
+
+    cmdline = trim(cmdline)
+    local func, loaderrmsg: function, string = load(preload .. cmdline)
+    --local time = 2
+
+    --TODO в обработке ошибок искать ]:1: и обрезать сообщение об ошибке.
+    if not func then
+        --linesbuf:push(time, "load() errmsg: " .. loaderrmsg)
+        print("load() errmsg:|" .. loaderrmsg .. "|")
+    else
+        local ok, pcallerrmsg: boolean, string = pcall(function()
+            func()
+        end)
+        if not ok then
+            --linesbuf:push(time, "pcall() errmsg: " .. pcallerrmsg)
+            print("pcall() errmsg:|" .. pcallerrmsg .. "|")
+        end
+    end
+    --local trimmed = trim(cmdline) or ""
+    if #cmdline ~= 0 then
+        table.insert(cmdhistory, cmdline)
+        love.filesystem.append(historyfname, cmdline .. "\n")
+    end
+    --suggestList = nil
+    -- }}}
+end
+--]]
+
+--local cmdhistoryIndex = 0
+
+--[[
+local function setPreviousCommand()
+    -- {{{
+    if #cmdhistory ~= 0 then
+        if cmdhistoryIndex - 1 < 1 then
+            cmdhistoryIndex = #cmdhistory
+        else
+            cmdhistoryIndex = cmdhistoryIndex - 1
+        end
+        cmdline = cmdhistory[cmdhistoryIndex]
+        cursorpos = #cmdline + 1
+    end
+    -- }}}
+end
+--]]
+
+--[[
+local function setNextCommand()
+    -- {{{
+    if #cmdhistory ~= 0 then
+        if cmdhistoryIndex + 1 > #cmdhistory then
+            cmdhistoryIndex = 1
+        else
+            cmdhistoryIndex = cmdhistoryIndex + 1
+        end
+        cmdline = cmdhistory[cmdhistoryIndex]
+        cursorpos = #cmdline + 1
+    end
+    -- }}}
+end
+--]]
+
+--[[
+local function processCommandModeKeys(key: string)
+    -- {{{
+    if key == "backspace" then
+        backspaceCmdLine()
+    elseif key == "tab" then
+        print('tab pressed.')
+        suggestCompletion()
+    elseif key == "escape" then
+        leaveCommandMode()
+    elseif key == "return" then
+        evalCommand()
+    elseif key == "up" then
+        setPreviousCommand()
+    elseif key == "down" then
+        setNextCommand()
+    elseif key == "left" then
+        if cursorpos - 1 >= 1 then
+            cursorpos = cursorpos - 1
+        end
+        print('left')
+    elseif key == "right" then
+        if cursorpos <= #cmdline then
+            cursorpos = cursorpos + 1
+        end
+        print('right')
+    elseif key == "home" then
+        cursorpos = 1
+        print('home')
+    elseif key == "end" then
+        cursorpos = #cmdline
+        print('end')
+    end
+    -- }}}
+end
+--]]
+
+--[[
+local function bindKonsoleCameraZoomKeys()
+    -- {{{
+    local ids = {
+        KeyConfig.bind(
+            "isdown",
+            { mod = { "lshift" },
+                key = "z" },
+            function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
+
+                --if konsoleCam.scale < camZoomHigher then
+                    --konsoleCam:zoom(1. + zoomSpeed)
+                --end
+
+                return false, sc
+            end,
+            "zoom camera in",
+            "zoomin"
+        ),
+        KeyConfig.bind(
+            "isdown",
+            { key = "x" },
+            function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
+
+                --if konsoleCam.scale > camZoomLower then
+                    --konsoleCam:zoom(1.0 - zoomSpeed)
+                --end
+
+                return false, sc
+            end,
+            "zoom camera out",
+            "zoomout"
+        ),
+    }
+    cameraKeyConfigIds = {}
+    for _, v in ipairs(ids) do
+        table.insert(cameraKeyConfigIds, v)
+    end
+    print('bindKonsoleCameraZoomKeys')
+    -- }}}
+end
+--]]
+
+--[[
+local function bindCameraZoomKeys()
+    -- {{{
+    local ids = {
+        KeyConfig.bind(
+            "isdown",
+            { key = "z" },
+            function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
+
+                --if cam.scale < camZoomHigher then
+                    --cam:zoom(1. + zoomSpeed)
+                --end
+
+                return false, sc
+            end,
+            "zoom camera in",
+            "zoomin"
+        ),
+        KeyConfig.bind(
+            "isdown",
+            { key = "x" },
+            function(sc: Shortcut): boolean, Shortcut
+                if mode ~= "normal" then
+                    return false, sc
+                end
+
+                --if cam.scale > camZoomLower then
+                    --cam:zoom(1.0 - zoomSpeed)
+                --end
+
+                return false, sc
+            end,
+            "zoom camera out",
+            "zoomout"
+        ),
+    }
+    cameraKeyConfigIds = {}
+    for _, v in ipairs(ids) do
+        table.insert(cameraKeyConfigIds, v)
+    end
+    print('bindCameraZoomKeys')
+    -- }}}
+end
+--]]
+
+function Hit.new(x: number, y: number): Hit
+    local Hit_mt: metatable<Hit> = {
+        __index = Hit,
+    }
+    local self: Hit = setmetatable({} as Hit, Hit_mt)
+
+    self.ps = nil
+    error('self.ps = nil')
+
+    --x, y = x * M2PIX, y * M2PIX
+
+    self.x = x
+    self.y = y
+
+    return self
+end
+
+function Arena.new(_: string): Arena
+    local Arena_mt: metatable<Arena> = { __index = Arena }
+    local self: Arena = setmetatable({} as Arena, Arena_mt)
+
+    --self.objectType = "Arena"
+
+    return self
+end
+
+
