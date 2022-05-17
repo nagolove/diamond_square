@@ -212,6 +212,10 @@ local record Wrapper
     stickobj_new: function(): Stick
     stickobj_position_set: function(Stick, x: number, y: number)
 
+    -- Возвращает тип объекта из перечисления ObjType
+    -- На входе - Tank, Stick, Segment или что-то пободное.
+    get_object_type: function(any): integer
+
     --[[
     Какой тип должен быть у object? Body как базовый класс объектов.
     --]]
