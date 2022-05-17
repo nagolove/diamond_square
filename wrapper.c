@@ -15,7 +15,7 @@
 #include "chipmunk/chipmunk_structs.h"
 /*#include "chipmunk/chipmunk_private.h"*/
 
-#include "cpVect.h"
+/*#include "cpVect.h"*/
 #include "lua_tools.h"
 
 // Проверить указатель на текущее физическое пространство.
@@ -29,8 +29,9 @@ if (!cur_space) {                                       \
 typedef enum {
     OBJT_ERROR      = 0b0000,
     OBJT_TANK       = 0b0001,
-    OBJT_BULLET     = 0b0010,
-    OBJT_SEGMENT    = 0b0100, // Отрезок, ограничивающиц движение
+    OBJT_TANK_STICK = 0b0010,
+    OBJT_BULLET     = 0b0100,
+    OBJT_SEGMENT    = 0b1000, // Отрезок, ограничивающиц движение
 } ObjType;
 
 typedef struct {
@@ -87,6 +88,12 @@ typedef struct {
     int num; // Размер буфера
     int used; // Сколько использовано
 } BulletPool;
+
+typedef struct {
+    Object obj;
+    cpBody *body;
+    int reg_index;
+} StickObj;
 
 static Space *cur_space = NULL;
 
@@ -1141,7 +1148,7 @@ static int body_position_set(lua_State *lua) {
     luaL_checktype(lua, 2, LUA_TNUMBER);
     luaL_checktype(lua, 3, LUA_TNUMBER);
 
-    check_argsnum(lua, 1);
+    check_argsnum(lua, 3);
 
     Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
     double x = lua_tonumber(lua, 2);
@@ -1674,7 +1681,7 @@ int space_query_segment_first(lua_State *lua) {
 
     if (info.shape && info.shape->body->userData) {
         Object *obj = (Object*)info.shape->body->userData;
-        if (obj->type == OBJT_TANK) {
+        if (obj->type == OBJT_TANK || obj->type == OBJT_TANK_STICK) {
             Tank *tank = info.shape->body->userData;
             lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->reg_index);
             lua_pushnumber(lua, info.point.x);
@@ -1948,57 +1955,59 @@ int bullet_pool_new(lua_State *lua) {
 }
 #undef BULLET_POOL_NEW
 
+/*
+Создает физический объект - кружок, но с метатабличкой танка.
+Передвигается вручную, используется для отладки линии прицеливания башни.
+*/
+#define STICKOBJ_NEW
 int stickobj_new(lua_State *lua) {
     // {{{
     CHECK_SPACE;
 
-    int collision_group = 100; //XXX??
     cpVect pos = { .x = 0, .y = 0 };
-    cpVect turret_rot_point = { .x = 0., .y = 0. };
-    int w = 0, h = 0;
     cpFloat rad = 10;
-    cpFloat mass = w * h * DENSITY;
+    cpFloat mass = 1;
     cpFloat moment = cpMomentForCircle(mass, 0., rad, cpvzero);
-
-    typedef struct StickObj {
-        Object obj;
-        cpBody *body;
-    };
 
     StickObj *stickobj = lua_newuserdata(lua, sizeof(StickObj));
     memset(stickobj, 0, sizeof(StickObj));
-    stickobj->obj.type = OBJT_TANK;
+    /*stickobj->obj.type = OBJT_TANK;*/
+    stickobj->obj.type = OBJT_TANK_STICK;
 
-    // [.., type, x, y, w, h, {ud}]
+    // [.., {ud}]
     luaL_getmetatable(lua, "_Tank");
-    // [.., type, x, y, w, h, {ud}, {M}]
+    // [.., {ud}, {M}]
     lua_setmetatable(lua, -2);
-    // [.., type, x, y, w, h, {ud}]
+    // [.., {ud}]
 
     lua_pushvalue(lua, -1);
-    // [.., type, x, y, w, h, {ud}, {ud}]
+    // [.., {ud}, {ud}]
     int body_reg_index = luaL_ref(lua, LUA_REGISTRYINDEX);
-    // [.., type, x, y, w, h, {ud}]
+    // [.., {ud}]
     
-    tank->body = cpSpaceAddBody(cur_space->space, cpBodyNew(mass, moment));
-    tank->body->userData = tank;
-    tank->turret_rot_point = turret_rot_point;
+    stickobj->body = cpSpaceAddBody(cur_space->space, cpBodyNew(mass, moment));
+    stickobj->body->userData = stickobj;
 
-    cpShape *shape = cpBoxShapeNew(tank->body, w, h, 0.f);
+    cpShape *shape = cpCircleShapeNew(stickobj->body, rad, cpvzero);
+
+    //XXX Значение не должно привышать используемые другими танками индексы.
+    int collision_group = 2000; 
     cpShapeFilter filter = { 
         collision_group, 
         CP_ALL_CATEGORIES, 
         CP_ALL_CATEGORIES
     };
     cpShapeSetFilter(shape, filter);
+    // */
+    /*cpShapeSetFilter(shape, CP_SHAPE_FILTER_NONE);*/
 
-    tank->reg_index = body_reg_index;
-    tank->assoc_table_reg_index = assoc_table_reg_index;
+    stickobj->reg_index = body_reg_index;
+    /*stickobj->assoc_table_reg_index = assoc_table_reg_index;*/
 
-#ifdef LOG_TANK_NEW
+#ifdef STICKOBJ_NEW
     LOG(
-        "tank_new: reg_index = %d, assoc_table_reg_index = %d\n", 
-        tank->reg_index, tank->assoc_table_reg_index
+        "stickobj_new: reg_index = %d, assoc_table_reg_index = %d\n", 
+        stickobj->reg_index, stickobj->assoc_table_reg_index
     );
 #endif
 
@@ -2006,17 +2015,12 @@ int stickobj_new(lua_State *lua) {
     /*cpShapeSetFriction(shape, 1);*/
 
     cpSpaceAddShape(cur_space->space, shape);
-    cpBodySetPosition(tank->body, pos);
+    cpBodySetPosition(stickobj->body, pos);
 
-#ifdef LOG_TANK_NEW
+#ifdef STICKOBJ_NEW
     /*print_body_stat(tank->body);*/
-    LOG("tank_new: before turret_new [%s]\n", stack_dump(lua));
+    LOG("stickobj_new: before turret_new [%s]\n", stack_dump(lua));
 #endif
-
-    tank_turret_new(lua, tank, collision_group, init_table_index);
-    LOG("tank_new: after turret_new [%s]\n", stack_dump(lua));
-
-    tank_setup_constraints(tank, lua, init_table_index);
 
     // Удалить все предшествующие возвращаемому значению элементы стека.
     // Не уверен в нужности вызова.
@@ -2026,19 +2030,29 @@ int stickobj_new(lua_State *lua) {
     }
     // [.., {ud}]
 
-#ifdef PUSH_DEBUG_TANK_VERTICES
-    tank_push_debug_vertices(lua, tank);
-    LOG("tank_new: return [%s]\n", stack_dump(lua));
-    // [.., -> {ud}, -> {table}]
-    return 2;
-#else
-    LOG("tank_new: return [%s]\n", stack_dump(lua));
-    // [.., -> {ud}]
-    return 1;
-#endif
-
     // }}}
     return 1;
+}
+#undef STICKOBJ_NEW
+
+int stickobj_position_set(lua_State *lua) {
+    CHECK_SPACE;
+    check_argsnum(lua, 3);
+    luaL_checktype(lua, 1, LUA_TUSERDATA);  // userdata 'self'
+    luaL_checktype(lua, 2, LUA_TNUMBER);    // new x position
+    luaL_checktype(lua, 3, LUA_TNUMBER);    // new y position
+
+    StickObj *stickobj = (StickObj*)luaL_checkudata(lua, 1, "_Tank");
+    double x = lua_tonumber(lua, 2);
+    double y = lua_tonumber(lua, 3);
+    cpVect pos = { .x = x, .y = y};
+
+    if (pos.x != pos.x || pos.y != pos.y) {
+        LOG("body_position_set: NaN in pos vector.\n");
+    }
+
+    cpBodySetPosition(stickobj->body, pos);
+    return 0;
 }
 
 int register_module(lua_State *lua) {
@@ -2046,6 +2060,7 @@ int register_module(lua_State *lua) {
     {
         // {{{
         {"stickobj_new", stickobj_new},
+        {"stickobj_position_set", stickobj_position_set},
         
         // создать пространство
         {"space_new", space_new},
