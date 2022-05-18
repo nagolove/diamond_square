@@ -8,7 +8,7 @@ local cam_common = require('camera_common')
 local inspect = require('inspect')
 local gr = love.graphics
 local yield = coroutine.yield
-local colorize = require('ansicolors2').ansicolors
+
 
 
 

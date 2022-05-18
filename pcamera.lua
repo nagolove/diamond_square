@@ -6,13 +6,13 @@ require('love')
 local cam_common = require('camera_common')
 
 local Pipeline = require('pipeline')
-local lj = love.joystick
+
 
 local sformat = string.format
 
 
 
-local joy_conf = require('joy_conf')
+
 
 
 local Camera = {}
