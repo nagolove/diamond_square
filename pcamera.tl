@@ -6,13 +6,13 @@ require 'love'
 local cam_common = require 'camera_common'
 --local inspect = require 'inspect'
 local Pipeline = require 'pipeline'
-local lj = love.joystick
+--local lj = love.joystick
 --local Joystick = lj.Joystick
 local sformat = string.format
 
 -- TODO Диалог для настройки клавиш геймпада
 
-local joy_conf = require 'joy_conf'
+--local joy_conf = require 'joy_conf'
 
 -- TODO добавить инерцию к камере
 local record Camera
