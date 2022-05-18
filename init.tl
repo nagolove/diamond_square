@@ -54,6 +54,7 @@ require "keyconfig"
 --local tween = require 'tween'
 --local camMoveTween = tween.new()
 
+local fromPolar = require 'vector-light'.fromPolar
 local sformat = string.format
 local inspect = require "inspect"
 --local serpent = require 'serpent'
@@ -105,7 +106,7 @@ local hangars: {Hangar} = {}
 -- Танк, которым управляет игрок
 local playerTank: Tank
 
-local stickObj: wrp.Stick
+--local stickObj: wrp.Stick
 
 local record Borders
     x1: number
@@ -167,7 +168,7 @@ local is_draw_debug_phys = true
 local min_angle = 1000.
 local max_angle = -19999.
 local last_angle = 0.
-local last_tur_angle = 0.
+--local last_tur_angle = 0.
 
 local function initJoy()
     for _, j in ipairs(lj.getJoysticks()) do
@@ -341,7 +342,7 @@ local function renderLinesBuf(player_x: number, player_y: number)
 
     if joy then
         local axes = {joy:getAxes()}
-        local msg = table.concat(axes, ",")
+        msg = table.concat(axes, ",")
         pipeline:push("add", 'joy_axes', msg)
     end
     
@@ -654,16 +655,19 @@ local function initBorders()
     end
 end
 
+--[[
 local function writeTurretAngles()
     love.filesystem.append('turret.txt', tostring(last_angle) .. '\n')
     love.filesystem.append('turret.txt', tostring(last_tur_angle) .. '\n')
     love.filesystem.append('turret.txt', '\n')
 end
+--]]
 
 local function spawnPlayer()
     local px, py = screenW / 3, screenH / 2
     playerTank = spawnTank(px, py)
 
+    --[[
     playerTank:register_hit_handler(
         function(
                 tank: wrp.Tank, 
@@ -673,8 +677,9 @@ local function spawnPlayer()
         )
         print('tank', tank)
         print('intersection with: ', wrp.get_object_type(tank as any))
-        writeTurretAngles()
+        --writeTurretAngles()
     end)
+    --]]
 
     if not spawn_only_player then
         -- near friend for debugger
@@ -748,9 +753,11 @@ local function keypressed(key: string)
         is_physics_paused = not is_physics_paused
     end
 
+    --[[
     if key == 's' then
         writeTurretAngles()
     end
+    --]]
 
     if key == 'f1' then
         is_draw_hotkeys_docs = not is_draw_hotkeys_docs
@@ -764,6 +771,21 @@ local function keypressed(key: string)
     if key == '2' then
         draw_selected_object = not draw_selected_object
     end
+
+    --[[
+    local num = 500
+    if key == '9' then
+        for _ = 1, 15 do
+            playerTank:rotate_turret("left")
+        end
+        print('left')
+    elseif key == '0' then
+        for _ = 1, 15 do
+            playerTank:rotate_turret("right")
+        end
+        print('right')
+    end
+    --]]
 
     if key == 'a' then
         is_draw_debug_phys = not is_draw_debug_phys
@@ -1208,7 +1230,7 @@ local function updateJoyState()
     joyState:update()
     if joyState.state and joyState.state ~= "" then
         --debug_print('joy', joyState.state)
-        print('joy', joyState.state)
+        --print('joy', joyState.state)
     end
 end
 
@@ -1282,6 +1304,8 @@ end
 pipeline.tl
 --]]
 
+--local last_scalar_mul = 0.
+
 local function player_rotate_turret(j: Joystick)
     local axes = { j:getAxes() }
     local x_axis_index = 3
@@ -1300,9 +1324,9 @@ local function player_rotate_turret(j: Joystick)
     --print('screeW', screenW)
     --print('screeH', screenH)
 
-    local stick_range = 2.
-    local stick_scale_x = stick_range / screenW
-    local stick_scale_y = stick_range / screenH
+    --local stick_range = 2.
+    --local stick_scale_x = stick_range / screenW
+    --local stick_scale_y = stick_range / screenH
 
     --print('stick_scale_x', stick_scale_x)
     --print('stick_scale_y', stick_scale_y)
@@ -1318,12 +1342,12 @@ local function player_rotate_turret(j: Joystick)
         --stick_scale_y * axes[y_axis_index]
     --)
 
-    stick_x = screenW / 2. + axes[x_axis_index] / stick_scale_x
-    stick_y = screenH / 2. + axes[y_axis_index] / stick_scale_y
+    --stick_x = screenW / 2. + axes[x_axis_index] / stick_scale_x
+    --stick_y = screenH / 2. + axes[y_axis_index] / stick_scale_y
     --stick_x = 0. + axes[x_axis_index] / stick_scale_x
     --stick_y = 0. + axes[y_axis_index] / stick_scale_y
 
-    wrp.stickobj_position_set(stickObj, stick_x, stick_y)
+    --wrp.stickobj_position_set(stickObj, stick_x, stick_y)
 
     --stick_x = screenW / 2. + stick_scale_x * axes[x_axis_index]
     --stick_y = screenH / 2. + stick_scale_y * axes[y_axis_index]
@@ -1336,32 +1360,43 @@ local function player_rotate_turret(j: Joystick)
     --local diff = math.abs(last_angle - angle) / 5.
     --print('diff', diff)
     --local num = 5
-    local num = 1
+    local num = 20
 
-    local tmpx, tmpy, turret_angle = playerTank.base:turret_get_pos()
-    last_tur_angle = turret_angle
+    --local tmpx, tmpy, turret_angle = playerTank.base:turret_get_pos()
+    local _, _, turret_angle = playerTank.base:turret_get_pos()
+    local tur_x, tur_y = fromPolar(turret_angle, 1.)
+    --last_tur_angle = turret_angle
+
+    local scalar_mul = tur_x * axes[x_axis_index] + 
+                       tur_y * axes[y_axis_index]
+
+    --if last_scalar_mul ~= scalar_mul then
+        --last_scalar_mul = scalar_mul
+        ----print('scalar_mul', scalar_mul)
+    --end
 
     turret_angle = turret_angle - math.floor(turret_angle / (math.pi * 2)) *
         (math.pi * 2)
 
-    print('angle', angle)
-    print('turret angle', turret_angle)
-    --print('angle - turret_angle', angle - turret_angle)
-
     if last_angle ~= angle then
-        if angle > -math.pi and angle < 0 then
-            for i = 1, num do
+        local angle_diff = math.abs(last_angle - angle)
+        if angle_diff < 0.01 then
+            print('num divided', num)
+            num = math.floor(num / 10)
+        end
+        --print('angle diff', angle_diff)
+        if scalar_mul < 0 then
+            for _ = 1, num do
                 playerTank:rotate_turret("left")
             end
-            --elseif angle == "r" then
-        else
-            for i = 1, num do
+        elseif scalar_mul > 0 then
+            for _ = 1, num do
                 playerTank:rotate_turret("right")
             end
         end
     end
-    last_angle = angle
 
+    last_angle = angle
 end
 
 local function applyInput(j: Joystick)
@@ -1455,7 +1490,7 @@ local stateCoro: thread = coroutine.create(function(dt: number)
     -- Машина игрока
     spawnPlayer()
 
-    stickObj = wrp.stickobj_new()
+    --stickObj = wrp.stickobj_new()
 
     diamondSquare:eval()
     diamondSquare:send2render()
