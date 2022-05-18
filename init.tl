@@ -157,7 +157,8 @@ local OBJT_SEGMENT          = 8
 
 local draw_selected_object = true
 
-local spawn_only_player = true
+--local spawn_only_player = true
+local spawn_only_player = false
 
 local is_stop = false
 local is_physics_paused = false
@@ -1308,8 +1309,8 @@ pipeline.tl
 
 local function player_rotate_turret(j: Joystick)
     local axes = { j:getAxes() }
-    local x_axis_index = 3
-    local y_axis_index = 4
+    local x_axis_index = joy_conf.dx_turret_axis_index
+    local y_axis_index = joy_conf.dy_turret_axis_index
 
     local angle, _ = vecl.toPolar(axes[x_axis_index], axes[y_axis_index])
     angle = angle + math.pi
@@ -1380,7 +1381,7 @@ local function player_rotate_turret(j: Joystick)
 
     if last_angle ~= angle then
         local angle_diff = math.abs(last_angle - angle)
-        if angle_diff < 0.01 then
+        if angle_diff < 0.04 then
             print('num divided', num)
             num = math.floor(num / 10)
         end
@@ -1467,7 +1468,7 @@ local function processCamera(dt: number)
         return
     end
     local axes = {joy:getAxes()}
-    local dscale = axes[joy_conf.scale_axis_index]
+    --local dscale = axes[joy_conf.scale_axis_index]
     local dx = axes[joy_conf.dx_axis_index]
     local dy = axes[joy_conf.dy_axis_index]
     local px, py: number, number
@@ -1476,7 +1477,8 @@ local function processCamera(dt: number)
         -- playerTank.base:get_position() на один раз за кадр?
         px, py = playerTank.base:get_position()
     end
-    camera:update(dt, dx, dy, dscale, px, py)
+    --camera:update(dt, dx, dy, dscale, px, py)
+    camera:update(dt, dx, dy, 0., px, py)
 end
 
 local stateCoro: thread = coroutine.create(function(dt: number)
