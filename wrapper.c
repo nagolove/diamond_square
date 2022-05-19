@@ -1706,12 +1706,23 @@ int space_query_segment_first(lua_State *lua) {
 }
 #undef SPACE_QUERY_SEGMENT_FIRST
 
+#define TANK_GET_ASSOC_TABLE
+int tank_get_assoc_table(lua_State *lua) {
+    check_argsnum(lua, 1);
+    Tank *tank = (Tank*)luaL_checkudata(lua, 1, "_Tank");
+    lua_rawgeti(lua, LUA_REGISTRYINDEX, tank->assoc_table_reg_index);
+    return 1;
+}
+#undef TANK_GET_ASSOC_TABLE
+
 static const struct luaL_Reg Tank_methods[] =
 {
     // {{{
     /*{"query_segment_first", tank_query_segment_first},*/
     {"turret_rotate", turret_rotate},
     {"turret_get_pos", get_turret_position},
+
+    {"get_table", tank_get_assoc_table},
 
     // установить положение тела
     {"set_position", body_position_set},
@@ -2014,10 +2025,7 @@ int stickobj_new(lua_State *lua) {
     /*stickobj->assoc_table_reg_index = assoc_table_reg_index;*/
 
 #ifdef STICKOBJ_NEW
-    LOG(
-        "stickobj_new: reg_index = %d, assoc_table_reg_index = %d\n", 
-        stickobj->reg_index, stickobj->assoc_table_reg_index
-    );
+    LOG("stickobj_new: reg_index = %d\n", stickobj->reg_index);
 #endif
 
     /*cpShapeSetFriction(shape, 10000.);*/
@@ -2071,6 +2079,28 @@ int get_object_type(lua_State *lua) {
     return 1;
 }
 
+#define SPACE_REMOVE
+int space_remove(lua_State *lua) {
+    CHECK_SPACE;
+    check_argsnum(lua, 1);
+    void *udata = lua_touserdata(lua, 1);
+    if (!udata) {
+        return 0;
+    }
+
+    switch (((Object*)udata)->type) {
+        case OBJT_TANK: {
+            printf("do remove stuff here.\n");
+        }
+        default: {
+            lua_pushstring(lua, "Unknown type in 'space_remove()'");
+            lua_error(lua);
+        }
+    }
+    return 0;
+}
+#undef SPACE_REMOVE
+
 int register_module(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
@@ -2089,6 +2119,7 @@ int register_module(lua_State *lua) {
         {"space_query_segment_first", space_query_segment_first},
         {"space_query_bb_type", space_query_bb_type},
         {"space_query_bb_bullets", space_query_bb_bullets},
+        {"space_remove", space_remove},
 
         // Вызов функции для всех танков в текущем пространстве с учетом башни.
         {"query_all_tanks_t", query_all_tanks_t},
