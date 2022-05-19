@@ -187,7 +187,6 @@ function Camera:update(
     local cam_dx, cam_dy = 0., 0.
     local move = false
 
-    --[[
     if px < self.bbox_pix.x then
         cam_dx = self.bbox_pix.x - px
         move = true
