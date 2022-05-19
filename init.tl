@@ -668,7 +668,6 @@ local function spawnPlayer()
     local px, py = screenW / 3, screenH / 2
     playerTank = spawnTank(px, py)
 
-    --[[
     playerTank:register_hit_handler(
         function(
                 tank: wrp.Tank, 
@@ -676,8 +675,18 @@ local function spawnPlayer()
                 nx: number, ny: number, 
                 alpha: number
         )
-        print('tank', tank)
-        print('intersection with: ', wrp.get_object_type(tank as any))
+        --print('tank', tank)
+        local tank: Tank = tank:get_table() as Tank
+        if tank then
+            for k, v in ipairs(tanks) do
+                if tank == v then
+                    table.remove(tanks, k)
+                end
+            end
+        end
+        tank = nil
+        wrp.space_remove(tank)
+        --print('intersection with: ', wrp.get_object_type(tank as any))
         --writeTurretAngles()
     end)
     --]]
@@ -1382,7 +1391,7 @@ local function player_rotate_turret(j: Joystick)
     if last_angle ~= angle then
         local angle_diff = math.abs(last_angle - angle)
         if angle_diff < 0.04 then
-            print('num divided', num)
+            --print('num divided', num)
             num = math.floor(num / 10)
         end
         --print('angle diff', angle_diff)
