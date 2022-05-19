@@ -5,6 +5,7 @@ local record Wrapper
     record Shape end
     record Space end
 
+    -- {{{ Dbg рисование каркасов физики
     type DbgDrawCircle = function(
         px: number, py: number, angle: number, rad: number
     )
@@ -17,6 +18,7 @@ local record Wrapper
     )
     type DbgDrawPolygon = function(polygon: {number}, rad: number)
     type DbgDrawDot = function(size: number, px: number, py: number)
+    -- }}}
 
     type SegmentCallback = function(
         t: Tank, 
@@ -41,6 +43,8 @@ local record Wrapper
         start_x: number, start_y: number, end_x: number, end_y: number, 
         f: SegmentCallback
     )
+    -- Удалить объект из пространства и памяти физ. движка.
+    space_remove: function(obj: any)
 
     type EachSegmentCallback = function(x1: number, y1: number, x2: number, y2: number)
     type EachBodyCallback = function(x: number, y: number, angle: number, obj: any)
@@ -67,9 +71,6 @@ local record Wrapper
         "segment"
     end
 
-    -- Работает без башни
-    --query_all_tanks: function(EachBodyCallback)
-    -- Работает с башней. Предпочтительный вариант.
     query_all_tanks_t: function(EachTankCallback)
     space_query_bb_type: function(
         x: number, y: number, w: number, h: number,
@@ -160,6 +161,9 @@ local record Wrapper
         -- {{{
         turret_rotate: function(b: Tank, k: number)
         turret_get_pos: function(b: Tank): number, number, number
+
+        -- Возвращает self таблицу, переданную при создании танчика.
+        get_table: function(Tank): any
 
         -- Получить положение тела башни и угол ее поворота.
         get_turret_position: function(b: Tank): number, number, number
