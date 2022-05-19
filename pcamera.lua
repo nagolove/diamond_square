@@ -186,36 +186,35 @@ function Camera:update(   dt,
    local cam_dx, cam_dy = 0., 0.
    local move = false
 
+   if px < self.bbox_pix.x then
+      cam_dx = self.bbox_pix.x - px
+      move = true
+   end
+   local right = self.bbox_pix.x + self.bbox_pix.w
+   if px > right then
+      cam_dx = px - right
+      move = true
+   end
+
+   if py < self.bbox_pix.y then
+      cam_dy = self.bbox_pix.y - py
+      move = true
+   end
+   local bottom = self.bbox_pix.y + self.bbox_pix.h
+   if py > bottom then
+      cam_dy = py - bottom
+      move = true
+   end
+
+   print('px, py', px, py)
 
 
+   if move then
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      self.x = px
+      self.y = py
+   end
 
 
 

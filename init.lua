@@ -157,7 +157,8 @@ local OBJT_SEGMENT = 8
 
 local draw_selected_object = true
 
-local spawn_only_player = true
+
+local spawn_only_player = false
 
 local is_stop = false
 local is_physics_paused = false
@@ -667,18 +668,27 @@ local function spawnPlayer()
    local px, py = screenW / 3, screenH / 2
    playerTank = spawnTank(px, py)
 
+   playerTank:register_hit_handler(
+   function(
+      tank,
+      x, y,
+      nx, ny,
+      alpha)
+
+      print('tank', tank)
+      local tank = tank:get_table()
+      if tank then
+         for k, v in ipairs(tanks) do
+            if tank == v then
+               table.remove(tanks, k)
+            end
+         end
+      end
+      tank = nil
+      wrp.space_remove(tank)
 
 
-
-
-
-
-
-
-
-
-
-
+   end)
 
 
    if not spawn_only_player then
@@ -1308,8 +1318,8 @@ end
 
 local function player_rotate_turret(j)
    local axes = { j:getAxes() }
-   local x_axis_index = 3
-   local y_axis_index = 4
+   local x_axis_index = joy_conf.dx_turret_axis_index
+   local y_axis_index = joy_conf.dy_turret_axis_index
 
    local angle, _ = vecl.toPolar(axes[x_axis_index], axes[y_axis_index])
    angle = angle + math.pi
@@ -1380,8 +1390,8 @@ local function player_rotate_turret(j)
 
    if last_angle ~= angle then
       local angle_diff = math.abs(last_angle - angle)
-      if angle_diff < 0.01 then
-         print('num divided', num)
+      if angle_diff < 0.04 then
+
          num = math.floor(num / 10)
       end
 
@@ -1467,7 +1477,7 @@ local function processCamera(dt)
       return
    end
    local axes = { joy:getAxes() }
-   local dscale = axes[joy_conf.scale_axis_index]
+
    local dx = axes[joy_conf.dx_axis_index]
    local dy = axes[joy_conf.dy_axis_index]
    local px, py
@@ -1476,7 +1486,8 @@ local function processCamera(dt)
 
       px, py = playerTank.base:get_position()
    end
-   camera:update(dt, dx, dy, dscale, px, py)
+
+   camera:update(dt, dx, dy, 0., px, py)
 end
 
 local stateCoro = coroutine.create(function(dt)
