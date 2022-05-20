@@ -1,3 +1,5 @@
+local wrp = require("wrp")
+
 
 
 
@@ -8,29 +10,26 @@ local Hangar = {}
 
 
 
-
-
-
-
-
-
-
-
-
-function Hangar.new(_)
+function Hangar.new(x, y, angle)
    local Hangar_mt = {
       __index = Hangar,
    }
    local self = setmetatable({}, Hangar_mt)
+
+
+
+
+
+
+
+
+
 
    return self
 end
 
 function Hangar:update()
 
-end
-
-function Hangar:present()
 end
 
 return Hangar

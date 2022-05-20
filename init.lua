@@ -675,7 +675,7 @@ local function spawnPlayer()
       nx, ny,
       alpha)
 
-      print('tank', tank)
+
       local tank = tank:get_table()
       if tank then
          for k, v in ipairs(tanks) do
