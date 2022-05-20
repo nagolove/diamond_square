@@ -1,36 +1,35 @@
+local wrp = require "wrp"
+
 --[[
 Ангар - место порождения техники и ее ремонта.
 --]]
 local record Hangar
-    vertices: {number}
     id: integer
-    --objectType: ObjectType
-    color: {number}
-    --physbody: Physics.Body
-    --polyshape: lp.PolygonShape
-    rectXY: {number}
-    rectWH: {number}
-    --fixture: Physics.Fixture
-
-    new: function(): Hangar
+    --base: wrp.Hangar
+    new: function(x: number, y: number, angle: number): Hangar
     update: function(Hangar)
-    present: function(Hangar)
 end
 
-function Hangar.new(_: vector): Hangar
+function Hangar.new(x: number, y: number, angle: number): Hangar
     local Hangar_mt: metatable<Hangar> = {
         __index = Hangar,
     }
     local self = setmetatable({} as Hangar, Hangar_mt)
-    --self.objectType = "Hangar"
+    --[[
+    self.base = wrp.hangar_new({
+            x = x,
+            y = y,
+            angle = angle,
+            objectType = 'hangar',
+            w = 128,
+            h = 128,
+        }, self)
+    --]]
     return self
 end
 
 function Hangar:update()
 
-end
-
-function Hangar:present()
 end
 
 return Hangar
