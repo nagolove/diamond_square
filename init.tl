@@ -120,7 +120,8 @@ local stick_x, stick_y = 0., 0.
 local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
 local DiamonAndSquare = require 'diamondsquare'
-local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(5, rng, pipeline)
+--local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(5, rng, pipeline)
+local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(13, rng, pipeline)
 --local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
 
 --local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
@@ -158,8 +159,8 @@ local OBJT_HANAGR           = 16
 
 local draw_selected_object = true
 
---local spawn_only_player = true
-local spawn_only_player = false
+local spawn_only_player = true
+--local spawn_only_player = false
 
 local is_stop = false
 local is_physics_paused = false
@@ -386,7 +387,7 @@ local function render_internal()
     camera:attach()
 
     -- Ландшафт
-    --diamondSquare:render()
+    diamondSquare:render()
 
     -- Танки
     renderTanks()
@@ -444,6 +445,10 @@ local function renderScene()
             --os.exit(10)
         --end
 
+        -- Рисование не должно быть блокирующим.
+        -- На стороне рендера должен сохраняться весь контекст кадра.
+        -- Если каких-то данных ждать слишком долго, то рисовать то, что есть
+        -- в буфере рендера.
         pipeline:sync()
     end
 end
@@ -1040,7 +1045,6 @@ local function spawnHangars()
     end
     --]]
 
-    --[[ -- PSEUDOCODE
     --[[ getAngarPoints() - исходя из площади "зеленой" т.е. доступной части 
     карты рассчитывается количество точек ангаров. Затем случайным образом
     производится подбор точек отвечающих условиям, а именно - доступность места
@@ -1057,8 +1061,16 @@ local function spawnHangars()
     Статья К. Касперски об усложнении взлома, в дистрибутиве находится
     прекомпилированный lua код. PhysFS используется с ключом шифрования.
     Неясна защита сетевого режима.
+
+    Все изменения в код не должны разрушать текущую систему(программу).
+    Пускай небольшие изменения разрушают работоспособность программы. Значит
+    необходимо организовать дополнительные проверки или огранизовать 
+    параллельные структуры данных. Но избегать краха и неработоспособности
+    программы. В последствии возможно производить переписывание, разрущающее
+    временно программу с целью удаления "параллельных" структур данных.
     --]]
 
+    --[[ -- PSEUDOCODE
     local possiblePoints = getAngarPoints()
     for _, v in ipairs(possiblePoints) do
         spawnHangar(v[1], v[2])
