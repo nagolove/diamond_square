@@ -2,9 +2,10 @@
 -- vim: fdm=marker
 
 local record Wrapper
-    record Shape end
-    record Space end
-
+    record Shape 
+    end
+    record Space 
+    end
     -- {{{ Dbg рисование каркасов физики
     type DbgDrawCircle = function(
         px: number, py: number, angle: number, rad: number
@@ -67,6 +68,7 @@ local record Wrapper
 
     enum ObjectType
         "tank"
+        "hangar"
         "bullet"
         "segment"
     end
@@ -157,6 +159,30 @@ local record Wrapper
     end
     --]]
 
+    record HangarInit
+        -- {{{
+        type: ObjectType
+        angle: number
+        x: number
+        y: number
+        w: number
+        h: number
+        -- }}}
+    end
+
+    --[[
+    record Hangar
+        -- Возвращает self таблицу, переданную при создании ангара.
+        get_table: function(Hangar): any
+        -- Установить положение 
+        set_position: function(b: Hangar, x: number, y: number)
+        -- Получить положение тела и его угол поворота
+        get_position: function(b: Hangar): number, number, number
+    end
+
+    hangar_new: function(init: HangarInit, self: table): Hangar
+    --]]
+
     record Tank
         -- {{{
         turret_rotate: function(b: Tank, k: number)
@@ -210,7 +236,7 @@ local record Wrapper
     -- Вызвать функцию для рисования всех сегментов.
     static_segments_draw: function(EachSegmentCallback)
 
-    record Stick
+    record Stick 
     end
 
     stickobj_new: function(): Stick
@@ -221,10 +247,11 @@ local record Wrapper
     get_object_type: function(any): integer
 
     --[[
-    Какой тип должен быть у object? Body как базовый класс объектов.
+    Узнать тип object можно через get_object_type()
     --]]
-    type EachTank = function(
-        object: Tank, 
+    type EachObject = function(
+        --object: any, 
+        object: Tank,
         px: number, 
         py: number, 
         distance: number,
@@ -232,7 +259,7 @@ local record Wrapper
         grady: number)
 
     -- Обратный вызов функции для фигур в данной точке
-    get_body_under_point: function(x: number, y: number, cb: EachTank)
+    get_body_under_point: function(x: number, y: number, cb: EachObject)
 
     -- Возвращает тело данной фигуры
     --get_shape_body: function(Shape): Body
