@@ -154,6 +154,7 @@ local OBJT_TANK             = 1
 local OBJT_TANK_STICK       = 2
 local OBJT_BULLET           = 4
 local OBJT_SEGMENT          = 8
+local OBJT_HANAGR           = 16
 
 local draw_selected_object = true
 
@@ -166,8 +167,8 @@ local is_draw_hotkeys_docs = false
 local is_draw_gamepad_docs = false
 local is_draw_debug_phys = true
 
-local min_angle = 1000.
-local max_angle = -19999.
+--local min_angle = 1000.
+--local max_angle = -19999.
 local last_angle = 0.
 --local last_tur_angle = 0.
 
@@ -201,8 +202,8 @@ end
 function getTerrainCorners(): {vector}
 end
 
-local function spawnHangar(pos: vector): Hangar
-    local hangar = Hangar.new(pos)
+local function spawnHangar(x: number, y: number): Hangar
+    local hangar = Hangar.new(x, y, 0.)
     table.insert(hangars, hangar)
     return hangar
 end
@@ -1026,12 +1027,43 @@ local function add_gamepad_docs()
 end
 
 local function spawnHangars()
+    --[[
+    Как расставлять ангары? В каких точках карты? Алгоритм расстановки.
+    Значит сперва нужно подготовить карту для расстановки препятствий.
+    --]]
+    --[[
     local corners = getTerrainCorners()
     if corners then
         for _, c in ipairs(corners) do
             spawnHangar(c)
         end
     end
+    --]]
+
+    --[[ -- PSEUDOCODE
+    --[[ getAngarPoints() - исходя из площади "зеленой" т.е. доступной части 
+    карты рассчитывается количество точек ангаров. Затем случайным образом
+    производится подбор точек отвечающих условиям, а именно - доступность места
+    для выезда танчика. Возможно - доступность пути.
+    Идея - анимация всего процесса создания карты:
+    * DiamonAndSquare
+    * Подсчет площади
+    * Расстановка ангаров
+    * Проверка путей и доступности
+
+    То есть для турнира создается случайная карта, на нее приглашаются боты или
+    игроки.
+
+    Статья К. Касперски об усложнении взлома, в дистрибутиве находится
+    прекомпилированный lua код. PhysFS используется с ключом шифрования.
+    Неясна защита сетевого режима.
+    --]]
+
+    local possiblePoints = getAngarPoints()
+    for _, v in ipairs(possiblePoints) do
+        spawnHangar(v[1], v[2])
+    end
+    --]]
 end
 
 local function init()
@@ -1317,6 +1349,7 @@ pipeline.tl
 --local last_scalar_mul = 0.
 
 local function player_rotate_turret(j: Joystick)
+    -- {{{
     local axes = { j:getAxes() }
     local x_axis_index = joy_conf.dx_turret_axis_index
     local y_axis_index = joy_conf.dy_turret_axis_index
@@ -1324,12 +1357,14 @@ local function player_rotate_turret(j: Joystick)
     local angle, _ = vecl.toPolar(axes[x_axis_index], axes[y_axis_index])
     angle = angle + math.pi
 
+    --[[
     if min_angle > angle then
         min_angle = angle
     end
     if max_angle < angle then
         max_angle = angle
     end
+    --]]
 
     --print('screeW', screenW)
     --print('screeH', screenH)
@@ -1407,6 +1442,7 @@ local function player_rotate_turret(j: Joystick)
     end
 
     last_angle = angle
+    -- }}}
 end
 
 local function applyInput(j: Joystick)
