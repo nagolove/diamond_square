@@ -27,11 +27,12 @@ if (!cur_space) {                                       \
 }                                                       \
 
 typedef enum {
-    OBJT_ERROR      = 0b0000,
-    OBJT_TANK       = 0b0001,
-    OBJT_TANK_STICK = 0b0010,
-    OBJT_BULLET     = 0b0100,
-    OBJT_SEGMENT    = 0b1000, // Отрезок, ограничивающиц движение
+    OBJT_ERROR      = 0b000000,
+    OBJT_TANK       = 0b000001, // Танчик
+    OBJT_TANK_STICK = 0b000010, // Отладочный объект столкновения
+    OBJT_BULLET     = 0b000100, // Снаряд
+    OBJT_SEGMENT    = 0b001000, // Отрезок, ограничивающий движение
+    OBJT_HANGAR     = 0b010000,
 } ObjType;
 
 typedef struct {
@@ -2101,6 +2102,12 @@ int space_remove(lua_State *lua) {
 }
 #undef SPACE_REMOVE
 
+#define HANGAR_NEW
+int hangar_new(lua_State *lua) {
+    return 1;
+}
+#undef HANGAR_NEW
+
 int register_module(lua_State *lua) {
     static const struct luaL_Reg functions[] =
     {
@@ -2126,7 +2133,11 @@ int register_module(lua_State *lua) {
 
         // Новый танк
         {"tank_new", tank_new},
+
+        // Пул выстрелов
         {"bullet_pool_new", bullet_pool_new},
+
+        {"hangar_new", hangar_new},
 
         // добавить к статическому телу форму - отрезок
         {"static_segment_new", static_segment_new},
