@@ -13,18 +13,18 @@ endif
 ifeq ($(config),debug)
   RESCOMP = windres
   TARGETDIR = .
-  TARGET = $(TARGETDIR)/wrp.so
-  OBJDIR = obj/Debug/wrp
-  DEFINES +=
+  TARGET = $(TARGETDIR)/diamond_and_square.so
+  OBJDIR = obj/Debug/diamond_and_square
+  DEFINES += -DDEBUG
   INCLUDES += -I/usr/include/luajit-2.1 -I../../../../projects/Chipmunk2D/include -I../../../lua_capi
   FORCE_INCLUDE +=
   ALL_CPPFLAGS += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing
-  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing
+  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC -Wall -Werror -Wno-strict-aliasing
+  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -fPIC -g -fPIC -Wall -Werror -Wno-strict-aliasing
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
   LIBS += -llua5.1 -lchipmunk -lmem_guard -llua_tools
   LDDEPS +=
-  ALL_LDFLAGS += $(LDFLAGS) -L../../../../projects/Chipmunk2D/src -L../../../c_guard -L../../../lua_capi -shared -Wl,-soname=wrp.so -s
+  ALL_LDFLAGS += $(LDFLAGS) -L../../../../projects/Chipmunk2D/src -L../../../c_guard -L../../../lua_capi -shared -Wl,-soname=diamond_and_square.so
   LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
   define PREBUILDCMDS
   endef
@@ -40,18 +40,18 @@ endif
 ifeq ($(config),release)
   RESCOMP = windres
   TARGETDIR = .
-  TARGET = $(TARGETDIR)/wrp.so
-  OBJDIR = obj/Release/wrp
-  DEFINES +=
+  TARGET = $(TARGETDIR)/diamond_and_square.so
+  OBJDIR = obj/Release/diamond_and_square
+  DEFINES += -DNDEBUG
   INCLUDES += -I/usr/include/luajit-2.1 -I../../../../projects/Chipmunk2D/include -I../../../lua_capi
   FORCE_INCLUDE +=
   ALL_CPPFLAGS += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing
-  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing
+  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing
+  ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -O2 -fPIC -fPIC -Wall -Werror -Wno-strict-aliasing
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
   LIBS += -llua5.1 -lchipmunk -lmem_guard -llua_tools
   LDDEPS +=
-  ALL_LDFLAGS += $(LDFLAGS) -L../../../../projects/Chipmunk2D/src -L../../../c_guard -L../../../lua_capi -shared -Wl,-soname=wrp.so -s
+  ALL_LDFLAGS += $(LDFLAGS) -L../../../../projects/Chipmunk2D/src -L../../../c_guard -L../../../lua_capi -shared -Wl,-soname=diamond_and_square.so -s
   LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
   define PREBUILDCMDS
   endef
@@ -65,7 +65,7 @@ all: prebuild prelink $(TARGET)
 endif
 
 OBJECTS := \
-	$(OBJDIR)/wrapper.o \
+	$(OBJDIR)/diamond_and_square.o \
 
 RESOURCES := \
 
@@ -77,7 +77,7 @@ ifeq (.exe,$(findstring .exe,$(ComSpec)))
 endif
 
 $(TARGET): $(GCH) ${CUSTOMFILES} $(OBJECTS) $(LDDEPS) $(RESOURCES) | $(TARGETDIR)
-	@echo Linking wrp
+	@echo Linking diamond_and_square
 	$(SILENT) $(LINKCMD)
 	$(POSTBUILDCMDS)
 
@@ -100,7 +100,7 @@ else
 endif
 
 clean:
-	@echo Cleaning wrp
+	@echo Cleaning diamond_and_square
 ifeq (posix,$(SHELLTYPE))
 	$(SILENT) rm -f  $(TARGET)
 	$(SILENT) rm -rf $(OBJDIR)
@@ -124,7 +124,7 @@ else
 $(OBJECTS): | $(OBJDIR)
 endif
 
-$(OBJDIR)/wrapper.o: wrapper.c
+$(OBJDIR)/diamond_and_square.o: diamond_and_square.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 

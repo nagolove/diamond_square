@@ -120,7 +120,8 @@ local stick_x, stick_y = 0., 0.
 local rng = love.math.newRandomGenerator()
 
 local DiamonAndSquare = require('diamondsquare')
-local diamondSquare = DiamonAndSquare.new(5, rng, pipeline)
+
+local diamondSquare = DiamonAndSquare.new(13, rng, pipeline)
 
 
 
@@ -154,11 +155,12 @@ local OBJT_TANK = 1
 local OBJT_TANK_STICK = 2
 local OBJT_BULLET = 4
 local OBJT_SEGMENT = 8
+local OBJT_HANAGR = 16
 
 local draw_selected_object = true
 
+local spawn_only_player = true
 
-local spawn_only_player = false
 
 local is_stop = false
 local is_physics_paused = false
@@ -166,8 +168,8 @@ local is_draw_hotkeys_docs = false
 local is_draw_gamepad_docs = false
 local is_draw_debug_phys = true
 
-local min_angle = 1000.
-local max_angle = -19999.
+
+
 local last_angle = 0.
 
 
@@ -201,8 +203,8 @@ end
 function getTerrainCorners()
 end
 
-local function spawnHangar(pos)
-   local hangar = Hangar.new(pos)
+local function spawnHangar(x, y)
+   local hangar = Hangar.new(x, y, 0.)
    table.insert(hangars, hangar)
    return hangar
 end
@@ -385,7 +387,7 @@ local function render_internal()
    camera:attach()
 
 
-
+   diamondSquare:render()
 
 
    renderTanks()
@@ -436,6 +438,10 @@ local function renderScene()
    if diff >= fps_limit then
       last_render = nt
       render_internal()
+
+
+
+
 
 
 
@@ -1026,12 +1032,50 @@ local function add_gamepad_docs()
 end
 
 local function spawnHangars()
-   local corners = getTerrainCorners()
-   if corners then
-      for _, c in ipairs(corners) do
-         spawnHangar(c)
-      end
-   end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 end
 
 local function init()
@@ -1317,6 +1361,7 @@ end
 
 
 local function player_rotate_turret(j)
+
    local axes = { j:getAxes() }
    local x_axis_index = joy_conf.dx_turret_axis_index
    local y_axis_index = joy_conf.dy_turret_axis_index
@@ -1324,12 +1369,14 @@ local function player_rotate_turret(j)
    local angle, _ = vecl.toPolar(axes[x_axis_index], axes[y_axis_index])
    angle = angle + math.pi
 
-   if min_angle > angle then
-      min_angle = angle
-   end
-   if max_angle < angle then
-      max_angle = angle
-   end
+
+
+
+
+
+
+
+
 
 
 
@@ -1407,6 +1454,7 @@ local function player_rotate_turret(j)
    end
 
    last_angle = angle
+
 end
 
 local function applyInput(j)
