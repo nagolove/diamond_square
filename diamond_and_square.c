@@ -172,6 +172,7 @@ int diamond_and_square_new(lua_State *lua) {
 
     lua_pushvalue(lua, 2);
     ctx->random_regindex = lua_ref(lua, LUA_REGISTRYINDEX);
+    /*lua_rawgeti(lua, LUA_REGISTRYINDEX, ctx->random_regindex);*/
 
     struct {
         int i, j;
@@ -217,6 +218,12 @@ void square(Context *ctx) {
 int diamond_and_square_eval(lua_State *lua) {
     check_argsnum(lua, 1);
     Context *ctx = luaL_checkudata(lua, 1, "_DiamondSquare");
+
+    if (!ctx->map) {
+        lua_pushstring(lua, "diamond_and_square_eval: map was deallocated");
+        lua_error(lua);
+    }
+
     return 0;
 }
 
