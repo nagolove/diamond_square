@@ -10,14 +10,12 @@ endif
 
 ifeq ($(config),debug)
   wrp_config = debug
-  diamond_and_square_config = debug
 endif
 ifeq ($(config),release)
   wrp_config = release
-  diamond_and_square_config = release
 endif
 
-PROJECTS := wrp diamond_and_square
+PROJECTS := wrp
 
 .PHONY: all clean help $(PROJECTS) 
 
@@ -29,15 +27,8 @@ ifneq (,$(wrp_config))
 	@${MAKE} --no-print-directory -C . -f wrp.make config=$(wrp_config)
 endif
 
-diamond_and_square:
-ifneq (,$(diamond_and_square_config))
-	@echo "==== Building diamond_and_square ($(diamond_and_square_config)) ===="
-	@${MAKE} --no-print-directory -C . -f diamond_and_square.make config=$(diamond_and_square_config)
-endif
-
 clean:
 	@${MAKE} --no-print-directory -C . -f wrp.make clean
-	@${MAKE} --no-print-directory -C . -f diamond_and_square.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -50,6 +41,5 @@ help:
 	@echo "   all (default)"
 	@echo "   clean"
 	@echo "   wrp"
-	@echo "   diamond_and_square"
 	@echo ""
 	@echo "For more information, see https://github.com/premake/premake-core/wiki"

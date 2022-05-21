@@ -36,10 +36,6 @@ workspace "wrapper"
     project "wrp"
         files { "**.h", "wrapper.c" }
         --links { "lua5.1" }
-    project "diamond_and_square"
-        files { "**.h", "diamond_and_square.c" }
-        --links { "lua5.1" }
-
 
     filter "configurations:Debug"
     defines { "DEBUG" }
