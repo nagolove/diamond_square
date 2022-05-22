@@ -119,7 +119,8 @@ local stick_x, stick_y = 0., 0.
 
 local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
-local DiamonAndSquare = require 'diamondsquare'
+--local DiamonAndSquare = require 'diamondsquare'
+local DiamonAndSquare = require 'diamondsquare_c'
 --local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(5, rng, pipeline)
 local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(13, rng, pipeline)
 --local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
