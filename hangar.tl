@@ -1,4 +1,4 @@
-local wrp = require "wrp"
+--local wrp = require "wrp"
 
 --[[
 Ангар - место порождения техники и ее ремонта.

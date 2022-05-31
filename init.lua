@@ -89,6 +89,7 @@ local State = {}
 local state = 'map'
 
 local Tank = require('tank')
+local Hangar = require('hangar')
 
 local screenW, screenH
 
@@ -98,14 +99,13 @@ local space_damping = 0.02
 
 local tanks = {}
 
-local Hangar = require('hangar')
-
 
 local hangars = {}
 
 
 local playerTank
 
+local coroutines = {}
 
 
 local Borders = {}
@@ -121,7 +121,18 @@ local rng = love.math.newRandomGenerator()
 
 local DiamonAndSquare = require('diamondsquare')
 
-local diamondSquare = DiamonAndSquare.new(13, rng, pipeline)
+
+local function randomWrapper()
+   return rng:random()
+end
+
+local diamondSquare = DiamonAndSquare.new(
+5,
+randomWrapper,
+pipeline)
+
+
+
 
 
 
@@ -240,23 +251,6 @@ local function on_each_body_t(
       pipeline:push('new_t', tank.id, x, y, angle, tur_x, tur_y, tur_angle)
    end
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 local function renderSegments()
    pipeline:open('border_segments')
@@ -476,7 +470,7 @@ local function spawnTank(px, py)
 
    local tank = Tank.new(px, py)
 
-   print("tank", inspect(tank))
+
    table.insert(tanks, tank)
    local tank_x, tank_y, angle = tank.base:get_position()
    local turret_x, turret_y, turret_angle = tank.base:turret_get_pos()
@@ -583,7 +577,7 @@ local function processLandscapeKeys(key)
    if key == 'z' then
       local mapn = diamondSquare.mapn - 1
       if mapn >= 1 then
-         diamondSquare = DiamonAndSquare.new(mapn, rng, pipeline)
+         diamondSquare = DiamonAndSquare.new(mapn, randomWrapper, pipeline)
          diamondSquare:eval()
          diamondSquare:send2render()
          lines_buf_push_mapn()
@@ -593,7 +587,7 @@ local function processLandscapeKeys(key)
    if key == 'x' then
       local mapn = diamondSquare.mapn + 1
       if mapn <= 10 then
-         diamondSquare = DiamonAndSquare.new(mapn, rng, pipeline)
+         diamondSquare = DiamonAndSquare.new(mapn, randomWrapper, pipeline)
          diamondSquare:eval()
          diamondSquare:send2render()
          lines_buf_push_mapn()
@@ -651,7 +645,7 @@ local function initBorders()
 
    if borders_data then
       for _, b in ipairs(borders_data) do
-         print('border', inspect(b))
+
          table.insert(
          segments,
          wrp.static_segment_new(b.x1, b.y1, b.x2, b.y2))
@@ -1538,6 +1532,17 @@ local function processCamera(dt)
    camera:update(dt, dx, dy, 0., px, py)
 end
 
+local function processCoroutines()
+   local alive = {}
+   for _, thread in ipairs(coroutines) do
+      local ok = coroutine.resume(thread)
+      if ok then
+         table.insert(alive, thread)
+      end
+   end
+   coroutines = alive
+end
+
 local stateCoro = coroutine.create(function(dt)
 
 
@@ -1566,6 +1571,7 @@ local stateCoro = coroutine.create(function(dt)
 
 
          processCamera(dt)
+         processCoroutines();
 
 
          if not is_physics_paused then
