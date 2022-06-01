@@ -20,28 +20,23 @@ dprint.set_filter {
 --]]
 
 local colorize = require 'ansicolors2'.ansicolors
-debug_print('thread', colorize('%{yellow}>>>>>%{reset} t80 started'))
+debug_print('thread', colorize('%{yellow}>>>>>%{reset} diamond_square started'))
 
 require "love_inc".require_pls_nographic()
 
 debug_print('thread', 'love.filesystem.getRequirePath()', love.filesystem.getRequirePath())
 
-local require_path = "scenes/t80/?.lua;?.lua;?/init.lua;"
+local require_path = "scenes/diamond_square/?.lua;?.lua;?/init.lua;"
 
 love.filesystem.setRequirePath(require_path)
-love.filesystem.setCRequirePath("scenes/t80/?.so;?.so")
+love.filesystem.setCRequirePath("scenes/diamond_square/?.so;?.so")
 
 print('require_path', require_path)
 print('getCRequirePath()', love.filesystem.getCRequirePath())
 print("package.cpath", package.cpath)
 print('getWorkingDirectory', love.filesystem.getWorkingDirectory())
 
--- TODO Диалог для настройки клавиш геймпада
-local joy_conf = require 'joy_conf'
-local fire_threshold = 0.5
-
 require "love"
-require 'konstants'
 require 'pipeline'
 require "common"
 
@@ -53,24 +48,11 @@ local sformat = string.format
 local inspect = require "inspect"
 --local serpent = require 'serpent'
 --local i18n = require "i18n"
-local metrics = require "metrics"
 --local vec2 = require "vector"
-local vecl = require "vector-light"
-
--- Вывод в строку
---local tabular = require "tabular".show
 
 local Pipeline = require 'pipeline'
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
--- рисование стрелочек векторов
-local arrow = require 'arrow'
-arrow.init(pipeline)
-
---local Shortcut = KeyConfig.Shortcut
-
---local abs, pow, sqrt = math.abs, math.pow, math.sqrt
---local abs = math.abs
 local yield, resume = coroutine.yield, coroutine.resume
 
 local enum State 
@@ -111,14 +93,6 @@ local main_channel = love.thread.getChannel("main_channel")
 
 local last_render: number = love.timer.getTime()
 
-local PCamera = require "pcamera"
-local camera: PCamera
-
-local lj = love.joystick
-local Joystick = lj.Joystick
-local joyState: JoyState
-local joy: Joystick
-
 local is_stop = false
 
 local function print_fps()
@@ -135,8 +109,6 @@ end
 local function render_internal()
     pipeline:openAndClose('clear')
 
-    camera:attach()
-
     -- Ландшафт
     diamondSquare:render()
 
@@ -146,18 +118,9 @@ local function render_internal()
     -- Инфа об объекте под мышкой
     pipeline:openPushAndClose('object_lines_buf', 'flush')
 
-    camera:detach()
-
-    pipeline:openPushAndClose('joy_stick', stick_x, stick_y)
-
-    -- Строчки с отладочной инфой.
-    renderLinesBuf(player_x, player_y)
-
     -- Оси через центр экрана
     --camera:draw_axises()
     --]]
-
-    camera:draw_bbox()
 end
 
 local function renderScene()
@@ -254,8 +217,6 @@ end
 
 local function initRenderCode()
     -- {{{
-    pipeline:pushCodeFromFile('dbg_phys', 'rdr_dbg_phys.lua')
-
     -- рисовать ортогональные оси координат в левом верхнем углу экрана
     -- {{{
     pipeline:pushCode("main_axises", [[
@@ -280,10 +241,9 @@ local function initRenderCode()
     -- }}}
    
     -- Буфер для вывода отладочной информации в левом верхнем углу экрана.
-    pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
+    --pipeline:pushCodeFromFile('lines_buf', 'lines_buf.lua')
     -- Буфер для вывода отладочной информации при наведении на физическое тело.
-    pipeline:pushCodeFromFile('object_lines_buf', 'lines_buf.lua')
-    docsystem.init_render_stage1(pipeline)
+    --pipeline:pushCodeFromFile('object_lines_buf', 'lines_buf.lua')
 
     -- Очистка экрана
     -- {{{
@@ -302,30 +262,12 @@ end
 
 -- Инициализация параметрами объектов-корутин на стороне главного потока.
 local function initPipelineObjects()
-    Tank.initPipelineObjects(pipeline, camera)
-
     local dejavu_mono = "DejaVuSansMono.ttf"
     pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
     pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
-
-    docsystem.init_render_stage2()
-
     pipeline:openAndClose("debug_vertices")
 
     pipeline:sync()
-
-    --[[
-    -- {{{
-    pipeline:openPushAndClose(
-        'lines_buf',                -- coroutine object name
-        "add",                      -- object command
-        'hi',                       -- message id
-        "привет из недр движка",    -- message(payload)
-        "flush"                     -- render buffer and break waiting cycle
-    )
-    -- }}}
-    --]]
-
 end
 
 local function init()
@@ -335,21 +277,13 @@ local function init()
     -- Начальное значение генератора для определенной карты
     rng:setSeed(300 * 123414)
 
-    metrics.init()
-
     screenW, screenH = pipeline:getDimensions()
     print('screenW, screenH', screenW, screenH)
-
-    -- Требует инициализации после создания объекта pipeline, но до функций
-    -- init*
-    camera = PCamera.new(pipeline, screenW, screenH)
 
     -- Загрузка удаленного кода для рисования
     initRenderCode()
     -- Дополнительная инициализация объектов рисовки.
     initPipelineObjects()
-
-    bindFullscreenSwitcher()
 
     -- }}}
     last_render = love.timer.getTime()
@@ -358,7 +292,6 @@ local function init()
 end
 
 local function quit()
-    metrics.quit()
 end
 
 local stat_push_counter = 0
@@ -370,11 +303,9 @@ local function inc_push_counter(): integer
 end
 
 local function mousemoved(x: number, y: number, dx: number, dy: number)
-    metrics.mousemoved(x, y, dx, dy)
 end
 
 local function wheelmoved(x: number, y: number)
-    metrics.wheelmoved(x, y)
 end
 
 --[[
@@ -382,11 +313,7 @@ end
 --]]
 local function mousepressed(x: number, y: number, btn: integer)
     -- {{{
-    metrics.mousepressed(x, y, btn)
     -- }}}
-end
-
-local function joystickpressed(_: Joystick, button: integer)
 end
 
 local function process_events()
@@ -426,11 +353,6 @@ local function process_events()
                 local x, y = (e as {number})[2], (e as {number})[3]
                 local btn = (e as {integer})[4]
                 mousepressed(x, y, btn)
-
-            elseif evtype == "joystickpressed" then
-                local joystick = (e as {number})[2] as Joystick
-                local button = (e as {number})[3] as integer
-                joystickpressed(joystick, button)
             end
         end
     end
@@ -459,13 +381,8 @@ local stateCoro: thread = coroutine.create(function(dt: number)
             process_events()
             renderScene()
 
-            ------------ UPDATE HERE PLEASE ------------ 
-            --arena:update()
-
-            processCamera(dt)
+            --processCamera(dt)
             processCoroutines();
-
-            applyInput(joy)
 
             dt = yield() as number
         elseif state == 'garage' then
@@ -498,10 +415,8 @@ mainloop()
 
 if is_stop then
     quit()
-    print('space', space)
-    wrp.space_free(space)
     main_channel:push('quit')
     debug_print('thread', 'Thread resources are freed')
 end
 
-debug_print('thread', colorize('%{yellow}<<<<<%{reset} t80 finished'))
+debug_print('thread', colorize('%{yellow}<<<<<%{reset} diamond_square finished'))
