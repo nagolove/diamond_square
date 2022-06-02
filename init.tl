@@ -51,12 +51,12 @@ local inspect = require "inspect"
 --local vec2 = require "vector"
 
 local Pipeline = require 'pipeline'
+local SCENE_PREFIX = "scenes/diamond_square"
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
 local yield, resume = coroutine.yield, coroutine.resume
 
 local enum State 
-    'garage'
     'map'
 end
 
@@ -65,28 +65,21 @@ local state: State = 'map'
 local screenW, screenH: number, number
 
 local coroutines: {thread} = {}
---local stickObj: wrp.Stick
 
 local rng: love.math.RandomGenerator = love.math.newRandomGenerator()
 
-local DiamonAndSquare = require 'diamondsquare'
---local DiamonAndSquare = require 'diamondsquare_c'
+local DiamonAndSquare_lua = require 'diamondsquare'
+local DiamonAndSquare_c = require 'diamondsquare_c'
 
 local function randomWrapper(): number
     return rng:random()
 end
 
-local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(
-    5, 
-    randomWrapper,
-    pipeline
-)
+local generators: {DiamonAndSquare_lua} = {}
 
---local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(13, rng, pipeline)
---local diamondSquare: DiamonAndSquare = DiamonAndSquare.new(8, rng, pipeline)
-
---local loadCannonSound = Audio.newSource(SCENE_PREFIX .. "/load.wav", 'static')
---local audMainTheme = Audio.newSource(SCENE_PREFIX .. "/audio/Lime of Adventure.mp3", 'static')
+table.insert(generators, DiamonAndSquare_lua.new(5, randomWrapper, pipeline))
+table.insert(generators, DiamonAndSquare_c.new(5, randomWrapper, pipeline) as
+    DiamonAndSquare_lua)
 
 local event_channel = love.thread.getChannel("event_channel")
 local main_channel = love.thread.getChannel("main_channel")
@@ -110,13 +103,17 @@ local function render_internal()
     pipeline:openAndClose('clear')
 
     -- Ландшафт
-    diamondSquare:render()
+    for _, gen in ipairs(generators) do
+        gen:render()
+    end
 
     -- Оси на экране из (0, 0)
-    pipeline:openAndClose('main_axises')
+    --pipeline:openAndClose('main_axises')
+
+    pipeline:openAndClose('welcome_text')
 
     -- Инфа об объекте под мышкой
-    pipeline:openPushAndClose('object_lines_buf', 'flush')
+    --pipeline:openPushAndClose('object_lines_buf', 'flush')
 
     -- Оси через центр экрана
     --camera:draw_axises()
@@ -143,30 +140,26 @@ end
 
 -- Нарисовать параметр размера карты в буфер отладочных строк.
 local function lines_buf_push_mapn()
-    if not diamondSquare then
-        return
-    end
-    pipeline:open('lines_buf')
-    pipeline:push("add", 'mapn', "mapn: " .. diamondSquare.mapn)
-    --pipeline:push('enough')
-    pipeline:push('flush')
-    pipeline:close()
+    --pipeline:open('lines_buf')
+    --pipeline:push("add", 'mapn', "mapn: " .. diamondSquare.mapn)
+    ----pipeline:push('enough')
+    --pipeline:push('flush')
+    --pipeline:close()
 end
 
 -- Клавиши для управления генератором ландшафта.
 local function processLandscapeKeys(key: string)
     -- Имеет смысл перенести в imgui?
 
-    if not diamondSquare then
-        return
-    end
-
     if key == 'r' then
-        diamondSquare:reset()
-        diamondSquare:eval()
-        diamondSquare:send2render()
+        for _, gen in ipairs(generators) do
+            gen:reset()
+            gen:eval()
+            gen:send2render()
+        end
     end
 
+    --[[
     if key == 'z' then
         local mapn = diamondSquare.mapn - 1
         if mapn >= 1 then
@@ -186,6 +179,7 @@ local function processLandscapeKeys(key: string)
             lines_buf_push_mapn()
         end
     end
+    --]]
 end
 
 local function changeWindowMode()
@@ -201,6 +195,8 @@ local function keypressed(key: string)
         is_stop = true
         debug_print('input', colorize('%{blue}escape pressed'))
     end
+
+    processLandscapeKeys(key)
 
     --[[
     if key == 'f1' then
@@ -257,15 +253,29 @@ local function initRenderCode()
     ]])
     -- }}}
 
+    pipeline:pushCode('welcome_text', [[
+    local gr = love.graphics
+    local fnt = gr.newFont(SCENE_PREFIX .. "/DejaVuSansMono.ttf", 32)
+    while true do
+        local x0, y0 = 0, 0
+        gr.setFont(fnt)
+        gr.print("Тестовый стенд алгоритма генерации ландшафта.", x0, y0)
+        y0 = y0 + fnt:getHeight()
+        gr.print("Для пересоздания нажми 'r'", x0, y0)
+        coroutine.yield()
+    end
+    ]])
+
     -- }}}
 end
 
 -- Инициализация параметрами объектов-корутин на стороне главного потока.
 local function initPipelineObjects()
     local dejavu_mono = "DejaVuSansMono.ttf"
-    pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
-    pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
-    pipeline:openAndClose("debug_vertices")
+
+    --pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
+    --pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
+    --pipeline:openAndClose("debug_vertices")
 
     pipeline:sync()
 end
@@ -371,9 +381,10 @@ end
 
 local stateCoro: thread = coroutine.create(function(dt: number)
 
-    diamondSquare:eval()
-    diamondSquare:send2render()
-    --lines_buf_push_mapn()
+    for _, gen in ipairs(generators) do
+        gen:eval()
+        gen:send2render()
+    end
 
     while true do
     -- {{{
@@ -385,8 +396,6 @@ local stateCoro: thread = coroutine.create(function(dt: number)
             processCoroutines();
 
             dt = yield() as number
-        elseif state == 'garage' then
-            --coroutine.yield()
         end
         --print('state', state)
     -- }}}
