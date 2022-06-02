@@ -51,12 +51,12 @@ local inspect = require("inspect")
 
 
 local Pipeline = require('pipeline')
+local SCENE_PREFIX = "scenes/diamond_square"
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
 local yield, resume = coroutine.yield, coroutine.resume
 
 local State = {}
-
 
 
 
@@ -66,26 +66,19 @@ local screenW, screenH
 
 local coroutines = {}
 
-
 local rng = love.math.newRandomGenerator()
 
-local DiamonAndSquare = require('diamondsquare')
-
+local DiamonAndSquare_lua = require('diamondsquare')
+local DiamonAndSquare_c = require('diamondsquare_c')
 
 local function randomWrapper()
    return rng:random()
 end
 
-local diamondSquare = DiamonAndSquare.new(
-5,
-randomWrapper,
-pipeline)
+local generators = {}
 
-
-
-
-
-
+table.insert(generators, DiamonAndSquare_lua.new(5, randomWrapper, pipeline))
+table.insert(generators, DiamonAndSquare_c.new(5, randomWrapper, pipeline))
 
 
 local event_channel = love.thread.getChannel("event_channel")
@@ -110,13 +103,17 @@ local function render_internal()
    pipeline:openAndClose('clear')
 
 
-   diamondSquare:render()
+   for _, gen in ipairs(generators) do
+      gen:render()
+   end
 
 
-   pipeline:openAndClose('main_axises')
 
 
-   pipeline:openPushAndClose('object_lines_buf', 'flush')
+   pipeline:openAndClose('welcome_text')
+
+
+
 
 
 
@@ -143,49 +140,46 @@ end
 
 
 local function lines_buf_push_mapn()
-   if not diamondSquare then
-      return
-   end
-   pipeline:open('lines_buf')
-   pipeline:push("add", 'mapn', "mapn: " .. diamondSquare.mapn)
 
-   pipeline:push('flush')
-   pipeline:close()
+
+
+
+
 end
 
 
 local function processLandscapeKeys(key)
 
 
-   if not diamondSquare then
-      return
-   end
-
    if key == 'r' then
-      diamondSquare:reset()
-      diamondSquare:eval()
-      diamondSquare:send2render()
-   end
-
-   if key == 'z' then
-      local mapn = diamondSquare.mapn - 1
-      if mapn >= 1 then
-         diamondSquare = DiamonAndSquare.new(mapn, randomWrapper, pipeline)
-         diamondSquare:eval()
-         diamondSquare:send2render()
-         lines_buf_push_mapn()
+      for _, gen in ipairs(generators) do
+         gen:reset()
+         gen:eval()
+         gen:send2render()
       end
    end
 
-   if key == 'x' then
-      local mapn = diamondSquare.mapn + 1
-      if mapn <= 10 then
-         diamondSquare = DiamonAndSquare.new(mapn, randomWrapper, pipeline)
-         diamondSquare:eval()
-         diamondSquare:send2render()
-         lines_buf_push_mapn()
-      end
-   end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 end
 
 local function changeWindowMode()
@@ -201,6 +195,8 @@ local function keypressed(key)
       is_stop = true
       debug_print('input', colorize('%{blue}escape pressed'))
    end
+
+   processLandscapeKeys(key)
 
 
 
@@ -257,15 +253,29 @@ local function initRenderCode()
     ]])
 
 
+   pipeline:pushCode('welcome_text', [[
+    local gr = love.graphics
+    local fnt = gr.newFont(SCENE_PREFIX .. "/DejaVuSansMono.ttf", 32)
+    while true do
+        local x0, y0 = 0, 0
+        gr.setFont(fnt)
+        gr.print("Тестовый стенд алгоритма генерации ландшафта.", x0, y0)
+        y0 = y0 + fnt:getHeight()
+        gr.print("Для пересоздания нажми 'r'", x0, y0)
+        coroutine.yield()
+    end
+    ]])
+
 
 end
 
 
 local function initPipelineObjects()
    local dejavu_mono = "DejaVuSansMono.ttf"
-   pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
-   pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
-   pipeline:openAndClose("debug_vertices")
+
+
+
+
 
    pipeline:sync()
 end
@@ -371,9 +381,10 @@ end
 
 local stateCoro = coroutine.create(function(dt)
 
-   diamondSquare:eval()
-   diamondSquare:send2render()
-
+   for _, gen in ipairs(generators) do
+      gen:eval()
+      gen:send2render()
+   end
 
    while true do
 
@@ -385,8 +396,6 @@ local stateCoro = coroutine.create(function(dt)
          processCoroutines();
 
          dt = yield()
-      elseif state == 'garage' then
-
       end
 
 
