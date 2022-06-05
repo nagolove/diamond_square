@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local package = _tl_compat and _tl_compat.package or package; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local package = _tl_compat and _tl_compat.package or package; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -84,6 +84,41 @@ local function initGenerators()
    table.insert(generators, gen)
 
 
+   local function generator_wrapper()
+      local thread
+      local ok, errmsg = pcall(function()
+         thread = gen:newCoroutine()
+      end)
+      if not ok then
+         print('errmsg', errmsg)
+      end
+      local stop = false
+      print('coro was started')
+
+
+
+
+
+
+
+      print('coro was finished')
+   end
+
+   local module = require('diamondsquare_coro')
+   gen = module.new(5, randomWrapper, pipeline)
+   table.insert(coroutines, coroutine.create(generator_wrapper))
+
+
+
+
+
+
+
+
+   gen:setPosition(0., 400.)
+   table.insert(generators, gen)
+
+
    gen = DiamonAndSquare_c.new(5, randomWrapper, pipeline)
    gen:setPosition(400., 0.)
    table.insert(generators, gen)
@@ -160,11 +195,13 @@ local function processLandscapeKeys(key)
 
 
    if key == 'r' then
+
       for _, gen in ipairs(generators) do
          gen:reset()
          gen:eval()
          gen:send2render()
       end
+
    end
 
 
