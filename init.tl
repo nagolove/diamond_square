@@ -85,18 +85,36 @@ local function initGenerators()
 
     -- Сопрограмма-обертка, в ней должен быть таймер с проверкой.
     local function generator_wrapper()
-        local thread = gen:newCoroutine()
+        local thread: thread
+        local ok, errmsg = pcall(function()
+        thread = gen:newCoroutine()
+        end) as (boolean, string)
+        if not ok then
+            print('errmsg', errmsg)
+        end
         local stop = false
-        print('beee')
+        print('coro was started')
+        --[[
         repeat
             stop = coroutine.resume(thread)
+            print('stop', stop)
             yield()
         until stop
+        --]]
+        print('coro was finished')
     end
 
     local module = require 'diamondsquare_coro'
     gen = module.new(5, randomWrapper, pipeline) as DiamonAndSquare_lua
     table.insert(coroutines, coroutine.create(generator_wrapper))
+    --[[
+    table.insert(coroutines, coroutine.create(function()
+        for i = 1, 100 do
+            print(i)
+            yield()
+        end
+    end))
+    --]]
     gen:setPosition(0., 400.)
     table.insert(generators, gen)
 
