@@ -77,9 +77,17 @@ end
 
 local generators: {DiamonAndSquare_lua} = {}
 
-table.insert(generators, DiamonAndSquare_lua.new(5, randomWrapper, pipeline))
-table.insert(generators, DiamonAndSquare_c.new(5, randomWrapper, pipeline) as
-    DiamonAndSquare_lua)
+local function initGenerators()
+    local gen: DiamonAndSquare_lua
+
+    gen = DiamonAndSquare_lua.new(5, randomWrapper, pipeline)
+    table.insert(generators, gen)
+
+    -- Какие есть идеи для наследования записей в Teal?
+    gen = DiamonAndSquare_c.new(5, randomWrapper, pipeline) as DiamonAndSquare_lua
+    gen:setPosition(400., 0.)
+    table.insert(generators, gen)
+end
 
 local event_channel = love.thread.getChannel("event_channel")
 local main_channel = love.thread.getChannel("main_channel")
@@ -295,10 +303,11 @@ local function init()
     -- Дополнительная инициализация объектов рисовки.
     initPipelineObjects()
 
-    -- }}}
     last_render = love.timer.getTime()
+    initGenerators()
 
     print('init finished')
+    -- }}}
 end
 
 local function quit()
