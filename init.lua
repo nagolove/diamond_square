@@ -77,9 +77,17 @@ end
 
 local generators = {}
 
-table.insert(generators, DiamonAndSquare_lua.new(5, randomWrapper, pipeline))
-table.insert(generators, DiamonAndSquare_c.new(5, randomWrapper, pipeline))
+local function initGenerators()
+   local gen
 
+   gen = DiamonAndSquare_lua.new(5, randomWrapper, pipeline)
+   table.insert(generators, gen)
+
+
+   gen = DiamonAndSquare_c.new(5, randomWrapper, pipeline)
+   gen:setPosition(400., 0.)
+   table.insert(generators, gen)
+end
 
 local event_channel = love.thread.getChannel("event_channel")
 local main_channel = love.thread.getChannel("main_channel")
@@ -295,10 +303,11 @@ local function init()
 
    initPipelineObjects()
 
-
    last_render = love.timer.getTime()
+   initGenerators()
 
    print('init finished')
+
 end
 
 local function quit()
