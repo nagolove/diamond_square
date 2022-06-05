@@ -83,6 +83,23 @@ local function initGenerators()
     gen = DiamonAndSquare_lua.new(5, randomWrapper, pipeline)
     table.insert(generators, gen)
 
+    -- Сопрограмма-обертка, в ней должен быть таймер с проверкой.
+    local function generator_wrapper()
+        local thread = gen:newCoroutine()
+        local stop = false
+        print('beee')
+        repeat
+            stop = coroutine.resume(thread)
+            yield()
+        until stop
+    end
+
+    local module = require 'diamondsquare_coro'
+    gen = module.new(5, randomWrapper, pipeline) as DiamonAndSquare_lua
+    table.insert(coroutines, coroutine.create(generator_wrapper))
+    gen:setPosition(0., 400.)
+    table.insert(generators, gen)
+
     -- Какие есть идеи для наследования записей в Teal?
     gen = DiamonAndSquare_c.new(5, randomWrapper, pipeline) as DiamonAndSquare_lua
     gen:setPosition(400., 0.)
@@ -160,11 +177,13 @@ local function processLandscapeKeys(key: string)
     -- Имеет смысл перенести в imgui?
 
     if key == 'r' then
+        --initGenerators()
         for _, gen in ipairs(generators) do
             gen:reset()
             gen:eval()
             gen:send2render()
         end
+        --]]
     end
 
     --[[
