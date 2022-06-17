@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local package = _tl_compat and _tl_compat.package or package; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local os = _tl_compat and _tl_compat.os or os; local package = _tl_compat and _tl_compat.package or package; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -66,25 +66,50 @@ local screenW, screenH
 
 local coroutines = {}
 
-local rng = love.math.newRandomGenerator()
+local seed = 300 * 123414
+local rng1 = love.math.newRandomGenerator(os.time())
+rng1:setSeed(seed)
+
+local rng2 = love.math.newRandomGenerator(os.time())
+rng2:setSeed(seed)
+
+local rng3 = love.math.newRandomGenerator(os.time())
+rng3:setSeed(seed)
+
+local rng4 = love.math.newRandomGenerator(os.time())
+rng4:setSeed(seed)
 
 local DiamonAndSquare_lua = require('diamondsquare')
 local DiamonAndSquare_c = require('diamondsquare_c')
 
-local function randomWrapper()
-   return rng:random()
+local function randomWrapper1()
+   return rng1:random()
+end
+
+local function randomWrapper2()
+   return rng2:random()
+end
+
+local function randomWrapper3()
+   return rng3:random()
+end
+
+local function randomWrapper4()
+   return rng4:random()
 end
 
 local generators = {}
+local dim = 6
 
 local function initGenerators()
    local gen
 
-   gen = DiamonAndSquare_lua.new(5, randomWrapper, pipeline)
+   gen = DiamonAndSquare_lua.new(dim, randomWrapper1, pipeline)
    table.insert(generators, gen)
 
 
    local function generator_wrapper()
+
       local thread
       local ok, errmsg = pcall(function()
          thread = gen:newCoroutine()
@@ -102,11 +127,9 @@ local function initGenerators()
 
 
       print('coro was finished')
+
    end
 
-   local module = require('diamondsquare_coro')
-   gen = module.new(5, randomWrapper, pipeline)
-   table.insert(coroutines, coroutine.create(generator_wrapper))
 
 
 
@@ -115,12 +138,19 @@ local function initGenerators()
 
 
 
-   gen:setPosition(0., 400.)
-   table.insert(generators, gen)
 
 
-   gen = DiamonAndSquare_c.new(5, randomWrapper, pipeline)
-   gen:setPosition(400., 0.)
+
+
+
+
+
+
+
+
+
+   gen = DiamonAndSquare_c.new(dim, randomWrapper3, pipeline)
+   gen:setPosition(800., 0.)
    table.insert(generators, gen)
 end
 
@@ -225,6 +255,7 @@ local function processLandscapeKeys(key)
 
 
 
+
 end
 
 local function changeWindowMode()
@@ -298,15 +329,25 @@ local function initRenderCode()
     ]])
 
 
+   pipeline:pushCodeFromFileRoot('labels', 'rdr_labels.lua')
+
    pipeline:pushCode('welcome_text', [[
     local gr = love.graphics
     local fnt = gr.newFont(SCENE_PREFIX .. "/DejaVuSansMono.ttf", 32)
     while true do
         local x0, y0 = 0, 0
+        gr.setColor{1, 0, 0, 1}
         gr.setFont(fnt)
         gr.print("Тестовый стенд алгоритма генерации ландшафта.", x0, y0)
         y0 = y0 + fnt:getHeight()
         gr.print("Для пересоздания нажми 'r'", x0, y0)
+
+        gr.setColor{0, 1, 0, 1}
+        gr.print("Lua reference(1) 1", 0, 30)
+        gr.print("C implemetation 2", 400, 30)
+        gr.print("Lua coroutine 3", 0, 400)
+        gr.print("Lua reference(2) 4", 400, 400)
+
         coroutine.yield()
     end
     ]])
@@ -315,8 +356,30 @@ local function initRenderCode()
 end
 
 
+local labels = {
+   {
+      labels = "title1",
+      x = 0,
+      y = 0,
+   },
+   {
+      labels = "other title",
+      x = 500,
+      y = 0,
+   },
+   {
+      labels = "I am a cow",
+      x = 0,
+      y = 600,
+   },
+}
+
+
+
 local function initPipelineObjects()
    local dejavu_mono = "DejaVuSansMono.ttf"
+
+
 
 
 
@@ -328,9 +391,6 @@ end
 local function init()
 
    print('init started')
-
-
-   rng:setSeed(300 * 123414)
 
    screenW, screenH = pipeline:getDimensions()
    print('screenW, screenH', screenW, screenH)
