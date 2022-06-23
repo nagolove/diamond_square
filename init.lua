@@ -1,4 +1,4 @@
-local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local os = _tl_compat and _tl_compat.os or os; local package = _tl_compat and _tl_compat.package or package; local pcall = _tl_compat and _tl_compat.pcall or pcall; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
+local _tl_compat; if (tonumber((_VERSION or ''):match('[%d.]*$')) or 0) < 5.3 then local p, m = pcall(require, 'compat53.module'); if p then _tl_compat = m end end; local coroutine = _tl_compat and _tl_compat.coroutine or coroutine; local ipairs = _tl_compat and _tl_compat.ipairs or ipairs; local math = _tl_compat and _tl_compat.math or math; local os = _tl_compat and _tl_compat.os or os; local package = _tl_compat and _tl_compat.package or package; local string = _tl_compat and _tl_compat.string or string; local table = _tl_compat and _tl_compat.table or table
 
 
 
@@ -51,7 +51,7 @@ local inspect = require("inspect")
 
 
 local Pipeline = require('pipeline')
-local SCENE_PREFIX = "scenes/diamond_square"
+SCENE_PREFIX = "scenes/diamond_square"
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
 local yield, resume = coroutine.yield, coroutine.resume
@@ -108,17 +108,6 @@ local function initGenerators()
    table.insert(generators, gen)
 
 
-   local function generator_wrapper()
-
-      local thread
-      local ok, errmsg = pcall(function()
-         thread = gen:newCoroutine()
-      end)
-      if not ok then
-         print('errmsg', errmsg)
-      end
-      local stop = false
-      print('coro was started')
 
 
 
@@ -126,9 +115,20 @@ local function initGenerators()
 
 
 
-      print('coro was finished')
 
-   end
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -377,7 +377,7 @@ local labels = {
 
 
 local function initPipelineObjects()
-   local dejavu_mono = "DejaVuSansMono.ttf"
+
 
 
 
@@ -418,16 +418,16 @@ local function inc_push_counter()
    return prev_value
 end
 
-local function mousemoved(x, y, dx, dy)
+local function mousemoved(_, _, _, _)
 end
 
-local function wheelmoved(x, y)
+local function wheelmoved(_, _)
 end
 
 
 
 
-local function mousepressed(x, y, btn)
+local function mousepressed(_, _, _)
 
 
 end
