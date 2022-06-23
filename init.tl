@@ -51,7 +51,7 @@ local inspect = require "inspect"
 --local vec2 = require "vector"
 
 local Pipeline = require 'pipeline'
-local SCENE_PREFIX = "scenes/diamond_square"
+SCENE_PREFIX = "scenes/diamond_square"
 local pipeline = Pipeline.new(SCENE_PREFIX)
 
 local yield, resume = coroutine.yield, coroutine.resume
@@ -108,6 +108,7 @@ local function initGenerators()
     table.insert(generators, gen)
 
     -- Сопрограмма-обертка, в ней должен быть таймер с проверкой.
+    --[[
     local function generator_wrapper()
         -- {{{
         local thread: thread
@@ -117,18 +118,17 @@ local function initGenerators()
         if not ok then
             print('errmsg', errmsg)
         end
-        local stop = false
+        --local stop = false
         print('coro was started')
-        --[[
-        repeat
-            stop = coroutine.resume(thread)
-            print('stop', stop)
-            yield()
-        until stop
-        --]]
+        --repeat
+            --stop = coroutine.resume(thread)
+            --print('stop', stop)
+            --yield()
+        --until stop
         print('coro was finished')
         -- }}}
     end
+    --]]
 
     --[[
     -- Пример с корутиной
@@ -377,7 +377,7 @@ local labels = {
 
 -- Инициализация параметрами объектов-корутин на стороне главного потока.
 local function initPipelineObjects()
-    local dejavu_mono = "DejaVuSansMono.ttf"
+    --local dejavu_mono = "DejaVuSansMono.ttf"
 
     --pipeline:openPushAndClose('lines_buf', dejavu_mono, 24)
     --pipeline:openPushAndClose('object_lines_buf', dejavu_mono, 30)
@@ -418,16 +418,16 @@ local function inc_push_counter(): integer
     return prev_value
 end
 
-local function mousemoved(x: number, y: number, dx: number, dy: number)
+local function mousemoved(_: number, _: number, _: number, _: number)
 end
 
-local function wheelmoved(x: number, y: number)
+local function wheelmoved(_: number, _: number)
 end
 
 --[[
 Сделать передвижение камеры по зажатию средней клавиши мыши.
 --]]
-local function mousepressed(x: number, y: number, btn: integer)
+local function mousepressed(_: number, _: number, _: integer)
     -- {{{
     -- }}}
 end
